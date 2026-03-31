@@ -1,0 +1,80 @@
+[
+  {
+    "PlaceTypeID": 10, 
+    "PlaceTypeK": "មណ្ឌលសុខភាព (ស្តង់ដារ )", 
+    "PlaceTypeE": "HC (standard)", 
+    "isProvLevel": null
+  }, 
+  {
+    "PlaceTypeID": 12, 
+    "PlaceTypeK": "មន្ទីរពេទ្យបង្អែក", 
+    "PlaceTypeE": "Referral Hospital", 
+    "isProvLevel": null
+  }, 
+  {
+    "PlaceTypeID": 13, 
+    "PlaceTypeK": "សាលាភូមិភាគ.សុខាភិបាល", 
+    "PlaceTypeE": "RTC", 
+    "isProvLevel": null
+  }, 
+  {
+    "PlaceTypeID": 14, 
+    "PlaceTypeK": "ផ្នែក (មន្ទីរពេទ្យបង្អែក )", 
+    "PlaceTypeE": "RH Division", 
+    "isProvLevel": null
+  }, 
+  {
+    "PlaceTypeID": 15, 
+    "PlaceTypeK": "ប៉ុស្តិ៍សុខភាព", 
+    "PlaceTypeE": "HP", 
+    "isProvLevel": null
+  }, 
+  {
+    "PlaceTypeID": 16, 
+    "PlaceTypeK": "ផ្នែក (ការិយាល័យស្រុកប្រតិបត្តិ )", 
+    "PlaceTypeE": "OD Division", 
+    "isProvLevel": null
+  }, 
+  {
+    "PlaceTypeID": 17, 
+    "PlaceTypeK": "ការិយាល័យស្រុកប្រតិបត្តិ", 
+    "PlaceTypeE": "OD", 
+    "isProvLevel": null
+  }, 
+  {
+    "PlaceTypeID": 18, 
+    "PlaceTypeK": "ការិយាល័យ (មន្ទីរសុខាភិបាល )", 
+    "PlaceTypeE": "PHD Office", 
+    "isProvLevel": null
+  }, 
+  {
+    "PlaceTypeID": 20, 
+    "PlaceTypeK": "ផ្នែក", 
+    "PlaceTypeE": "Division", 
+    "isProvLevel": null
+  }, 
+  {
+    "PlaceTypeID": 21, 
+    "PlaceTypeK": "មន្ទីរសុខាភិបាល", 
+    "PlaceTypeE": "PHD", 
+    "isProvLevel": null
+  }, 
+  {
+    "PlaceTypeID": 22, 
+    "PlaceTypeK": "ថ្នាក់ដឹកនាំ", 
+    "PlaceTypeE": "Leader Division", 
+    "isProvLevel": null
+  }, 
+  {
+    "PlaceTypeID": 23, 
+    "PlaceTypeK": "មណ្ឌលសុខភាព (មានគ្រែ )", 
+    "PlaceTypeE": "HC (former district hospital)", 
+    "isProvLevel": null
+  }, 
+  {
+    "PlaceTypeID": 0, 
+    "PlaceTypeK": " ", 
+    "PlaceTypeE": null, 
+    "isProvLevel": false
+  }
+]

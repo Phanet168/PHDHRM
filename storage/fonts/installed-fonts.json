@@ -1,0 +1,14 @@
+{
+    "khmerbody": {
+        "normal": "C:\\xampp\\htdocs\\PHDHRM\\storage\\fonts\/khmerbody_normal_e3c6dba8d498134b599cd1dd4e39b86d",
+        "bold": "khmerbody_bold_e3c6dba8d498134b599cd1dd4e39b86d"
+    },
+    "khmerhead": {
+        "normal": "C:\\xampp\\htdocs\\PHDHRM\\storage\\fonts\/khmerhead_normal_9e3b41e9a53fe338f0531db1216a642d",
+        "bold": "khmerhead_bold_9e3b41e9a53fe338f0531db1216a642d"
+    },
+    "khmerfallback": {
+        "normal": "C:\\xampp\\htdocs\\PHDHRM\\storage\\fonts\/khmerfallback_normal_4bc80d48efc4a15ba217fa12f1b56783",
+        "bold": "khmerfallback_bold_4bc80d48efc4a15ba217fa12f1b56783"
+    }
+}

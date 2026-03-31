@@ -1,0 +1,21 @@
+﻿
+Table         Rows File               
+-----         ---- ----               
+MaritalStatus    5 marital_status.json
+OpDistrict      78 op_district.json   
+PayLevel        70 pay_level.json     
+PlaceType       13 place_type.json    
+Position        34 position.json      
+Province        27 province.json      
+Skill           28 skill.json         
+SSLType          6 ssl_type.json      
+SSLValues       88 ssl_values.json    
+Staff          608 staff.json         
+StatusHistory  609 status_history.json
+TblCadre         4 tbl_cadre.json     
+WorkHistory   1366 work_history.json  
+WorkPlace       78 workplace_old.json 
+WorkStatus      51 work_status.json   
+
+
+

@@ -1,0 +1,240 @@
+[
+  {
+    "PositionID": 15, 
+    "PositionK": "ប្រធានមជ្ឈមណ្ឌលជាតិ", 
+    "Range": 1, 
+    "isProvLevel": null, 
+    "PositionE": "Director of Center"
+  }, 
+  {
+    "PositionID": 16, 
+    "PositionK": "អនុប្រធានមជ្ឈមណ្ឌលជាតិ", 
+    "Range": 2, 
+    "isProvLevel": null, 
+    "PositionE": "Deputy Director of  Center"
+  }, 
+  {
+    "PositionID": 19, 
+    "PositionK": "ប្រធានឃ្លាំងឱសថ", 
+    "Range": 5, 
+    "isProvLevel": null, 
+    "PositionE": "Director of Central Medical Store"
+  }, 
+  {
+    "PositionID": 20, 
+    "PositionK": "អនុប្រធានឃ្ល្លាំងំឱសថ", 
+    "Range": 6, 
+    "isProvLevel": null, 
+    "PositionE": "Deputy Director of Central Medical Store"
+  }, 
+  {
+    "PositionID": 25, 
+    "PositionK": "នាយកសាលាភូមិភាគ", 
+    "Range": 1, 
+    "isProvLevel": null, 
+    "PositionE": "Director of RTC"
+  }, 
+  {
+    "PositionID": 26, 
+    "PositionK": "នាយករងសាលាភូមិភាគ", 
+    "Range": 2, 
+    "isProvLevel": null, 
+    "PositionE": "Deputy Director of RTC"
+  }, 
+  {
+    "PositionID": 27, 
+    "PositionK": "ប្រធានមន្ទីរសុខាភិបិលារាជធានីភ្នំពេញ", 
+    "Range": 1, 
+    "isProvLevel": null, 
+    "PositionE": "Director of Municipal Health Department"
+  }, 
+  {
+    "PositionID": 28, 
+    "PositionK": "អនុប្រធានមន្ទីរសុខាភិបាលរាជធានីភ្នំពេញ", 
+    "Range": 2, 
+    "isProvLevel": null, 
+    "PositionE": "Deputy Director of Municipal Health Department"
+  }, 
+  {
+    "PositionID": 29, 
+    "PositionK": "ប្រធានមន្ទីរសុខាភិិបិលាខេត្ត-ក្រុង", 
+    "Range": 1, 
+    "isProvLevel": null, 
+    "PositionE": "Director of Provincial Health Department"
+  }, 
+  {
+    "PositionID": 30, 
+    "PositionK": "អនុប្រធានមន្ទីរសុខាភិបាលខេត្ត-ក្រុង", 
+    "Range": 2, 
+    "isProvLevel": null, 
+    "PositionE": "Deputy Director of Provincial Health Department"
+  }, 
+  {
+    "PositionID": 31, 
+    "PositionK": "ប្រធានការិយាល័យសុខ៉ាភិបាលស្រុកប្រតិបត្តិ្ត", 
+    "Range": 1, 
+    "isProvLevel": null, 
+    "PositionE": "Chief of Operational District Office"
+  }, 
+  {
+    "PositionID": 32, 
+    "PositionK": "អនុប្រធានការិយាល័យសុខ៉ាភិបាលស្រុកប្រតិបត្តិ្ត", 
+    "Range": 2, 
+    "isProvLevel": null, 
+    "PositionE": "Deputy Chief o Operational District Office"
+  }, 
+  {
+    "PositionID": 33, 
+    "PositionK": "ប្រធានមន្ទីរពេទ្យបង្អែក", 
+    "Range": 1, 
+    "isProvLevel": null, 
+    "PositionE": "Chief of Referral Hospital"
+  }, 
+  {
+    "PositionID": 34, 
+    "PositionK": "អនុប្រធានមន្ទីរពេទ្យបង្អែក", 
+    "Range": 2, 
+    "isProvLevel": null, 
+    "PositionE": "Deputy Chief of Referral Hospital"
+  }, 
+  {
+    "PositionID": 35, 
+    "PositionK": "ប្រធានមណ្ឌលសុខភាព", 
+    "Range": 1, 
+    "isProvLevel": null, 
+    "PositionE": "Chief of Health Centre"
+  }, 
+  {
+    "PositionID": 36, 
+    "PositionK": "អនុប្រធានមណ្ឌលសុខភាព", 
+    "Range": 2, 
+    "isProvLevel": null, 
+    "PositionE": "Deputy Chief of Health Centre"
+  }, 
+  {
+    "PositionID": 38, 
+    "PositionK": "បុគ្គលិក", 
+    "Range": 10, 
+    "isProvLevel": null, 
+    "PositionE": "Staff"
+  }, 
+  {
+    "PositionID": 39, 
+    "PositionK": "ប្រធានស្ថានីយ៏", 
+    "Range": 5, 
+    "isProvLevel": null, 
+    "PositionE": "Chief of Station"
+  }, 
+  {
+    "PositionID": 40, 
+    "PositionK": "អនុប្រធានស្ថានីយ៏", 
+    "Range": 6, 
+    "isProvLevel": null, 
+    "PositionE": "Assistant Chief of Station"
+  }, 
+  {
+    "PositionID": 41, 
+    "PositionK": "នាយសាល", 
+    "Range": 5, 
+    "isProvLevel": null, 
+    "PositionE": "Chief of Ward"
+  }, 
+  {
+    "PositionID": 42, 
+    "PositionK": "នាយសាលរង", 
+    "Range": 6, 
+    "isProvLevel": null, 
+    "PositionE": "Assistant Chief of Ward"
+  }, 
+  {
+    "PositionID": 43, 
+    "PositionK": "ប្រធានផ្នែក", 
+    "Range": 5, 
+    "isProvLevel": null, 
+    "PositionE": "Chief of Section"
+  }, 
+  {
+    "PositionID": 44, 
+    "PositionK": "អនុប្រធានផ្នែក", 
+    "Range": 6, 
+    "isProvLevel": null, 
+    "PositionE": "Assistant Chief of Section"
+  }, 
+  {
+    "PositionID": 45, 
+    "PositionK": "ប្រធានក្រុម", 
+    "Range": 5, 
+    "isProvLevel": null, 
+    "PositionE": "Chief of Group"
+  }, 
+  {
+    "PositionID": 46, 
+    "PositionK": "អនុប្រធានក្រុម", 
+    "Range": 6, 
+    "isProvLevel": null, 
+    "PositionE": "Assistant Chief of Group"
+  }, 
+  {
+    "PositionID": 47, 
+    "PositionK": "ប្រធានកម្មវិធី", 
+    "Range": 5, 
+    "isProvLevel": null, 
+    "PositionE": "Chief of Program"
+  }, 
+  {
+    "PositionID": 48, 
+    "PositionK": "អនុប្រធានកម្មវិធី", 
+    "Range": 6, 
+    "isProvLevel": null, 
+    "PositionE": "Assistant Chief of Program"
+  }, 
+  {
+    "PositionID": 49, 
+    "PositionK": "ព្រឹទ្ធបុរស", 
+    "Range": 1, 
+    "isProvLevel": null, 
+    "PositionE": "Dean"
+  }, 
+  {
+    "PositionID": 50, 
+    "PositionK": "ព្រឹទ្ធបុរសរង", 
+    "Range": 2, 
+    "isProvLevel": null, 
+    "PositionE": "Deputy Dean"
+  }, 
+  {
+    "PositionID": 51, 
+    "PositionK": "សាស្ត្រាចារ្យ", 
+    "Range": 10, 
+    "isProvLevel": null, 
+    "PositionE": "Professor"
+  }, 
+  {
+    "PositionID": 52, 
+    "PositionK": "បុគ្គលិកបច្ចេកទេសសុខាភិបាល", 
+    "Range": 10, 
+    "isProvLevel": null, 
+    "PositionE": "Health Technical Staff"
+  }, 
+  {
+    "PositionID": 53, 
+    "PositionK": "បុគ្គលិកបច្ចេកទេសក្រៅសុខាភិបាល", 
+    "Range": 10, 
+    "isProvLevel": null, 
+    "PositionE": "Non-Health Technical Staff"
+  }, 
+  {
+    "PositionID": 56, 
+    "PositionK": "ប្រធានការិយាល័យ-ខេត្ត.ក្រុង", 
+    "Range": 3, 
+    "isProvLevel": null, 
+    "PositionE": "Bureau Chief - Provincial"
+  }, 
+  {
+    "PositionID": 57, 
+    "PositionK": "អនុប្រធានការិយាល័យ-ខេត្ត.ក្រុង", 
+    "Range": 4, 
+    "isProvLevel": null, 
+    "PositionE": "Vice Chief of Bureau - Provincial"
+  }
+]

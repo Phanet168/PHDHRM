@@ -1,0 +1,32 @@
+﻿[
+    {
+        "sslID":  0,
+        "sslNameE":  "No SSL1",
+        "sslNameK":  "អត់មានស្តង់ដារ"
+    },
+    {
+        "sslID":  1,
+        "sslNameE":  "CPA1",
+        "sslNameK":  "មន្ទីរពេទ្យបង្អែក (សី.ភី.អេ ១ )"
+    },
+    {
+        "sslID":  2,
+        "sslNameE":  "CPA2",
+        "sslNameK":  "មន្ទីរពេទ្យបង្អែក (សី.ភី.អេ ២ )"
+    },
+    {
+        "sslID":  3,
+        "sslNameE":  "CPA3",
+        "sslNameK":  "មន្ទីរពេទ្យបង្អែក (សី.ភី.អេ ៣ )"
+    },
+    {
+        "sslID":  4,
+        "sslNameE":  "HC(Former)",
+        "sslNameK":  "មណ្ឌលសុខភាព (មានគ្រែ )"
+    },
+    {
+        "sslID":  5,
+        "sslNameE":  "HC",
+        "sslNameK":  "មណ្ឌលសុខភាព (ស្តង់ដារ )"
+    }
+]

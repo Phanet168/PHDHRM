@@ -1,0 +1,80 @@
+﻿[
+    {
+        "PlaceTypeID":  10,
+        "PlaceTypeE":  "HC (standard)",
+        "PlaceTypeK":  "មណ្ឌលសុខភាព (ស្តង់ដារ )",
+        "isProvLevel":  null
+    },
+    {
+        "PlaceTypeID":  12,
+        "PlaceTypeE":  "Referral Hospital",
+        "PlaceTypeK":  "មន្ទីរពេទ្យបង្អែក",
+        "isProvLevel":  null
+    },
+    {
+        "PlaceTypeID":  13,
+        "PlaceTypeE":  "RTC",
+        "PlaceTypeK":  "សាលាភូមិភាគ.សុខាភិបាល",
+        "isProvLevel":  null
+    },
+    {
+        "PlaceTypeID":  14,
+        "PlaceTypeE":  "RH Division",
+        "PlaceTypeK":  "ផ្នែក (មន្ទីរពេទ្យបង្អែក )",
+        "isProvLevel":  null
+    },
+    {
+        "PlaceTypeID":  15,
+        "PlaceTypeE":  "HP",
+        "PlaceTypeK":  "ប៉ុស្តិ៍សុខភាព",
+        "isProvLevel":  null
+    },
+    {
+        "PlaceTypeID":  16,
+        "PlaceTypeE":  "OD Division",
+        "PlaceTypeK":  "ផ្នែក (ការិយាល័យស្រុកប្រតិបត្តិ )",
+        "isProvLevel":  null
+    },
+    {
+        "PlaceTypeID":  17,
+        "PlaceTypeE":  "OD",
+        "PlaceTypeK":  "ការិយាល័យស្រុកប្រតិបត្តិ",
+        "isProvLevel":  null
+    },
+    {
+        "PlaceTypeID":  18,
+        "PlaceTypeE":  "PHD Office",
+        "PlaceTypeK":  "ការិយាល័យ (មន្ទីរសុខាភិបាល )",
+        "isProvLevel":  null
+    },
+    {
+        "PlaceTypeID":  20,
+        "PlaceTypeE":  "Division",
+        "PlaceTypeK":  "ផ្នែក",
+        "isProvLevel":  null
+    },
+    {
+        "PlaceTypeID":  21,
+        "PlaceTypeE":  "PHD",
+        "PlaceTypeK":  "មន្ទីរសុខាភិបាល",
+        "isProvLevel":  null
+    },
+    {
+        "PlaceTypeID":  22,
+        "PlaceTypeE":  "Leader Division",
+        "PlaceTypeK":  "ថ្នាក់ដឹកនាំ",
+        "isProvLevel":  null
+    },
+    {
+        "PlaceTypeID":  23,
+        "PlaceTypeE":  "HC (former district hospital)",
+        "PlaceTypeK":  "មណ្ឌលសុខភាព (មានគ្រែ )",
+        "isProvLevel":  null
+    },
+    {
+        "PlaceTypeID":  0,
+        "PlaceTypeE":  null,
+        "PlaceTypeK":  " ",
+        "isProvLevel":  false
+    }
+]

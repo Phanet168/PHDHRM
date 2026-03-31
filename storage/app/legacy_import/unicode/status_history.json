@@ -1,0 +1,6092 @@
+[
+  {
+    "StartDate": "/Date(568486800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1168", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1072890000000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1169", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(349635600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1304182800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1170", 
+    "CurrentStatus": null, 
+    "Prakah": "351", 
+    "PrakahDate": "/Date(1303318800000)/"
+  }, 
+  {
+    "StartDate": "/Date(307645200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1430413200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1171", 
+    "CurrentStatus": null, 
+    "Prakah": "513", 
+    "PrakahDate": "/Date(1425315600000)/"
+  }, 
+  {
+    "StartDate": "/Date(519152400000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1648746000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1172", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(505760400000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1173", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(979146000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1174", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(493664400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1177", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(676227600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1178", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(531162000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1180", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(505760400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1181", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1073062800000)/", 
+    "WorkStatusID": 20, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1182", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(519152400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1184", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(537037200000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": "/Date(1604163600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1185", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1070298000000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1186", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1171472400000)/", 
+    "WorkStatusID": 11, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1188", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(505760400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1218", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(599590800000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": "/Date(1596214800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1220", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(441738000000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1520614800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1222", 
+    "CurrentStatus": null, 
+    "Prakah": "678", 
+    "PrakahDate": "/Date(1511888400000)/"
+  }, 
+  {
+    "StartDate": "/Date(1072890000000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1223", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(31683600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1429203600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1226", 
+    "CurrentStatus": null, 
+    "Prakah": "308", 
+    "PrakahDate": "/Date(1429635600000)/"
+  }, 
+  {
+    "StartDate": "/Date(441738000000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1228", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(883846800000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1538326800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1229", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(307645200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1480006800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1230", 
+    "CurrentStatus": null, 
+    "Prakah": "538", 
+    "PrakahDate": "/Date(1471798800000)/"
+  }, 
+  {
+    "StartDate": "/Date(407005200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1231", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1171818000000)/", 
+    "WorkStatusID": 21, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1232", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(407005200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1233", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1138813200000)/", 
+    "WorkStatusID": 11, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1236", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(325530000000)/", 
+    "WorkStatusID": 10, 
+    "EndDate": "/Date(1451581200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1237", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(388429200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1606755600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1238", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(663181200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1240", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(563907600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1243", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(852483600000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1252", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(563907600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1253", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(554317200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1254", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(331750800000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1530896400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1257", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(883587600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1259", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(537296400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1260", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(334342800000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1267376400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1263", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(328035600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1433091600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1264", 
+    "CurrentStatus": null, 
+    "Prakah": "617", 
+    "PrakahDate": "/Date(1432832400000)/"
+  }, 
+  {
+    "StartDate": "/Date(-53247600000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1265", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(356634000000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1271", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(379098000000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1646067600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1273", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(548874000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1274", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(505760400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1275", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(663181200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1278", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(663181200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1280", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(663181200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1281", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(505760400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1282", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(504896400000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1682874000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1283", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1136134800000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1284", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(410979600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1259600400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1285", 
+    "CurrentStatus": null, 
+    "Prakah": "914", 
+    "PrakahDate": "/Date(1254157200000)/"
+  }, 
+  {
+    "StartDate": "/Date(308336400000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1388509200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1286", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(309632400000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1287", 
+    "CurrentStatus": null, 
+    "Prakah": "187", 
+    "PrakahDate": "/Date(1470589200000)/"
+  }, 
+  {
+    "StartDate": "/Date(358707600000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1977", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1104771600000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1978", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(358707600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1433091600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1980", 
+    "CurrentStatus": null, 
+    "Prakah": "512", 
+    "PrakahDate": "/Date(1432918800000)/"
+  }, 
+  {
+    "StartDate": "/Date(694890000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1982", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1055610000000)/", 
+    "WorkStatusID": 11, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|490", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1067965200000)/", 
+    "WorkStatusID": 11, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|940", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(663181200000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|943", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(883846800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|944", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(410634000000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1204304400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|945", 
+    "CurrentStatus": null, 
+    "Prakah": "780", 
+    "PrakahDate": "/Date(1226077200000)/"
+  }, 
+  {
+    "StartDate": "/Date(285181200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1591722000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|946", 
+    "CurrentStatus": null, 
+    "Prakah": "553", 
+    "PrakahDate": "/Date(1571158800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1151773200000)/", 
+    "WorkStatusID": 11, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|948", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(567968400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|949", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(504896400000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1304182800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|951", 
+    "CurrentStatus": null, 
+    "Prakah": "205", 
+    "PrakahDate": "/Date(1299690000000)/"
+  }, 
+  {
+    "StartDate": "/Date(651603600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|952", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(353437200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1243098000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|954", 
+    "CurrentStatus": null, 
+    "Prakah": "191", 
+    "PrakahDate": "/Date(1235408400000)/"
+  }, 
+  {
+    "StartDate": "/Date(639421200000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|957", 
+    "CurrentStatus": null, 
+    "Prakah": "025/24", 
+    "PrakahDate": "/Date(1719248400000)/"
+  }, 
+  {
+    "StartDate": "/Date(651085200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|963", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(410202000000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1557421200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|965", 
+    "CurrentStatus": null, 
+    "Prakah": "624", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(378925200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|998", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(388515600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1609434000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1000", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(307645200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1430413200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1002", 
+    "CurrentStatus": null, 
+    "Prakah": "310", 
+    "PrakahDate": "/Date(1429635600000)/"
+  }, 
+  {
+    "StartDate": "/Date(1104685200000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1004", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(955299600000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1005", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(328640400000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1499706000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1006", 
+    "CurrentStatus": null, 
+    "Prakah": "371", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(883846800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1008", 
+    "CurrentStatus": false, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(23648400000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1320080400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1010", 
+    "CurrentStatus": null, 
+    "Prakah": "751", 
+    "PrakahDate": "/Date(1317574800000)/"
+  }, 
+  {
+    "StartDate": "/Date(381430800000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1042", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(307645200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1043", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(9219600000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1044", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(943549200000)/", 
+    "WorkStatusID": 10, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1045", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(320400000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1262278800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1050", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(17254800000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1249059600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1058", 
+    "CurrentStatus": null, 
+    "Prakah": "715", 
+    "PrakahDate": "/Date(1248195600000)/"
+  }, 
+  {
+    "StartDate": "/Date(317581200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1538326800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1060", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1001264400000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1090", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(-31561200000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1093", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1073149200000)/", 
+    "WorkStatusID": 22, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1126", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(299264400000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1217523600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1127", 
+    "CurrentStatus": null, 
+    "Prakah": "774", 
+    "PrakahDate": "/Date(1226077200000)/"
+  }, 
+  {
+    "StartDate": "/Date(610563600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": "/Date(1439053200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1129", 
+    "CurrentStatus": null, 
+    "Prakah": "644", 
+    "PrakahDate": "/Date(1435597200000)/"
+  }, 
+  {
+    "StartDate": "/Date(633891600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1130", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1136134800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": "/Date(1483117200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1134", 
+    "CurrentStatus": null, 
+    "Prakah": "115", 
+    "PrakahDate": "/Date(1456678800000)/"
+  }, 
+  {
+    "StartDate": "/Date(678301200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1135", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(663181200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1136", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1136998800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": "/Date(1392656400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1137", 
+    "CurrentStatus": null, 
+    "Prakah": "148", 
+    "PrakahDate": "/Date(1392656400000)/"
+  }, 
+  {
+    "StartDate": "/Date(663181200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1139", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(562870800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1141", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1073408400000)/", 
+    "WorkStatusID": 10, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1143", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(519152400000)/", 
+    "WorkStatusID": 21, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1144", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(568746000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1147", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(600368400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1148", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(568746000000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1149", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1117558800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|25", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1185901200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22080", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(622227600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|65", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1214845200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|66", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1186506000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|67", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(852051600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": "/Date(1417971600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|74", 
+    "CurrentStatus": null, 
+    "Prakah": "1144", 
+    "PrakahDate": "/Date(1417971600000)/"
+  }, 
+  {
+    "StartDate": "/Date(536432400000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1984", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(449600400000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1441040400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1987", 
+    "CurrentStatus": null, 
+    "Prakah": "761", 
+    "PrakahDate": "/Date(1439139600000)/"
+  }, 
+  {
+    "StartDate": "/Date(536432400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1988", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(441738000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1989", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(308336400000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1301590800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1992", 
+    "CurrentStatus": null, 
+    "Prakah": "142", 
+    "PrakahDate": "/Date(1298134800000)/"
+  }, 
+  {
+    "StartDate": "/Date(441738000000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1249059600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1994", 
+    "CurrentStatus": null, 
+    "Prakah": "716", 
+    "PrakahDate": "/Date(1248195600000)/"
+  }, 
+  {
+    "StartDate": "/Date(523818000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1995", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(856198800000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": "/Date(1247418000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|2817", 
+    "CurrentStatus": null, 
+    "Prakah": "684", 
+    "PrakahDate": "/Date(1247418000000)/"
+  }, 
+  {
+    "StartDate": "/Date(870973200000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|2857", 
+    "CurrentStatus": null, 
+    "Prakah": "483", 
+    "PrakahDate": "/Date(1276707600000)/"
+  }, 
+  {
+    "StartDate": "/Date(881859600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|2866", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(853002000000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": "/Date(1240160400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|2983", 
+    "CurrentStatus": null, 
+    "Prakah": "395", 
+    "PrakahDate": "/Date(1240160400000)/"
+  }, 
+  {
+    "StartDate": "/Date(881859600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|2993", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(915123600000)/", 
+    "WorkStatusID": 28, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|3119", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(881859600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|3129", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(851878800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|3135", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(883587600000)/", 
+    "WorkStatusID": 28, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|3136", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(915123600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|3142", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1014915600000)/", 
+    "WorkStatusID": 3, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|3157", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1072976400000)/", 
+    "WorkStatusID": 21, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|3170", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(853002000000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|3173", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(836499600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|3182", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(818874000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|3186", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(773773200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|3532", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(663181200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|5038", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(320259600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1517504400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|5040", 
+    "CurrentStatus": null, 
+    "Prakah": "678", 
+    "PrakahDate": "/Date(1511888400000)/"
+  }, 
+  {
+    "StartDate": "/Date(568746000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|10256", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1014915600000)/", 
+    "WorkStatusID": 3, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|14127", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(773773200000)/", 
+    "WorkStatusID": 6, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|14128", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(773773200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|14222", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1009904400000)/", 
+    "WorkStatusID": 21, 
+    "EndDate": "/Date(1278003600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|14223", 
+    "CurrentStatus": null, 
+    "Prakah": "500", 
+    "PrakahDate": "/Date(1278003600000)/"
+  }, 
+  {
+    "StartDate": "/Date(315680400000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15169", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(320691600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1388509200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15170", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(502563600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15173", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(995907600000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15178", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(978627600000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15180", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1073667600000)/", 
+    "WorkStatusID": 20, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15186", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1136912400000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15188", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(870973200000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15271", 
+    "CurrentStatus": null, 
+    "Prakah": "021", 
+    "PrakahDate": "/Date(1294938000000)/"
+  }, 
+  {
+    "StartDate": "/Date(773773200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15310", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(773773200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15324", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(773773200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|17194", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(663181200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|17309", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1158598800000)/", 
+    "WorkStatusID": 28, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(983120400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(663181200000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": "/Date(1229446800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15182", 
+    "CurrentStatus": null, 
+    "Prakah": "898", 
+    "PrakahDate": "/Date(1229446800000)/"
+  }, 
+  {
+    "StartDate": "/Date(378925200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1388509200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15187", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1185901200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|90", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|91", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1117558800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|92", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1325869200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23221", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23246", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23329", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1422723600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23343", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1443632400000)/", 
+    "WorkStatusID": 23, 
+    "EndDate": "/Date(1511370000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23344", 
+    "CurrentStatus": null, 
+    "Prakah": "666", 
+    "PrakahDate": "/Date(1511370000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1443632400000)/", 
+    "WorkStatusID": 16, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23345", 
+    "CurrentStatus": null, 
+    "Prakah": "901", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1443632400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23346", 
+    "CurrentStatus": null, 
+    "Prakah": "901", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(316458000000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1233421200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20321", 
+    "CurrentStatus": null, 
+    "Prakah": "098", 
+    "PrakahDate": "/Date(1233766800000)/"
+  }, 
+  {
+    "StartDate": "/Date(388429200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20322", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(357843600000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20323", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(378925200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1625072400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20324", 
+    "CurrentStatus": null, 
+    "Prakah": "190", 
+    "PrakahDate": "/Date(1627578000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1164992400000)/", 
+    "WorkStatusID": 11, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20328", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(881859600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20329", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(284317200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1306861200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20330", 
+    "CurrentStatus": null, 
+    "Prakah": "353", 
+    "PrakahDate": "/Date(1303318800000)/"
+  }, 
+  {
+    "StartDate": "/Date(344883600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1544029200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20331", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(950547600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20332", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1041699600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1688144400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20333", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(485802000000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20334", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(441738000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20335", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(568746000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20336", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(663181200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20337", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(378666000000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1625072400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20338", 
+    "CurrentStatus": null, 
+    "Prakah": "190", 
+    "PrakahDate": "/Date(1625072400000)/"
+  }, 
+  {
+    "StartDate": "/Date(379443600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1541696400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20339", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(347130000000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1499706000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20340", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(518979600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1254330000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20342", 
+    "CurrentStatus": null, 
+    "Prakah": "913", 
+    "PrakahDate": "/Date(1254157200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1136394000000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20343", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(402598800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20344", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(568314000000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1388509200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20346", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(378925200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1606755600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20347", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1136566800000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20348", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(646765200000)/", 
+    "WorkStatusID": 17, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20349", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1009818000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|21117", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1422723600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": "/Date(1454259600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|21120", 
+    "CurrentStatus": null, 
+    "Prakah": "24", 
+    "PrakahDate": "/Date(1421254800000)/"
+  }, 
+  {
+    "StartDate": "/Date(663181200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|21121", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1052672400000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1237136400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|21538", 
+    "CurrentStatus": null, 
+    "Prakah": "287", 
+    "PrakahDate": "/Date(1237136400000)/"
+  }, 
+  {
+    "StartDate": "/Date(1052672400000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": "/Date(1642784400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|21539", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1166115600000)/", 
+    "WorkStatusID": 11, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|21540", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1052845200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|21541", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1166115600000)/", 
+    "WorkStatusID": 11, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|21542", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1051808400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|21543", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(347130000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|21584", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1166115600000)/", 
+    "WorkStatusID": 11, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|21646", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1117558800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22082", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1166115600000)/", 
+    "WorkStatusID": 11, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22085", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1104944400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22128", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1117558800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22129", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1104944400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22132", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1104944400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22135", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(678301200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|24", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(410202000000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1254330000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|27", 
+    "CurrentStatus": null, 
+    "Prakah": "866", 
+    "PrakahDate": "/Date(1252861200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1185901200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23177", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(292525200000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|28", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(307558800000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1443632400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20325", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1214845200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|18", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23185", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1246381200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|30", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1153155600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|68", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|75", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|76", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23330", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23339", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1443632400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23347", 
+    "CurrentStatus": null, 
+    "Prakah": "700", 
+    "PrakahDate": "/Date(1512925200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1117558800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23385", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1104944400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22140", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(315939600000)/", 
+    "WorkStatusID": 16, 
+    "EndDate": "/Date(1704906000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22143", 
+    "CurrentStatus": null, 
+    "Prakah": "008", 
+    "PrakahDate": "/Date(1704906000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1136653200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22434", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1136653200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22435", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1136653200000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22441", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1136653200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22443", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1136653200000)/", 
+    "WorkStatusID": 28, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22446", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1136653200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22447", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1153155600000)/", 
+    "WorkStatusID": 6, 
+    "EndDate": "/Date(1430413200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22448", 
+    "CurrentStatus": null, 
+    "Prakah": "658", 
+    "PrakahDate": "/Date(1436374800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1136653200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22449", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1166115600000)/", 
+    "WorkStatusID": 11, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22480", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1136912400000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1287075600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22481", 
+    "CurrentStatus": null, 
+    "Prakah": "686", 
+    "PrakahDate": "/Date(1285520400000)/"
+  }, 
+  {
+    "StartDate": "/Date(631126800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|22522", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23178", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1421773200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23179", 
+    "CurrentStatus": null, 
+    "Prakah": "030", 
+    "PrakahDate": "/Date(1421254800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1185901200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23180", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1185901200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23181", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1349024400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23183", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1185901200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23184", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 21, 
+    "EndDate": "/Date(1470675600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23186", 
+    "CurrentStatus": null, 
+    "Prakah": "508", 
+    "PrakahDate": "/Date(1470675600000)/"
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23187", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23189", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23190", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1185901200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23191", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23192", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1217523600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23194", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 23, 
+    "EndDate": "/Date(1445446800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23197", 
+    "CurrentStatus": null, 
+    "Prakah": "945", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 28, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23200", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23201", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 21, 
+    "EndDate": "/Date(1515430800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23202", 
+    "CurrentStatus": null, 
+    "Prakah": "006", 
+    "PrakahDate": "/Date(1515430800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1168189200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23203", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1214845200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|2", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1212253200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|3", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1214845200000)/", 
+    "WorkStatusID": 23, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|5", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(133509488400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|6", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1212253200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|7", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1212253200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|9", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1212253200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|10", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1212253200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|12", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1214845200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|13", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1246381200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|31", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1246381200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|34", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1153155600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|69", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|77", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1423155600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|78", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": "/Date(1419526800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|79", 
+    "CurrentStatus": null, 
+    "Prakah": "1176", 
+    "PrakahDate": "/Date(1419526800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1104512400000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|80", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|94", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|95", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|96", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|97", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1154365200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|108", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23205", 
+    "CurrentStatus": null, 
+    "Prakah": "167", 
+    "PrakahDate": "/Date(1522602000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1451581200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23223", 
+    "CurrentStatus": null, 
+    "Prakah": "138", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23224", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(714934800000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1694710800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23341", 
+    "CurrentStatus": null, 
+    "Prakah": "046", 
+    "PrakahDate": "/Date(1694710800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1443632400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23348", 
+    "CurrentStatus": null, 
+    "Prakah": "901", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1535562000000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": "/Date(1642784400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23413", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23414", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23415", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23416", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23417", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23418", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23419", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23420", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 23, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23421", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23422", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23423", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": "/Date(1661965200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23424", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23425", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1694710800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23426", 
+    "CurrentStatus": null, 
+    "Prakah": "045", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23427", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23428", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23429", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1546362000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23430", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1556643600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23431", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1564592400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23432", 
+    "CurrentStatus": null, 
+    "Prakah": "383", 
+    "PrakahDate": "/Date(1563469200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23433", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23434", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23435", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": "/Date(1693501200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23436", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1573059600000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23437", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23438", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23439", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23440", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23441", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23442", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1682874000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23443", 
+    "CurrentStatus": null, 
+    "Prakah": "029", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23444", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23445", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23446", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23447", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23448", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1696266000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23449", 
+    "CurrentStatus": null, 
+    "Prakah": "073", 
+    "PrakahDate": "/Date(1666371600000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23450", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23451", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23452", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23453", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23454", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23455", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23456", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23457", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23458", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23459", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23460", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23461", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23462", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1572541200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1693501200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23463", 
+    "CurrentStatus": null, 
+    "Prakah": "557", 
+    "PrakahDate": "/Date(1571245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1569862800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23464", 
+    "CurrentStatus": null, 
+    "Prakah": "454", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1633021200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23465", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1183222800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|11", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(353005200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1659286800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23466", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23467", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23468", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23469", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1717520400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23470", 
+    "CurrentStatus": null, 
+    "Prakah": "025/24", 
+    "PrakahDate": "/Date(1717520400000)/"
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23471", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23472", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23473", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1680282000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23474", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23475", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23476", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23477", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23478", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23479", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23480", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23481", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23482", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23483", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23484", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23485", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23486", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23487", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23488", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23489", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23490", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23491", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23492", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23493", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23494", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23495", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23496", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23497", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23498", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23499", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23500", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23501", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23502", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23503", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23504", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23505", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1660237200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23506", 
+    "CurrentStatus": null, 
+    "Prakah": "042/22", 
+    "PrakahDate": "/Date(1659891600000)/"
+  }, 
+  {
+    "StartDate": "/Date(1632675600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23507", 
+    "CurrentStatus": null, 
+    "Prakah": "225", 
+    "PrakahDate": "/Date(1632675600000)/"
+  }, 
+  {
+    "StartDate": "/Date(1212253200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|14", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1212253200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|15", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1214845200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|16", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1212253200000)/", 
+    "WorkStatusID": 21, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|19", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1214845200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|20", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(883587600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|35", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1246381200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|36", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1246381200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|37", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1217523600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|39", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1153155600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|40", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|41", 
+    "CurrentStatus": null, 
+    "Prakah": "641", 
+    "PrakahDate": "/Date(1546189200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|42", 
+    "CurrentStatus": null, 
+    "Prakah": "599", 
+    "PrakahDate": "/Date(1575478800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|43", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(915123600000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|44", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|46", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|47", 
+    "CurrentStatus": null, 
+    "Prakah": "036", 
+    "PrakahDate": "/Date(1521478800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|48", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|49", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|51", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|52", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1420650000000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|53", 
+    "CurrentStatus": null, 
+    "Prakah": "012", 
+    "PrakahDate": "/Date(1420650000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|54", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|55", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|56", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|57", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|58", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|59", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1285866000000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1410282000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|60", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(931539600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": "/Date(1441040400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|61", 
+    "CurrentStatus": null, 
+    "Prakah": "875", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(907952400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|62", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(567968400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|72", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(512931600000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1701709200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|73", 
+    "CurrentStatus": null, 
+    "Prakah": "033", 
+    "PrakahDate": "/Date(1682269200000)/"
+  }, 
+  {
+    "StartDate": "/Date(599590800000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1414774800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|81", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(536432400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|82", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(441738000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|83", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(329677200000)/", 
+    "WorkStatusID": 9, 
+    "EndDate": "/Date(1486918800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|84", 
+    "CurrentStatus": null, 
+    "Prakah": "824", 
+    "PrakahDate": "/Date(1482944400000)/"
+  }, 
+  {
+    "StartDate": "/Date(1154365200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|85", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1153155600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|86", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(522003600000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|87", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1185901200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|88", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1185901200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|89", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1280595600000)/", 
+    "WorkStatusID": 20, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|105", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1149094800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|106", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(283971600000)/", 
+    "WorkStatusID": 23, 
+    "EndDate": "/Date(1693501200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|107", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(881859600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|109", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1443632400000)/", 
+    "WorkStatusID": 21, 
+    "EndDate": "/Date(1459357200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|110", 
+    "CurrentStatus": null, 
+    "Prakah": "789", 
+    "PrakahDate": "/Date(1440694800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1185901200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|112", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|1008", 
+    "CurrentStatus": null, 
+    "Prakah": "421", 
+    "PrakahDate": "/Date(1370278800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23225", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": "/Date(1513702800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23226", 
+    "CurrentStatus": null, 
+    "Prakah": "715", 
+    "PrakahDate": "/Date(1513702800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23227", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23257", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23258", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1117558800000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": "/Date(1667235600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23259", 
+    "CurrentStatus": null, 
+    "Prakah": "071", 
+    "PrakahDate": "/Date(1666803600000)/"
+  }, 
+  {
+    "StartDate": "/Date(1402851600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23342", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1443632400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23349", 
+    "CurrentStatus": null, 
+    "Prakah": "901", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1443632400000)/", 
+    "WorkStatusID": 11, 
+    "EndDate": "/Date(1461603600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23350", 
+    "CurrentStatus": null, 
+    "Prakah": "901", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1443632400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23351", 
+    "CurrentStatus": null, 
+    "Prakah": "511", 
+    "PrakahDate": "/Date(1537635600000)/"
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23204", 
+    "CurrentStatus": null, 
+    "Prakah": "651", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23206", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23207", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1661965200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23208", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23209", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 16, 
+    "EndDate": "/Date(1569862800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23212", 
+    "CurrentStatus": null, 
+    "Prakah": "045", 
+    "PrakahDate": "/Date(1548694800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23213", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23214", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23215", 
+    "CurrentStatus": null, 
+    "Prakah": "051", 
+    "PrakahDate": "/Date(1517245200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23216", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1443632400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23217", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23218", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23219", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23220", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23228", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23229", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23230", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1611939600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23231", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23232", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23233", 
+    "CurrentStatus": null, 
+    "Prakah": "220", 
+    "PrakahDate": "/Date(1495472400000)/"
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1424365200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23234", 
+    "CurrentStatus": null, 
+    "Prakah": "124", 
+    "PrakahDate": "/Date(1424365200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23235", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1214845200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23237", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23238", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1314810000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23239", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23240", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23241", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23242", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1154365200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23243", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23244", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1539277200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23245", 
+    "CurrentStatus": null, 
+    "Prakah": "527", 
+    "PrakahDate": "/Date(1539277200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23247", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23248", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23249", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23250", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23251", 
+    "CurrentStatus": null, 
+    "Prakah": "993", 
+    "PrakahDate": "/Date(1447866000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1693501200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23252", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23253", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23254", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23255", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23256", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1185901200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23260", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(567968400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23261", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1309453200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23263", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23264", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23265", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1117558800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23267", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23268", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": "/Date(1535475600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23269", 
+    "CurrentStatus": null, 
+    "Prakah": "450", 
+    "PrakahDate": "/Date(1535475600000)/"
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23270", 
+    "CurrentStatus": null, 
+    "Prakah": "570", 
+    "PrakahDate": "/Date(1541955600000)/"
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1455210000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23271", 
+    "CurrentStatus": null, 
+    "Prakah": "081", 
+    "PrakahDate": "/Date(1455210000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1277917200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23335", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23336", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 23, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23337", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23340", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1443632400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23352", 
+    "CurrentStatus": null, 
+    "Prakah": "901", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23272", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 23, 
+    "EndDate": "/Date(1499878800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23273", 
+    "CurrentStatus": null, 
+    "Prakah": "376", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1452186000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23274", 
+    "CurrentStatus": null, 
+    "Prakah": "007", 
+    "PrakahDate": "/Date(1452186000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23275", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23276", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23277", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23278", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23279", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23280", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23281", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1451581200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23282", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": "/Date(1412614800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23283", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23284", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23285", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1452186000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23286", 
+    "CurrentStatus": null, 
+    "Prakah": "007", 
+    "PrakahDate": "/Date(1452186000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23287", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": "/Date(1511283600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23288", 
+    "CurrentStatus": null, 
+    "Prakah": "661", 
+    "PrakahDate": "/Date(1511283600000)/"
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23289", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23290", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23291", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 21, 
+    "EndDate": "/Date(1519232400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23292", 
+    "CurrentStatus": null, 
+    "Prakah": "111", 
+    "PrakahDate": "/Date(1519232400000)/"
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1553533200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23293", 
+    "CurrentStatus": null, 
+    "Prakah": "151", 
+    "PrakahDate": "/Date(1553533200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 15, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23294", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23295", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1455210000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23296", 
+    "CurrentStatus": null, 
+    "Prakah": "079", 
+    "PrakahDate": "/Date(1455210000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23297", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23298", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23299", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23300", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1354294800000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": "/Date(1432832400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23301", 
+    "CurrentStatus": null, 
+    "Prakah": "623", 
+    "PrakahDate": "/Date(1432832400000)/"
+  }, 
+  {
+    "StartDate": "/Date(1441040400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": "/Date(1472576400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23302", 
+    "CurrentStatus": null, 
+    "Prakah": "789", 
+    "PrakahDate": "/Date(1440694800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23303", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23304", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1413910800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23305", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 23, 
+    "EndDate": "/Date(1532970000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23306", 
+    "CurrentStatus": null, 
+    "Prakah": "362", 
+    "PrakahDate": "/Date(1532970000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23307", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23308", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": "/Date(1459357200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23309", 
+    "CurrentStatus": null, 
+    "Prakah": "077", 
+    "PrakahDate": "/Date(1455210000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": "/Date(1661965200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23310", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23311", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23312", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23313", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23314", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23315", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1356973200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23316", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1309453200000)/", 
+    "WorkStatusID": 12, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23317", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23318", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": "/Date(1432832400000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23320", 
+    "CurrentStatus": null, 
+    "Prakah": "568", 
+    "PrakahDate": "/Date(1432832400000)/"
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1537117200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23321", 
+    "CurrentStatus": null, 
+    "Prakah": "482", 
+    "PrakahDate": "/Date(1537117200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 16, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23322", 
+    "CurrentStatus": null, 
+    "Prakah": "641", 
+    "PrakahDate": "/Date(1546189200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23323", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23324", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23325", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23326", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23338", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1531069200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23327", 
+    "CurrentStatus": null, 
+    "Prakah": "297", 
+    "PrakahDate": "/Date(1531069200000)/"
+  }, 
+  {
+    "StartDate": "/Date(1404147600000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": "/Date(1609434000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23328", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1341075600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23331", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23332", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1372611600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23333", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1214845200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23334", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1448902800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23353", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1452531600000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23354", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1438880400000)/", 
+    "WorkStatusID": 23, 
+    "EndDate": "/Date(1466614800000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23355", 
+    "CurrentStatus": null, 
+    "Prakah": "332", 
+    "PrakahDate": "/Date(1466614800000)/"
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23356", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23357", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 23, 
+    "EndDate": "/Date(1680109200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23358", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23359", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23360", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23361", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23362", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 23, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23363", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 2, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23364", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23365", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23366", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 23, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23367", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23368", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23369", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23370", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23371", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23372", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23373", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23374", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23375", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23376", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1675184400000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23377", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23378", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23379", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23380", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23381", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23382", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1477933200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23383", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1488301200000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23384", 
+    "CurrentStatus": null, 
+    "Prakah": "146", 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23386", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(591642000000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23387", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23388", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23389", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23390", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23391", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23392", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": "/Date(1577379600000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23393", 
+    "CurrentStatus": null, 
+    "Prakah": "736", 
+    "PrakahDate": "/Date(1577379600000)/"
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23394", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23395", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23396", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23397", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23398", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23399", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23400", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23401", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23402", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": "/Date(1661965200000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23403", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23404", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23405", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1490979600000)/", 
+    "WorkStatusID": 13, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23406", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23407", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 14, 
+    "EndDate": "/Date(1680282000000)/", 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23408", 
+    "CurrentStatus": null, 
+    "Prakah": "180", 
+    "PrakahDate": "/Date(1680282000000)/"
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23409", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23410", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23411", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }, 
+  {
+    "StartDate": "/Date(1506790800000)/", 
+    "WorkStatusID": 1, 
+    "EndDate": null, 
+    "RootWorkplaceID": "1|2|19", 
+    "StaffID": "1|2|19|23412", 
+    "CurrentStatus": null, 
+    "Prakah": null, 
+    "PrakahDate": null
+  }
+]

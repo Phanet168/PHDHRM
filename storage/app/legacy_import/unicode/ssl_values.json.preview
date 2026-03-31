@@ -1,0 +1,442 @@
+[
+  {
+    "sslID": 1, 
+    "value": 0, 
+    "skillID": 1
+  }, 
+  {
+    "sslID": 1, 
+    "value": 4, 
+    "skillID": 19
+  }, 
+  {
+    "sslID": 1, 
+    "value": 3, 
+    "skillID": 2
+  }, 
+  {
+    "sslID": 1, 
+    "value": 3, 
+    "skillID": 3
+  }, 
+  {
+    "sslID": 1, 
+    "value": 1, 
+    "skillID": 6
+  }, 
+  {
+    "sslID": 1, 
+    "value": 1, 
+    "skillID": 7
+  }, 
+  {
+    "sslID": 1, 
+    "value": 1, 
+    "skillID": 4
+  }, 
+  {
+    "sslID": 1, 
+    "value": 1, 
+    "skillID": 5
+  }, 
+  {
+    "sslID": 1, 
+    "value": 1, 
+    "skillID": 17
+  }, 
+  {
+    "sslID": 1, 
+    "value": 2, 
+    "skillID": 16
+  }, 
+  {
+    "sslID": 1, 
+    "value": 9, 
+    "skillID": 8
+  }, 
+  {
+    "sslID": 1, 
+    "value": 10, 
+    "skillID": 9
+  }, 
+  {
+    "sslID": 1, 
+    "value": 3, 
+    "skillID": 10
+  }, 
+  {
+    "sslID": 1, 
+    "value": 4, 
+    "skillID": 11
+  }, 
+  {
+    "sslID": 1, 
+    "value": 2, 
+    "skillID": 12
+  }, 
+  {
+    "sslID": 1, 
+    "value": 1, 
+    "skillID": 13
+  }, 
+  {
+    "sslID": 1, 
+    "value": 2, 
+    "skillID": 14
+  }, 
+  {
+    "sslID": 1, 
+    "value": 2, 
+    "skillID": 15
+  }, 
+  {
+    "sslID": 1, 
+    "value": 2, 
+    "skillID": 18
+  }, 
+  {
+    "sslID": 1, 
+    "value": 1, 
+    "skillID": 20
+  }, 
+  {
+    "sslID": 1, 
+    "value": 6, 
+    "skillID": 27
+  }, 
+  {
+    "sslID": 2, 
+    "value": 4, 
+    "skillID": 1
+  }, 
+  {
+    "sslID": 2, 
+    "value": 4, 
+    "skillID": 19
+  }, 
+  {
+    "sslID": 2, 
+    "value": 3, 
+    "skillID": 2
+  }, 
+  {
+    "sslID": 2, 
+    "value": 4, 
+    "skillID": 3
+  }, 
+  {
+    "sslID": 2, 
+    "value": 1, 
+    "skillID": 6
+  }, 
+  {
+    "sslID": 2, 
+    "value": 1, 
+    "skillID": 7
+  }, 
+  {
+    "sslID": 2, 
+    "value": 2, 
+    "skillID": 4
+  }, 
+  {
+    "sslID": 2, 
+    "value": 1, 
+    "skillID": 5
+  }, 
+  {
+    "sslID": 2, 
+    "value": 1, 
+    "skillID": 17
+  }, 
+  {
+    "sslID": 2, 
+    "value": 2, 
+    "skillID": 16
+  }, 
+  {
+    "sslID": 2, 
+    "value": 14, 
+    "skillID": 8
+  }, 
+  {
+    "sslID": 2, 
+    "value": 14, 
+    "skillID": 9
+  }, 
+  {
+    "sslID": 2, 
+    "value": 9, 
+    "skillID": 10
+  }, 
+  {
+    "sslID": 2, 
+    "value": 8, 
+    "skillID": 11
+  }, 
+  {
+    "sslID": 2, 
+    "value": 2, 
+    "skillID": 12
+  }, 
+  {
+    "sslID": 2, 
+    "value": 2, 
+    "skillID": 13
+  }, 
+  {
+    "sslID": 2, 
+    "value": 2, 
+    "skillID": 14
+  }, 
+  {
+    "sslID": 2, 
+    "value": 3, 
+    "skillID": 15
+  }, 
+  {
+    "sslID": 2, 
+    "value": 4, 
+    "skillID": 18
+  }, 
+  {
+    "sslID": 2, 
+    "value": 2, 
+    "skillID": 20
+  }, 
+  {
+    "sslID": 2, 
+    "value": 8, 
+    "skillID": 27
+  }, 
+  {
+    "sslID": 3, 
+    "value": 12, 
+    "skillID": 1
+  }, 
+  {
+    "sslID": 3, 
+    "value": 5, 
+    "skillID": 19
+  }, 
+  {
+    "sslID": 3, 
+    "value": 15, 
+    "skillID": 2
+  }, 
+  {
+    "sslID": 3, 
+    "value": 15, 
+    "skillID": 3
+  }, 
+  {
+    "sslID": 3, 
+    "value": 1, 
+    "skillID": 6
+  }, 
+  {
+    "sslID": 3, 
+    "value": 2, 
+    "skillID": 7
+  }, 
+  {
+    "sslID": 3, 
+    "value": 3, 
+    "skillID": 4
+  }, 
+  {
+    "sslID": 3, 
+    "value": 1, 
+    "skillID": 5
+  }, 
+  {
+    "sslID": 3, 
+    "value": 2, 
+    "skillID": 17
+  }, 
+  {
+    "sslID": 3, 
+    "value": 2, 
+    "skillID": 16
+  }, 
+  {
+    "sslID": 3, 
+    "value": 50, 
+    "skillID": 8
+  }, 
+  {
+    "sslID": 3, 
+    "value": 41, 
+    "skillID": 9
+  }, 
+  {
+    "sslID": 3, 
+    "value": 9, 
+    "skillID": 10
+  }, 
+  {
+    "sslID": 3, 
+    "value": 9, 
+    "skillID": 11
+  }, 
+  {
+    "sslID": 3, 
+    "value": 4, 
+    "skillID": 12
+  }, 
+  {
+    "sslID": 3, 
+    "value": 3, 
+    "skillID": 13
+  }, 
+  {
+    "sslID": 3, 
+    "value": 4, 
+    "skillID": 14
+  }, 
+  {
+    "sslID": 3, 
+    "value": 3, 
+    "skillID": 15
+  }, 
+  {
+    "sslID": 3, 
+    "value": 6, 
+    "skillID": 18
+  }, 
+  {
+    "sslID": 3, 
+    "value": 2, 
+    "skillID": 20
+  }, 
+  {
+    "sslID": 3, 
+    "value": 12, 
+    "skillID": 27
+  }, 
+  {
+    "sslID": 4, 
+    "value": 4, 
+    "skillID": 8
+  }, 
+  {
+    "sslID": 4, 
+    "value": 2, 
+    "skillID": 9
+  }, 
+  {
+    "sslID": 4, 
+    "value": 2, 
+    "skillID": 10
+  }, 
+  {
+    "sslID": 4, 
+    "value": 1, 
+    "skillID": 11
+  }, 
+  {
+    "sslID": 4, 
+    "value": 0, 
+    "skillID": 1
+  }, 
+  {
+    "sslID": 4, 
+    "value": 2, 
+    "skillID": 2
+  }, 
+  {
+    "sslID": 4, 
+    "value": 0, 
+    "skillID": 19
+  }, 
+  {
+    "sslID": 4, 
+    "value": 1, 
+    "skillID": 3
+  }, 
+  {
+    "sslID": 4, 
+    "value": 1, 
+    "skillID": 6
+  }, 
+  {
+    "sslID": 4, 
+    "value": 1, 
+    "skillID": 7
+  }, 
+  {
+    "sslID": 4, 
+    "value": 1, 
+    "skillID": 5
+  }, 
+  {
+    "sslID": 4, 
+    "value": 0, 
+    "skillID": 16
+  }, 
+  {
+    "sslID": 4, 
+    "value": 0, 
+    "skillID": 4
+  }, 
+  {
+    "sslID": 4, 
+    "value": 0, 
+    "skillID": 17
+  }, 
+  {
+    "sslID": 4, 
+    "value": 1, 
+    "skillID": 12
+  }, 
+  {
+    "sslID": 4, 
+    "value": 0, 
+    "skillID": 13
+  }, 
+  {
+    "sslID": 4, 
+    "value": 0, 
+    "skillID": 14
+  }, 
+  {
+    "sslID": 4, 
+    "value": 0, 
+    "skillID": 15
+  }, 
+  {
+    "sslID": 4, 
+    "value": 0, 
+    "skillID": 18
+  }, 
+  {
+    "sslID": 4, 
+    "value": 0, 
+    "skillID": 20
+  }, 
+  {
+    "sslID": 4, 
+    "value": 0, 
+    "skillID": 27
+  }, 
+  {
+    "sslID": 5, 
+    "value": 1, 
+    "skillID": 8
+  }, 
+  {
+    "sslID": 5, 
+    "value": 3, 
+    "skillID": 9
+  }, 
+  {
+    "sslID": 5, 
+    "value": 1, 
+    "skillID": 10
+  }, 
+  {
+    "sslID": 5, 
+    "value": 2, 
+    "skillID": 11
+  }
+]

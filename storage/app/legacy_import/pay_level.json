@@ -1,0 +1,422 @@
+﻿[
+    {
+        "PayLevelID":  1,
+        "PayLevelE":  "A.1-1",
+        "PayLevelK":  "ក.១-១",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  2,
+        "PayLevelE":  "A.1-2",
+        "PayLevelK":  "ក.១-២",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  8,
+        "PayLevelE":  "A.1-3",
+        "PayLevelK":  "ក.១-៣",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  9,
+        "PayLevelE":  "A.1-4",
+        "PayLevelK":  "ក.១-៤",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  10,
+        "PayLevelE":  "A.1-5",
+        "PayLevelK":  "ក.១-៥",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  11,
+        "PayLevelE":  "A.1-6",
+        "PayLevelK":  "ក.១-៦",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  12,
+        "PayLevelE":  "A.2-1",
+        "PayLevelK":  "ក.២-១",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  13,
+        "PayLevelE":  "A.2-2",
+        "PayLevelK":  "ក.២-២",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  14,
+        "PayLevelE":  "A.2-3",
+        "PayLevelK":  "ក.២-៣",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  15,
+        "PayLevelE":  "A.2-4",
+        "PayLevelK":  "ក.២-៤",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  16,
+        "PayLevelE":  "A.2-5",
+        "PayLevelK":  "ក.២-៥",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  17,
+        "PayLevelE":  "A.2-6",
+        "PayLevelK":  "ក.២-៦",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  18,
+        "PayLevelE":  "A.2-7",
+        "PayLevelK":  "ក.២-៧",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  19,
+        "PayLevelE":  "A.2-8",
+        "PayLevelK":  "ក.២-៨",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  20,
+        "PayLevelE":  "A.2-9",
+        "PayLevelK":  "ក.២-៩",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  21,
+        "PayLevelE":  "A.2-10",
+        "PayLevelK":  "ក.២-១០",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  22,
+        "PayLevelE":  "A.3-1",
+        "PayLevelK":  "ក.៣-១",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  23,
+        "PayLevelE":  "A.3-2",
+        "PayLevelK":  "ក.៣-២",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  24,
+        "PayLevelE":  "A.3-3",
+        "PayLevelK":  "ក.៣-៣",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  25,
+        "PayLevelE":  "A.3-4",
+        "PayLevelK":  "ក.៣-៤",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  36,
+        "PayLevelE":  "B.1-1",
+        "PayLevelK":  "ខ.១-១",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  37,
+        "PayLevelE":  "B.1-2",
+        "PayLevelK":  "ខ.១-២",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  38,
+        "PayLevelE":  "B.1-3",
+        "PayLevelK":  "ខ.១-៣",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  40,
+        "PayLevelE":  "B.1-4",
+        "PayLevelK":  "ខ.១-៤",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  41,
+        "PayLevelE":  "B.1-5",
+        "PayLevelK":  "ខ.១-៥",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  42,
+        "PayLevelE":  "B.1-6",
+        "PayLevelK":  "ខ.១-៦",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  43,
+        "PayLevelE":  "B.2-1",
+        "PayLevelK":  "ខ.២-១",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  45,
+        "PayLevelE":  "B.2-2",
+        "PayLevelK":  "ខ.២-២",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  46,
+        "PayLevelE":  "B.2-3",
+        "PayLevelK":  "ខ.២-៣",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  129,
+        "PayLevelE":  "C.9",
+        "PayLevelK":  "គ..៩",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  130,
+        "PayLevelE":  "C.8",
+        "PayLevelK":  "គ..៨",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  131,
+        "PayLevelE":  "C.7",
+        "PayLevelK":  "គ..៧",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  132,
+        "PayLevelE":  "C.6",
+        "PayLevelK":  "គ..៦",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  133,
+        "PayLevelE":  "C.5",
+        "PayLevelK":  "គ..៥",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  134,
+        "PayLevelE":  "C.4",
+        "PayLevelK":  "គ..៤",
+        "Range":  0
+    },
+    {
+        "PayLevelID":  135,
+        "PayLevelE":  "C.3",
+        "PayLevelK":  "គ..៣",
+        "Range":  0
+    },
+    {
+        "PayLevelID":  136,
+        "PayLevelE":  "C.2",
+        "PayLevelK":  "គ..២",
+        "Range":  0
+    },
+    {
+        "PayLevelID":  137,
+        "PayLevelE":  "C.1",
+        "PayLevelK":  "គ..១",
+        "Range":  0
+    },
+    {
+        "PayLevelID":  47,
+        "PayLevelE":  "B.2-4",
+        "PayLevelK":  "ខ.២-៤",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  48,
+        "PayLevelE":  "B.2-5",
+        "PayLevelK":  "ខ.២-៥",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  49,
+        "PayLevelE":  "B.2-6",
+        "PayLevelK":  "ខ.២-៦",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  51,
+        "PayLevelE":  "B.2-7",
+        "PayLevelK":  "ខ.២-៧",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  52,
+        "PayLevelE":  "B.2-8",
+        "PayLevelK":  "ខ.២-៨",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  53,
+        "PayLevelE":  "B.2-9",
+        "PayLevelK":  "ខ.២-៩",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  54,
+        "PayLevelE":  "B.2-10",
+        "PayLevelK":  "ខ.២-១០",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  55,
+        "PayLevelE":  "B.3-1",
+        "PayLevelK":  "ខ.៣-១",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  56,
+        "PayLevelE":  "B.3-2",
+        "PayLevelK":  "ខ.៣-២",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  57,
+        "PayLevelE":  "B.3-3",
+        "PayLevelK":  "ខ.៣-៣",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  58,
+        "PayLevelE":  "B.3-4",
+        "PayLevelK":  "ខ.៣-៤",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  69,
+        "PayLevelE":  "C.1-1",
+        "PayLevelK":  "គ..១-១",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  70,
+        "PayLevelE":  "C.1-2",
+        "PayLevelK":  "គ..១-២",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  71,
+        "PayLevelE":  "C.1-3",
+        "PayLevelK":  "គ..១-៣",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  72,
+        "PayLevelE":  "C.1-4",
+        "PayLevelK":  "គ..១-៤",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  73,
+        "PayLevelE":  "C.1-5",
+        "PayLevelK":  "គ..១-៥",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  74,
+        "PayLevelE":  "C.1-6",
+        "PayLevelK":  "គ..១-៦",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  75,
+        "PayLevelE":  "C.2-1",
+        "PayLevelK":  "គ..២-១",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  76,
+        "PayLevelE":  "C.2-2",
+        "PayLevelK":  "គ..២-២",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  77,
+        "PayLevelE":  "C.2-3",
+        "PayLevelK":  "គ..២-៣",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  78,
+        "PayLevelE":  "C.2-4",
+        "PayLevelK":  "គ..២-៤",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  79,
+        "PayLevelE":  "C.2-5",
+        "PayLevelK":  "គ..២-៥",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  80,
+        "PayLevelE":  "C.2-6",
+        "PayLevelK":  "គ..២-៦",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  81,
+        "PayLevelE":  "C.2-7",
+        "PayLevelK":  "គ..២-៧",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  82,
+        "PayLevelE":  "C.2-8",
+        "PayLevelK":  "គ..២-៨",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  83,
+        "PayLevelE":  "C.2-9",
+        "PayLevelK":  "គ..២-៩",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  84,
+        "PayLevelE":  "C.2-10",
+        "PayLevelK":  "គ..២-១០",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  85,
+        "PayLevelE":  "C.3-1",
+        "PayLevelK":  "គ..៣-១",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  86,
+        "PayLevelE":  "C.3-2",
+        "PayLevelK":  "គ..៣-២",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  87,
+        "PayLevelE":  "C.3-3",
+        "PayLevelK":  "គ..៣-៣",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  88,
+        "PayLevelE":  "C.3-4",
+        "PayLevelK":  "គ..៣-៤",
+        "Range":  null
+    },
+    {
+        "PayLevelID":  0,
+        "PayLevelE":  null,
+        "PayLevelK":  " ",
+        "Range":  0
+    }
+]

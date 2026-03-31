@@ -1,0 +1,200 @@
+<!-- Modal -->
+<div class="modal fade" id="create-leave-type" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
+    aria-labelledby="staticBackdropLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="staticBackdropLabel">
+                    {{ localize('leave_application_create') }}
+                </h5>
+            </div>
+            <form class="validateForm" action="{{ route('leave-types.store') }}" method="POST"
+                enctype="multipart/form-data">
+                @csrf
+                <div class="modal-body text-start">
+                    <div class="row">
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label for="leave_type"
+                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('leave_type') }}
+                                    <span class="text-danger">*</span></label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <input type="text" required class="form-control" name="leave_type"
+                                        placeholder="{{ localize('leave_type') }}" required>
+                                </div>
+
+                                @if ($errors->has('leave_type'))
+                                    <div class="error text-danger m-2">{{ $errors->first('leave_type') }}
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label for="leave_type_km"
+                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('leave_type_km', 'ឈ្មោះប្រភេទច្បាប់ (ខ្មែរ)') }}</label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <input type="text" class="form-control" name="leave_type_km"
+                                        placeholder="{{ localize('leave_type_km', 'ឈ្មោះប្រភេទច្បាប់ (ខ្មែរ)') }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label for="leave_code"
+                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('leave_code') }}
+                                    <span class="text-danger">*</span></label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <input type="text" class="form-control" name="leave_code"
+                                        placeholder="{{ localize('leave_code') }}" required>
+                                </div>
+
+                                @if ($errors->has('leave_code'))
+                                    <div class="error text-danger m-2">{{ $errors->first('leave_code') }}
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label for="leave_days"
+                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('leave_days') }}</label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <input type="text" class="form-control" required name="leave_days"
+                                        placeholder="{{ localize('leave_days') }}">
+                                </div>
+
+                                @if ($errors->has('leave_days'))
+                                    <div class="error text-danger m-2">{{ $errors->first('leave_days') }}</div>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label for="policy_key"
+                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('leave_policy', 'គោលនយោបាយ') }}
+                                    <span class="text-danger">*</span></label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <select name="policy_key" class="form-control select-basic-single" required>
+                                        <option value="annual">{{ localize('leave_policy_annual', 'ឈប់ប្រចាំឆ្នាំ') }}</option>
+                                        <option value="short">{{ localize('leave_policy_short', 'ឈប់រយៈពេលខ្លី') }}</option>
+                                        <option value="sick">{{ localize('leave_policy_sick', 'ឈប់សម្រាកព្យាបាលជំងឺ') }}</option>
+                                        <option value="maternity">{{ localize('leave_policy_maternity', 'ឈប់លំហែមាតុភាព') }}</option>
+                                        <option value="unpaid">{{ localize('leave_policy_unpaid', 'ឈប់គ្មានបៀវត្ស') }}</option>
+                                        <option value="other">{{ localize('other', 'ផ្សេងៗ') }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label for="entitlement_scope"
+                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('entitlement_scope', 'វិសាលភាពសិទ្ធិ') }}</label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <select name="entitlement_scope" class="form-control select-basic-single">
+                                        <option value="per_year">{{ localize('scope_per_year', 'ក្នុងមួយឆ្នាំ') }}</option>
+                                        <option value="per_request">{{ localize('scope_per_request', 'ក្នុងមួយសំណើ') }}</option>
+                                        <option value="per_service_lifetime">{{ localize('scope_per_service_lifetime', 'ក្នុងរយៈពេលបម្រើការងារ') }}</option>
+                                        <option value="manual">{{ localize('scope_manual', 'កំណត់ដោយដៃ') }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label for="entitlement_unit"
+                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('entitlement_unit', 'ឯកតា') }}</label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <select name="entitlement_unit" class="form-control select-basic-single">
+                                        <option value="day">{{ localize('day', 'ថ្ងៃ') }}</option>
+                                        <option value="month">{{ localize('month', 'ខែ') }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label for="entitlement_value"
+                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('entitlement_value', 'ចំនួនសិទ្ធិ') }}</label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <input type="number" step="0.01" min="0" class="form-control"
+                                        name="entitlement_value" placeholder="{{ localize('entitlement_value', 'ចំនួនសិទ្ធិ') }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label for="max_per_request"
+                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('max_per_request', 'អតិបរមាក្នុងមួយសំណើ') }}</label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <input type="number" step="0.01" min="0" class="form-control"
+                                        name="max_per_request" placeholder="{{ localize('max_per_request', 'អតិបរមាក្នុងមួយសំណើ') }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('paid_status', 'បៀវត្ស') }}</label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <select name="is_paid" class="form-control select-basic-single">
+                                        <option value="1">{{ localize('paid', 'មានបៀវត្ស') }}</option>
+                                        <option value="0">{{ localize('unpaid', 'គ្មានបៀវត្ស') }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('requires_attachment', 'តម្រូវឯកសារភ្ជាប់') }}</label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <select name="requires_attachment" class="form-control select-basic-single">
+                                        <option value="1">{{ localize('yes', 'បាទ/ចាស') }}</option>
+                                        <option value="0" selected>{{ localize('no', 'ទេ') }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('requires_medical_certificate', 'តម្រូវវិញ្ញាបនបត្រវេជ្ជសាស្ត្រ') }}</label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <select name="requires_medical_certificate" class="form-control select-basic-single">
+                                        <option value="1">{{ localize('yes', 'បាទ/ចាស') }}</option>
+                                        <option value="0" selected>{{ localize('no', 'ទេ') }}</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12 mt-3">
+                            <div class="row">
+                                <label for="notes"
+                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('notes', 'កំណត់សម្គាល់') }}</label>
+                                <div class="col-sm-9 col-md-12 col-xl-9">
+                                    <textarea class="form-control" name="notes" rows="2"
+                                        placeholder="{{ localize('notes', 'កំណត់សម្គាល់') }}"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger"
+                        data-bs-dismiss="modal">{{ localize('close') }}</button>
+                    <button class="btn btn-primary submit_button">{{ localize('save') }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

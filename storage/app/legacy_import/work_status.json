@@ -1,0 +1,308 @@
+﻿[
+    {
+        "WorkStatusID":  1,
+        "WorkStatusE":  "Currently Working",
+        "WorkStatusK":  "កំពុងបំរើការងារ",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  2,
+        "WorkStatusE":  "Absent without Pay by Request",
+        "WorkStatusK":  "ទំនេរគ្មានបៀវត្យតាមសំណើរបស់សាមីជន",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  3,
+        "WorkStatusE":  "Removed",
+        "WorkStatusK":  "ការបណ្តេញចេញពីក្របខ័ណ្ឌ",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  6,
+        "WorkStatusE":  "Dismissed",
+        "WorkStatusK":  "លុបដោយមានកំហុស",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  7,
+        "WorkStatusE":  "Assignement out of Cadre",
+        "WorkStatusK":  "ដាក់ឱ្យនៅក្រៅក្របខ័ណ្ឌដើម",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  8,
+        "WorkStatusE":  "Reinstated",
+        "WorkStatusK":  "បញ្ចូលឱ្យបំរើការងារឡើងវិញបន្ទាប់ពីទំនេរគ្មានបៀវត្ស",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  10,
+        "WorkStatusE":  "Retired by Request",
+        "WorkStatusK":  "ចូលនិវត្តន៍តាមការស្នើសុំ",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  11,
+        "WorkStatusE":  "Removed - Abandonement",
+        "WorkStatusK":  "បោះបង់ការងារ",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  12,
+        "WorkStatusE":  "Dead",
+        "WorkStatusK":  "មរណៈភាព",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  16,
+        "WorkStatusE":  "Transfer out of MoH to other Ministry",
+        "WorkStatusK":  "ផ្ទេរបុគ្គលិកចេញពីក្រសួងទៅក្រសួងផ្សេង",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  17,
+        "WorkStatusE":  "Forced Retirement",
+        "WorkStatusK":  "ចូលនិវត្តន៍ដោយបញ្ញត្តិ",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  19,
+        "WorkStatusE":  "Study Overseas",
+        "WorkStatusK":  "សិក្សានៅបរទេស",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  20,
+        "WorkStatusE":  "Overstay of Leave Without Pay",
+        "WorkStatusK":  "លុបដោយឈប់ហួសកំណត់នៃការទំនេរគ្មានបៀវត្ស",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  21,
+        "WorkStatusE":  "Removed by request",
+        "WorkStatusK":  "សុំលាឈប់",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  22,
+        "WorkStatusE":  "Disability",
+        "WorkStatusK":  "បាត់បង់សម្បទាវិជ្ជាជីវៈ",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  26,
+        "WorkStatusE":  "New Staff 2005",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០០៥",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  27,
+        "WorkStatusE":  "New Staff 2006",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០០៦",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  28,
+        "WorkStatusE":  "UNKNOWN",
+        "WorkStatusK":  "មិនស្គាល់ពីស្ថានភាព",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  29,
+        "WorkStatusE":  "Transfer into MoH from another Ministry",
+        "WorkStatusK":  "ផ្ទេរបុគ្គលិកចូលក្រសួងសុខាភិបាលពីក្រសួងផ្សេង",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  30,
+        "WorkStatusE":  "New Staff 2007",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០០៧",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  31,
+        "WorkStatusE":  "New Staff 2008",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០០៨",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  32,
+        "WorkStatusE":  "New Staff 2009",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០០៩",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  33,
+        "WorkStatusE":  "New Staff 2010",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០១០",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  34,
+        "WorkStatusE":  "New Staff 2011",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០១១",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  35,
+        "WorkStatusE":  "New Staff 2012",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០១២",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  36,
+        "WorkStatusE":  "Study in the Country",
+        "WorkStatusK":  "សិក្សាក្នុងប្រទេស",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  37,
+        "WorkStatusE":  "Titular",
+        "WorkStatusK":  "តាំងស៊ប់ក្នុងក្របខ័ណ្ឌ",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  38,
+        "WorkStatusE":  "Probation Extended",
+        "WorkStatusK":  "ពន្យាតាំងស៊ប់",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  39,
+        "WorkStatusE":  "Transfer into Province from Province",
+        "WorkStatusK":  "ផ្ទេរបុគ្គលិកចូលខេត្តពីខេត្តផ្សេង",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  24,
+        "WorkStatusE":  "Floating",
+        "WorkStatusK":  "បុគ្គលិកអណ្តែត",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  5,
+        "WorkStatusE":  "Returned to Work",
+        "WorkStatusK":  "ចូលបំរើការងារក្នុងក្របខ័ណ្ខដើមវិញ",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  4,
+        "WorkStatusE":  "On Notice",
+        "WorkStatusK":  "លិខិតព្រមាន",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  9,
+        "WorkStatusE":  "Retirement by retirement age",
+        "WorkStatusK":  "ចូលនិវត្តន៍តាមអាយុកំណត់",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  13,
+        "WorkStatusE":  "Transfer out of Province to Province",
+        "WorkStatusK":  "ផ្ទេរបុគ្គលិកចេញពីខេត្តទៅខេត្តផ្សេង",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  14,
+        "WorkStatusE":  "Transfer out of Province to Central",
+        "WorkStatusK":  "ផ្ទេរបុគ្គលិកចេញពីខេត្តទៅថ្នាក់កណ្តាល",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  15,
+        "WorkStatusE":  "Transfer out of Province to another Ministry",
+        "WorkStatusK":  "ផ្ទេរបុគ្គលិកចេញពីខេត្តទៅក្រសួងផ្សេង",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  18,
+        "WorkStatusE":  "On Probation",
+        "WorkStatusK":  "កម្មសិក្សាការី",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  25,
+        "WorkStatusE":  "Contracted Staff",
+        "WorkStatusK":  "បុគ្គលិកជាប់កិច្ចសន្យា",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  23,
+        "WorkStatusE":  "Transfer out of Central to Province",
+        "WorkStatusK":  "ផ្ទេរបុគ្គលិកចេញពីថ្នាក់កណ្តាលទៅខេត្ត",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  40,
+        "WorkStatusE":  "Transfer into Province from Central",
+        "WorkStatusK":  "ផ្ទេរបុគ្គលិកចូលខេត្តពីថ្នាក់កណ្តាល",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  41,
+        "WorkStatusE":  "Transfer into Province from another Ministry",
+        "WorkStatusK":  "ផ្ទេរបុគ្គលិកចូលខេត្តពីក្រសួងផ្សេង",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  42,
+        "WorkStatusE":  "Transfer into Central from Province",
+        "WorkStatusK":  "ផ្ទេរបុគ្គលិកចូលថ្នាក់កណ្តាលពីខេត្ត",
+        "Active":  null
+    },
+    {
+        "WorkStatusID":  43,
+        "WorkStatusE":  "New Staff 2013",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០១៣",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  44,
+        "WorkStatusE":  "New Staff 2014",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០១៤",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  45,
+        "WorkStatusE":  "New Staff 2015",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០១៥",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  46,
+        "WorkStatusE":  "New Staff 2016",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០១៦",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  47,
+        "WorkStatusE":  "New Staff 2017",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០១៧",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  48,
+        "WorkStatusE":  "New Staff 2018",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០១៨",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  49,
+        "WorkStatusE":  "New Staff 2019",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០១៩",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  50,
+        "WorkStatusE":  "New Staff 2020",
+        "WorkStatusK":  "មន្ត្រីជ្រើសរើសថ្មីឆ្នាំ ២០២០",
+        "Active":  false
+    },
+    {
+        "WorkStatusID":  0,
+        "WorkStatusE":  null,
+        "WorkStatusK":  " ",
+        "Active":  false
+    }
+]
