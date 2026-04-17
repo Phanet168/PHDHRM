@@ -17,6 +17,15 @@ yarn-error.log
 /.fleet
 /.idea
 /.vscode
+*.iml
+
+# Flutter / Dart
+/.dart_tool/
+/.flutter-plugins
+/.flutter-plugins-dependencies
+/.packages
+/.pub/
+/build/
 
 #ignore log files
 *.zip
