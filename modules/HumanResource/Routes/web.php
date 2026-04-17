@@ -45,6 +45,7 @@ use Modules\HumanResource\Http\Controllers\HumanResourceController;
 use Modules\HumanResource\Http\Controllers\SalaryAdvanceController;
 use Modules\HumanResource\Http\Controllers\SalaryGenerateController;
 use Modules\HumanResource\Http\Controllers\ManualAttendanceController;
+use Modules\HumanResource\Http\Controllers\MobileDeviceController;
 use Modules\HumanResource\Http\Controllers\CandidateInterviewController;
 use Modules\HumanResource\Http\Controllers\CandidateSelectionController;
 use Modules\HumanResource\Http\Controllers\CandidateShortlistController;
@@ -356,6 +357,7 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
 
     Route::name('attendances.')->group(function () {
         Route::controller(ManualAttendanceController::class)->group(function () {
+            Route::get('/attendances/workflow', 'workflow')->name('workflow');
             Route::get('/attendances/index', 'index')->name('index');
             Route::post('/attendances/store', 'store')->name('store');
             Route::get('/attendances/create', 'create')->name('create');
@@ -373,6 +375,16 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
             Route::put('/update/attendances/{attendance}', 'update')->name('update');
             Route::delete('/attendances/delete/{attendance}', 'destroy')->name('destroy');
         });
+    });
+
+    // Mobile Device Management
+    Route::name('mobile-devices.')->prefix('mobile-devices')->controller(MobileDeviceController::class)->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::post('/{device}/approve', 'approve')->name('approve');
+        Route::post('/{device}/reject', 'reject')->name('reject');
+        Route::post('/{device}/block', 'block')->name('block');
+        Route::post('/{device}/unblock', 'unblock')->name('unblock');
+        Route::delete('/{device}', 'destroy')->name('destroy');
     });
 
     Route::name('idprint.')->group(function () {

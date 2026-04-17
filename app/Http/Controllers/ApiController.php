@@ -8,6 +8,7 @@ use Modules\Setting\Entities\Application;
 use App\Models\User;
 use App\Models\Appsetting;
 use Modules\HumanResource\Entities\Employee;
+use Modules\HumanResource\Entities\Department;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Modules\HumanResource\Entities\Attendance;
@@ -215,9 +216,9 @@ class ApiController extends Controller
 
         $ulatitude = $request->get('latitude');
         $ulongitude = $request->get('longitude');
-        $employee_id = $request->get('employee_id');
+        $employee_id = (int) $request->get('employee_id');
         $time = $request->get('datetime');
-        $userid = $request->get('user_id');
+        $userid = (int) $request->get('user_id');
         $qrToken = (string) $request->get('qr_token', '');
         $qrPayloadRaw = $request->get('qr_payload');
 
@@ -228,7 +229,7 @@ class ApiController extends Controller
             }
         }
 
-        $requireQrToken = (bool) config('humanresource.attendance.require_qr_token', false);
+        $requireQrToken = (bool) config('humanresource.attendance.require_qr_token', true);
         $qrClaims = null;
         $resolvedWorkplaceId = null;
 
@@ -253,7 +254,54 @@ class ApiController extends Controller
             return;
         }
 
-        $userInfo = User::query()->find($userid);
+        $userInfo = $userid > 0 ? User::query()->find($userid) : null;
+        $employeeRecord = null;
+
+        if ($userInfo) {
+            $employeeRecord = Employee::query()
+                ->where('user_id', $userInfo->id)
+                ->orWhere('email', $userInfo->email)
+                ->first();
+        }
+
+        if (!$employeeRecord && $employee_id > 0) {
+            $employeeRecord = Employee::query()->find($employee_id);
+        }
+
+        if (!$employeeRecord) {
+            $json['response'] = [
+                'status' => 'error',
+                'message' => localize('employee_not_found', 'Employee not found'),
+            ];
+            echo json_encode($json, JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        if ($employee_id > 0 && (int) $employeeRecord->id !== $employee_id) {
+            $json['response'] = [
+                'status' => 'error',
+                'message' => localize('invalid_employee_for_user', 'Invalid employee for this user'),
+            ];
+            echo json_encode($json, JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        if ($resolvedWorkplaceId) {
+            $isMatchedWorkplace = in_array((int) $resolvedWorkplaceId, [
+                (int) ($employeeRecord->department_id ?? 0),
+                (int) ($employeeRecord->sub_department_id ?? 0),
+            ], true);
+
+            if (!$isMatchedWorkplace) {
+                $json['response'] = [
+                    'status' => 'error',
+                    'message' => localize('workplace_mismatch', 'This QR is not for your assigned unit'),
+                ];
+                echo json_encode($json, JSON_UNESCAPED_UNICODE);
+                return;
+            }
+        }
+
         $user_data = null;
         if ($userInfo && $userInfo->email) {
             $user_data = $this->userData($userInfo->email);
@@ -273,10 +321,27 @@ class ApiController extends Controller
             return;
         }
 
-        $lat1 = (float) ($settingdata->latitude ?? 0);
-        $lon1 = (float) ($settingdata->longitude ?? 0);
+        $workplace = null;
+        if ($resolvedWorkplaceId) {
+            $workplace = Department::withoutGlobalScopes()
+                ->whereNull('deleted_at')
+                ->find((int) $resolvedWorkplaceId);
+        }
+
+        $lat1 = (float) ($workplace?->latitude ?? $settingdata->latitude ?? 0);
+        $lon1 = (float) ($workplace?->longitude ?? $settingdata->longitude ?? 0);
         $lat2 = (float) $ulatitude;
         $lon2 = (float) $ulongitude;
+
+        if ($lat1 == 0.0 || $lon1 == 0.0) {
+            $json['response'] = [
+                'status' => 'error',
+                'message' => localize('workplace_location_not_set', 'Workplace location is not configured'),
+            ];
+            echo json_encode($json, JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
         $theta = $lon1 - $lon2;
 
         $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
@@ -287,10 +352,12 @@ class ApiController extends Controller
 
         $distance = number_format($metre, 1);
 
-        if ($settingdata->acceptablerange > $distance) {
+        $acceptableRange = (float) ($settingdata->acceptablerange ?? 0);
+
+        if ($acceptableRange > $distance) {
             
             $captured = AttendanceCaptureService::capture([
-                'employee_id' => (int) $employee_id,
+            'employee_id' => (int) $employeeRecord->id,
                 'time' => $time,
                 'machine_state' => 1,
                 'attendance_source' => 'api_qr',
@@ -346,7 +413,7 @@ class ApiController extends Controller
                     'status'     => 'error',
                     'range'      => $distance,
                     'lat'        => $lat1,
-                    'dfrange'    => $settingdata->acceptablerange,
+                    'dfrange'    => $acceptableRange,
                     'message'    =>  localize('please_try_again'),
 
                 ];
@@ -376,6 +443,11 @@ class ApiController extends Controller
         $email = $request->get('email');
         $password =  $request->get('password');
         $token   = $request->get('token_id');
+        $deviceId = trim((string) $request->get('device_id', ''));
+        $deviceName = trim((string) $request->get('device_name', 'flutter-app'));
+        $platform = trim((string) $request->get('platform', ''));
+        $imei = trim((string) $request->get('imei', ''));
+        $fingerprint = trim((string) $request->get('fingerprint', ''));
 
         $userInfo = $this->userData($email);
         if ($userInfo && $userInfo->profile_pic != null) {
@@ -397,9 +469,171 @@ class ApiController extends Controller
             ];
 
             $user = $this->checkUser($userData);
+            if ($user && !$userInfo) {
+                $userInfo = (object) [
+                    'id' => $user->id,
+                    'email' => $user->email,
+                    'profile_pic' => $user->profile_image,
+                    'token_id' => $token,
+                ];
+
+                if (!empty($userInfo->profile_pic)) {
+                    $userInfo->profile_pic = 'storage/' . $userInfo->profile_pic;
+                }
+            }
+
             $img = $userInfo?->profile_pic;
 
-            if ($user && $userInfo) {
+            if ($user) {
+                if ($deviceId === '') {
+                    $json['response'] = [
+                        'status'  => localize('error'),
+                        'type'    => 'device_id_required',
+                        'message' => 'device_id_required',
+                    ];
+                    echo json_encode($json, JSON_UNESCAPED_UNICODE);
+                    return;
+                }
+
+                $device = DB::table('mobile_device_registrations')
+                    ->where('user_id', (int) $user->id)
+                    ->where('device_id', $deviceId)
+                    ->first();
+
+                if ($device) {
+                    if (!empty($device->imei) && !empty($imei) && (string) $device->imei !== (string) $imei) {
+                        $json['response'] = [
+                            'status'  => localize('error'),
+                            'type'    => 'device_imei_mismatch',
+                            'message' => 'device_imei_mismatch',
+                        ];
+                        echo json_encode($json, JSON_UNESCAPED_UNICODE);
+                        return;
+                    }
+
+                    if ($device->status === 'blocked') {
+                        $json['response'] = [
+                            'status'  => localize('error'),
+                            'type'    => 'device_blocked',
+                            'message' => 'device_blocked',
+                        ];
+                        echo json_encode($json, JSON_UNESCAPED_UNICODE);
+                        return;
+                    }
+
+                    if ($device->status === 'rejected') {
+                        $json['response'] = [
+                            'status'  => localize('error'),
+                            'type'    => 'device_rejected',
+                            'message' => 'device_rejected',
+                        ];
+                        echo json_encode($json, JSON_UNESCAPED_UNICODE);
+                        return;
+                    }
+
+                    if ($device->status === 'pending') {
+                        $json['response'] = [
+                            'status'  => localize('error'),
+                            'type'    => 'device_pending',
+                            'message' => 'device_pending',
+                        ];
+                        echo json_encode($json, JSON_UNESCAPED_UNICODE);
+                        return;
+                    }
+
+                    DB::table('mobile_device_registrations')
+                        ->where('id', (int) $device->id)
+                        ->update([
+                            'device_name' => ($deviceName !== '' ? $deviceName : $device->device_name),
+                            'platform' => ($platform !== '' ? $platform : $device->platform),
+                            'last_login_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                } else {
+                    $trustedDevice = null;
+                    if ($imei !== '' || $fingerprint !== '') {
+                        $trustedQuery = DB::table('mobile_device_registrations')
+                            ->where('user_id', (int) $user->id);
+
+                        $trustedQuery->where(function ($q) use ($imei, $fingerprint) {
+                            if ($imei !== '') {
+                                $q->orWhere('imei', $imei);
+                            }
+                            if ($fingerprint !== '') {
+                                $q->orWhere('fingerprint', $fingerprint);
+                            }
+                        });
+
+                        $trustedDevice = $trustedQuery->orderByDesc('id')->first();
+                    }
+
+                    if ($trustedDevice) {
+                        if ($trustedDevice->status === 'blocked') {
+                            $json['response'] = [
+                                'status'  => localize('error'),
+                                'type'    => 'device_blocked',
+                                'message' => 'device_blocked',
+                            ];
+                            echo json_encode($json, JSON_UNESCAPED_UNICODE);
+                            return;
+                        }
+
+                        if ($trustedDevice->status === 'rejected') {
+                            $json['response'] = [
+                                'status'  => localize('error'),
+                                'type'    => 'device_rejected',
+                                'message' => 'device_rejected',
+                            ];
+                            echo json_encode($json, JSON_UNESCAPED_UNICODE);
+                            return;
+                        }
+
+                        if ($trustedDevice->status === 'pending') {
+                            $json['response'] = [
+                                'status'  => localize('error'),
+                                'type'    => 'device_pending',
+                                'message' => 'device_pending',
+                            ];
+                            echo json_encode($json, JSON_UNESCAPED_UNICODE);
+                            return;
+                        }
+
+                        DB::table('mobile_device_registrations')
+                            ->where('id', (int) $trustedDevice->id)
+                            ->update([
+                                'device_id' => $deviceId,
+                                'device_name' => ($deviceName !== '' ? $deviceName : $trustedDevice->device_name),
+                                'platform' => ($platform !== '' ? $platform : $trustedDevice->platform),
+                                'imei' => ($imei !== '' ? $imei : $trustedDevice->imei),
+                                'fingerprint' => ($fingerprint !== '' ? $fingerprint : $trustedDevice->fingerprint),
+                                'last_login_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                    } else {
+                        DB::table('mobile_device_registrations')->insert([
+                            'user_id' => (int) $user->id,
+                            'device_id' => $deviceId,
+                            'device_name' => ($deviceName !== '' ? $deviceName : null),
+                            'platform' => ($platform !== '' ? $platform : null),
+                            'imei' => ($imei !== '' ? $imei : null),
+                            'fingerprint' => ($fingerprint !== '' ? $fingerprint : null),
+                            'status' => 'pending',
+                            'register_ip' => $request->ip(),
+                            'register_ua' => substr((string) $request->userAgent(), 0, 500),
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+
+                        $json['response'] = [
+                            'status'  => localize('error'),
+                            'type'    => 'device_pending',
+                            'message' => 'device_pending',
+                        ];
+                        echo json_encode($json, JSON_UNESCAPED_UNICODE);
+                        return;
+                    }
+                }
+
                 $token_data = array(
                     'token_id' => $token,
                 );

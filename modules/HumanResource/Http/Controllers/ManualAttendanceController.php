@@ -4,6 +4,7 @@ namespace Modules\HumanResource\Http\Controllers;
 
 use App\Imports\AttendanceImport;
 use App\Imports\ManualAttendanceImport;
+use App\Models\MobileDeviceRegistration;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
 use Illuminate\Contracts\Support\Renderable;
@@ -22,15 +23,54 @@ use Modules\HumanResource\Entities\PointAttendance;
 use Modules\HumanResource\Entities\RewardPoint;
 use Modules\HumanResource\Services\AttendanceCaptureService;
 use Modules\HumanResource\Services\QrAttendanceTokenService;
+use Modules\HumanResource\Support\OrgScopeService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
 
 class ManualAttendanceController extends Controller
 {
+    private function scopedEmployeeQuery(OrgScopeService $orgScopeService)
+    {
+        $query = Employee::query()->where('is_active', 1);
+
+        $accessibleDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
+        if (is_array($accessibleDepartmentIds)) {
+            $departmentIds = array_map('intval', $accessibleDepartmentIds);
+            $query->where(function ($inner) use ($departmentIds) {
+                $inner->whereIn('department_id', $departmentIds)
+                    ->orWhereIn('sub_department_id', $departmentIds);
+            });
+        }
+
+        return $query;
+    }
+
+    private function ensureEmployeeIsAccessible(int $employeeId, OrgScopeService $orgScopeService): Employee
+    {
+        return $this->scopedEmployeeQuery($orgScopeService)->findOrFail($employeeId);
+    }
+
+    private function ensureEmployeesAreAccessible(array $employeeIds, OrgScopeService $orgScopeService): void
+    {
+        $requestedIds = array_values(array_unique(array_map('intval', $employeeIds)));
+        $accessibleIds = $this->scopedEmployeeQuery($orgScopeService)
+            ->whereIn('id', $requestedIds)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        sort($requestedIds);
+        sort($accessibleIds);
+
+        if ($requestedIds !== $accessibleIds) {
+            abort(403, 'You are not allowed to manage attendance for one or more selected employees.');
+        }
+    }
+
     public function __construct()
     {
         $this->middleware(['auth', 'verified', 'permission:attendance_management']);
         $this->middleware('permission:attendance_management', ['only' => ['create', 'store', 'edit', 'update', 'destroy', 'bulk', 'monthlyAttendanceBulkImport', 'monthlyCreate', 'monthlyStore', 'missingAttendance', 'missingAttendanceStore']]);
-        $this->middleware('permission:read_attendance', ['only' => ['create', 'store', 'exceptions', 'qrCreate', 'qrGenerate']]);
+        $this->middleware('permission:read_attendance', ['only' => ['workflow', 'create', 'store', 'exceptions', 'qrCreate', 'qrGenerate']]);
         $this->middleware('permission:create_attendance', ['only' => ['create', 'store']]);
         $this->middleware('permission:create_monthly_attendance', ['only' => ['monthlyCreate', 'monthlyStore']]);
         $this->middleware('permission:create_missing_attendance', ['only' => ['missingAttendance', 'missingAttendanceStore']]);
@@ -41,19 +81,65 @@ class ManualAttendanceController extends Controller
      *
      * @return Renderable
      */
-    public function create()
+    public function create(OrgScopeService $orgScopeService)
     {
-        $employee = Employee::where('is_active', 1)->get();
+        $employee = $this->scopedEmployeeQuery($orgScopeService)->get();
 
         return view('humanresource::attendance.create', compact('employee'));
+    }
+
+    public function workflow(OrgScopeService $orgScopeService, OrgUnitRuleService $orgUnitRuleService)
+    {
+        $today = Carbon::today()->toDateString();
+        $accessibleDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
+
+        $employeeQuery = $this->scopedEmployeeQuery($orgScopeService);
+        $employeeIds = $employeeQuery->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        $deviceQuery = MobileDeviceRegistration::query()->with('user.employee');
+        if (is_array($accessibleDepartmentIds)) {
+            $departmentIds = array_map('intval', $accessibleDepartmentIds);
+            $deviceQuery->whereHas('user.employee', function ($q) use ($departmentIds) {
+                $q->whereIn('department_id', $departmentIds)
+                    ->orWhereIn('sub_department_id', $departmentIds);
+            });
+        }
+
+        $workflow = [
+            'employees_in_scope' => count($employeeIds),
+            'today_attendance' => empty($employeeIds) ? 0 : Attendance::query()->whereIn('employee_id', $employeeIds)->whereDate('time', $today)->distinct('employee_id')->count('employee_id'),
+            'today_exceptions' => empty($employeeIds) ? 0 : Attendance::query()->whereIn('employee_id', $employeeIds)->whereDate('time', $today)->where('exception_flag', true)->distinct('employee_id')->count('employee_id'),
+            'missing_today' => empty($employeeIds) ? 0 : $this->scopedEmployeeQuery($orgScopeService)->doesntHave('attendances', 'and', function ($query) use ($today) {
+                $query->whereDate('time', $today);
+            })->count(),
+            'device_pending' => (clone $deviceQuery)->where('status', 'pending')->count(),
+            'device_active' => (clone $deviceQuery)->where('status', 'active')->count(),
+            'device_blocked' => (clone $deviceQuery)->where('status', 'blocked')->count(),
+            'qr_units' => is_array($accessibleDepartmentIds)
+                ? $orgUnitRuleService->hierarchyOptions()->filter(fn ($option) => in_array((int) data_get($option, 'id', 0), array_map('intval', $accessibleDepartmentIds), true))->count()
+                : $orgUnitRuleService->hierarchyOptions()->count(),
+        ];
+
+        return view('humanresource::attendance.workflow', compact('workflow', 'today'));
     }
 
     /**
      * QR attendance token generator page.
      */
-    public function qrCreate(OrgUnitRuleService $orgUnitRuleService)
+    public function qrCreate(OrgUnitRuleService $orgUnitRuleService, OrgScopeService $orgScopeService)
     {
         $orgUnitOptions = $orgUnitRuleService->hierarchyOptions();
+        $scopedDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
+
+        if (is_array($scopedDepartmentIds)) {
+            $allowedDepartmentIds = array_map('intval', $scopedDepartmentIds);
+            $orgUnitOptions = $orgUnitOptions
+                ->filter(function ($option) use ($allowedDepartmentIds) {
+                    return in_array((int) data_get($option, 'id', 0), $allowedDepartmentIds, true);
+                })
+                ->values();
+        }
+
         $defaultExpiry = (int) config('humanresource.attendance.qr_default_expiry_minutes', 2);
         $maxExpiry = (int) config('humanresource.attendance.qr_max_expiry_minutes', 30);
 
@@ -70,13 +156,25 @@ class ManualAttendanceController extends Controller
     /**
      * Generate a signed/expiring QR token for attendance scan.
      */
-    public function qrGenerate(Request $request, OrgUnitRuleService $orgUnitRuleService)
+    public function qrGenerate(Request $request, OrgUnitRuleService $orgUnitRuleService, OrgScopeService $orgScopeService)
     {
         $maxExpiry = (int) config('humanresource.attendance.qr_max_expiry_minutes', 30);
         $validated = $request->validate([
             'workplace_id' => 'required|integer|exists:departments,id',
             'expires_minutes' => 'nullable|integer|min:1|max:' . max(1, $maxExpiry),
         ]);
+
+        $scopedDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
+        if (is_array($scopedDepartmentIds)) {
+            $allowedDepartmentIds = array_map('intval', $scopedDepartmentIds);
+            if (!in_array((int) $validated['workplace_id'], $allowedDepartmentIds, true)) {
+                return back()
+                    ->withErrors([
+                        'workplace_id' => localize('you_are_not_allowed_to_generate_qr_for_this_unit', 'You are not allowed to generate QR for this unit'),
+                    ])
+                    ->withInput();
+            }
+        }
 
         $expiresMinutes = (int) ($validated['expires_minutes'] ?? config('humanresource.attendance.qr_default_expiry_minutes', 2));
         $expiresMinutes = max(1, min($expiresMinutes, max(1, $maxExpiry)));
@@ -112,8 +210,18 @@ class ManualAttendanceController extends Controller
             'qr_image_url' => 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=' . rawurlencode((string) $qrPayloadJson),
         ];
 
+        $orgUnitOptions = $orgUnitRuleService->hierarchyOptions();
+        if (is_array($scopedDepartmentIds)) {
+            $allowedDepartmentIds = array_map('intval', $scopedDepartmentIds);
+            $orgUnitOptions = $orgUnitOptions
+                ->filter(function ($option) use ($allowedDepartmentIds) {
+                    return in_array((int) data_get($option, 'id', 0), $allowedDepartmentIds, true);
+                })
+                ->values();
+        }
+
         return view('humanresource::attendance.qr', [
-            'orgUnitOptions' => $orgUnitRuleService->hierarchyOptions(),
+            'orgUnitOptions' => $orgUnitOptions,
             'defaultExpiry' => (int) config('humanresource.attendance.qr_default_expiry_minutes', 2),
             'maxExpiry' => max(1, $maxExpiry),
             'generated' => $generated,
@@ -125,15 +233,17 @@ class ManualAttendanceController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, OrgScopeService $orgScopeService)
     {
         $validated = $request->validate([
             'employee_id' => 'required',
             'time' => 'required',
         ]);
 
+        $employee = $this->ensureEmployeeIsAccessible((int) $validated['employee_id'], $orgScopeService);
+
         $attendance_history = [
-            'uid'    => $request->input('employee_id'),
+            'uid'    => $employee->id,
             'state'  => 1,
             'id'     => 0,
             'time'   => $request->input('time'),
@@ -144,7 +254,7 @@ class ManualAttendanceController extends Controller
 
         // attendance (dedupe + exception sync)
         $resp = AttendanceCaptureService::capture([
-            'employee_id' => (int) $validated['employee_id'],
+            'employee_id' => (int) $employee->id,
             'time' => $validated['time'],
             'attendance_source' => 'manual',
         ]);
@@ -524,25 +634,28 @@ class ManualAttendanceController extends Controller
             ->first();
     }
 
-    public function edit(ManualAttendance $attendance)
+    public function edit(ManualAttendance $attendance, OrgScopeService $orgScopeService)
     {
+        $this->ensureEmployeeIsAccessible((int) $attendance->employee_id, $orgScopeService);
         $attendance->load('employee');
-        $employee = Employee::where('is_active', 1)->get();
+        $employee = $this->scopedEmployeeQuery($orgScopeService)->get();
 
         return view('humanresource::attendance.edit', compact('attendance', 'employee'));
     }
 
-    public function update(Request $request, Attendance $attendance)
+    public function update(Request $request, Attendance $attendance, OrgScopeService $orgScopeService)
     {
         $validated = $request->validate([
             'employee_id' => 'required',
             'time' => 'required',
         ]);
+        $this->ensureEmployeeIsAccessible((int) $attendance->employee_id, $orgScopeService);
+        $employee = $this->ensureEmployeeIsAccessible((int) $validated['employee_id'], $orgScopeService);
         $oldEmployeeId = (int) $attendance->employee_id;
         $oldDate = Carbon::parse($attendance->time)->toDateString();
 
         $attendance_history = [
-            'uid'    => $request->input('employee_id'),
+            'uid'    => $employee->id,
             'state'  => 1,
             'id'     => 0,
             'time'   => $request->input('time'),
@@ -550,6 +663,7 @@ class ManualAttendanceController extends Controller
 
 
         $neTime = Carbon::parse($request->time)->format('Y-m-d H:i:s');
+    $validated['employee_id'] = $employee->id;
         $validated['time'] = $neTime;
 
         // manual attendance
@@ -568,8 +682,9 @@ class ManualAttendanceController extends Controller
     /**
      * @param Attendance $attendance
      */
-    public function destroy(Attendance $attendance)
+    public function destroy(Attendance $attendance, OrgScopeService $orgScopeService)
     {
+        $this->ensureEmployeeIsAccessible((int) $attendance->employee_id, $orgScopeService);
         $employeeId = (int) $attendance->employee_id;
         $date = Carbon::parse($attendance->time)->toDateString();
 
@@ -601,7 +716,11 @@ class ManualAttendanceController extends Controller
         ]);
 
         try {
-            $export = Excel::import(new AttendanceImport(), $request->file('bulk'));
+            $allowedEmployeeIds = $this->scopedEmployeeQuery(app(OrgScopeService::class))
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            $export = Excel::import(new AttendanceImport($allowedEmployeeIds), $request->file('bulk'));
             Toastr::success(localize('data_imported_successfully'));
             return redirect()->route('attendances.create');
         } catch (\Exception $e) {
@@ -624,7 +743,11 @@ class ManualAttendanceController extends Controller
         ]);
 
         try {
-            Excel::import(new AttendanceImport(), $request->file('monthly_bulk'));
+            $allowedEmployeeIds = $this->scopedEmployeeQuery(app(OrgScopeService::class))
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+            Excel::import(new AttendanceImport($allowedEmployeeIds), $request->file('monthly_bulk'));
 
             return redirect()->route('attendances.monthlyCreate')->with('success', localize('data_imported_successfully'));
         } catch (\Exception $e) {
@@ -635,15 +758,24 @@ class ManualAttendanceController extends Controller
         }
     }
 
-    public function monthlyCreate()
+    public function monthlyCreate(OrgScopeService $orgScopeService)
     {
-        $employee = Employee::where('is_active', 1)->get();
+        $employee = $this->scopedEmployeeQuery($orgScopeService)->get();
 
         return view('humanresource::attendance.monthlycreate', compact('employee'));
     }
 
-    public function monthlyStore(Request $request)
+    public function monthlyStore(Request $request, OrgScopeService $orgScopeService)
     {
+        $request->validate([
+            'employee_id' => 'required|integer',
+            'year' => 'required|integer',
+            'month' => 'required|integer|min:1|max:12',
+            'in_time' => 'required',
+            'out_time' => 'required',
+        ]);
+
+        $employee = $this->ensureEmployeeIsAccessible((int) $request->employee_id, $orgScopeService);
         $year = $request->year;
         $month = $request->month;
         $in_time = Carbon::parse($request->in_time)->format('H:i:s');
@@ -682,12 +814,12 @@ class ManualAttendanceController extends Controller
                 $outTime = Carbon::createFromFormat('Y-m-d H:i:s', $year . '-' . $month . '-' . $day . ' ' . $out_time)->format('Y-m-d H:i:s');
 
                 AttendanceCaptureService::capture([
-                    'employee_id' => (int) $request->employee_id,
+                    'employee_id' => (int) $employee->id,
                     'time' => $inTime,
                     'attendance_source' => 'monthly',
                 ]);
                 AttendanceCaptureService::capture([
-                    'employee_id' => (int) $request->employee_id,
+                    'employee_id' => (int) $employee->id,
                     'time' => $outTime,
                     'attendance_source' => 'monthly',
                 ]);
@@ -702,7 +834,7 @@ class ManualAttendanceController extends Controller
         }
     }
 
-    public function missingAttendance(Request $request)
+    public function missingAttendance(Request $request, OrgScopeService $orgScopeService)
     {
         $date = $request->date;
         // if date is not set then set current date
@@ -711,13 +843,16 @@ class ManualAttendanceController extends Controller
         } else {
             $date = Carbon::parse($date)->format('Y-m-d');
         }
-        $missingAttendance = Employee::with(['position:id,position_name'])->doesntHave('attendances', 'and', function ($query) use ($date) {
-            $query->whereDate('time', $date);
-        })->where('is_active', true)->get(['id', 'first_name', 'middle_name', 'last_name', 'position_id', 'employee_id']);
+        $missingAttendance = $this->scopedEmployeeQuery($orgScopeService)
+            ->with(['position:id,position_name'])
+            ->doesntHave('attendances', 'and', function ($query) use ($date) {
+                $query->whereDate('time', $date);
+            })
+            ->get(['id', 'first_name', 'middle_name', 'last_name', 'position_id', 'employee_id']);
         return view('humanresource::attendance.missing', compact('missingAttendance', 'date'));
     }
 
-    public function missingAttendanceStore(Request $request)
+    public function missingAttendanceStore(Request $request, OrgScopeService $orgScopeService)
     {
         $request->validate([
             'employee_id' => 'required|array',
@@ -728,6 +863,9 @@ class ManualAttendanceController extends Controller
             'out_time.*' => 'required|date_format:H:i',
             'date' => 'required|date',
         ]);
+
+        $this->ensureEmployeesAreAccessible($request->employee_id, $orgScopeService);
+
         try {
             DB::beginTransaction();
             $in_time = $request->in_time;
@@ -762,9 +900,10 @@ class ManualAttendanceController extends Controller
     /**
      * List attendance exception rows (odd IN/OUT punches).
      */
-    public function exceptions(Request $request)
+    public function exceptions(Request $request, OrgScopeService $orgScopeService)
     {
         $date = $request->date ? Carbon::parse($request->date)->format('Y-m-d') : Carbon::now()->format('Y-m-d');
+        $accessibleDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
 
         $exceptions = Attendance::query()
             ->selectRaw('employee_id, workplace_id, DATE(time) as attendance_date, COUNT(*) as punch_count, MIN(time) as first_punch, MAX(time) as last_punch, MAX(exception_reason) as exception_reason')
@@ -778,6 +917,16 @@ class ManualAttendanceController extends Controller
             ->havingRaw('COUNT(*) % 2 = 1')
             ->orderBy('employee_id')
             ->get();
+
+        if (is_array($accessibleDepartmentIds)) {
+            $departmentIds = array_map('intval', $accessibleDepartmentIds);
+            $exceptions = $exceptions->filter(function ($row) use ($departmentIds) {
+                $employee = $row->employee;
+                return in_array((int) ($employee?->department_id ?? 0), $departmentIds, true)
+                    || in_array((int) ($employee?->sub_department_id ?? 0), $departmentIds, true)
+                    || in_array((int) ($row->workplace_id ?? 0), $departmentIds, true);
+            })->values();
+        }
 
         return view('humanresource::attendance.exceptions', compact('exceptions', 'date'));
     }

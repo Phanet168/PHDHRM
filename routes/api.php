@@ -23,13 +23,14 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 
 Route::get('/', [ApiController::class, 'index']);
 Route::post('/auth/login', [AuthController::class, 'login'])->name('api.auth.login');
+Route::middleware('auth:sanctum')->post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
 
 Route::controller(ApiController::class)->group(function () {
 
     Route::get('/language', 'language')->name('language');
     Route::get('/webSetting', 'webSetting')->name('webSetting');
 
-    Route::get('/login', 'login')->name('login');
+    Route::match(['get', 'post'], '/login', 'login')->name('login');
     Route::post('/password_recovery', 'password_recovery')->name('password_recovery');
 
     Route::get('/recovery_form/{token_id}','recoveryForm')->name('recovery_form');
