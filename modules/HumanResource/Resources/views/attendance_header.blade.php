@@ -3,6 +3,12 @@
         <ul class="nav nav-tabs">
             @can('read_attendance')
                 <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('attendances.workflow') ? 'active' : '' }}"
+                        href="{{ route('attendances.workflow') }}">{{ localize('attendance_workflow', 'Workflow') }}</a>
+                </li>
+            @endcan
+            @can('read_attendance')
+                <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('attendances.create') ? 'active' : '' }}"
                         href="{{ route('attendances.create') }}">{{ localize('attendance_form') }}</a>
                 </li>

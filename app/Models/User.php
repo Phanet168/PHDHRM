@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
+use App\Models\MobileDeviceRegistration;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Notifications\Notifiable;
@@ -123,5 +124,10 @@ class User extends Authenticatable
     public function orgRoles()
     {
         return $this->hasMany(UserOrgRole::class, 'user_id', 'id');
+    }
+
+    public function mobileDeviceRegistrations()
+    {
+        return $this->hasMany(MobileDeviceRegistration::class, 'user_id', 'id');
     }
 }

@@ -25,19 +25,33 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::get('/', [ApiController::class, 'index']);
 Route::post('/auth/login', [AuthController::class, 'login'])->name('api.auth.login');
 
-// Device Access Request Routes
+// Legacy device access request endpoints (kept for backward compatibility)
 Route::post('/device-access-requests', [DeviceAccessRequestController::class, 'store'])->name('device-access-requests.store');
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/device-access-requests', [DeviceAccessRequestController::class, 'index'])->name('device-access-requests.index');
     Route::patch('/device-access-requests/{deviceAccessRequest}/review', [DeviceAccessRequestController::class, 'review'])->name('device-access-requests.review');
 });
 
+// New device registration workflow endpoints
+Route::post('/auth/device-request', [AuthController::class, 'requestDeviceAccess'])->name('api.auth.device_request');
+// Backward-compatible aliases for old Flutter builds
+Route::post('/auth/device_request', [AuthController::class, 'requestDeviceAccess'])->name('api.auth.device_request_legacy');
+Route::post('/device-request', [AuthController::class, 'requestDeviceAccess'])->name('api.device_request');
+Route::post('/device_request', [AuthController::class, 'requestDeviceAccess'])->name('api.device_request_legacy');
+Route::post('/auth/device-request-status', [AuthController::class, 'deviceRequestStatus'])->name('api.auth.device_request_status');
+Route::post('/auth/device_request_status', [AuthController::class, 'deviceRequestStatus'])->name('api.auth.device_request_status_legacy');
+Route::post('/device-request-status', [AuthController::class, 'deviceRequestStatus'])->name('api.device_request_status');
+Route::post('/device_request_status', [AuthController::class, 'deviceRequestStatus'])->name('api.device_request_status_legacy');
+Route::middleware('auth:sanctum')->post('/auth/device-heartbeat', [AuthController::class, 'deviceHeartbeat'])->name('api.auth.device_heartbeat');
+Route::middleware('auth:sanctum')->post('/auth/device_heartbeat', [AuthController::class, 'deviceHeartbeat'])->name('api.auth.device_heartbeat_legacy');
+Route::middleware('auth:sanctum')->post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
+
 Route::controller(ApiController::class)->group(function () {
 
     Route::get('/language', 'language')->name('language');
     Route::get('/webSetting', 'webSetting')->name('webSetting');
 
-    Route::get('/login', 'login')->name('login');
+    Route::match(['get', 'post'], '/login', 'login')->name('login');
     Route::post('/password_recovery', 'password_recovery')->name('password_recovery');
 
     Route::get('/recovery_form/{token_id}','recoveryForm')->name('recovery_form');

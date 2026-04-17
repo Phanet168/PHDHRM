@@ -36,6 +36,10 @@
                         </a>
                         <ul class="nav-second-level {{ request()->routeIs('attendances.*') ? 'mm-show' : '' }}">
                             @can('read_attendance')
+                                <li class="{{ request()->routeIs('attendances.workflow') ? 'mm-active' : '' }}">
+                                    <a class="dropdown-item"
+                                        href="{{ route('attendances.workflow') }}">{{ localize('attendance_workflow', 'Workflow វត្តមាន') }}</a>
+                                </li>
                                 @can('create_attendance')
                                     <li class="{{ request()->routeIs('attendances.create') ? 'mm-active' : '' }}">
                                         <a class="dropdown-item"

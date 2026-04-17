@@ -356,6 +356,7 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
 
     Route::name('attendances.')->group(function () {
         Route::controller(ManualAttendanceController::class)->group(function () {
+            Route::get('/attendances/workflow', 'workflow')->name('workflow');
             Route::get('/attendances/index', 'index')->name('index');
             Route::post('/attendances/store', 'store')->name('store');
             Route::get('/attendances/create', 'create')->name('create');

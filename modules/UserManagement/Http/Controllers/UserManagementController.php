@@ -2,6 +2,7 @@
 
 namespace Modules\UserManagement\Http\Controllers;
 
+use App\Models\MobileDeviceRegistration;
 use App\Models\User;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Contracts\Support\Renderable;
@@ -26,7 +27,7 @@ class UserManagementController extends Controller
     {
         $this->middleware('permission:read_user_list')->only('userList', 'index');
         $this->middleware('permission:create_user_list')->only('userCreate', 'userStore');
-        $this->middleware('permission:update_user_list')->only('userEdit', 'userUpdate');
+        $this->middleware('permission:update_user_list')->only('userEdit', 'userUpdate', 'userDeviceStore', 'userDeviceStatus', 'userDeviceDelete');
         $this->middleware('permission:delete_user_list')->only('userDelete');
 
     }
@@ -409,10 +410,20 @@ class UserManagementController extends Controller
     //edit user
     public function userEdit(User $user)
     {
-        $user = User::with('userRole')->findOrFail($user->id);
+        $user = User::with([
+            'userRole',
+            'mobileDeviceRegistrations' => function ($query) {
+                $query->latest('created_at');
+            },
+            'mobileDeviceRegistrations.approver',
+            'mobileDeviceRegistrations.blocker',
+            'mobileDeviceRegistrations.rejecter',
+        ])->findOrFail($user->id);
+
+        $mobileDevices = $user->mobileDeviceRegistrations;
         $roleList = Role::all();
         $userTypes = UserType::where('is_active', true)->get();
-        return response()->view('usermanagement::user-management.user-edit', compact('user', 'roleList', 'userTypes'));
+        return response()->view('usermanagement::user-management.user-edit', compact('user', 'roleList', 'userTypes', 'mobileDevices'));
     }
 
     //update user
@@ -523,6 +534,185 @@ class UserManagementController extends Controller
         }
     }
 
+    public function userDeviceStore(Request $request, User $user)
+    {
+        $validator = Validator::make($request->all(), [
+            'device_id' => ['required', 'string', 'max:191'],
+            'device_name' => ['nullable', 'string', 'max:191'],
+            'platform' => ['nullable', 'in:android,ios,web'],
+            'imei' => ['nullable', 'string', 'max:50'],
+            'fingerprint' => ['nullable', 'string', 'max:255'],
+            'status' => ['required', 'in:active,blocked,pending,rejected'],
+            'rejection_reason' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation Error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $validated = $validator->validated();
+        $deviceId = trim((string) $validated['device_id']);
+
+        $alreadyExists = MobileDeviceRegistration::query()
+            ->where('user_id', (int) $user->id)
+            ->where('device_id', $deviceId)
+            ->exists();
+
+        if ($alreadyExists) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation Error',
+                'errors' => [
+                    'device_id' => ['This device ID is already registered for this user.'],
+                ],
+            ], 422);
+        }
+
+        $status = (string) $validated['status'];
+        $payload = [
+            'user_id' => (int) $user->id,
+            'device_id' => $deviceId,
+            'device_name' => trim((string) ($validated['device_name'] ?? '')) ?: null,
+            'platform' => $validated['platform'] ?? null,
+            'imei' => trim((string) ($validated['imei'] ?? '')) ?: null,
+            'fingerprint' => trim((string) ($validated['fingerprint'] ?? '')) ?: null,
+            'status' => $status,
+            'register_ip' => $request->ip(),
+            'register_ua' => substr((string) $request->userAgent(), 0, 500),
+        ];
+
+        if ($status === 'active') {
+            $payload['approved_by'] = auth()->id();
+            $payload['approved_at'] = now();
+        } elseif ($status === 'blocked') {
+            $payload['blocked_by'] = auth()->id();
+            $payload['blocked_at'] = now();
+        } elseif ($status === 'rejected') {
+            $payload['rejected_by'] = auth()->id();
+            $payload['rejected_at'] = now();
+            $payload['rejection_reason'] = trim((string) ($validated['rejection_reason'] ?? '')) ?: null;
+        }
+
+        MobileDeviceRegistration::create($payload);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => localize('device_registered_success', 'Device has been registered successfully'),
+        ]);
+    }
+
+    public function userDeviceStatus(Request $request, MobileDeviceRegistration $device)
+    {
+        $validator = Validator::make($request->all(), [
+            'status' => ['required', 'in:active,blocked,pending,rejected'],
+            'rejection_reason' => ['nullable', 'string', 'max:255'],
+            'user_id' => ['nullable', 'integer'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation Error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $validated = $validator->validated();
+        if (isset($validated['user_id']) && (int) $validated['user_id'] !== (int) $device->user_id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'This device does not belong to the selected user.',
+            ], 403);
+        }
+
+        $status = (string) $validated['status'];
+        $updates = ['status' => $status];
+
+        if ($status === 'active') {
+            $updates = array_merge($updates, [
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+                'blocked_by' => null,
+                'blocked_at' => null,
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejection_reason' => null,
+            ]);
+        } elseif ($status === 'blocked') {
+            $updates = array_merge($updates, [
+                'blocked_by' => auth()->id(),
+                'blocked_at' => now(),
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejection_reason' => null,
+            ]);
+            $this->revokeUserDeviceTokens($device);
+        } elseif ($status === 'rejected') {
+            $updates = array_merge($updates, [
+                'rejected_by' => auth()->id(),
+                'rejected_at' => now(),
+                'rejection_reason' => trim((string) ($validated['rejection_reason'] ?? '')) ?: null,
+                'approved_by' => null,
+                'approved_at' => null,
+                'blocked_by' => null,
+                'blocked_at' => null,
+            ]);
+            $this->revokeUserDeviceTokens($device);
+        } else {
+            $updates = array_merge($updates, [
+                'approved_by' => null,
+                'approved_at' => null,
+                'blocked_by' => null,
+                'blocked_at' => null,
+                'rejected_by' => null,
+                'rejected_at' => null,
+                'rejection_reason' => null,
+            ]);
+        }
+
+        $device->update($updates);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => localize('device_status_updated', 'Device status updated successfully'),
+        ]);
+    }
+
+    public function userDeviceDelete(Request $request, MobileDeviceRegistration $device)
+    {
+        $validator = Validator::make($request->all(), [
+            'user_id' => ['nullable', 'integer'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation Error',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $validated = $validator->validated();
+        if (isset($validated['user_id']) && (int) $validated['user_id'] !== (int) $device->user_id) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'This device does not belong to the selected user.',
+            ], 403);
+        }
+
+        $this->revokeUserDeviceTokens($device);
+        $device->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => localize('device_deleted_success', 'Device has been deleted successfully'),
+        ]);
+    }
+
     //delete user
     public function userDelete(Request $request)
     {
@@ -558,6 +748,14 @@ class UserManagementController extends Controller
 
         $data->prepend(['id' => 0, 'text' => 'All']);
         return ['results' => $data];
+    }
+
+    private function revokeUserDeviceTokens(MobileDeviceRegistration $device): void
+    {
+        $user = $device->user;
+        if ($user && $device->device_name) {
+            $user->tokens()->where('name', $device->device_name)->delete();
+        }
     }
 
 }

@@ -67,6 +67,9 @@ Route::group(['middleware' => 'auth'], function () {
             Route::get('user-edit/{user}', 'userEdit')->name('user.edit');
             Route::post('user-update/{user}', 'userUpdate')->name('user.update');
             Route::post('user-delete', 'userDelete')->name('user.delete');
+            Route::post('user-device-store/{user}', 'userDeviceStore')->name('user.device.store');
+            Route::post('user-device-status/{device}', 'userDeviceStatus')->name('user.device.status');
+            Route::delete('user-device-delete/{device}', 'userDeviceDelete')->name('user.device.delete');
             
         });
     });

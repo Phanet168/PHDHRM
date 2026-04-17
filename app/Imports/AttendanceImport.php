@@ -18,6 +18,10 @@ class AttendanceImport implements ToModel, WithChunkReading, WithValidation, Ski
 {
     use Importable;
 
+    public function __construct(private readonly ?array $allowedEmployeeIds = null)
+    {
+    }
+
     /**
      * @param array $row
      * @return \Illuminate\Database\Eloquent\Model|null
@@ -33,6 +37,12 @@ class AttendanceImport implements ToModel, WithChunkReading, WithValidation, Ski
             return null; // Skip this row
         }
 
+        $employeeId = (int) ($row['employee_id'] ?? 0);
+        if (is_array($this->allowedEmployeeIds) && !in_array($employeeId, $this->allowedEmployeeIds, true)) {
+            Log::warning('Skipping unauthorized attendance import row.', ['employee_id' => $employeeId]);
+            return null;
+        }
+
         if (is_numeric($row['in_time'])) {
             $row['in_time'] = $this->excelTimeToTimeString($row['in_time']);
         }
@@ -44,14 +54,14 @@ class AttendanceImport implements ToModel, WithChunkReading, WithValidation, Ski
         try {
             // Insert the in_time attendance record
             AttendanceCaptureService::capture([
-                'employee_id' => (int) $row['employee_id'],
+                'employee_id' => $employeeId,
                 'time' => Carbon::parse($row['date'] . ' ' . $row['in_time'])->format('Y-m-d H:i:s'),
                 'attendance_source' => 'bulk',
             ]);
 
             // Insert the out_time attendance record
             AttendanceCaptureService::capture([
-                'employee_id' => (int) $row['employee_id'],
+                'employee_id' => $employeeId,
                 'time' => Carbon::parse($row['date'] . ' ' . $row['out_time'])->format('Y-m-d H:i:s'),
                 'attendance_source' => 'bulk',
             ]);

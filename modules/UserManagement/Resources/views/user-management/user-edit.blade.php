@@ -113,6 +113,169 @@
                     </div>
                 </div>
             </div>
+
+            <div class="col-md-12 mt-4">
+                <hr class="my-0">
+            </div>
+
+            <div class="col-md-12 mt-3">
+                <h6 class="fw-semibold mb-1">{{ localize('mobile_device_management', 'Mobile Device Management') }}</h6>
+                <p class="text-muted small mb-2">
+                    {{ localize('manage_user_devices_from_here', 'Register and control this user devices directly from the user form.') }}
+                </p>
+            </div>
+
+            <div class="col-md-12">
+                <div class="row g-2 align-items-end">
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold mb-1">{{ localize('device_id', 'Device ID') }} <span class="text-danger">*</span></label>
+                        <input type="text" id="device_create_id" class="form-control form-control-sm" placeholder="ANDROID_ID / UUID">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold mb-1">{{ localize('device_name', 'Device Name') }}</label>
+                        <input type="text" id="device_create_name" class="form-control form-control-sm" placeholder="Samsung A15">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold mb-1">{{ localize('platform', 'Platform') }}</label>
+                        <select id="device_create_platform" class="form-control form-control-sm">
+                            <option value="">--</option>
+                            <option value="android">android</option>
+                            <option value="ios">ios</option>
+                            <option value="web">web</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold mb-1">{{ localize('status', 'Status') }}</label>
+                        <select id="device_create_status" class="form-control form-control-sm">
+                            <option value="pending">pending</option>
+                            <option value="active">active</option>
+                            <option value="blocked">blocked</option>
+                            <option value="rejected">rejected</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold mb-1">IMEI</label>
+                        <input type="text" id="device_create_imei" class="form-control form-control-sm" placeholder="Optional">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold mb-1">Fingerprint</label>
+                        <input type="text" id="device_create_fingerprint" class="form-control form-control-sm" placeholder="Optional">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-semibold mb-1">{{ localize('rejection_reason', 'Rejection Reason') }}</label>
+                        <input type="text" id="device_create_reason" class="form-control form-control-sm" placeholder="{{ localize('optional', 'Optional') }}">
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button type="button"
+                            class="btn btn-primary btn-sm user-device-create-btn"
+                            data-user-id="{{ $user->id }}"
+                            data-url="{{ route('role.user.device.store', $user->id) }}">
+                            {{ localize('add_device', 'Add Device') }}
+                        </button>
+                    </div>
+                    <div class="col-md-12">
+                        <span class="text-danger small device_error"></span>
+                    </div>
+                </div>
+
+                <div class="table-responsive mt-3">
+                    <table class="table table-sm table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>{{ localize('device_id', 'Device ID') }}</th>
+                                <th>{{ localize('device_name', 'Device Name') }}</th>
+                                <th>{{ localize('platform', 'Platform') }}</th>
+                                <th>IMEI</th>
+                                <th>{{ localize('status', 'Status') }}</th>
+                                <th>{{ localize('last_login', 'Last Login') }}</th>
+                                <th>{{ localize('action', 'Action') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse ($mobileDevices as $device)
+                                <tr>
+                                    <td><code class="small">{{ $device->device_id }}</code></td>
+                                    <td>{{ $device->device_name ?? '-' }}</td>
+                                    <td>{{ $device->platform ?? '-' }}</td>
+                                    <td><small>{{ $device->imei ?? '-' }}</small></td>
+                                    <td>
+                                        @php
+                                            $statusClass = 'secondary';
+                                            if ($device->status === 'active') $statusClass = 'success';
+                                            elseif ($device->status === 'pending') $statusClass = 'warning';
+                                            elseif ($device->status === 'blocked') $statusClass = 'danger';
+                                        @endphp
+                                        <span class="badge bg-{{ $statusClass }}">{{ $device->status }}</span>
+                                        @if($device->status === 'rejected' && $device->rejection_reason)
+                                            <div class="small text-danger mt-1">{{ $device->rejection_reason }}</div>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <small>{{ optional($device->last_login_at)->format('Y-m-d H:i') ?? '-' }}</small>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex gap-1 flex-wrap">
+                                            @if(!$device->isActive())
+                                                <button type="button"
+                                                    class="btn btn-success-soft btn-sm user-device-status-btn"
+                                                    data-url="{{ route('role.user.device.status', $device->id) }}"
+                                                    data-user-id="{{ $user->id }}"
+                                                    data-status="active">
+                                                    {{ localize('approve', 'Approve') }}
+                                                </button>
+                                            @endif
+
+                                            @if(!$device->isBlocked())
+                                                <button type="button"
+                                                    class="btn btn-warning-soft btn-sm user-device-status-btn"
+                                                    data-url="{{ route('role.user.device.status', $device->id) }}"
+                                                    data-user-id="{{ $user->id }}"
+                                                    data-status="blocked">
+                                                    {{ localize('block', 'Block') }}
+                                                </button>
+                                            @endif
+
+                                            @if(!$device->isRejected())
+                                                <button type="button"
+                                                    class="btn btn-danger-soft btn-sm user-device-status-btn"
+                                                    data-url="{{ route('role.user.device.status', $device->id) }}"
+                                                    data-user-id="{{ $user->id }}"
+                                                    data-status="rejected"
+                                                    data-requires-reason="1">
+                                                    {{ localize('reject', 'Reject') }}
+                                                </button>
+                                            @endif
+
+                                            @if(!$device->isPending())
+                                                <button type="button"
+                                                    class="btn btn-info-soft btn-sm user-device-status-btn"
+                                                    data-url="{{ route('role.user.device.status', $device->id) }}"
+                                                    data-user-id="{{ $user->id }}"
+                                                    data-status="pending">
+                                                    {{ localize('set_pending', 'Set Pending') }}
+                                                </button>
+                                            @endif
+
+                                            <button type="button"
+                                                class="btn btn-danger-soft btn-sm user-device-delete-btn"
+                                                data-url="{{ route('role.user.device.delete', $device->id) }}"
+                                                data-user-id="{{ $user->id }}">
+                                                {{ localize('delete', 'Delete') }}
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-3">
+                                        {{ localize('no_devices_found', 'No devices found for this user.') }}
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
     <div class="modal-footer">
@@ -120,4 +283,7 @@
         <button class="btn btn-success">{{ localize('update') }}</button>
     </div>
 </form>
-<script src="{{ module_asset('UserManagement/js/userEdit.js') }}"></script>
+@php
+    $userEditScriptVersion = @filemtime(public_path('module-assets/UserManagement/js/userEdit.js')) ?: time();
+@endphp
+<script src="{{ module_asset('UserManagement/js/userEdit.js') }}&t={{ $userEditScriptVersion }}"></script>
