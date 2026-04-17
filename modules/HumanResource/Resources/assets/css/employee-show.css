@@ -1,0 +1,147 @@
+:root {
+    --khmer-font-main: "Noto Sans Khmer", "Kantumruy Pro", "Battambang", "Hanuman", "Khmer OS Battambang", "Khmer OS System", sans-serif;
+}
+
+.profile_show,
+.profile_show .card,
+.profile_show .table,
+.profile_show h1,
+.profile_show h2,
+.profile_show h3,
+.profile_show h4,
+.profile_show h5,
+.profile_show h6,
+.profile_show p,
+.profile_show span,
+.profile_show td,
+.profile_show th,
+.profile_show div,
+.profile_show a,
+.profile_show small,
+.profile_show strong {
+    font-family: var(--khmer-font-main);
+}
+
+.profile-show-page .card-header {
+    background-color: #fff7ec;
+    border-bottom: 1px solid #f1dcc0;
+    padding: 10px 18px;
+}
+
+.profile-show-page .card-header h5 {
+    color: #16324c;
+}
+
+.profile-summary-card {
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #dfe7ef !important;
+    background: #ffffff;
+}
+
+.profile-summary-bar {
+    height: 12px;
+    background: linear-gradient(90deg, #0f9d76 0%, #178f8d 42%, #2d65c6 100%);
+}
+
+.profile-summary-avatar {
+    width: 132px;
+    height: 132px;
+    object-fit: cover;
+    border-radius: 16px;
+    border: 3px solid #edf3f7;
+    background: #fff;
+    box-shadow: 0 8px 18px rgba(19, 54, 92, 0.10);
+}
+
+.profile-summary-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.9rem;
+    border-radius: 999px;
+    background: #edf7f2;
+    color: #0a7e5c;
+    font-size: 0.82rem;
+    font-weight: 700;
+    border: 1px solid #cbe6db;
+}
+
+.profile-summary-name {
+    color: #16324c;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.profile-summary-latin {
+    color: #5f7488;
+    font-size: 1rem;
+}
+
+.profile-summary-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    color: #23425f;
+    font-size: 0.96rem;
+}
+
+.profile-summary-line span {
+    display: inline-flex;
+    align-items: center;
+}
+
+.profile-summary-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.profile-summary-stat {
+    background: #f8fbfe;
+    border: 1px solid #e0e8f0;
+    border-radius: 12px;
+    padding: 0.8rem 0.9rem;
+    min-height: 84px;
+}
+
+.profile-summary-stat-label {
+    color: #687f94;
+    font-size: 0.8rem;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+}
+
+.profile-summary-stat-value {
+    color: #14324d;
+    font-size: 0.98rem;
+    font-weight: 800;
+    line-height: 1.35;
+    word-break: break-word;
+}
+
+@media (max-width: 991.98px) {
+    .profile-summary-name {
+        font-size: 1.65rem;
+    }
+
+    .profile-summary-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin-top: 0.5rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .profile-summary-avatar {
+        width: 110px;
+        height: 110px;
+    }
+
+    .profile-summary-name {
+        font-size: 1.45rem;
+    }
+
+    .profile-summary-stats {
+        grid-template-columns: 1fr;
+    }
+}

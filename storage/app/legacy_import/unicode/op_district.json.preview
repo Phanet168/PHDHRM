@@ -1,0 +1,470 @@
+[
+  {
+    "DistrictNameE": "Mongkol Borei OD", 
+    "OpDistrictID": 1, 
+    "ProvinceID": 1, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ មង្គលបុរី"
+  }, 
+  {
+    "DistrictNameE": "Or Chrov OD", 
+    "OpDistrictID": 2, 
+    "ProvinceID": 1, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ អូរជ្រៅ"
+  }, 
+  {
+    "DistrictNameE": "Preah Net Preah OD", 
+    "OpDistrictID": 3, 
+    "ProvinceID": 1, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ព្រះនេត្រព្រះ"
+  }, 
+  {
+    "DistrictNameE": "Thmar Puok OD", 
+    "OpDistrictID": 4, 
+    "ProvinceID": 1, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ថ្មពួក"
+  }, 
+  {
+    "DistrictNameE": "Battambang OD", 
+    "OpDistrictID": 5, 
+    "ProvinceID": 2, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ បាត់ដំបង"
+  }, 
+  {
+    "DistrictNameE": "Mong Russey OD", 
+    "OpDistrictID": 6, 
+    "ProvinceID": 2, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ មោងឫស្សី"
+  }, 
+  {
+    "DistrictNameE": "Sampov Loun OD", 
+    "OpDistrictID": 7, 
+    "ProvinceID": 2, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ សំពៅលូន"
+  }, 
+  {
+    "DistrictNameE": "Sangke OD", 
+    "OpDistrictID": 8, 
+    "ProvinceID": 2, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ សង្កែ"
+  }, 
+  {
+    "DistrictNameE": "Thmor Koul OD", 
+    "OpDistrictID": 9, 
+    "ProvinceID": 2, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ថ្មរគោល"
+  }, 
+  {
+    "DistrictNameE": "Chamkar Leu OD", 
+    "OpDistrictID": 10, 
+    "ProvinceID": 3, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ចំការលើ"
+  }, 
+  {
+    "DistrictNameE": "Cheung Prey OD", 
+    "OpDistrictID": 11, 
+    "ProvinceID": 3, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ជើងព្រៃ"
+  }, 
+  {
+    "DistrictNameE": "Kampong Cham OD", 
+    "OpDistrictID": 12, 
+    "ProvinceID": 3, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ កំពង់ចាម"
+  }, 
+  {
+    "DistrictNameE": "Kroch Chmar OD", 
+    "OpDistrictID": 13, 
+    "ProvinceID": 3, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ក្រូចឆ្មារ"
+  }, 
+  {
+    "DistrictNameE": "Memut OD", 
+    "OpDistrictID": 14, 
+    "ProvinceID": 3, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ មេមត់"
+  }, 
+  {
+    "DistrictNameE": "O Reing Ov OD", 
+    "OpDistrictID": 15, 
+    "ProvinceID": 3, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ អូរាំងឪ"
+  }, 
+  {
+    "DistrictNameE": "Ponhea Krek OD", 
+    "OpDistrictID": 16, 
+    "ProvinceID": 3, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ពញាក្រែក"
+  }, 
+  {
+    "DistrictNameE": "Prey Chhor OD", 
+    "OpDistrictID": 17, 
+    "ProvinceID": 3, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ព្រៃឈរ"
+  }, 
+  {
+    "DistrictNameE": "Srey Santhor OD", 
+    "OpDistrictID": 18, 
+    "ProvinceID": 3, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ស្រីសន្ធរ"
+  }, 
+  {
+    "DistrictNameE": "Tbong Khmum OD", 
+    "OpDistrictID": 19, 
+    "ProvinceID": 3, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ត្បូងឃ្មុំ"
+  }, 
+  {
+    "DistrictNameE": "Boribo OD", 
+    "OpDistrictID": 20, 
+    "ProvinceID": 4, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ បរិបូរណ៍"
+  }, 
+  {
+    "DistrictNameE": "Kampong Chhnang OD", 
+    "OpDistrictID": 21, 
+    "ProvinceID": 4, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ កំពង់ឆ្នាំង"
+  }, 
+  {
+    "DistrictNameE": "Kampong Tralach OD", 
+    "OpDistrictID": 22, 
+    "ProvinceID": 4, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ កំពង់ត្រឡាច"
+  }, 
+  {
+    "DistrictNameE": "Kampong Speu OD", 
+    "OpDistrictID": 23, 
+    "ProvinceID": 5, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ កំពង់ស្ពឺ"
+  }, 
+  {
+    "DistrictNameE": "Kong Pisey OD", 
+    "OpDistrictID": 24, 
+    "ProvinceID": 5, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ គងពិសី"
+  }, 
+  {
+    "DistrictNameE": "Oudong OD", 
+    "OpDistrictID": 25, 
+    "ProvinceID": 5, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ឧត្តង្គ"
+  }, 
+  {
+    "DistrictNameE": "Baray OD", 
+    "OpDistrictID": 26, 
+    "ProvinceID": 6, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ បារាយណ៍"
+  }, 
+  {
+    "DistrictNameE": "Kampong Thom OD", 
+    "OpDistrictID": 27, 
+    "ProvinceID": 6, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ កំពង់ធំ"
+  }, 
+  {
+    "DistrictNameE": "Stong OD", 
+    "OpDistrictID": 28, 
+    "ProvinceID": 6, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ស្ទោង"
+  }, 
+  {
+    "DistrictNameE": "Angkor Chey OD", 
+    "OpDistrictID": 29, 
+    "ProvinceID": 7, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ អង្គរជ័យ"
+  }, 
+  {
+    "DistrictNameE": "Chhouk OD", 
+    "OpDistrictID": 30, 
+    "ProvinceID": 7, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ឈូក"
+  }, 
+  {
+    "DistrictNameE": "Kampong Trach OD", 
+    "OpDistrictID": 31, 
+    "ProvinceID": 7, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ កំពង់ត្រាច"
+  }, 
+  {
+    "DistrictNameE": "Kampot OD", 
+    "OpDistrictID": 32, 
+    "ProvinceID": 7, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ កំពត"
+  }, 
+  {
+    "DistrictNameE": "Ang Snoul OD", 
+    "OpDistrictID": 33, 
+    "ProvinceID": 8, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ អង្គស្នួល"
+  }, 
+  {
+    "DistrictNameE": "Kean Svay OD", 
+    "OpDistrictID": 34, 
+    "ProvinceID": 8, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ គៀនស្វាយ"
+  }, 
+  {
+    "DistrictNameE": "Khsach Kandal OD", 
+    "OpDistrictID": 35, 
+    "ProvinceID": 8, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ខ្សាច់កណ្តាល"
+  }, 
+  {
+    "DistrictNameE": "Koh Thom OD", 
+    "OpDistrictID": 36, 
+    "ProvinceID": 8, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ កោះធំ"
+  }, 
+  {
+    "DistrictNameE": "Muk Kampoul OD", 
+    "OpDistrictID": 37, 
+    "ProvinceID": 8, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ មុខកំពូល"
+  }, 
+  {
+    "DistrictNameE": "Ponhea Leu OD", 
+    "OpDistrictID": 38, 
+    "ProvinceID": 8, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ពញាឮ"
+  }, 
+  {
+    "DistrictNameE": "Saang OD", 
+    "OpDistrictID": 39, 
+    "ProvinceID": 8, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ស្អាង"
+  }, 
+  {
+    "DistrictNameE": "Takmao OD", 
+    "OpDistrictID": 40, 
+    "ProvinceID": 8, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ តាខ្មៅ"
+  }, 
+  {
+    "DistrictNameE": "Smach Meanchey OD", 
+    "OpDistrictID": 41, 
+    "ProvinceID": 9, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ស្មាច់មានជ័យ"
+  }, 
+  {
+    "DistrictNameE": "Sre Ambel OD", 
+    "OpDistrictID": 42, 
+    "ProvinceID": 9, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ស្រែអំបិល"
+  }, 
+  {
+    "DistrictNameE": "Chhlong OD", 
+    "OpDistrictID": 43, 
+    "ProvinceID": 10, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ឆ្លូង"
+  }, 
+  {
+    "DistrictNameE": "Kratie OD", 
+    "OpDistrictID": 44, 
+    "ProvinceID": 10, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ក្រចេះ"
+  }, 
+  {
+    "DistrictNameE": "Krong Kep OD", 
+    "OpDistrictID": 76, 
+    "ProvinceID": 23, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ក្រុងកែប"
+  }, 
+  {
+    "DistrictNameE": "Krong Pailin OD", 
+    "OpDistrictID": 77, 
+    "ProvinceID": 24, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ប៉ៃលិន"
+  }, 
+  {
+    "DistrictNameE": "Sen Monorum OD", 
+    "OpDistrictID": 45, 
+    "ProvinceID": 11, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ សែនមនោរម្យ"
+  }, 
+  {
+    "DistrictNameE": "Sam Rong OD", 
+    "OpDistrictID": 75, 
+    "ProvinceID": 22, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ សំរោង"
+  }, 
+  {
+    "DistrictNameE": "Central OD", 
+    "OpDistrictID": 46, 
+    "ProvinceID": 12, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ភូមិភាគកណ្តាល"
+  }, 
+  {
+    "DistrictNameE": "Northern OD", 
+    "OpDistrictID": 47, 
+    "ProvinceID": 12, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ភូមិភាគជើង"
+  }, 
+  {
+    "DistrictNameE": "Southern OD", 
+    "OpDistrictID": 48, 
+    "ProvinceID": 12, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ភូមិភាគត្បូង"
+  }, 
+  {
+    "DistrictNameE": "Western OD", 
+    "OpDistrictID": 49, 
+    "ProvinceID": 12, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ភូមិភាគលិច"
+  }, 
+  {
+    "DistrictNameE": "Preah Vihear OD", 
+    "OpDistrictID": 50, 
+    "ProvinceID": 13, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ព្រះវិហារ"
+  }, 
+  {
+    "DistrictNameE": "Kamchay Mear OD", 
+    "OpDistrictID": 51, 
+    "ProvinceID": 14, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ កំចាយមារ"
+  }, 
+  {
+    "DistrictNameE": "Kampong Trabek OD", 
+    "OpDistrictID": 52, 
+    "ProvinceID": 14, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ កំពង់ត្របែក"
+  }, 
+  {
+    "DistrictNameE": "Mesang OD", 
+    "OpDistrictID": 53, 
+    "ProvinceID": 14, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ មេសាង"
+  }, 
+  {
+    "DistrictNameE": "Neak Loeung OD", 
+    "OpDistrictID": 54, 
+    "ProvinceID": 14, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ នាក់លឿង"
+  }, 
+  {
+    "DistrictNameE": "Pea Reang OD", 
+    "OpDistrictID": 55, 
+    "ProvinceID": 14, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ពារាំង"
+  }, 
+  {
+    "DistrictNameE": "Preah Sdach OD", 
+    "OpDistrictID": 56, 
+    "ProvinceID": 14, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ព្រះស្តេច"
+  }, 
+  {
+    "DistrictNameE": "Prey Veng OD", 
+    "OpDistrictID": 57, 
+    "ProvinceID": 14, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ព្រៃវែង"
+  }, 
+  {
+    "DistrictNameE": "Bakan OD", 
+    "OpDistrictID": 58, 
+    "ProvinceID": 15, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ បាកាន"
+  }, 
+  {
+    "DistrictNameE": "Sampov Meas OD", 
+    "OpDistrictID": 59, 
+    "ProvinceID": 15, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ សំពៅមាស"
+  }, 
+  {
+    "DistrictNameE": "Rattanakiri OD", 
+    "OpDistrictID": 60, 
+    "ProvinceID": 16, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ រតនគីរី"
+  }, 
+  {
+    "DistrictNameE": "Angkor Chum OD", 
+    "OpDistrictID": 61, 
+    "ProvinceID": 17, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ អង្គរជុំ"
+  }, 
+  {
+    "DistrictNameE": "Kralanh OD", 
+    "OpDistrictID": 62, 
+    "ProvinceID": 17, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ក្រឡាញ់"
+  }, 
+  {
+    "DistrictNameE": "Siem Reap OD", 
+    "OpDistrictID": 63, 
+    "ProvinceID": 17, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ សៀមរាប"
+  }, 
+  {
+    "DistrictNameE": "Soth Nikum OD", 
+    "OpDistrictID": 64, 
+    "ProvinceID": 17, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ សូត្រនិគម"
+  }, 
+  {
+    "DistrictNameE": "Sihanouk ville OD", 
+    "OpDistrictID": 65, 
+    "ProvinceID": 18, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ក្រុងព្រះសីហនុ"
+  }, 
+  {
+    "DistrictNameE": "Stung Treng OD", 
+    "OpDistrictID": 66, 
+    "ProvinceID": 19, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ស្ទឹងត្រែង"
+  }, 
+  {
+    "DistrictNameE": "Chi Phu OD", 
+    "OpDistrictID": 67, 
+    "ProvinceID": 20, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ជីភូ"
+  }, 
+  {
+    "DistrictNameE": "Romeas Hek OD", 
+    "OpDistrictID": 68, 
+    "ProvinceID": 20, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ រមាសហែក"
+  }, 
+  {
+    "DistrictNameE": "Svay Rieng OD", 
+    "OpDistrictID": 69, 
+    "ProvinceID": 20, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ស្វាយរៀង"
+  }, 
+  {
+    "DistrictNameE": "Ang Roka OD", 
+    "OpDistrictID": 70, 
+    "ProvinceID": 21, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ អង្គរការ"
+  }, 
+  {
+    "DistrictNameE": "Bati OD", 
+    "OpDistrictID": 71, 
+    "ProvinceID": 21, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ បាទី"
+  }, 
+  {
+    "DistrictNameE": "Don Keo OD", 
+    "OpDistrictID": 72, 
+    "ProvinceID": 21, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ដូនកែវ"
+  }, 
+  {
+    "DistrictNameE": "Kirivong OD", 
+    "OpDistrictID": 73, 
+    "ProvinceID": 21, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ គីរីវង្ស"
+  }, 
+  {
+    "DistrictNameE": "Prey Kabass OD", 
+    "OpDistrictID": 74, 
+    "ProvinceID": 21, 
+    "DistrictNameK": "ស្រុកប្រតិបត្តិ ព្រៃកប្បាស"
+  }, 
+  {
+    "DistrictNameE": null, 
+    "OpDistrictID": 0, 
+    "ProvinceID": 0, 
+    "DistrictNameK": " "
+  }
+]

@@ -1,0 +1,137 @@
+﻿[
+    {
+        "ProvinceID":  1,
+        "ProvinceE":  "Banteay Mean Chey",
+        "ProvinceK":  "ខេត្តបន្ទាយមានជ័យ"
+    },
+    {
+        "ProvinceID":  2,
+        "ProvinceE":  "Battambang",
+        "ProvinceK":  "ខេត្គបាត់ដំបង"
+    },
+    {
+        "ProvinceID":  3,
+        "ProvinceE":  "Kampong Cham",
+        "ProvinceK":  "ខេត្តកំពង់ចាម"
+    },
+    {
+        "ProvinceID":  4,
+        "ProvinceE":  "Kampong Chhnang",
+        "ProvinceK":  "ខេត្តកំពង់ឆ្នាំង"
+    },
+    {
+        "ProvinceID":  5,
+        "ProvinceE":  "Kampong Speu",
+        "ProvinceK":  "ខេត្តកំពង់ស្ពឺ"
+    },
+    {
+        "ProvinceID":  6,
+        "ProvinceE":  "Kampong Thom",
+        "ProvinceK":  "ខេត្តកំពង់ធំ"
+    },
+    {
+        "ProvinceID":  7,
+        "ProvinceE":  "Kampot",
+        "ProvinceK":  "ខេត្តកំពត"
+    },
+    {
+        "ProvinceID":  8,
+        "ProvinceE":  "Kandal",
+        "ProvinceK":  "ខេត្តកណ្តាល"
+    },
+    {
+        "ProvinceID":  9,
+        "ProvinceE":  "Koh Kong",
+        "ProvinceK":  "ខេត្តកោះកុង"
+    },
+    {
+        "ProvinceID":  10,
+        "ProvinceE":  "Kratie",
+        "ProvinceK":  "ខេត្តក្រចេះ"
+    },
+    {
+        "ProvinceID":  11,
+        "ProvinceE":  "Mondulkiri",
+        "ProvinceK":  "ខេត្តមណ្ឌលគីរី"
+    },
+    {
+        "ProvinceID":  12,
+        "ProvinceE":  "Phnom Penh",
+        "ProvinceK":  "ក្រុងភ្នំពេញ"
+    },
+    {
+        "ProvinceID":  13,
+        "ProvinceE":  "Preah Vihear",
+        "ProvinceK":  "ខេត្តព្រះវិហារ"
+    },
+    {
+        "ProvinceID":  14,
+        "ProvinceE":  "Prey Veng",
+        "ProvinceK":  "ខេត្តព្រៃវែង"
+    },
+    {
+        "ProvinceID":  15,
+        "ProvinceE":  "Pursat",
+        "ProvinceK":  "ខេត្តពោធិសាត់"
+    },
+    {
+        "ProvinceID":  16,
+        "ProvinceE":  "Rattanakiri",
+        "ProvinceK":  "ខេត្តរតនគីរី"
+    },
+    {
+        "ProvinceID":  17,
+        "ProvinceE":  "Siem Reap",
+        "ProvinceK":  "ខេត្តសៀមរាប"
+    },
+    {
+        "ProvinceID":  18,
+        "ProvinceE":  "Sihanoukville",
+        "ProvinceK":  "ក្រុងព្រះសីហនុ"
+    },
+    {
+        "ProvinceID":  19,
+        "ProvinceE":  "Stung Treng",
+        "ProvinceK":  "ខេត្តស្ទឹងត្រែង"
+    },
+    {
+        "ProvinceID":  20,
+        "ProvinceE":  "Svay Rieng",
+        "ProvinceK":  "ខេត្តស្វាយរៀង"
+    },
+    {
+        "ProvinceID":  21,
+        "ProvinceE":  "Takeo",
+        "ProvinceK":  "ខេត្តតាកែវ"
+    },
+    {
+        "ProvinceID":  22,
+        "ProvinceE":  "Oddar Mean Chey",
+        "ProvinceK":  "ខេត្ត ឧត្តរមានជ័យ"
+    },
+    {
+        "ProvinceID":  23,
+        "ProvinceE":  "Krong Kep",
+        "ProvinceK":  "ក្រុង កែប"
+    },
+    {
+        "ProvinceID":  24,
+        "ProvinceE":  "Krong Pailin",
+        "ProvinceK":  "ក្រុង ប៉ៃលិន"
+    },
+    {
+        "ProvinceID":  25,
+        "ProvinceE":  "Central Level",
+        "ProvinceK":  "ថ្នាក់កណ្តាល"
+    },
+    {
+        "ProvinceID":  26,
+        "ProvinceE":  "Other",
+        "ProvinceK":  "ផ្សេងៗ"
+    },
+    {
+        "ProvinceID":  0,
+        "ProvinceE":  null,
+        "ProvinceK":  " "
+    }
+]

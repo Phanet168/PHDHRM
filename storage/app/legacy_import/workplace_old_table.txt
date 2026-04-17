@@ -1,0 +1,84 @@
+﻿
+WorkPlaceID    PlaceTypeID WorkPlaceE                     WorkPlaceK                     Root
+-----------    ----------- ----------                     ----------                     ----
+1|2|19                  21 Stung Treng PHD                mnÞIrsuxaPi)alextþ sÞwgERtg   False
+1|2|19|2                21 PHD-B                          TIcat;karmnÞIrsuxaPi)al       False
+1|2|19|2|1              22 leadership                     fñak;dwknaM                   False
+1|2|19|2|2              18 Admin-Staffs office            kariyal½yrdæ)al-buKÁlik       False
+1|2|19|2|3              18 Financial Office               kariyal½yKNenyü-hirBØavtßú    False
+1|2|19|2|4              18 Technical Office               kariyal½ybgáarnwgRKb;RKgCMgW  False
+1|2|19|2|4|1            20 Unite                          EpñkRbyuT§Cm¶Wqøg             False
+1|2|19|2|4|2            20 MCH Unite                      EpñkKaMBarmatanigTark         False
+1|2|19|2|4|3            20 Health promotion unite         EpñkelIkkMBs;suxPaB           False
+1|2|19|2|4|5            20 Plan and information unite     EpñkEpnkarN_ nigBt’man        False
+1|2|19|2|4|6            20 Chomngermin Chol Unite         EpñkCm¶Wminqøg                False
+1|2|19|2|4|7            20 Chantaleysak                   ctþaLIs½k                     False
+1|2|19|2|4|8            20 In and Out Province            RckecjcUlEtmYysalaextþ        False
+1|2|19|2|4|9            20 InOut District                 RckecjcUlsalaRkug             False
+1|2|19|2|5              18 Parmacie office                kariyal½yniy½tkmµsuxaPi)al    False
+1|2|19|20               12 R H Stung Treng-A              mnÞIreBTübEg¥kextþ            False
+1|2|19|20|1             12 leadership                     fñak;dWknaM                   False
+1|2|19|20|10            14 eyes unite                     EpñkckçúeraK                  False
+1|2|19|20|11            14 Teeth Unite                    EpñkTnþsa®sþ                  False
+1|2|19|20|12            14 Emergency unite                Epñkse®gÁaHbnÞan;             False
+1|2|19|20|13            14 Chirldrend's disease unite     EpñkCm¶Wkumar                 False
+1|2|19|20|14            14 General's disease unite        EpñkBieRKaHCm¶WTUeTA          False
+1|2|19|20|15            14 Administrative unite           Epñkrdæ)al                    False
+1|2|19|20|16            14 Beakcheak  Chomnger unite      EpñkCm¶WTUeTA                 False
+1|2|19|20|17            14 Robpeab vechesas               EpñkrUbPaBevC¢sa®sþ           False
+1|2|19|20|18            14 Accounting unite               EpñkKNenyü                    False
+1|2|19|20|19            14 Care                           EpñkEfTaMTark                 False
+1|2|19|20|2             14 Technical Unite                Epñkbec©keTs                  False
+1|2|19|20|20            14 Working                        EpñkeragCag                   False
+1|2|19|20|21            20 Information unit               EpñkB½t’man                   False
+1|2|19|20|22            20 Radio unite                    viTüÚsa®sþ                    False
+1|2|19|20|23            14 Equity fund unit               EpñkmUniFismFm’               False
+1|2|19|20|24            14 Legislative monotiored Unit    EpñkXøaMsMPar³                False
+1|2|19|20|25            14 Kitchen unit                   EpñkpÞH)ay                    False
+1|2|19|20|26            14 Laundry Unit                   Epñkrm¶ab;emeraK nige)akKk;   False
+1|2|19|20|27            14 Plan Unit                      EpñkEpnkarN½                  False
+1|2|19|20|28            14 Wiating House unit             EpñkpÞHrg;caM                 False
+1|2|19|20|29            14 Diabestes and Hypertenson Unit EpñkTwkenamEp¥m nigelIsQam    False
+1|2|19|20|3             14 Drug Unite                     Epñk»sf                       False
+1|2|19|20|30            14 Pnek Pcheabalcholana           EpñkBü)aledayclna             False
+1|2|19|20|31            14 Transfers pations              EpñkbBa¢ÚnCm¶W                False
+1|2|19|20|32            14 Infectious Diseases            EpñkCMgWqøg                   False
+1|2|19|20|4             14 Test Unite                     EpñkBiesaFn_                  False
+1|2|19|20|5             14 Cute Unite                     EpñkCm¶WrbYs vHkat;           False
+1|2|19|20|6             14 Eco unite                      EpñkBieRKaHCm¶WpøÚvcitþ       False
+1|2|19|20|7             14 Robeng Unite                   EpñkCm¶Wrebg                  False
+1|2|19|20|8             14 Somporp Unite                  EpñksmÖB eraK®sþI             False
+1|2|19|20|9             14 rok unite                      EpñkKøIniksuxPaBRKYsar        False
+1|2|19|21               17 ODO                            kariyal½yRsukRbtibtþisÞwgERtg False
+1|2|19|21|1             17 ODo                            TIcat;karRsukRbtibtþi         False
+1|2|19|21|1|1           16 Administrative Unite           Epñkrdæ)al KNenyü             False
+1|2|19|21|1|2           16 Tichnecal Unite                Epñkbec©keTs                  False
+1|2|19|21|1|3           16 Accounting Unite               EpñkKNenyü                    False
+1|2|19|21|1|4           16 Drug Unite                     Epñk]sf                       False
+1|2|19|21|1|5           17 leadership                     fñak;dwknaM                   False
+1|2|19|21|1|6           16 Information Unit               EpñkRbB½n§B½t’man             False
+1|2|19|21|2             10 All HC                         mNÐlsuxPaBTaMgGs;             False
+1|2|19|21|2|1           10 H C Chamkaleu                  01-mNÐlsuxPaB cMkarelI        False
+1|2|19|21|2|10          23 HC Sre Ko                      02-mNlsuxPaB ERsKr            False
+1|2|19|21|2|11          23 HC Koh Pres                    03- mNÐlsuxPaB ekaHRBH        False
+1|2|19|21|2|12          23 HC Kbal Romeas                 04-mNÐlsuxPaB k,alrmas        False
+1|2|19|21|2|13          23 HC Srepork                     05-mNÐlsuxPaBERsBk            False
+1|2|19|21|2|14          10 Srear Sombo Health Center      06-mNÐlsuxPaB ERssMbUr        False
+1|2|19|21|2|15          23 HC Vildenh                     07-mNÐlsuxPaB valedj          False
+1|2|19|21|2|16          23 HC Talart                      08-mNÐlsuxPaB taLat           False
+1|2|19|21|2|17          23 CH Tborngklar                  09-mNÐlsuxPaB t,Úgxøa         False
+1|2|19|21|2|18          23 HC Osvay                       10-mNÐlsuxPaB GUsVay          False
+1|2|19|21|2|19          23 HC Sentepheap                  19-mNÐlsuxPaB snþiPaB         False
+1|2|19|21|2|2           23 HC Tha La                      11-mNÐlsuxPaB faLabriv:at;    False
+1|2|19|21|2|20          23 HC Preakmeas                   20-mNÐlsuxPaB ERBkmas         False
+1|2|19|21|2|21          23 HC Seam bok                    21-mNÐlsuxPaB esombUk         False
+1|2|19|21|2|3           23 HC Pres Rumkel                 12-mNÐlsuxPaB RBHrMkil        False
+1|2|19|21|2|4           23 HC Siem Pang                   13-mNÐlsuxPaB esom)a:g        False
+1|2|19|21|2|5           23 HC Sree Kro Saing              14-mNÐlsuxPaBERsRksaMg        False
+1|2|19|21|2|6           10 HC Stung Treng                 15-mNÐlsuxPaB swÞgERtg        False
+1|2|19|21|2|7           10 HC Samaki                      16-mNÐlsuxPaB samKÁI          False
+1|2|19|21|2|8           10 HC Kam Phun                    17-mNÐlsuxPaBkMPun            False
+1|2|19|21|2|9           23 HC Koh Srolay                  18-mNÐlsuxPaB ekaHRsLay       False
+
+
+

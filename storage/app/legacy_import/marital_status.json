@@ -1,0 +1,27 @@
+﻿[
+    {
+        "id":  0,
+        "MaritalStatusE":  "Unknown",
+        "MaritalStatusK":  "អត់ស្គាល់"
+    },
+    {
+        "id":  1,
+        "MaritalStatusE":  "Single",
+        "MaritalStatusK":  "នៅលីវ"
+    },
+    {
+        "id":  2,
+        "MaritalStatusE":  "Married",
+        "MaritalStatusK":  "រៀបការហើយ"
+    },
+    {
+        "id":  3,
+        "MaritalStatusE":  "Widow",
+        "MaritalStatusK":  "មេម៉ាយ"
+    },
+    {
+        "id":  4,
+        "MaritalStatusE":  "Widower",
+        "MaritalStatusK":  "ពោះម៉ាយ"
+    }
+]

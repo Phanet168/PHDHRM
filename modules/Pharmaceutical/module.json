@@ -1,0 +1,11 @@
+{
+    "name": "Pharmaceutical",
+    "alias": "pharmaceutical",
+    "description": "Pharmaceutical/Medicine management – distribution from PHD to Hospitals & Operational Districts, then to Health Centers, with stock tracking and reporting.",
+    "keywords": ["pharmaceutical", "medicine", "stock", "distribution"],
+    "priority": 0,
+    "providers": [
+        "Modules\\Pharmaceutical\\Providers\\PharmaceuticalServiceProvider"
+    ],
+    "files": []
+}

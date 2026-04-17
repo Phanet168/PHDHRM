@@ -1,0 +1,36 @@
+/* Khmer typography override for locale: km */
+:root {
+    --khmer-font-main: "Noto Sans Khmer", "Kantumruy Pro", "Battambang", "Hanuman", "Khmer OS Battambang", "Khmer OS System", sans-serif;
+}
+
+html[lang^="km"] body {
+    font-family: var(--khmer-font-main);
+    line-height: 1.65;
+    letter-spacing: 0;
+}
+
+html[lang^="km"] h1,
+html[lang^="km"] h2,
+html[lang^="km"] h3,
+html[lang^="km"] h4,
+html[lang^="km"] h5,
+html[lang^="km"] h6,
+html[lang^="km"] .btn,
+html[lang^="km"] .form-control,
+html[lang^="km"] .form-select,
+html[lang^="km"] .dropdown-item,
+html[lang^="km"] .nav-link,
+html[lang^="km"] .dataTables_wrapper,
+html[lang^="km"] table,
+html[lang^="km"] .swal2-popup,
+html[lang^="km"] .toast {
+    font-family: var(--khmer-font-main);
+}
+
+/* Keep Khmer combining marks readable in inputs and compact tables */
+html[lang^="km"] .form-control,
+html[lang^="km"] .form-select,
+html[lang^="km"] td,
+html[lang^="km"] th {
+    line-height: 1.55;
+}

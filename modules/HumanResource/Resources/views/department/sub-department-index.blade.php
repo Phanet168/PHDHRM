@@ -1,0 +1,88 @@
+@extends('backend.layouts.app')
+@section('title', localize('sub_department_list'))
+@push('css')
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        .org-map-canvas {
+            width: 100%;
+            height: 260px;
+            border: 1px solid #d8dee5;
+            border-radius: 6px;
+        }
+    </style>
+@endpush
+@section('content')
+    @include('backend.layouts.common.validation')
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('sub_department_list') }}</h6>
+                </div>
+                <div class="text-end">
+                    <div class="actions">
+                        @can('create_sub_departments')
+                            <a href="#" class="btn btn-success btn-sm" data-bs-toggle="modal"
+                                data-bs-target="#create-sub-department"><i
+                                    class="fa fa-plus-circle"></i>&nbsp;{{ localize('add_sub_department') }}</a>
+                            @include('humanresource::department.modal.sub-department-create')
+                        @endcan
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="example" class="table display table-bordered table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th width="10%">{{ localize('sl') }}</th>
+                            <th width="15%">{{ localize('sub_department_name') }}</th>
+                            <th width="10%">{{ localize('status') }}</th>
+                            <th width="10%">{{ localize('action') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($departments as $key => $department)
+                            <tr>
+                                <td>#{{ $key + 1 }}</td>
+                                <td class="ps-5">{{ $department->department_name }}</td>
+                                <td>
+                                    @if ($department->is_active == 1)
+                                        <span class="badge bg-success">{{ localize('active') }}</span>
+                                    @elseif($department->is_active == 0)
+                                        <span class="badge bg-danger ">{{ localize('inactive') }}</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <a href="#" class="btn btn-primary-soft btn-sm me-1" data-bs-toggle="modal"
+                                        data-bs-target="#update-department-{{ $department->id }}"
+                                        title="{{ localize('edit') }}"><i
+                                            class="fa fa-edit"></i></a>
+
+                                    <a href="javascript:void(0)" class="btn btn-danger-soft btn-sm delete-confirm"
+                                        data-bs-toggle="tooltip" title="{{ localize('delete') }}"
+                                        data-route="{{ route('departments.destroy', $department->uuid) }}"
+                                        data-csrf="{{ csrf_token() }}"><i class="fa fa-trash"></i></a>
+                                </td>
+                            </tr>
+                            @include('humanresource::department.modal.sub-department-edit')
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+@endsection
+@push('js')
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="{{ module_asset('HumanResource/js/org-location-picker.js') }}"></script>
+    <script>
+        window.orgUnitI18n = Object.assign({}, window.orgUnitI18n || {}, {
+            chooseUnitTypeFirst: @json(localize('choose_unit_type_first')),
+            topLevelNoParent: @json(localize('top_level_unit_no_parent')),
+            selectParentOrLeaveBlank: @json(localize('select_parent_or_leave_blank')),
+        });
+    </script>
+    <script src="{{ module_asset('HumanResource/js/sub-department.js') }}"></script>
+@endpush

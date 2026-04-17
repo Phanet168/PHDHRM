@@ -1,0 +1,7 @@
+Email lphanet@gmail.com pass !QAZ2wsx@123
+============================================
+pdf Khmer Unicode support 
+Prom for AI
+ប្រើ Chrome Headless ជាចម្បង សម្រាប់ render Khmer shaping អោយត្រឹមត្រូវ
+ប្រសិនបើ Chrome មិនដំណើរការ នឹង fallback ទៅ DomPDF ដោយស្វ័យប្រវត្តិ
+ស្វែងរក browser path ដោយស្វ័យប្រវត្តិ (Chrome/Edge) និងគាំទ្រ .env តាម PDF_BROWSER_PATH

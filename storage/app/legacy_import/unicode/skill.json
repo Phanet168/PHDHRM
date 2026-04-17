@@ -1,0 +1,226 @@
+[
+  {
+    "ShortCutK": null, 
+    "SkillK": "វេជ្ជបណ្ខិតឯកទេស", 
+    "RetireAge": 60, 
+    "SkillE": "Doctor Specalist", 
+    "ShortCutE": "Dr.Spe", 
+    "SkillID": 1
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "វេជ្ជបណ្ឌិត", 
+    "RetireAge": 60, 
+    "SkillE": "Medical Doctor", 
+    "ShortCutE": "MD", 
+    "SkillID": 2
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "គ្រូពេទ្យមធ្យម", 
+    "RetireAge": 60, 
+    "SkillE": "Medical Assistant", 
+    "ShortCutE": "MA", 
+    "SkillID": 3
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ឱសថការី", 
+    "RetireAge": 60, 
+    "SkillE": "Pharmacist Doctor", 
+    "ShortCutE": "Ph", 
+    "SkillID": 4
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ឱសថការីមធ្យម", 
+    "RetireAge": 60, 
+    "SkillE": "Pharmacist Assistant", 
+    "ShortCutE": "Ph.Ass", 
+    "SkillID": 5
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ទន្តបណ្ឌិត", 
+    "RetireAge": 60, 
+    "SkillE": "Dental Doctor", 
+    "ShortCutE": "Den.", 
+    "SkillID": 6
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ទន្តពេទ្យ", 
+    "RetireAge": 60, 
+    "SkillE": "Dental Assistant", 
+    "ShortCutE": "Den.Ass", 
+    "SkillID": 7
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "គិ.មធ្យម", 
+    "RetireAge": 60, 
+    "SkillE": "Secondary Nurse", 
+    "ShortCutE": "SN", 
+    "SkillID": 8
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "គិ.បឋម", 
+    "RetireAge": 58, 
+    "SkillE": "Primary Nurse", 
+    "ShortCutE": "PN", 
+    "SkillID": 9
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ឆ្មបមធ្យម", 
+    "RetireAge": 60, 
+    "SkillE": "Secondary Midwife", 
+    "ShortCutE": "SM", 
+    "SkillID": 10
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ឆ្មបបឋម", 
+    "RetireAge": 60, 
+    "SkillE": "Primary Midwife", 
+    "ShortCutE": "PM", 
+    "SkillID": 11
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ពិ.មធ្យម", 
+    "RetireAge": 60, 
+    "SkillE": "Secondary Laboratorian", 
+    "ShortCutE": "Lab", 
+    "SkillID": 12
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ពិ.បឋម", 
+    "RetireAge": 58, 
+    "SkillE": "Primary Laboratorian", 
+    "ShortCutE": "PLab", 
+    "SkillID": 13
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ព្យាបាលដោយចលនា", 
+    "RetireAge": 60, 
+    "SkillE": "Physiotherapist", 
+    "ShortCutE": "Phy.", 
+    "SkillID": 14
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "វិទ្យុសាស្ត្រ", 
+    "RetireAge": 60, 
+    "SkillE": "X-Ray(Radiologist)", 
+    "ShortCutE": "X.Ray", 
+    "SkillID": 15
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ពត៌មានវិទ្យា", 
+    "RetireAge": 60, 
+    "SkillE": "IT", 
+    "ShortCutE": "IT", 
+    "SkillID": 16
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "គណនេយ្យឧត្តម", 
+    "RetireAge": 60, 
+    "SkillE": "Accountant", 
+    "ShortCutE": "Acct", 
+    "SkillID": 17
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "កម្មករ", 
+    "RetireAge": 55, 
+    "SkillE": "Facilities Mantenance/Laborer", 
+    "ShortCutE": null, 
+    "SkillID": 18
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "បច្ចេក.រដ្ឋបាល", 
+    "RetireAge": 55, 
+    "SkillE": "Administration", 
+    "ShortCutE": "Admin", 
+    "SkillID": 19
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "អ្នកបើកបរ", 
+    "RetireAge": 55, 
+    "SkillE": "Driver", 
+    "ShortCutE": "Driver", 
+    "SkillID": 20
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ផ្សេងៗ", 
+    "RetireAge": 55, 
+    "SkillE": "Other", 
+    "ShortCutE": null, 
+    "SkillID": 27
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "បរិញ្ញាប័ត្រគិលានុបដ្ឋាក", 
+    "RetireAge": 60, 
+    "SkillE": "Bachalor of Nurse", 
+    "ShortCutE": null, 
+    "SkillID": 28
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "បរិញ្ញាប័ត្រឆ្មប", 
+    "RetireAge": 60, 
+    "SkillE": "Bachalor of Midwife", 
+    "ShortCutE": null, 
+    "SkillID": 29
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "បរិញ្ញាប័ត្រព្យាបាលចលនា", 
+    "RetireAge": 60, 
+    "SkillE": "Bachalor of Physiotherapist", 
+    "ShortCutE": null, 
+    "SkillID": 30
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "បរិញ្ញាប័ត្រមន្ទីរពិសោធន៍", 
+    "RetireAge": 60, 
+    "SkillE": "Bachalor of Laboatorian", 
+    "ShortCutE": null, 
+    "SkillID": 31
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ទន្តគិលានុបដ្ឋាក", 
+    "RetireAge": 60, 
+    "SkillE": "Dentist-Nursing", 
+    "ShortCutE": null, 
+    "SkillID": 32
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": "ឱសថបឋម", 
+    "RetireAge": 58, 
+    "SkillE": "Primary Pharmacist", 
+    "ShortCutE": null, 
+    "SkillID": 33
+  }, 
+  {
+    "ShortCutK": null, 
+    "SkillK": " ", 
+    "RetireAge": 0, 
+    "SkillE": null, 
+    "ShortCutE": null, 
+    "SkillID": 0
+  }
+]
