@@ -18,6 +18,9 @@
 /.fleet
 /.idea
 /.vscode
+!/.vscode/
+!/.vscode/tasks.json
+!/.vscode/launch.json
 *.iml
 
 # Flutter / Dart in mobile subfolder

@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Laravel Built-in Server",
+      "type": "php",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/artisan",
+      "args": ["serve", "--host=127.0.0.1", "--port=8000"],
+      "cwd": "${workspaceFolder}/backend",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Launch Flutter (mobile)",
+      "type": "dart",
+      "request": "launch",
+      "program": "${workspaceFolder}/mobile/lib/main.dart",
+      "cwd": "${workspaceFolder}/mobile"
+    }
+  ]
+}
