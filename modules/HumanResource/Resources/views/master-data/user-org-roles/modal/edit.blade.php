@@ -1,4 +1,4 @@
-<div class="modal fade" id="update-user-org-role-{{ $item->id }}" data-bs-backdrop="static" data-bs-keyboard="false"
+﻿<div class="modal fade" id="update-user-org-role-{{ $item->id }}" data-bs-backdrop="static" data-bs-keyboard="false"
     tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -75,8 +75,10 @@
                                     @foreach ($scope_options as $option)
                                         <option value="{{ $option }}" {{ $item->scope_type === $option ? 'selected' : '' }}>
                                             {{ localize('org_scope_' . $option, match ($option) {
-                                                'self' => 'តែអង្គភាពខ្លួនឯង',
+                                                'self', 'self_only' => 'តែអង្គភាពខ្លួនឯង',
+                                                'self_unit_only' => 'អង្គភាពភេទដូចគ្នា',
                                                 'self_and_children' => 'អង្គភាពខ្លួនឯង និងអង្គភាពរង',
+                                                'all' => 'អង្គភាពទាំងអស់',
                                                 default => ucwords(str_replace('_', ' ', $option)),
                                             }) }}
                                         </option>

@@ -73,7 +73,7 @@
 <!-- End Bootstrap Toggle -->
 
 <script src="{{ asset('backend/assets/plugins/axios.min.js') }}"></script>
-<script src="{{ asset('backend/assets/dist/js/custom.js') }}"></script>
+<script src="{{ asset('backend/assets/dist/js/custom.js') }}?v={{ @filemtime(public_path('backend/assets/dist/js/custom.js')) }}"></script>
 <script src="{{ asset('backend/assets/dist/js/jsPDF.js') }}"></script>
 
 <script src="{{ asset('backend/assets/dist/js/user-profile-image.js') }}"></script>

@@ -1,7 +1,7 @@
 @extends('backend.layouts.app')
 @section('title', localize('org_position_matrix', 'Org Position Matrix'))
 @section('content')
-    @include('humanresource::master-data.header')
+    @include('humanresource::master-data.org-structure.header')
     @include('backend.layouts.common.validation')
 
     <div class="card mb-4 fixed-tab-body">

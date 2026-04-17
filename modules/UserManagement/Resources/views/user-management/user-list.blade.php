@@ -1,4 +1,4 @@
-@extends('setting::settings')
+﻿@extends('setting::settings')
 @section('title', localize('user_list'))
 @section('setting_content')
     <!--/.Content Header (Page header)-->

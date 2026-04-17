@@ -1,0 +1,141 @@
+<?php
+
+namespace Modules\Correspondence\Traits;
+
+use Illuminate\Support\Facades\Auth;
+use Modules\HumanResource\Entities\Department;
+use Modules\HumanResource\Entities\UserOrgRole;
+
+/**
+ * 4-level department scope for Correspondence module.
+ *
+ * unit_type_id mapping:
+ *   1 = PHD  -> sees everything
+ *   4 = OD   -> sees own + child HCs
+ *   6 = Hospital -> sees own only (same as HC)
+ *   7 = HC   -> sees own only
+ */
+trait CorrespondenceScope
+{
+    /**
+     * @return string  phd | od | hospital | hc | unknown
+     */
+    protected function corrLevel(): string
+    {
+        $dept = $this->corrUserDepartment();
+        if (!$dept) {
+            return 'unknown';
+        }
+
+        return $this->corrResolveLevelFromDepartment($dept);
+    }
+
+    /**
+     * @return array<int>|null  null = all (PHD level)
+     */
+    protected function corrAccessibleDepartmentIds(): ?array
+    {
+        $dept = $this->corrUserDepartment();
+        if (!$dept) {
+            return [];
+        }
+
+        $level = $this->corrResolveLevelFromDepartment($dept);
+
+        if ($level === 'phd') {
+            return null;
+        }
+
+        if ($level === 'od') {
+            $childIds = Department::withoutGlobalScopes()
+                ->where('parent_id', $dept->id)
+                ->where('is_active', 1)
+                ->pluck('id')
+                ->toArray();
+
+            return array_merge([$dept->id], $childIds);
+        }
+
+        return [$dept->id];
+    }
+
+    protected function corrLevelLabel(): string
+    {
+        return match ($this->corrLevel()) {
+            'phd'      => 'PHD',
+            'od'       => 'OD',
+            'hospital' => 'Hospital',
+            'hc'       => 'HC',
+            default    => '',
+        };
+    }
+
+    protected function corrUserDepartment(): ?Department
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return null;
+        }
+
+        static $cached = [];
+        if (isset($cached[$user->id])) {
+            return $cached[$user->id];
+        }
+
+        $orgRole = UserOrgRole::withoutGlobalScopes()
+            ->where('user_id', $user->id)
+            ->where('is_active', true)
+            ->where(function ($q) {
+                $q->whereNull('effective_from')->orWhereDate('effective_from', '<=', now());
+            })
+            ->where(function ($q) {
+                $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', now());
+            })
+            ->first();
+
+        if (!$orgRole || !$orgRole->department_id) {
+            $cached[$user->id] = null;
+            return null;
+        }
+
+        $dept = Department::withoutGlobalScopes()->find($orgRole->department_id);
+        $cached[$user->id] = $dept;
+
+        return $dept;
+    }
+
+    private function corrResolveLevelFromDepartment(Department $dept): string
+    {
+        $map = [
+            1 => 'phd',
+            4 => 'od',
+            6 => 'hospital',
+            7 => 'hc',
+        ];
+
+        if (isset($map[$dept->unit_type_id])) {
+            return $map[$dept->unit_type_id];
+        }
+
+        $current = $dept;
+        $guard = 0;
+        while ($current->parent_id && $guard < 5) {
+            $parent = Department::withoutGlobalScopes()
+                ->select('id', 'parent_id', 'unit_type_id')
+                ->find($current->parent_id);
+
+            if (!$parent) {
+                break;
+            }
+
+            if (isset($map[$parent->unit_type_id])) {
+                return $map[$parent->unit_type_id];
+            }
+
+            $current = $parent;
+            $guard++;
+        }
+
+        return 'unknown';
+    }
+}

@@ -18,14 +18,19 @@ class UserOrgRole extends Model
     public const ROLE_DEPUTY_HEAD = 'deputy_head';
     public const ROLE_MANAGER = 'manager';
 
+    /** @deprecated Use SCOPE_SELF_ONLY instead */
     public const SCOPE_SELF = 'self';
+    public const SCOPE_SELF_ONLY = 'self_only';
+    public const SCOPE_SELF_UNIT_ONLY = 'self_unit_only';
     public const SCOPE_SELF_AND_CHILDREN = 'self_and_children';
+    public const SCOPE_ALL = 'all';
 
     protected $fillable = [
         'uuid',
         'user_id',
         'department_id',
         'org_role',
+        'system_role_id',
         'scope_type',
         'effective_from',
         'effective_to',
@@ -69,8 +74,10 @@ class UserOrgRole extends Model
     public static function scopeOptions(): array
     {
         return [
-            self::SCOPE_SELF,
+            self::SCOPE_SELF_ONLY,
+            self::SCOPE_SELF_UNIT_ONLY,
             self::SCOPE_SELF_AND_CHILDREN,
+            self::SCOPE_ALL,
         ];
     }
 
@@ -101,5 +108,22 @@ class UserOrgRole extends Model
     public function department()
     {
         return $this->belongsTo(Department::class, 'department_id');
+    }
+
+    public function systemRole()
+    {
+        return $this->belongsTo(SystemRole::class, 'system_role_id');
+    }
+
+    /**
+     * Resolve the effective org_role code — prefer system_role relation, fallback to old column.
+     */
+    public function getEffectiveRoleCode(): string
+    {
+        if ($this->system_role_id && $this->relationLoaded('systemRole') && $this->systemRole) {
+            return (string) $this->systemRole->code;
+        }
+
+        return (string) ($this->org_role ?? '');
     }
 }

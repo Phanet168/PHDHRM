@@ -20,6 +20,7 @@ class WorkflowDefinitionStep extends Model
         'step_name',
         'action_type',
         'org_role',
+        'system_role_id',
         'scope_type',
         'is_final_approval',
         'is_required',
@@ -51,6 +52,11 @@ class WorkflowDefinitionStep extends Model
     public function definition(): BelongsTo
     {
         return $this->belongsTo(WorkflowDefinition::class, 'workflow_definition_id');
+    }
+
+    public function systemRole(): BelongsTo
+    {
+        return $this->belongsTo(\Modules\HumanResource\Entities\SystemRole::class, 'system_role_id');
     }
 }
 

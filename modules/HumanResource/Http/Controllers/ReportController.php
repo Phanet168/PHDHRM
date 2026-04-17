@@ -29,11 +29,12 @@ use Modules\HumanResource\DataTables\DailyPresentReportDataTable;
 use Modules\HumanResource\DataTables\EmployeeReportDataTable;
 use Modules\HumanResource\DataTables\MonthPresentReportDataTable;
 use Modules\HumanResource\DataTables\LateClosingAttendanceDataTable;
+use Modules\HumanResource\Support\OrgHierarchyAccessService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
 
 class ReportController extends Controller
 {
-    public function __construct()
+    public function __construct(private readonly OrgHierarchyAccessService $orgHierarchyAccessService)
     {
         $this->middleware('permission:read_attendance_report')->only('staffAttendanceReport');
         $this->middleware('permission:read_attendance_details_report')->only(['staffAttendanceDetailReport']);
@@ -62,12 +63,20 @@ class ReportController extends Controller
     {
         $date = $request->date ? $request->date : Carbon::today()->format('Y-m-d');
 
-        $attendances = Attendance::where('employee_id', $employee_id)->whereDate('time', '=', $date)->get();
+        $employee = Employee::findOrFail($employee_id);
 
-        $employee = Employee::find($employee_id);
+        $managedBranchIds = $this->orgHierarchyAccessService->managedBranchIds(Auth::user());
+        if (is_array($managedBranchIds)) {
+            $employeeUnitId = (int) ($employee->sub_department_id ?: $employee->department_id ?: 0);
+            if (!$employeeUnitId || !in_array($employeeUnitId, $managedBranchIds, true)) {
+                abort(403);
+            }
+        }
+
+        $attendances = Attendance::where('employee_id', $employee->id)->whereDate('time', '=', $date)->get();
 
         return view('humanresource::reports.staff-attendance-detail', [
-            'employee_id' => $employee_id,
+            'employee_id' => $employee->id,
             'date' => $date,
             'attendances' => $attendances,
             'employee' => $employee,

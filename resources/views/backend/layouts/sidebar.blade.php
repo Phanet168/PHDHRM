@@ -75,35 +75,67 @@
                 @endcan
 
                 @if (auth()->user()->can('read_department') || auth()->user()->can('read_positions') || auth()->user()->can('read_setup_rules'))
-                    <li
-                        class="{{ request()->routeIs('departments.*') || request()->routeIs('professional-skills.*') || request()->routeIs('positions.*') || request()->routeIs('pay-levels.*') || request()->routeIs('salary-scales.*') ? 'mm-active' : '' }}">
+                    @php
+                        $masterDataHrActive = request()->routeIs('departments.*')
+                            || request()->routeIs('professional-skills.*')
+                            || request()->routeIs('positions.*')
+                            || request()->routeIs('pay-levels.*')
+                            || request()->routeIs('salary-scales.*')
+                            || request()->routeIs('org-unit-type-positions.*')
+                            || request()->routeIs('user-org-roles.*')
+                            || request()->routeIs('workflow-policies.*')
+                            || request()->routeIs('org-role-module-permissions.*')
+                            || request()->routeIs('system-roles.*');
+                    @endphp
+                    <li class="{{ $masterDataHrActive ? 'mm-active' : '' }}">
                         <a class="has-arrow material-ripple" href="#">
                             <i class="fa fa-sitemap"></i>
-                            <span>ទិន្នន័យមូលដ្ឋាន HR</span>
+                            <span>{{ localize('master_data_hr', 'ទិន្នន័យមូលដ្ឋាន HR') }}</span>
                         </a>
-                        <ul
-                            class="nav-second-level {{ request()->routeIs('departments.*') || request()->routeIs('professional-skills.*') || request()->routeIs('positions.*') || request()->routeIs('pay-levels.*') || request()->routeIs('salary-scales.*') ? 'mm-show' : '' }}">
+                        <ul class="nav-second-level {{ $masterDataHrActive ? 'mm-show' : '' }}">
                             @can('read_department')
                                 <li class="{{ request()->routeIs('departments.*') ? 'mm-active' : '' }}">
-                                    <a class="dropdown-item" href="{{ route('departments.index') }}">គ្រប់គ្រងអង្គភាព</a>
+                                    <a class="dropdown-item" href="{{ route('departments.index') }}">
+                                        {{ localize('org_unit_management', 'គ្រប់គ្រងអង្គភាព') }}
+                                    </a>
+                                </li>
+                                @php
+                                    $orgStructureActive = request()->routeIs('org-unit-type-positions.*')
+                                        || request()->routeIs('user-org-roles.*')
+                                        || request()->routeIs('workflow-policies.*')
+                                        || request()->routeIs('org-role-module-permissions.*')
+                                        || request()->routeIs('system-roles.*');
+                                @endphp
+                                <li class="{{ $orgStructureActive ? 'mm-active' : '' }}">
+                                    <a class="dropdown-item" href="{{ route('org-unit-type-positions.index') }}">
+                                        {{ localize('org_structure_management', 'Org Structure Management') }}
+                                    </a>
                                 </li>
                             @endcan
                             @can('read_setup_rules')
                                 <li class="{{ request()->routeIs('professional-skills.*') ? 'mm-active' : '' }}">
-                                    <a class="dropdown-item" href="{{ route('professional-skills.index') }}">គ្រប់គ្រងជំនាញ</a>
+                                    <a class="dropdown-item" href="{{ route('professional-skills.index') }}">
+                                        {{ localize('professional_skill_management', 'គ្រប់គ្រងជំនាញ') }}
+                                    </a>
                                 </li>
                             @endcan
                             @can('read_positions')
                                 <li class="{{ request()->routeIs('positions.*') ? 'mm-active' : '' }}">
-                                    <a class="dropdown-item" href="{{ route('positions.index') }}">តួនាទី / មុខតំណែង</a>
+                                    <a class="dropdown-item" href="{{ route('positions.index') }}">
+                                        {{ localize('positions', 'តួនាទី / មុខតំណែង') }}
+                                    </a>
                                 </li>
                             @endcan
                             @can('read_setup_rules')
                                 <li class="{{ request()->routeIs('pay-levels.*') ? 'mm-active' : '' }}">
-                                    <a class="dropdown-item" href="{{ route('pay-levels.index') }}">គ្រប់គ្រងកាំប្រាក់</a>
+                                    <a class="dropdown-item" href="{{ route('pay-levels.index') }}">
+                                        {{ localize('pay_level_management', 'គ្រប់គ្រងកាំប្រាក់') }}
+                                    </a>
                                 </li>
                                 <li class="{{ request()->routeIs('salary-scales.*') ? 'mm-active' : '' }}">
-                                    <a class="dropdown-item" href="{{ route('salary-scales.index') }}">កំណត់សន្ទស្សន៍ប្រាក់បៀវត្ស</a>
+                                    <a class="dropdown-item" href="{{ route('salary-scales.index') }}">
+                                        {{ localize('salary_scale_management', 'កំណត់សន្ទស្សន៍ប្រាក់បៀវត្ស') }}
+                                    </a>
                                 </li>
                             @endcan
                         </ul>
@@ -126,7 +158,7 @@
                             @can('update_employee')
                                 <li class="{{ request()->routeIs('employee-pay-promotions.*') ? 'mm-active' : '' }}">
                                     <a class="dropdown-item" href="{{ route('employee-pay-promotions.index') }}">
-                                        {{ app()->getLocale() === 'en' ? 'Grade and rank management' : 'គ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ' }}
+                                        {{ localize('grade_and_rank_management', 'គ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ') }}
                                     </a>
                                 </li>
                                 <li class="{{ request()->routeIs('employee-workplace-transfers.*') ? 'mm-active' : '' }}">
@@ -212,7 +244,7 @@
                     </li>
                 @endcan
 
-                @auth
+                @canany(['read_correspondence_management'])
                     <li class="{{ request()->routeIs('correspondence.*') ? 'mm-active' : '' }}">
                         <a class="has-arrow material-ripple" href="#">
                             <i class="fa fa-envelope"></i>
@@ -233,7 +265,60 @@
                             </li>
                         </ul>
                     </li>
-                @endauth
+                @endcanany
+
+                @canany(['read_pharmaceutical_management', 'read_pharm_medicines', 'read_pharm_distributions', 'read_pharm_stock', 'read_pharm_dispensings', 'read_pharm_reports', 'read_pharm_users'])
+                    <li class="{{ request()->routeIs('pharmaceutical.*') ? 'mm-active' : '' }}">
+                        <a class="has-arrow material-ripple" href="#">
+                            <i class="fa fa-pills"></i>
+                            <span>{{ localize('pharmaceutical_management', 'ការគ្រប់គ្រងឱសថ') }}</span>
+                        </a>
+                        <ul class="nav-second-level {{ request()->routeIs('pharmaceutical.*') ? 'mm-show' : '' }}">
+                            <li class="{{ request()->routeIs('pharmaceutical.index') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item"
+                                    href="{{ route('pharmaceutical.index') }}">{{ localize('dashboard', 'ផ្ទាំងគ្រប់គ្រង') }}</a>
+                            </li>
+                            @canany(['read_pharmaceutical_management', 'read_pharm_medicines'])
+                            <li class="{{ request()->routeIs('pharmaceutical.medicines.*') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item"
+                                    href="{{ route('pharmaceutical.medicines.index') }}">{{ localize('medicines', 'មុខឱសថ') }}</a>
+                            </li>
+                            @endcanany
+                            @canany(['read_pharmaceutical_management', 'read_pharm_distributions'])
+                            <li class="{{ request()->routeIs('pharmaceutical.distributions.*') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item"
+                                    href="{{ route('pharmaceutical.distributions.index') }}">{{ localize('distributions', 'ការចែកចាយ') }}</a>
+                            </li>
+                            @endcanany
+                            @canany(['read_pharmaceutical_management', 'read_pharm_stock'])
+                            <li class="{{ request()->routeIs('pharmaceutical.stock') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item"
+                                    href="{{ route('pharmaceutical.stock') }}">{{ localize('stock', 'សន្និធិ') }}</a>
+                            </li>
+                            @endcanany
+                            @canany(['read_pharmaceutical_management', 'read_pharm_dispensings'])
+                            <li class="{{ request()->routeIs('pharmaceutical.dispensings.*') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item"
+                                    href="{{ route('pharmaceutical.dispensings.index') }}">{{ localize('dispensing', 'ការផ្តល់ឱសថ') }}</a>
+                            </li>
+                            @endcanany
+                            @canany(['read_pharmaceutical_management', 'read_pharm_reports'])
+                            <li class="{{ request()->routeIs('pharmaceutical.reports.*') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item"
+                                    href="{{ route('pharmaceutical.reports.index') }}">{{ localize('reports', 'របាយការណ៍') }}</a>
+                            </li>
+                            @endcanany
+                            @canany(['read_pharmaceutical_management', 'read_pharm_users'])
+                            @if(auth()->user() && (int) auth()->user()->user_type_id === 1)
+                            <li class="{{ request()->routeIs('pharmaceutical.users.*') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item"
+                                    href="{{ route('pharmaceutical.users.index') }}">{{ localize('user_management', 'គ្រប់គ្រងអ្នកប្រើ') }}</a>
+                            </li>
+                            @endif
+                            @endcanany
+                        </ul>
+                    </li>
+                @endcanany
 
                 @can('read_payroll')
                     <li class="{{ request()->is('payroll/*') ? 'mm-active' : '' }}">

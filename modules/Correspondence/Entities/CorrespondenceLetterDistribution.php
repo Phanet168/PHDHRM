@@ -16,12 +16,16 @@ class CorrespondenceLetterDistribution extends Model
     public const STATUS_FEEDBACK_SENT = 'feedback_sent';
     public const STATUS_CLOSED = 'closed';
 
+    public const TYPE_TO = 'to';
+    public const TYPE_CC = 'cc';
+
     protected $table = 'correspondence_letter_distributions';
 
     protected $fillable = [
         'letter_id',
         'target_department_id',
         'target_user_id',
+        'distribution_type',
         'child_letter_id',
         'distributed_by',
         'distributed_at',

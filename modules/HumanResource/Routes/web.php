@@ -20,12 +20,16 @@ use Modules\HumanResource\Http\Controllers\EmployeePayPromotionController;
 use Modules\HumanResource\Http\Controllers\EmployeePositionPromotionController;
 use Modules\HumanResource\Http\Controllers\EmployeeRetirementController;
 use Modules\HumanResource\Http\Controllers\EmployeeWorkplaceTransferController;
+use Modules\HumanResource\Http\Controllers\GradeRankHelpController;
+use Modules\HumanResource\Http\Controllers\EmployeeHelpController;
 use Modules\HumanResource\Http\Controllers\GovPayLevelController;
 use Modules\HumanResource\Http\Controllers\GovSalaryScaleController;
 use Modules\HumanResource\Http\Controllers\PositionController;
 use Modules\HumanResource\Http\Controllers\ProfessionalSkillController;
 use Modules\HumanResource\Http\Controllers\OrgUnitTypeController;
 use Modules\HumanResource\Http\Controllers\OrgUnitTypePositionController;
+use Modules\HumanResource\Http\Controllers\OrgRoleModulePermissionController;
+use Modules\HumanResource\Http\Controllers\SystemRoleController;
 use Modules\HumanResource\Http\Controllers\UserOrgRoleController;
 use Modules\HumanResource\Http\Controllers\WorkflowPolicyController;
 use Modules\HumanResource\Http\Controllers\LeaveTypeController;
@@ -119,6 +123,18 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
         'update',
         'destroy',
     ]);
+    Route::resource('org-role-module-permissions', OrgRoleModulePermissionController::class)->only([
+        'index',
+        'store',
+        'update',
+        'destroy',
+    ]);
+    Route::resource('system-roles', SystemRoleController::class)->only([
+        'index',
+        'store',
+        'update',
+        'destroy',
+    ]);
     Route::get('user-org-roles-user-options', [UserOrgRoleController::class, 'userOptions'])
         ->name('user-org-roles.user-options');
     Route::get('workflow-policies', [WorkflowPolicyController::class, 'index'])
@@ -146,9 +162,15 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
     Route::post('salary-scales/{uuid}/values', [GovSalaryScaleController::class, 'updateValues'])
         ->name('salary-scales.values.update');
 
+    Route::get('employees/help/{article?}', [EmployeeHelpController::class, 'index'])
+        ->middleware('permission:read_employee')
+        ->name('employees.help');
     Route::resource('employees', EmployeeController::class);
     Route::get('employees-export-excel', [EmployeeController::class, 'exportExcel'])->name('employees.export-excel');
     Route::get('employee-pay-promotions', [EmployeePayPromotionController::class, 'index'])->name('employee-pay-promotions.index');
+    Route::get('employee-pay-promotions/help/{article?}', [GradeRankHelpController::class, 'index'])
+        ->middleware('permission:read_employee')
+        ->name('employee-pay-promotions.help');
     Route::get('employee-pay-promotions/{proposal}/review', [EmployeePayPromotionController::class, 'review'])->name('employee-pay-promotions.review');
     Route::post('employee-pay-promotions/batch-action', [EmployeePayPromotionController::class, 'batchAction'])->name('employee-pay-promotions.batch-action');
     Route::post('employee-pay-promotions', [EmployeePayPromotionController::class, 'store'])->name('employee-pay-promotions.store');

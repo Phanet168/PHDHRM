@@ -3,6 +3,8 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ApiController;
+use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ExternalSyncController;
 
 /*
 |--------------------------------------------------------------------------
@@ -20,6 +22,7 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 Route::get('/', [ApiController::class, 'index']);
+Route::post('/auth/login', [AuthController::class, 'login'])->name('api.auth.login');
 
 Route::controller(ApiController::class)->group(function () {
 
@@ -50,3 +53,12 @@ Route::controller(ApiController::class)->group(function () {
     Route::get('/current_month_totalday','currentMonthTotalday')->name('current_month_totalday');
 
 });
+
+Route::prefix('integration/v1')
+    ->middleware('external.api.key')
+    ->group(function () {
+        Route::get('/health', [ExternalSyncController::class, 'health']);
+        Route::get('/employees', [ExternalSyncController::class, 'employees']);
+        Route::get('/employees/{id}', [ExternalSyncController::class, 'employee'])->whereNumber('id');
+        Route::get('/departments', [ExternalSyncController::class, 'departments']);
+    });

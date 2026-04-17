@@ -55,9 +55,10 @@ class LoginController extends Controller {
     {
         $login = trim((string) $request->input($this->username(), $request->input('email', '')));
         $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'user_name';
+        $normalizedLogin = $field === 'user_name' ? mb_strtolower($login, 'UTF-8') : $login;
 
         return [
-            $field => $login,
+            $field => $normalizedLogin,
             'password' => (string) $request->input('password'),
         ];
     }
@@ -68,14 +69,20 @@ class LoginController extends Controller {
     }
 
     /**
-     * Reset OTP verification state on every new login.
+     * Reset OTP verification state on every new login and redirect to the right dashboard.
      */
-    protected function authenticated(Request $request, $user): void
+    protected function authenticated(Request $request, $user)
     {
         $request->session()->forget([
             'otp_verified_user_id',
             'otp_verified_at',
         ]);
+
+        if ($user && (int) $user->user_type_id === 1 && $user->can('read_dashboard')) {
+            return redirect()->route('home');
+        }
+
+        return redirect()->route('staffHome');
     }
 
 }

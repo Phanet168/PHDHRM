@@ -130,7 +130,9 @@ class WorkflowPolicyController extends Controller
                 'updated_by' => Auth::id(),
             ]);
 
-            $workflow_policy->steps()->delete();
+            // Steps use SoftDeletes; force delete old rows to avoid unique conflicts
+            // on (workflow_definition_id, step_order) when recreating the matrix.
+            $workflow_policy->steps()->withTrashed()->forceDelete();
             foreach ($payload['steps'] as $step) {
                 $workflow_policy->steps()->create([
                     'step_order' => $step['step_order'],
@@ -156,7 +158,7 @@ class WorkflowPolicyController extends Controller
     public function destroy(WorkflowDefinition $workflow_policy): JsonResponse
     {
         DB::transaction(function () use ($workflow_policy): void {
-            $workflow_policy->steps()->delete();
+            $workflow_policy->steps()->withTrashed()->forceDelete();
             $workflow_policy->update(['deleted_by' => Auth::id()]);
             $workflow_policy->delete();
         });

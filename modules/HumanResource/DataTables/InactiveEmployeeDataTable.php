@@ -5,6 +5,7 @@ namespace Modules\HumanResource\DataTables;
 use Illuminate\Database\Eloquent\Builder as QueryBuilder;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\GovPayLevel;
+use Modules\HumanResource\Support\OrgHierarchyAccessService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Html\Builder as HtmlBuilder;
@@ -301,26 +302,7 @@ class InactiveEmployeeDataTable extends DataTable
 
     protected function managedBranchIds(OrgUnitRuleService $orgUnitRuleService): ?array
     {
-        $user = auth()->user();
-        if (!$user) {
-            return [];
-        }
-
-        if ((int) $user->user_type_id === 1) {
-            return null;
-        }
-
-        $employee = $user->employee()->with('primaryUnitPosting')->first();
-        if (!$employee) {
-            return [];
-        }
-
-        $rootUnitId = (int) ($employee->sub_department_id ?: $employee->department_id ?: optional($employee->primaryUnitPosting)->department_id);
-        if ($rootUnitId <= 0) {
-            return [];
-        }
-
-        return $orgUnitRuleService->branchIdsIncludingSelf($rootUnitId);
+        return app(OrgHierarchyAccessService::class)->managedBranchIds(auth()->user());
     }
 
     protected function applyBranchScope(QueryBuilder $query, array $branchIds): QueryBuilder

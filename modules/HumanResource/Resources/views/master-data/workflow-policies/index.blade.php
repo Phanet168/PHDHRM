@@ -1,7 +1,7 @@
 @extends('backend.layouts.app')
 @section('title', localize('workflow_policy_matrix', 'Workflow Policy Matrix'))
 @section('content')
-    @include('humanresource::master-data.header')
+    @include('humanresource::master-data.org-structure.header')
     @include('backend.layouts.common.validation')
     @include('backend.layouts.common.message')
 
@@ -21,6 +21,32 @@
         $actionTypeLabels = is_array($action_type_labels) ? $action_type_labels : $action_type_labels->toArray();
         $orgRoleLabels = is_array($org_role_labels) ? $org_role_labels : $org_role_labels->toArray();
         $scopeTypeLabels = is_array($scope_type_labels) ? $scope_type_labels : $scope_type_labels->toArray();
+        $formatKey = function (?string $key): string {
+            $key = (string) $key;
+            if ($key === '') {
+                return '-';
+            }
+            return ucwords(str_replace(['_', '-', '.'], ' ', $key));
+        };
+        $conditionLabelMap = [
+            'days' => localize('days', 'Days'),
+            'min_days' => localize('min_days', 'Minimum days'),
+            'max_days' => localize('max_days', 'Maximum days'),
+            'employee_type_id' => localize('employee_type', 'Employee type'),
+            'employee_type_code' => localize('employee_type_code', 'Employee type code'),
+            'org_unit_type_id' => localize('org_unit_type', 'Org unit type'),
+            'org_unit_type_code' => localize('org_unit_type_code', 'Org unit type code'),
+            'is_full_right' => localize('full_right_status', 'Full-right status'),
+        ];
+        $formatConditionValue = function ($value): string {
+            if (is_bool($value)) {
+                return $value ? localize('yes', 'Yes') : localize('no', 'No');
+            }
+            if (is_array($value)) {
+                return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            }
+            return (string) $value;
+        };
     @endphp
 
     <div class="card mb-4 fixed-tab-body">
@@ -37,6 +63,15 @@
             @endcan
         </div>
         <div class="card-body">
+            <div class="alert alert-info py-2 mb-3">
+                <div class="small mb-0">
+                    <strong>{{ localize('quick_guide', 'Quick guide') }}:</strong>
+                    1) {{ localize('select_module_and_type', 'Select module + request type') }}
+                    &nbsp;→&nbsp;2) {{ localize('set_approval_steps', 'Set approval steps') }}
+                    &nbsp;→&nbsp;3) {{ localize('save_and_test', 'Save and test') }}
+                </div>
+            </div>
+
             <form method="GET" action="{{ route('workflow-policies.index') }}" class="mb-3">
                 <div class="row g-2 align-items-end">
                     <div class="col-md-4">
@@ -44,7 +79,9 @@
                         <select name="module_key" class="form-control select-basic-single">
                             <option value="">{{ localize('all', 'All') }}</option>
                             @foreach ($module_options as $moduleKey)
-                                <option value="{{ $moduleKey }}" @selected($selected_module_key === $moduleKey)>{{ $moduleKey }}</option>
+                                <option value="{{ $moduleKey }}" @selected($selected_module_key === $moduleKey)>
+                                    {{ $formatKey($moduleKey) }} ({{ $moduleKey }})
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -53,7 +90,9 @@
                         <select name="request_type_key" class="form-control select-basic-single">
                             <option value="">{{ localize('all', 'All') }}</option>
                             @foreach ($request_type_options as $requestTypeKey)
-                                <option value="{{ $requestTypeKey }}" @selected($selected_request_type_key === $requestTypeKey)>{{ $requestTypeKey }}</option>
+                                <option value="{{ $requestTypeKey }}" @selected($selected_request_type_key === $requestTypeKey)>
+                                    {{ $formatKey($requestTypeKey) }} ({{ $requestTypeKey }})
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -77,9 +116,9 @@
                             <th width="24%">{{ localize('approval_steps', 'Approval steps') }}</th>
                             <th width="6%">{{ localize('status', 'Status') }}</th>
                             <th width="12%">{{ localize('action', 'Action') }}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+                            </tr>
+                        </thead>
+                        <tbody>
                         @forelse ($definitions as $item)
                             @php
                                 $stepsPayload = $item->steps
@@ -100,13 +139,28 @@
                             @endphp
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
-                                <td><code>{{ $item->module_key }}</code></td>
-                                <td><code>{{ $item->request_type_key }}</code></td>
+                                <td>
+                                    <div class="fw-semibold">{{ $formatKey($item->module_key) }}</div>
+                                    <small class="text-muted"><code>{{ $item->module_key }}</code></small>
+                                </td>
+                                <td>
+                                    <div class="fw-semibold">{{ $formatKey($item->request_type_key) }}</div>
+                                    <small class="text-muted"><code>{{ $item->request_type_key }}</code></small>
+                                </td>
                                 <td>{{ $item->name }}</td>
                                 <td>{{ $item->priority }}</td>
                                 <td>
                                     @if (!empty($item->condition_json))
-                                        <pre class="mb-0 small">{{ json_encode($item->condition_json, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}</pre>
+                                        <ul class="list-unstyled small mb-0">
+                                            @foreach ($item->condition_json as $conditionKey => $conditionValue)
+                                                <li>
+                                                    <span class="text-muted">
+                                                        {{ $conditionLabelMap[$conditionKey] ?? $formatKey($conditionKey) }}:
+                                                    </span>
+                                                    <span class="fw-semibold">{{ $formatConditionValue($conditionValue) }}</span>
+                                                </li>
+                                            @endforeach
+                                        </ul>
                                     @else
                                         <span class="text-muted">-</span>
                                     @endif
@@ -118,15 +172,13 @@
                                         <ol class="mb-0 ps-3">
                                             @foreach ($item->steps as $step)
                                                 <li class="mb-1">
-                                                    <span class="fw-semibold">{{ $step->step_name }}</span>
-                                                    <small class="text-muted">
-                                                        [
+                                                    <div class="fw-semibold">{{ $step->step_order }}. {{ $step->step_name }}</div>
+                                                    <small class="text-muted d-block">
                                                         {{ $actionTypeLabels[$step->action_type] ?? $step->action_type }}
-                                                        /
+                                                        &middot;
                                                         {{ $orgRoleLabels[$step->org_role] ?? $step->org_role }}
-                                                        /
+                                                        &middot;
                                                         {{ $scopeTypeLabels[$step->scope_type] ?? $step->scope_type }}
-                                                        ]
                                                     </small>
                                                 </li>
                                             @endforeach
@@ -190,24 +242,56 @@
                         <input type="hidden" id="workflow-policy-form-method" name="_method" value="POST">
                         <div class="modal-body">
                             <div class="row g-3">
-                                <div class="col-md-3"><label class="form-label">Module key *</label><input type="text" name="module_key" id="wf-module-key" class="form-control" required></div>
-                                <div class="col-md-3"><label class="form-label">Request type key *</label><input type="text" name="request_type_key" id="wf-request-type-key" class="form-control" required></div>
-                                <div class="col-md-3"><label class="form-label">Policy name *</label><input type="text" name="name" id="wf-name" class="form-control" required></div>
-                                <div class="col-md-2"><label class="form-label">Priority *</label><input type="number" min="1" name="priority" id="wf-priority" class="form-control" required></div>
-                                <div class="col-md-1"><label class="form-label">Status</label><select name="is_active" id="wf-active" class="form-control"><option value="1">Active</option><option value="0">Inactive</option></select></div>
-                                <div class="col-md-6"><label class="form-label">Description</label><textarea name="description" id="wf-description" class="form-control" rows="2"></textarea></div>
-                                <div class="col-md-6"><label class="form-label">Condition JSON</label><textarea name="condition_json" id="wf-condition-json" class="form-control" rows="2" placeholder='{"min_days":2,"max_days":3}'></textarea></div>
+                                <div class="col-md-3">
+                                    <label class="form-label">{{ localize('module', 'Module') }} *</label>
+                                    <input type="text" name="module_key" id="wf-module-key" class="form-control" list="wf-module-key-list" required>
+                                    <small class="text-muted">{{ localize('module_key_help', 'Example: correspondence') }}</small>
+                                    <datalist id="wf-module-key-list">
+                                        @foreach ($module_options as $moduleKey)
+                                            <option value="{{ $moduleKey }}">
+                                        @endforeach
+                                    </datalist>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label">{{ localize('request_type', 'Request type') }} *</label>
+                                    <input type="text" name="request_type_key" id="wf-request-type-key" class="form-control" list="wf-request-type-key-list" required>
+                                    <small class="text-muted">{{ localize('request_type_key_help', 'Example: incoming_letter') }}</small>
+                                    <datalist id="wf-request-type-key-list">
+                                        @foreach ($request_type_options as $requestTypeKey)
+                                            <option value="{{ $requestTypeKey }}">
+                                        @endforeach
+                                    </datalist>
+                                </div>
+                                <div class="col-md-3"><label class="form-label">{{ localize('policy_name', 'Policy name') }} *</label><input type="text" name="name" id="wf-name" class="form-control" required></div>
+                                <div class="col-md-2"><label class="form-label">{{ localize('priority', 'Priority') }} *</label><input type="number" min="1" name="priority" id="wf-priority" class="form-control" required></div>
+                                <div class="col-md-1"><label class="form-label">{{ localize('status', 'Status') }}</label><select name="is_active" id="wf-active" class="form-control"><option value="1">{{ localize('active', 'Active') }}</option><option value="0">{{ localize('inactive', 'Inactive') }}</option></select></div>
+                                <div class="col-md-6"><label class="form-label">{{ localize('description', 'Description') }}</label><textarea name="description" id="wf-description" class="form-control" rows="2"></textarea></div>
+                                <div class="col-md-6">
+                                    <label class="form-label">{{ localize('condition_json', 'Condition (JSON, optional)') }}</label>
+                                    <textarea name="condition_json" id="wf-condition-json" class="form-control" rows="2" placeholder='{"min_days":2,"max_days":3}'></textarea>
+                                    <small class="text-muted">{{ localize('condition_json_help', 'Leave empty if no condition is required.') }}</small>
+                                </div>
                             </div>
                             <hr class="my-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="mb-0">Approval steps</h6>
+                                <h6 class="mb-0">{{ localize('approval_steps', 'Approval steps') }}</h6>
                                 <button type="button" class="btn btn-success-soft btn-sm" id="wf-add-step-row"><i class="fa fa-plus"></i>&nbsp;{{ localize('add', 'Add') }}</button>
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered align-middle mb-0">
                                     <thead>
                                         <tr>
-                                            <th>#</th><th>Step key</th><th>Step name</th><th>Action</th><th>Org role</th><th>Scope</th><th>Final</th><th>Required</th><th>Return</th><th>Reject</th><th></th>
+                                            <th>#</th>
+                                            <th>{{ localize('step_key', 'Step key') }}</th>
+                                            <th>{{ localize('step_name', 'Step name') }}</th>
+                                            <th>{{ localize('action', 'Action') }}</th>
+                                            <th>{{ localize('org_role', 'Org role') }}</th>
+                                            <th>{{ localize('scope', 'Scope') }}</th>
+                                            <th>{{ localize('final', 'Final') }}</th>
+                                            <th>{{ localize('required', 'Required') }}</th>
+                                            <th>{{ localize('return', 'Return') }}</th>
+                                            <th>{{ localize('reject', 'Reject') }}</th>
+                                            <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="wf-steps-body"></tbody>
@@ -234,8 +318,17 @@
             var actionTypeLabels = @json($actionTypeLabels);
             var orgRoleLabels = @json($orgRoleLabels);
             var scopeTypeLabels = @json($scopeTypeLabels);
+            var yesText = @json(localize('yes', 'Yes'));
+            var noText = @json(localize('no', 'No'));
+            var addText = @json(localize('add', 'Add'));
+            var editText = @json(localize('edit', 'Edit'));
 
-            function yesNoSelect(name, value) { return '<select name="'+name+'" class="form-control form-control-sm"><option value="1"'+(String(value)==='1'?' selected':'')+'>Yes</option><option value="0"'+(String(value)==='0'?' selected':'')+'>No</option></select>'; }
+            function yesNoSelect(name, value) {
+                return '<select name="'+name+'" class="form-control form-control-sm">'
+                    + '<option value="1"'+(String(value)==='1'?' selected':'')+'>'+yesText+'</option>'
+                    + '<option value="0"'+(String(value)==='0'?' selected':'')+'>'+noText+'</option>'
+                    + '</select>';
+            }
             function listSelect(name, value, map) {
                 var html = '<select name="'+name+'" class="form-control form-control-sm">';
                 Object.keys(map || {}).forEach(function(code) {
@@ -268,7 +361,7 @@
                 $('#wf-steps-body').html(html);
             }
             function resetCreateMode() {
-                $('#workflow-policy-modal-title').text('Add');
+                $('#workflow-policy-modal-title').text(addText);
                 $('#workflow-policy-form').attr('action', storeAction);
                 $('#workflow-policy-form-method').val('POST');
                 $('#wf-module-key,#wf-request-type-key,#wf-name,#wf-description,#wf-condition-json').val('');
@@ -279,7 +372,7 @@
             $(document).on('click', '.workflow-policy-create-btn', resetCreateMode);
             $(document).on('click', '.workflow-policy-edit-btn', function() {
                 var $b = $(this);
-                $('#workflow-policy-modal-title').text('Edit');
+                $('#workflow-policy-modal-title').text(editText);
                 $('#workflow-policy-form').attr('action', $b.data('action'));
                 $('#workflow-policy-form-method').val('PATCH');
                 $('#wf-module-key').val($b.data('module'));

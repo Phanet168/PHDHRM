@@ -51,9 +51,11 @@ class StaffAttendanceDetailDataTable extends DataTable
     public function query(Attendance $model)
     {
         $date = $this->request->get('date') ?? Carbon::today()->format('Y-m-d');
+        $employeeId = (int) ($this->request->get('employee_id') ?? 0);
+
         $query = $model->newQuery()
             ->whereDate('time', '=', $date)
-            ->where('employee_id', 3);
+            ->where('employee_id', $employeeId);
 
         return $query;
     }

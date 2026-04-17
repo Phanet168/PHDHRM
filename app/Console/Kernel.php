@@ -9,6 +9,7 @@ class Kernel extends ConsoleKernel
 {
     protected $commands = [
         Commands\ImportAttnData::class,
+        Commands\OptimizeHrDatabase::class,
     ];
     
     /**
@@ -19,7 +20,10 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // Weekly DB housekeeping to keep HR-related tables compact and responsive.
+        $schedule->command('maintenance:optimize-hr-db --activity-days=180 --notification-days=180 --failed-jobs-days=30 --password-reset-hours=24')
+            ->weeklyOn(0, '02:15')
+            ->withoutOverlapping();
     }
 
     /**

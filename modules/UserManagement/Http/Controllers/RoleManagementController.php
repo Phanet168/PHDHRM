@@ -13,6 +13,107 @@ use Spatie\Permission\Models\Role;
 
 class RoleManagementController extends Controller
 {
+    /**
+     * Ensure Pharmaceutical module permissions exist so they show up in role add/edit.
+     */
+    private function ensurePharmaceuticalRolePermissions(): void
+    {
+        $menu = PerMenu::firstOrCreate([
+            'menu_name' => 'Pharmaceutical Management',
+        ], [
+            'parentmenu_id' => null,
+            'lable' => 1,
+        ]);
+
+        $basePermissionNames = [
+            'create_pharmaceutical_management',
+            'read_pharmaceutical_management',
+            'update_pharmaceutical_management',
+            'delete_pharmaceutical_management',
+        ];
+
+        $moduleGroups = [
+            'Pharm Medicines' => 'pharm_medicines',
+            'Pharm Distributions' => 'pharm_distributions',
+            'Pharm Dispensings' => 'pharm_dispensings',
+            'Pharm Reports' => 'pharm_reports',
+            'Pharm Stock' => 'pharm_stock',
+            'Pharm Users' => 'pharm_users',
+        ];
+
+        $superAdminRole = Role::where('name', 'Super Admin')->where('guard_name', 'web')->first();
+
+        foreach ($basePermissionNames as $permissionName) {
+            $permission = Permission::firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ], [
+                'per_menu_id' => $menu->id,
+            ]);
+
+            if ($superAdminRole && !$superAdminRole->hasPermissionTo($permission->name)) {
+                $superAdminRole->givePermissionTo($permission);
+            }
+        }
+
+        foreach ($moduleGroups as $submenuName => $permissionPrefix) {
+            $submenu = PerMenu::firstOrCreate([
+                'parentmenu_id' => $menu->id,
+                'menu_name' => $submenuName,
+            ], [
+                'lable' => 2,
+            ]);
+
+            foreach (['create', 'read', 'update', 'delete'] as $action) {
+                $permission = Permission::firstOrCreate([
+                    'name' => $action . '_' . $permissionPrefix,
+                    'guard_name' => 'web',
+                ], [
+                    'per_menu_id' => $submenu->id,
+                ]);
+
+                if ($superAdminRole && !$superAdminRole->hasPermissionTo($permission->name)) {
+                    $superAdminRole->givePermissionTo($permission);
+                }
+            }
+        }
+    }
+
+    /**
+     * Ensure Correspondence module permissions exist so they show up in role add/edit.
+     */
+    private function ensureCorrespondenceRolePermissions(): void
+    {
+        $menu = PerMenu::firstOrCreate([
+            'menu_name' => 'Correspondence Management',
+        ], [
+            'parentmenu_id' => null,
+            'lable' => 1,
+        ]);
+
+        $permissionNames = [
+            'create_correspondence_management',
+            'read_correspondence_management',
+            'update_correspondence_management',
+            'delete_correspondence_management',
+        ];
+
+        $superAdminRole = Role::where('name', 'Super Admin')->where('guard_name', 'web')->first();
+
+        foreach ($permissionNames as $permissionName) {
+            $permission = Permission::firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ], [
+                'per_menu_id' => $menu->id,
+            ]);
+
+            if ($superAdminRole && !$superAdminRole->hasPermissionTo($permission->name)) {
+                $superAdminRole->givePermissionTo($permission);
+            }
+        }
+    }
+
     //role list
     public function roleList(RoleListDataTable $dataTable)
     {
@@ -22,6 +123,8 @@ class RoleManagementController extends Controller
     //role add
     public function roleCreate()
     {
+        $this->ensurePharmaceuticalRolePermissions();
+        $this->ensureCorrespondenceRolePermissions();
         $permissions = Permission::all();
         $perMenu = PerMenu::with('subMenu', 'permission')->whereNull('parentmenu_id')->orderBy('id', 'ASC')->get();
         return view('usermanagement::role-management.role-add', compact('permissions', 'perMenu'));
@@ -30,6 +133,8 @@ class RoleManagementController extends Controller
     //role add
     public function roleView()
     {
+        $this->ensurePharmaceuticalRolePermissions();
+        $this->ensureCorrespondenceRolePermissions();
         $permissions = Permission::all();
         $perMenu = PerMenu::with('subMenu', 'permission')->where('parentmenu_id', 'null')->orderBy('id', 'ASC')->get();
         return view('usermanagement::role-management.role-view', compact('permissions', 'perMenu'));
@@ -51,6 +156,8 @@ class RoleManagementController extends Controller
     //role edit
     public function roleEdit(Role $role)
     {
+        $this->ensurePharmaceuticalRolePermissions();
+        $this->ensureCorrespondenceRolePermissions();
         $roles = $role;
         $permissions = Permission::all();
         $perMenu = PerMenu::with('subMenu', 'permission')->whereNull('parentmenu_id')->orderBy('id', 'ASC')->get();

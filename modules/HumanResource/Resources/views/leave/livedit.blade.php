@@ -1,21 +1,21 @@
 ﻿@php
     $policyLabels = [
-        'annual' => localize('leave_policy_annual', 'ážˆáž”áŸ‹áž”áŸ’ážšáž…áž¶áŸ†áž†áŸ’áž“áž¶áŸ†'),
-        'short' => localize('leave_policy_short', 'ážˆáž”áŸ‹ážšáž™áŸˆáž–áŸáž›ážáŸ’áž›áž¸'),
-        'sick' => localize('leave_policy_sick', 'ážˆáž”áŸ‹ážŸáž˜áŸ’ážšáž¶áž€áž–áŸ’áž™áž¶áž”áž¶áž›áž‡áŸ†áž„ážº'),
-        'maternity' => localize('leave_policy_maternity', 'ážˆáž”áŸ‹áž›áŸ†áž áŸ‚áž˜áž¶ážáž»áž—áž¶áž–'),
-        'unpaid' => localize('leave_policy_unpaid', 'ážˆáž”áŸ‹áž‚áŸ’áž˜áž¶áž“áž”áŸ€ážœážáŸ’ážŸ'),
-        'other' => localize('other', 'áž•áŸ’ážŸáŸáž„áŸ—'),
+        'annual' => localize('leave_policy_annual', 'ឈប់ប្រចាំឆ្នាំ'),
+        'short' => localize('leave_policy_short', 'ឈប់រយៈពេលខ្លី'),
+        'sick' => localize('leave_policy_sick', 'ឈប់សម្រាកព្យាបាលជំងឺ'),
+        'maternity' => localize('leave_policy_maternity', 'ឈប់លំហែមាតុភាព'),
+        'unpaid' => localize('leave_policy_unpaid', 'ឈប់គ្មានបៀវត្ស'),
+        'other' => localize('other', 'ផ្សេងៗ'),
     ];
     $scopeLabels = [
-        'per_year' => localize('scope_per_year', 'áž€áŸ’áž“áž»áž„áž˜áž½áž™áž†áŸ’áž“áž¶áŸ†'),
-        'per_request' => localize('scope_per_request', 'áž€áŸ’áž“áž»áž„áž˜áž½áž™ážŸáŸ†ážŽáž¾'),
-        'per_service_lifetime' => localize('scope_per_service_lifetime', 'áž€áŸ’áž“áž»áž„ážšáž™áŸˆáž–áŸáž›áž”áž˜áŸ’ážšáž¾áž€áž¶ážšáž„áž¶ážš'),
-        'manual' => localize('scope_manual', 'áž€áŸ†ážŽážáŸ‹ážŠáŸ„áž™ážŠáŸƒ'),
+        'per_year' => localize('scope_per_year', 'ក្នុងមួយឆ្នាំ'),
+        'per_request' => localize('scope_per_request', 'ក្នុងមួយសំណើ'),
+        'per_service_lifetime' => localize('scope_per_service_lifetime', 'ក្នុងរយៈពេលបម្រើការងារ'),
+        'manual' => localize('scope_manual', 'កំណត់ដោយដៃ'),
     ];
     $unitLabels = [
-        'day' => localize('day', 'ážáŸ’áž„áŸƒ'),
-        'month' => localize('month', 'ážáŸ‚'),
+        'day' => localize('day', 'ថ្ងៃ'),
+        'month' => localize('month', 'ខែ'),
     ];
 @endphp
 <form class="validateEditForm leave-application-form" action="{{ route('leave.update', $row->uuid) }}" method="POST"
@@ -63,13 +63,13 @@
                                     $entitlementValue = $leaveType->entitlement_value ?? $leaveType->leave_days;
                                     $entitlementUnit =
                                         $unitLabels[$leaveType->entitlement_unit ?? 'day'] ??
-                                        ($leaveType->entitlement_unit ?? localize('day', 'ážáŸ’áž„áŸƒ'));
+                                        ($leaveType->entitlement_unit ?? localize('day', 'ថ្ងៃ'));
                                     $entitlementScope =
                                         $scopeLabels[$leaveType->entitlement_scope ?? 'per_year'] ??
-                                        ($leaveType->entitlement_scope ?? localize('scope_per_year', 'áž€áŸ’áž“áž»áž„áž˜áž½áž™áž†áŸ’áž“áž¶áŸ†'));
+                                        ($leaveType->entitlement_scope ?? localize('scope_per_year', 'ក្នុងមួយឆ្នាំ'));
                                     $policyLabel =
                                         $policyLabels[$leaveType->policy_key ?? 'other'] ??
-                                        ($leaveType->policy_key ?? localize('other', 'áž•áŸ’ážŸáŸáž„áŸ—'));
+                                        ($leaveType->policy_key ?? localize('other', 'ផ្សេងៗ'));
                                 @endphp
                                 <option value="{{ $leaveType->id }}"
                                     {{ $row->leave_type_id == $leaveType->id ? 'selected' : '' }}
@@ -94,7 +94,7 @@
 
             <div class="col-md-12 mt-2">
                 <div class="alert alert-info leave-policy-hint mb-0 small" role="alert">
-                    {{ localize('select_leave_type_to_view_policy', 'ážŸáž¼áž˜áž‡áŸ’ážšáž¾ážŸáž”áŸ’ážšáž—áŸáž‘áž…áŸ’áž”áž¶áž”áŸ‹ ážŠáž¾áž˜áŸ’áž”áž¸áž˜áž¾áž›áž›áž€áŸ’ážážážŽáŸ’ážŒážŸáž·áž‘áŸ’áž’áž·áž…áŸ’áž”áž¶áž”áŸ‹') }}
+                    {{ localize('select_leave_type_to_view_policy', 'សូមជ្រើសប្រភេទច្បាប់ ដើម្បីមើលលក្ខខណ្ឌសិទ្ធិច្បាប់') }}
                 </div>
             </div>
             <div class="col-md-12 mt-2">
@@ -167,7 +167,7 @@
                             data-has-old-file="{{ !empty($row->location) ? 1 : 0 }}"
                             accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.rtf,.jpeg,.jpg,.png,.gif,.svg">
                         <small class="text-muted">
-                            {{ localize('allowed_files', 'áž”áŸ’ážšáž—áŸáž‘áž¯áž€ážŸáž¶ážš: pdf, doc, docx, xls, xlsx, txt, rtf, jpeg, jpg, png, gif, svg') }}
+                            {{ localize('allowed_files', 'ប្រភេទឯកសារ: pdf, doc, docx, xls, xlsx, txt, rtf, jpeg, jpg, png, gif, svg') }}
                         </small>
 
                         @if (!empty($row->location))

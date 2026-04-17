@@ -44,6 +44,10 @@
         $proposalRequestDateIso = !empty($proposal->document_date)
             ? \Carbon\Carbon::parse((string) $proposal->document_date)->toDateString()
             : '';
+        $reviewStatus = (string) ($review_status ?? ($proposal->status ?? 'proposed'));
+        $reviewCanRecommend = (bool) ($review_can_recommend ?? false);
+        $reviewCanApprove = (bool) ($review_can_approve ?? false);
+        $reviewCanReject = (bool) ($review_can_reject ?? false);
     @endphp
 
     <div class="card">
@@ -74,6 +78,13 @@
                         <h6 class="mb-2">{{ $ui('ព័ត៌មានសំណើ', 'Request information') }}</h6>
                         <p class="mb-1"><strong>{{ $ui('មូលដ្ឋានសំណើ', 'Request basis') }}:</strong> {{ $promotionTypeLabel($normalized_promotion_type) }}</p>
                         <p class="mb-1"><strong>{{ $ui('ថ្ងៃមានប្រសិទ្ធភាព', 'Effective date') }}:</strong> {{ display_date($proposal->start_date) }}</p>
+                        <p class="mb-1"><strong>{{ $ui('ដំណាក់កាល', 'Stage') }}:</strong>
+                            @if ($reviewStatus === 'recommended')
+                                <span class="badge bg-info text-white">{{ $ui('បានផ្តល់យោបល់', 'Recommended') }}</span>
+                            @else
+                                <span class="badge bg-warning text-dark">{{ $ui('កំពុងស្នើ', 'Proposed') }}</span>
+                            @endif
+                        </p>
                         <p class="mb-0"><strong>{{ $ui('លេខយោងសំណើ', 'Request ref') }}:</strong> {{ $proposal->document_reference ?: '-' }}</p>
                     </div>
                 </div>
@@ -129,13 +140,13 @@
                 </div>
 
                 <div class="mt-3 d-flex flex-wrap gap-2">
-                    <button type="submit" class="btn btn-info text-white" name="record_mode" value="recommend">
+                    <button type="submit" class="btn btn-info text-white" name="record_mode" value="recommend" {{ $reviewCanRecommend ? '' : 'disabled' }} title="{{ $reviewCanRecommend ? '' : $ui('អាចផ្តល់យោបល់បានតែនៅដំណាក់កាល កំពុងស្នើ ប៉ុណ្ណោះ', 'Recommend is available only at Proposed stage and within your role scope.') }}">
                         <i class="fa fa-commenting me-1"></i>{{ $ui('ផ្តល់យោបល់', 'Recommend') }}
                     </button>
-                    <button type="submit" class="btn btn-success" name="record_mode" value="approve">
+                    <button type="submit" class="btn btn-success" name="record_mode" value="approve" {{ $reviewCanApprove ? '' : 'disabled' }} title="{{ $reviewCanApprove ? '' : $ui('អនុម័តបានតែនៅដំណាក់កាល បានផ្តល់យោបល់ និងស្ថិតក្នុងសិទ្ធិរបស់អ្នក', 'Approve is available only at Recommended stage and within your role scope.') }}">
                         <i class="fa fa-check me-1"></i>{{ $ui('អនុម័ត', 'Approve') }}
                     </button>
-                    <button type="submit" class="btn btn-outline-danger" name="record_mode" value="reject"
+                    <button type="submit" class="btn btn-outline-danger" name="record_mode" value="reject" {{ $reviewCanReject ? '' : 'disabled' }} title="{{ $reviewCanReject ? '' : $ui('អ្នកមិនមានសិទ្ធិបដិសេធសំណើនេះទេ', 'You do not have permission to reject this request.') }}"
                         onclick="return confirm('{{ $ui('តើបងប្រាកដថាចង់បដិសេធសំណើនេះមែនទេ?', 'Are you sure you want to reject this request?') }}');">
                         <i class="fa fa-times me-1"></i>{{ $ui('បដិសេធ', 'Reject') }}
                     </button>

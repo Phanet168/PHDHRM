@@ -4,6 +4,8 @@ namespace Modules\HumanResource\Support;
 
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Modules\HumanResource\Entities\Department;
+use Modules\HumanResource\Entities\SystemRole;
 use Modules\HumanResource\Entities\UserOrgRole;
 
 class OrgHierarchyAccessService
@@ -33,6 +35,7 @@ class OrgHierarchyAccessService
 
         return UserOrgRole::query()
             ->withoutGlobalScope('sortByLatest')
+            ->with('systemRole:id,code,can_approve')
             ->effective()
             ->where('user_id', (int) $user->id)
             ->orderBy('department_id')
@@ -59,9 +62,19 @@ class OrgHierarchyAccessService
             return [];
         }
 
+        $allNull = false;
         $ids = [];
         foreach ($roles as $role) {
-            $ids = array_merge($ids, $this->roleScopeBranchIds($role));
+            $branchIds = $this->roleScopeBranchIds($role);
+            if ($branchIds === null) {
+                $allNull = true;
+                break;
+            }
+            $ids = array_merge($ids, $branchIds);
+        }
+
+        if ($allNull) {
+            return null; // 'all' scope
         }
 
         return array_values(array_unique(array_map('intval', $ids)));
@@ -107,6 +120,10 @@ class OrgHierarchyAccessService
 
         $roles = $this->effectiveOrgRoles($user)
             ->filter(function (UserOrgRole $role) {
+                // Prefer systemRole.can_approve, fallback to old logic
+                if ($role->systemRole) {
+                    return (bool) $role->systemRole->can_approve;
+                }
                 return in_array((string) $role->org_role, [
                     UserOrgRole::ROLE_HEAD,
                     UserOrgRole::ROLE_DEPUTY_HEAD,
@@ -122,7 +139,12 @@ class OrgHierarchyAccessService
         return false;
     }
 
-    protected function roleScopeBranchIds(UserOrgRole $role): array
+    /**
+     * Expand a role assignment to the department IDs it covers.
+     *
+     * @return int[]|null  null means all departments ('all' scope)
+     */
+    protected function roleScopeBranchIds(UserOrgRole $role): ?array
     {
         $departmentId = (int) ($role->department_id ?? 0);
         if ($departmentId <= 0) {
@@ -130,11 +152,68 @@ class OrgHierarchyAccessService
         }
 
         $scopeType = (string) ($role->scope_type ?: UserOrgRole::SCOPE_SELF_AND_CHILDREN);
-        if ($scopeType === UserOrgRole::SCOPE_SELF) {
+
+        return match ($scopeType) {
+            UserOrgRole::SCOPE_SELF_ONLY,
+            UserOrgRole::SCOPE_SELF,  // backward compat
+                => [$departmentId],
+
+            UserOrgRole::SCOPE_SELF_UNIT_ONLY
+                => $this->siblingSameTypeIds($departmentId),
+
+            UserOrgRole::SCOPE_ALL
+                => null,
+
+            default  // self_and_children
+                => $this->isOwnOnlyDepartment($departmentId)
+                    ? [$departmentId]
+                    : $this->orgUnitRuleService->branchIdsIncludingSelf($departmentId),
+        };
+    }
+
+    /**
+     * Provincial hospital should manage own unit only.
+     */
+    protected function isOwnOnlyDepartment(int $departmentId): bool
+    {
+        $dept = Department::withoutGlobalScopes()
+            ->with('unitType:id,code')
+            ->select('id', 'unit_type_id')
+            ->find($departmentId);
+
+        if (!$dept) {
+            return false;
+        }
+
+        $unitTypeCode = (string) optional($dept->unitType)->code;
+        if ($unitTypeCode !== '') {
+            return $unitTypeCode === 'provincial_hospital';
+        }
+
+        // Fallback for legacy data where relation/code is unavailable.
+        return (int) $dept->unit_type_id === 6;
+    }
+
+    /**
+     * Get sibling department IDs with the same unit_type under the same parent.
+     */
+    protected function siblingSameTypeIds(int $departmentId): array
+    {
+        $dept = Department::withoutGlobalScopes()
+            ->select('id', 'parent_id', 'unit_type_id')
+            ->find($departmentId);
+
+        if (!$dept || !$dept->parent_id || !$dept->unit_type_id) {
             return [$departmentId];
         }
 
-        return $this->orgUnitRuleService->branchIdsIncludingSelf($departmentId);
+        return Department::withoutGlobalScopes()
+            ->where('parent_id', $dept->parent_id)
+            ->where('unit_type_id', $dept->unit_type_id)
+            ->where('is_active', 1)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
     }
 }
 

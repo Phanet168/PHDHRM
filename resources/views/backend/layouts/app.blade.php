@@ -123,6 +123,21 @@
                         </div>
                     </div>
                     @php
+                        $correspondenceNotifications = collect();
+                        $correspondenceUnreadCount = 0;
+                        if (auth()->check() && \Illuminate\Support\Facades\Route::has('correspondence.index')) {
+                            $correspondenceUnreadCount = auth()->user()
+                                ->unreadNotifications()
+                                ->where('type', \App\Notifications\CorrespondenceAssignedNotification::class)
+                                ->count();
+                            $correspondenceNotifications = auth()->user()
+                                ->unreadNotifications()
+                                ->where('type', \App\Notifications\CorrespondenceAssignedNotification::class)
+                                ->latest()
+                                ->limit(5)
+                                ->get();
+                        }
+
                         $retirementNotification = null;
                         if (
                             auth()->check() &&
@@ -136,6 +151,107 @@
                     <div class="navbar-icon d-flex">
                         <ul class="navbar-nav flex-row gap-3 align-items-center">
                             <!--/.dropdown-->
+                            @if (auth()->check() && \Illuminate\Support\Facades\Route::has('correspondence.index'))
+                                <li class="nav-item dropdown">
+                                    <a class="position-relative d-inline-flex align-items-center text-dark" href="#"
+                                        role="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                        title="{{ localize('correspondence_notifications', 'Correspondence notifications') }}">
+                                        <i class="fa fa-envelope-o fs-4"></i>
+                                        @if ($correspondenceUnreadCount > 0)
+                                            <span
+                                                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                                {{ $correspondenceUnreadCount > 99 ? '99+' : $correspondenceUnreadCount }}
+                                            </span>
+                                        @endif
+                                    </a>
+                                    <div class="dropdown-menu dropdown-menu-end shadow p-0" style="min-width: 360px;">
+                                        <div class="px-3 py-2 border-bottom">
+                                            <div class="fw-bold">
+                                                {{ localize('correspondence_notifications', 'Correspondence notifications') }}
+                                            </div>
+                                            <div class="small text-muted">
+                                                {{ localize('unread_total', 'Unread total') }}:
+                                                {{ $correspondenceUnreadCount }}
+                                            </div>
+                                        </div>
+
+                                        <div class="list-group list-group-flush">
+                                            @forelse ($correspondenceNotifications as $notification)
+                                                @php
+                                                    $data = $notification->data ?? [];
+                                                    $context = trim((string) ($data['context'] ?? ''));
+                                                    $letterType = trim((string) ($data['letter_type'] ?? ''));
+                                                    $subject = trim((string) ($data['subject'] ?? ''));
+                                                    $subjectLooksBroken = $subject !== '' && preg_match('/^\?+(\s+\?+)*$/u', $subject);
+                                                    $displaySubject = $subjectLooksBroken
+                                                        ? localize('subject_not_readable_km', 'ប្រធានបទមិនអាចបង្ហាញបាន')
+                                                        : $subject;
+                                                    $registryNo = trim((string) ($data['registry_no'] ?? ''));
+                                                    $assignedAt = trim((string) ($data['assigned_at'] ?? ''));
+                                                    $assignedBy = trim((string) ($data['assigned_by'] ?? ''));
+                                                    $targetDepartmentName = trim((string) ($data['target_department_name'] ?? ''));
+                                                    $notificationTitle = match (true) {
+                                                        $context === 'delegated' => localize('correspondence_notification_delegated', 'លិខិតត្រូវបានចាត់តាំងមកអ្នក'),
+                                                        $context === 'office_commented' => localize('correspondence_notification_office_commented', 'អង្គភាពបានផ្តល់យោបល់រួច សូមអនុប្រធានពិនិត្យបន្ត'),
+                                                        $context === 'deputy_reviewed' => localize('correspondence_notification_deputy_reviewed', 'អនុប្រធានបានពិនិត្យរួច សូមប្រធានមន្ទីរសម្រេច'),
+                                                        $letterType === 'outgoing' && $context === 'distributed' => localize('correspondence_notification_outgoing', 'លិខិតចេញមកដល់អ្នក ត្រូវចុចទទួល'),
+                                                        $context === 'distributed' => localize('correspondence_notification_distributed', 'មានលិខិតត្រូវអនុវត្ត'),
+                                                        default => localize('correspondence_assigned', 'Correspondence assigned'),
+                                                    };
+                                                    $link = route('correspondence.notifications.open', $notification->id);
+                                                @endphp
+                                                <a href="{{ $link }}" class="list-group-item list-group-item-action py-2">
+                                                    <div class="fw-semi-bold mb-1">
+                                                        {{ $notificationTitle }}
+                                                    </div>
+                                                    @if ($displaySubject !== '')
+                                                        <div class="small text-dark mb-1" style="line-height: 1.35;">
+                                                            {{ $displaySubject }}
+                                                        </div>
+                                                    @endif
+                                                    <div class="small text-muted">
+                                                        {{ localize('registry_no', 'លេខចុះបញ្ជី') }}:
+                                                        <span class="fw-semibold text-dark">{{ $registryNo !== '' ? $registryNo : '-' }}</span>
+                                                        @if ($assignedAt !== '')
+                                                            <span class="mx-1">|</span>{{ $assignedAt }}
+                                                        @endif
+                                                    </div>
+                                                    @if ($targetDepartmentName !== '' || $assignedBy !== '')
+                                                        <div class="small text-muted mt-1">
+                                                            @if ($targetDepartmentName !== '')
+                                                                {{ localize('target', 'គោលដៅ') }}: {{ $targetDepartmentName }}
+                                                            @endif
+                                                            @if ($targetDepartmentName !== '' && $assignedBy !== '')
+                                                                <span class="mx-1">|</span>
+                                                            @endif
+                                                            @if ($assignedBy !== '')
+                                                                {{ localize('by', 'ផ្ញើដោយ') }}: {{ $assignedBy }}
+                                                            @endif
+                                                        @endif
+                                                    </div>
+                                                </a>
+                                            @empty
+                                                <div class="list-group-item small text-muted">
+                                                    {{ localize('no_correspondence_notifications', 'No new correspondence notifications.') }}
+                                                </div>
+                                            @endforelse
+                                        </div>
+
+                                        <div class="p-2 border-top d-flex justify-content-between gap-2">
+                                            <form method="POST" action="{{ route('correspondence.notifications.read') }}">
+                                                @csrf
+                                                <button class="btn btn-sm btn-outline-secondary" type="submit">
+                                                    {{ localize('mark_all_read', 'Mark all read') }}
+                                                </button>
+                                            </form>
+                                            <a href="{{ route('correspondence.index') }}"
+                                                class="btn btn-sm btn-outline-primary">
+                                                {{ localize('view_all', 'View all') }}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </li>
+                            @endif
                             @if ($retirementNotification)
                                 <li class="nav-item dropdown">
                                     <a class="position-relative d-inline-flex align-items-center text-dark" href="#"

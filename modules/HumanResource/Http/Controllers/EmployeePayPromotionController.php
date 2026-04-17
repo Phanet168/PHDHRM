@@ -298,6 +298,30 @@ class EmployeePayPromotionController extends Controller
         }
 
         $normalizedPromotionType = $this->normalizePromotionType((string) ($pendingProposal->promotion_type ?? 'annual_grade'));
+        $reviewStatus = (string) ($pendingProposal->status ?? self::STATUS_PROPOSED);
+        $reviewCanRecommend = $this->proposalAllowsAction($pendingProposal, 'recommend')
+            && $this->canRecommendEmployeeAction(
+                auth()->user(),
+                $employee,
+                $orgUnitRuleService,
+                $normalizedPromotionType,
+                'recommend'
+            );
+        $reviewCanApprove = $this->proposalAllowsAction($pendingProposal, 'approve')
+            && $this->canFinalApprovePromotionAction(
+                auth()->user(),
+                $employee,
+                $normalizedPromotionType,
+                $orgUnitRuleService
+            );
+        $reviewCanReject = $this->proposalAllowsAction($pendingProposal, 'reject')
+            && $this->canRecommendEmployeeAction(
+                auth()->user(),
+                $employee,
+                $orgUnitRuleService,
+                $normalizedPromotionType,
+                'reject'
+            );
 
         return view('humanresource::employee.pay-promotion.review', [
             'year' => $year,
@@ -307,6 +331,10 @@ class EmployeePayPromotionController extends Controller
             'current_pay_level_label' => $currentPayLevelLabel,
             'target_pay_level_label' => $targetPayLevelLabel,
             'normalized_promotion_type' => $normalizedPromotionType,
+            'review_status' => $reviewStatus,
+            'review_can_recommend' => $reviewCanRecommend,
+            'review_can_approve' => $reviewCanApprove,
+            'review_can_reject' => $reviewCanReject,
         ]);
     }
 
@@ -615,6 +643,7 @@ class EmployeePayPromotionController extends Controller
             $skippedNotCadreCount = 0;
             $skippedNotEligibleCount = 0;
             $skippedNoPendingRequestCount = 0;
+            $skippedInvalidStageCount = 0;
             $skippedInvalidDirectionCount = 0;
 
             foreach ($employeeIds as $employeeId) {
@@ -670,6 +699,11 @@ class EmployeePayPromotionController extends Controller
                     $actionPayLevel = $proposalPayLevel;
                     $actionEffectiveDate = Carbon::parse((string) $matchedProposal->start_date)->toDateString();
                     $actionPromotionType = $this->normalizePromotionType((string) ($matchedProposal->promotion_type ?? $promotionType));
+
+                    if (!$this->proposalAllowsAction($matchedProposal, $recordMode)) {
+                        $skippedInvalidStageCount++;
+                        continue;
+                    }
                 }
 
                 if (in_array($recordMode, ['approve', 'reject', 'recommend'], true)) {
@@ -858,6 +892,13 @@ class EmployeePayPromotionController extends Controller
                 );
             }
 
+            if ($skippedInvalidStageCount > 0) {
+                Toastr::warning(
+                    localize('skipped_n_requests_invalid_stage', "Skipped {$skippedInvalidStageCount} requests due to stage mismatch (request stage not allowed for selected action)."),
+                    localize('warning', 'Warning')
+                );
+            }
+
             if ($skippedInvalidDirectionCount > 0) {
                 Toastr::warning(
                     localize('skipped_n_invalid_promotion_direction', "Skipped {$skippedInvalidDirectionCount} employees (target pay level is not higher than current level)."),
@@ -981,6 +1022,7 @@ class EmployeePayPromotionController extends Controller
             $skippedMissingCount = 0;
             $skippedNoChangeCount = 0;
             $skippedInvalidDirectionCount = 0;
+            $skippedInvalidStageCount = 0;
             $skippedNoPermissionCount = 0;
 
             foreach ($pendingProposals as $proposal) {
@@ -1007,6 +1049,11 @@ class EmployeePayPromotionController extends Controller
                 $proposalPayLevel = $activePayLevels->get((int) ($proposal->pay_level_id ?? 0));
                 if (!$proposalPayLevel instanceof GovPayLevel) {
                     $skippedMissingCount++;
+                    continue;
+                }
+
+                if (!$this->proposalAllowsAction($proposal, $batchAction)) {
+                    $skippedInvalidStageCount++;
                     continue;
                 }
 
@@ -1168,6 +1215,13 @@ class EmployeePayPromotionController extends Controller
             if ($skippedNoPermissionCount > 0) {
                 Toastr::warning(
                     localize('skipped_n_requests_without_permission', "Skipped {$skippedNoPermissionCount} requests due to role policy."),
+                    localize('warning', 'Warning')
+                );
+            }
+
+            if ($skippedInvalidStageCount > 0) {
+                Toastr::warning(
+                    localize('skipped_n_requests_invalid_stage', "Skipped {$skippedInvalidStageCount} requests due to stage mismatch (request stage not allowed for selected action)."),
                     localize('warning', 'Warning')
                 );
             }
@@ -1608,7 +1662,7 @@ class EmployeePayPromotionController extends Controller
         $pendingRowsQuery = EmployeePayGradeHistory::query()
             ->where('employee_id', $employee->id)
             ->where('pay_level_id', $payLevel->id)
-            ->whereIn('status', $this->pendingPromotionStatuses());
+            ->whereIn('status', $this->allowedProposalStatusesForAction('approve'));
 
         if (!empty($proposalId)) {
             $pendingRowsQuery->where('id', (int) $proposalId);
@@ -1643,7 +1697,7 @@ class EmployeePayPromotionController extends Controller
         $pendingRowsQuery = EmployeePayGradeHistory::query()
             ->where('employee_id', $employee->id)
             ->where('pay_level_id', $payLevel->id)
-            ->whereIn('status', $this->pendingPromotionStatuses());
+            ->whereIn('status', $this->allowedProposalStatusesForAction('recommend'));
 
         if (!empty($proposalId)) {
             $pendingRowsQuery->where('id', (int) $proposalId);
@@ -1694,7 +1748,7 @@ class EmployeePayPromotionController extends Controller
         $pendingRowsQuery = EmployeePayGradeHistory::query()
             ->where('employee_id', $employee->id)
             ->where('pay_level_id', $payLevel->id)
-            ->whereIn('status', $this->pendingPromotionStatuses());
+            ->whereIn('status', $this->allowedProposalStatusesForAction('reject'));
 
         if (!empty($proposalId)) {
             $pendingRowsQuery->where('id', (int) $proposalId);
@@ -1948,8 +2002,11 @@ class EmployeePayPromotionController extends Controller
             }
         }
 
-        $isDueRegular = $isStateCadre && $currentServiceState === 'active' && $countableDays >= 730;
-        $isOverdue3y = $isStateCadre && $currentServiceState === 'active' && $countableDays >= 1095;
+        // countCountableServiceDays() uses inclusive day counting (+1 for each active segment),
+        // so thresholds for exact anniversaries must use +1 day to avoid off-by-one early eligibility.
+        // 2 years => >= 731 days, 3 years => >= 1096 days.
+        $isDueRegular = $isStateCadre && $currentServiceState === 'active' && $countableDays >= 731;
+        $isOverdue3y = $isStateCadre && $currentServiceState === 'active' && $countableDays >= 1096;
         $isDueHonoraryPreRetirement = $isStateCadre
             && $currentServiceState === 'active'
             && $retirementDate !== null
@@ -2456,6 +2513,27 @@ class EmployeePayPromotionController extends Controller
         ];
     }
 
+    protected function allowedProposalStatusesForAction(string $action): array
+    {
+        $normalizedAction = in_array($action, ['recommend', 'approve', 'reject'], true)
+            ? $action
+            : 'recommend';
+
+        return match ($normalizedAction) {
+            'recommend' => [self::STATUS_PROPOSED],
+            'approve' => [self::STATUS_RECOMMENDED],
+            'reject' => $this->pendingPromotionStatuses(),
+            default => $this->pendingPromotionStatuses(),
+        };
+    }
+
+    protected function proposalAllowsAction(EmployeePayGradeHistory $proposal, string $action): bool
+    {
+        $status = strtolower(trim((string) ($proposal->status ?? '')));
+
+        return in_array($status, $this->allowedProposalStatusesForAction($action), true);
+    }
+
     protected function isSpecialPromotionType(?string $type): bool
     {
         $normalized = $this->normalizePromotionType($type);
@@ -2505,53 +2583,67 @@ class EmployeePayPromotionController extends Controller
             }
 
             $promotionType = $this->normalizePromotionType((string) ($proposal->promotion_type ?? 'annual_grade'));
-            $canRecommend = $this->canRecommendEmployeeAction(
+            $canRecommendByRole = $this->canRecommendEmployeeAction(
                 $user,
                 $employee,
                 $orgUnitRuleService,
                 $promotionType,
                 'recommend'
             );
-            $canApprove = $this->canFinalApprovePromotionAction(
+            $canApproveByRole = $this->canFinalApprovePromotionAction(
                 $user,
                 $employee,
                 $promotionType,
                 $orgUnitRuleService
             );
-            $canReject = $this->canRecommendEmployeeAction(
+            $canRejectByRole = $this->canRecommendEmployeeAction(
                 $user,
                 $employee,
                 $orgUnitRuleService,
                 $promotionType,
                 'reject'
             );
-            $recommendReason = $canRecommend
-                ? ''
-                : $this->permissionReasonForPromotionAction(
-                    $user,
-                    $employee,
-                    $promotionType,
-                    'recommend',
-                    $orgUnitRuleService
-                );
-            $approveReason = $canApprove
-                ? ''
-                : $this->permissionReasonForPromotionAction(
-                    $user,
-                    $employee,
-                    $promotionType,
-                    'approve',
-                    $orgUnitRuleService
-                );
-            $rejectReason = $canReject
-                ? ''
-                : $this->permissionReasonForPromotionAction(
-                    $user,
-                    $employee,
-                    $promotionType,
-                    'reject',
-                    $orgUnitRuleService
-                );
+            $stageCanRecommend = $this->proposalAllowsAction($proposal, 'recommend');
+            $stageCanApprove = $this->proposalAllowsAction($proposal, 'approve');
+            $stageCanReject = $this->proposalAllowsAction($proposal, 'reject');
+
+            $canRecommend = $stageCanRecommend && $canRecommendByRole;
+            $canApprove = $stageCanApprove && $canApproveByRole;
+            $canReject = $stageCanReject && $canRejectByRole;
+
+            $recommendReason = !$stageCanRecommend
+                ? localize('recommend_only_from_proposed', 'Recommend is allowed only when request status is Proposed.')
+                : ($canRecommendByRole
+                    ? ''
+                    : $this->permissionReasonForPromotionAction(
+                        $user,
+                        $employee,
+                        $promotionType,
+                        'recommend',
+                        $orgUnitRuleService
+                    ));
+            $approveReason = !$stageCanApprove
+                ? localize('approve_only_from_recommended', 'Approve is allowed only when request status is Recommended.')
+                : ($canApproveByRole
+                    ? ''
+                    : $this->permissionReasonForPromotionAction(
+                        $user,
+                        $employee,
+                        $promotionType,
+                        'approve',
+                        $orgUnitRuleService
+                    ));
+            $rejectReason = !$stageCanReject
+                ? localize('reject_not_allowed_for_status', 'Reject is not allowed for current request status.')
+                : ($canRejectByRole
+                    ? ''
+                    : $this->permissionReasonForPromotionAction(
+                        $user,
+                        $employee,
+                        $promotionType,
+                        'reject',
+                        $orgUnitRuleService
+                    ));
             $canAny = $canRecommend || $canApprove || $canReject;
 
             if ($canRecommend) {
@@ -3389,5 +3481,4 @@ class EmployeePayPromotionController extends Controller
         return $postedUnitId > 0 ? $postedUnitId : null;
     }
 }
-
 

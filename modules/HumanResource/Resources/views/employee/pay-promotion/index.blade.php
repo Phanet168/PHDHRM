@@ -1,5 +1,5 @@
 @extends('backend.layouts.app')
-@section('title', app()->getLocale() === 'en' ? 'Grade and rank management' : 'គ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ')
+@section('title', localize('grade_rank_management', 'Grade and rank management'))
 
 @push('css')
     <style>
@@ -240,8 +240,270 @@
             color: #4e5a68;
         }
 
-        .pay-promotion-next-actions .btn {
-            min-width: 180px;
+        .pay-promotion-tab-section-title {
+            font-size: 0.78rem;
+            color: #5f6b7a;
+            margin-bottom: 0.35rem;
+            font-weight: 600;
+        }
+
+        .pay-promotion-core-tabs .nav-link {
+            border-radius: 999px;
+            border: 1px solid #d7e1ec;
+            background: #f8fbff;
+            color: #243548;
+            font-weight: 600;
+            padding: 0.38rem 0.8rem;
+            margin-right: 0.35rem;
+        }
+
+        #payPromotionTabs .nav-link .tab-label-text {
+            color: #243548 !important;
+            -webkit-text-fill-color: #243548 !important;
+            opacity: 1 !important;
+            text-shadow: none !important;
+            font-size: 0.9rem !important;
+            line-height: 1.2 !important;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        #payPromotionTabs .nav-link.active,
+        .pay-promotion-core-tabs .nav-link.active {
+            background: #198754;
+            color: #fff !important;
+            opacity: 1 !important;
+            -webkit-text-fill-color: #fff !important;
+            text-shadow: none;
+            border-color: #198754;
+        }
+
+        #payPromotionTabs .nav-link.active .tab-label-text {
+            color: #fff !important;
+            -webkit-text-fill-color: #fff !important;
+        }
+
+        .pay-promotion-secondary-tabs .nav-link {
+            border-radius: 999px;
+            border: 1px solid #d7e1ec;
+            background: #f8fbff;
+            color: #243548;
+            font-weight: 600;
+            font-size: 0.86rem;
+            padding: 0.34rem 0.74rem;
+            margin-right: 0.32rem;
+        }
+
+        .pay-promotion-secondary-tabs .nav-link .tab-label-text-secondary {
+            color: #243548 !important;
+            -webkit-text-fill-color: #243548 !important;
+            opacity: 1 !important;
+            text-shadow: none !important;
+            line-height: 1.2 !important;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .pay-promotion-secondary-tabs .nav-link.active {
+            background: #198754 !important;
+            border-color: #198754 !important;
+            color: #fff !important;
+            -webkit-text-fill-color: #fff !important;
+            font-weight: 700;
+            opacity: 1 !important;
+            text-shadow: none !important;
+        }
+
+        .pay-promotion-secondary-tabs .nav-link.active .tab-label-text-secondary {
+            color: #fff !important;
+            -webkit-text-fill-color: #fff !important;
+        }
+
+        .pay-promotion-workflow-guide {
+            border: 1px solid #d8e2ec;
+            border-radius: 10px;
+            background: #f9fcff;
+            padding: 10px 12px;
+        }
+
+        .pay-promotion-flow-step {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: 1px solid #d6e1ec;
+            border-radius: 999px;
+            padding: 3px 10px;
+            background: #fff;
+            color: #26415a;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .pay-promotion-dashboard-card .table td,
+        .pay-promotion-dashboard-card .table th {
+            padding-top: 0.5rem;
+            padding-bottom: 0.5rem;
+            vertical-align: middle;
+        }
+
+        .pay-promotion-dashboard-pane .card {
+            border: 1px solid #d9e2ec;
+            box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+        }
+
+        .pay-promotion-dashboard-pane .card-header {
+            background: #f4f8fc;
+            border-bottom: 1px solid #d9e2ec;
+        }
+
+        .pay-promotion-summary-note {
+            border: 1px solid #cfe2f3;
+            background: linear-gradient(90deg, #f3f9ff 0%, #f8fcff 100%);
+            color: #264a6e;
+        }
+
+        .pay-promotion-dashboard-card .kpi-label {
+            color: #52606d;
+            font-size: 0.85rem;
+        }
+
+        .pay-promotion-dashboard-card .kpi-value {
+            font-weight: 700;
+            font-size: 1.08rem;
+            color: #1b344d;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .pay-promotion-dashboard-card .table tbody tr:nth-child(odd) {
+            background: #fbfdff;
+        }
+
+        .fixed-tab-body {
+            border: 1px solid #dce6f0;
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+        }
+
+        .fixed-tab-body > .card-header {
+            background: #f6f9fc;
+            border-bottom: 1px solid #dde7f1;
+            padding: 1rem 1.2rem 0.9rem;
+        }
+
+        .fixed-tab-body > .card-body {
+            padding: 1.05rem 1.2rem 1.25rem;
+            background: #fff;
+        }
+
+        .pay-promotion-header-tools form {
+            background: #fff;
+            border: 1px solid #e1eaf3;
+            border-radius: 12px;
+            padding: 0.7rem 0.8rem;
+        }
+
+        .pay-promotion-core-tabs,
+        .pay-promotion-secondary-tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.42rem;
+            padding: 0.46rem;
+            border: 1px solid #dfe8f1;
+            border-radius: 12px;
+            background: #f8fbff;
+            overflow: visible !important;
+        }
+
+        .pay-promotion-core-tabs .nav-item,
+        .pay-promotion-secondary-tabs .nav-item {
+            margin: 0 !important;
+        }
+
+        .pay-promotion-core-tabs .nav-link,
+        .pay-promotion-secondary-tabs .nav-link {
+            margin-right: 0 !important;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 36px;
+            white-space: nowrap;
+        }
+
+        .pay-promotion-tab-section-title {
+            margin-bottom: 0.4rem;
+        }
+
+        .fixed-tab-body .alert {
+            border-radius: 10px;
+            border-width: 1px;
+            min-height: 74px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .fixed-tab-body .alert .small {
+            opacity: 0.9;
+            font-weight: 600;
+        }
+
+        @media (max-width: 991.98px) {
+            .fixed-tab-body > .card-header,
+            .fixed-tab-body > .card-body {
+                padding-left: 0.85rem;
+                padding-right: 0.85rem;
+            }
+
+            .pay-promotion-header-tools form {
+                padding: 0.6rem;
+            }
+
+            .fixed-tab-body .alert {
+                min-height: 62px;
+            }
+        }
+
+        .pay-promotion-activity-list li {
+            border-bottom: 1px dashed #dee7f0;
+            padding-bottom: 0.45rem;
+            margin-bottom: 0.45rem;
+        }
+
+        .pay-promotion-activity-list li:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+
+        .pay-promotion-alert-list {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        .pay-promotion-alert-list li {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 0.38rem 0;
+            border-bottom: 1px dashed #dee7f0;
+        }
+
+        .pay-promotion-alert-list li:last-child {
+            border-bottom: 0;
+        }
+
+        .pay-promotion-overdue-alert {
+            border: 1px solid #ffe3ab;
+            background: #fffdf7;
+        }
+
+        .pay-promotion-overdue-list {
+            max-height: 120px;
+            overflow: auto;
+            line-height: 1.5;
         }
 
         #pay-promotion-staff-table tr.employee-unit-main-group-row td,
@@ -480,37 +742,55 @@
         $lastUpdatedDisplay = !empty($last_updated_at)
             ? \Carbon\Carbon::parse($last_updated_at)->format('d/m/Y H:i')
             : '-';
-        $serviceStateOptions = [
-            '' => localize('all_status', 'All status'),
-            'active' => localize('active', 'Active'),
-            'suspended' => localize('suspended', 'Suspended'),
-            'inactive' => localize('inactive', 'Inactive'),
-        ];
         $isEnglishUi = app()->getLocale() === 'en';
         $ui = function (string $km, string $en) use ($isEnglishUi) {
             return $isEnglishUi ? $en : $km;
         };
-        $labelModuleTitle = $ui('គ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ', 'Grade and rank management');
-        $labelTabDashboard = $ui('ផ្ទាំងសង្ខេប', 'Summary dashboard');
-        $labelTabEligibleList = $ui('បញ្ជីគ្រប់លក្ខខណ្ឌ', 'Eligible list');
-        $labelTabEmployeeInfo = $ui('ព័ត៌មានមន្ត្រី', 'Employee information');
-        $labelTabCreateRequest = $ui('បង្កើតសំណើ', 'Create request');
-        $labelTabPromotionHistory = $ui('ប្រវត្តិដំឡើង', 'Promotion history');
-        $labelTabAllRequests = $ui('សំណើទាំងអស់', 'All requests');
-        $labelTabApproval = $ui('ការអនុម័ត', 'Approvals');
-        $labelTabReports = $ui('របាយការណ៍', 'Reports');
-        $labelTabNotifications = $ui('ការជូនដំណឹង', 'Notifications');
-        $labelTotalEmployees = $ui('មន្ត្រីសរុប', 'Total officials');
-        $labelEligiblePromotion = $ui('គ្រប់លក្ខខណ្ឌដំឡើងថ្នាក់', 'Eligible for grade promotion');
-        $labelPendingRequests = $ui('សំណើកំពុងរង់ចាំ', 'Pending requests');
-        $labelOverdue3Years = $ui('ហួសកាលកំណត់លើស ៣ ឆ្នាំ', 'Overdue over 3 years');
-        $labelNearNextCycle = $ui('ជិតដល់វដ្តបន្ទាប់', 'Near next cycle');
-        $labelMissingDocs = $ui('ឯកសារខ្វះ', 'Missing documents');
-        $labelPayGrade = $ui('ថ្នាក់បៀវត្ស', 'Pay grade');
-        $labelServiceState = $ui('ស្ថានភាពការងារ', 'Service status');
-        $labelCountableYears = $ui('អាយុកាលគិតបាន', 'Countable service years');
-        $labelLastPromotionDate = $ui('ថ្ងៃដំឡើងចុងក្រោយ', 'Last promotion date');
-        $labelAction = $ui('សកម្មភាព', 'Actions');
+        $lx = function (string $key, string $km, string $en) use ($ui, $fixKhmerText): string {
+            $raw = (string) localize($key, $ui($km, $en));
+            $value = trim(html_entity_decode($raw, ENT_QUOTES, 'UTF-8'));
+            $value = $fixKhmerText($value);
+
+            // Fallback when localization is empty/placeholder/mojibake.
+            if (
+                $value === ''
+                || preg_match('/^[\\?\\.\\-\\s]+$/u', $value)
+                || (!preg_match('/\\p{Khmer}/u', $value) && preg_match('/(Ã|Â|â|á)/u', $value))
+            ) {
+                return $ui($km, $en);
+            }
+
+            return trim($value);
+        };
+
+        $serviceStateOptions = [
+            '' => $lx('all_status', 'ស្ថានភាពទាំងអស់', 'All status'),
+            'active' => $lx('active', 'សកម្ម', 'Active'),
+            'suspended' => $lx('suspended', 'ផ្អាក', 'Suspended'),
+            'inactive' => $lx('inactive', 'អសកម្ម', 'Inactive'),
+        ];
+
+        $labelModuleTitle = $lx('grade_rank_management', 'គ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ', 'Grade and rank management');
+        $labelTabDashboard = $lx('summary_dashboard', 'ផ្ទាំងសង្ខេប', 'Summary dashboard');
+        $labelTabEligibleList = $lx('eligible_list', 'បញ្ជីគ្រប់លក្ខខណ្ឌ', 'Eligible list');
+        $labelTabEmployeeInfo = $lx('employee_information', 'ព័ត៌មានមន្ត្រី', 'Employee information');
+        $labelTabCreateRequest = $lx('create_request', 'បង្កើតសំណើ', 'Create request');
+        $labelTabPromotionHistory = $lx('promotion_history', 'ប្រវត្តិដំឡើង', 'Promotion history');
+        $labelTabAllRequests = $lx('all_requests', 'សំណើទាំងអស់', 'All requests');
+        $labelTabApproval = $lx('approvals', 'ការអនុម័ត', 'Approvals');
+        $labelTabReports = $lx('reports', 'របាយការណ៍', 'Reports');
+        $labelTabNotifications = $lx('notifications', 'ការជូនដំណឹង', 'Notifications');
+        $labelTotalEmployees = $lx('total_officials', 'មន្ត្រីសរុប', 'Total officials');
+        $labelEligiblePromotion = $lx('eligible_for_grade_promotion', 'គ្រប់លក្ខខណ្ឌដំឡើងថ្នាក់', 'Eligible for grade promotion');
+        $labelPendingRequests = $lx('pending_requests', 'សំណើកំពុងរង់ចាំ', 'Pending requests');
+        $labelOverdue3Years = $lx('overdue_over_3_years', 'ហួសកាលកំណត់លើស ៣ ឆ្នាំ', 'Overdue over 3 years');
+        $labelNearNextCycle = $lx('near_next_cycle', 'ជិតដល់វដ្តបន្ទាប់', 'Near next cycle');
+        $labelMissingDocs = $lx('missing_documents', 'ឯកសារខ្វះ', 'Missing documents');
+        $labelPayGrade = $lx('pay_grade', 'ថ្នាក់បៀវត្ស', 'Pay grade');
+        $labelServiceState = $lx('service_status', 'ស្ថានភាពការងារ', 'Service status');
+        $labelCountableYears = $lx('countable_service_years', 'អាយុកាលគិតបាន', 'Countable service years');
+        $labelLastPromotionDate = $lx('last_promotion_date', 'ថ្ងៃដំឡើងចុងក្រោយ', 'Last promotion date');
+        $labelAction = $lx('action', 'សកម្មភាព', 'Actions');
 
         // Backward compatibility with old tab names.
         $tabAliasMap = [
@@ -536,7 +816,7 @@
         }
 
         $prefillRecordMode = old('record_mode', request()->query('record_mode', 'request'));
-        if (!in_array($prefillRecordMode, ['request', 'approve', 'reject'], true)) {
+        if (!in_array($prefillRecordMode, ['request', 'recommend', 'approve', 'reject'], true)) {
             $prefillRecordMode = 'request';
         }
         $prefillPayLevelId = (int) old('pay_level_id', request()->query('pay_level_id', (int) ($prefillProposal->pay_level_id ?? 0)));
@@ -560,6 +840,11 @@
         $employeesById = collect($employees)->keyBy('id');
         $detailEmployee = $employeesById->get($prefillEmployeeId) ?: $employees->first();
         $detailSnapshot = $detailEmployee ? ($employee_snapshots[$detailEmployee->id] ?? null) : null;
+        $canManagePromotions = (bool) (auth()->user()?->can('update_employee') ?? false);
+        $isReadOnlyPromotionUser = !$canManagePromotions;
+        if ($isReadOnlyPromotionUser && $activeTab === 'form') {
+            $activeTab = 'dashboard';
+        }
 
         $allSnapshots = collect($employee_snapshots ?? []);
         $stateCadreCount = $allSnapshots->where('is_state_cadre', true)->count();
@@ -583,7 +868,9 @@
                 }
                 $days = (int) ($snapshot['countable_days'] ?? 0);
 
-                return $days >= 640 && $days < 730;
+                // Due threshold in controller is >= 731 (inclusive day counting),
+                // so near-due must stop at 730 to avoid a gap day.
+                return $days >= 640 && $days < 731;
             })
             ->values();
         $honoraryDueSnapshots = $allSnapshots
@@ -603,21 +890,6 @@
             })
             ->count();
 
-        $chartData = $pay_promotion_chart ?? [
-            'status_labels' => [],
-            'status_values' => [],
-            'trend_labels' => [],
-            'trend_promoted' => [],
-            'trend_requested' => [],
-            'level_labels' => [],
-            'level_promoted' => [],
-            'level_requested' => [],
-            'level_overdue' => [],
-            'unit_labels' => [],
-            'unit_promoted' => [],
-            'unit_requested' => [],
-            'unit_overdue' => [],
-        ];
         $promotionTypeLabel = function (?string $type) use ($ui): string {
             $value = trim((string) $type);
             if (in_array($value, ['regular', 'yearly_cycle'], true)) {
@@ -952,10 +1224,6 @@
                                 <button type="submit" class="btn btn-sm btn-primary">
                                     <i class="fa fa-sync-alt me-1"></i>{{ localize('recalculate', 'Recalculate') }}
                                 </button>
-                                <a class="btn btn-sm btn-success"
-                                    href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'form', 'record_mode' => 'request']) }}">
-                                    <i class="fa fa-plus-circle me-1"></i>{{ $labelTabCreateRequest }}
-                                </a>
                             </div>
                         </div>
                     </div>
@@ -1003,139 +1271,183 @@
                 </div>
             </div>
 
-            <ul class="nav nav-tabs flex-nowrap overflow-auto mb-3" id="payPromotionTabs" role="tablist" style="white-space: nowrap;">
+            <div class="pay-promotion-workflow-guide mb-3">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                    <div>
+                        <div class="fw-semibold">{{ app()->getLocale() === 'en' ? 'Workflow guide' : 'មគ្គុទេសក៍ដំណាក់កាលការងារ' }}</div>
+                        <small class="text-muted">
+                            {{ app()->getLocale() === 'en'
+                                ? 'Follow this order: check eligible list -> create requests -> approvals -> verify history/report.'
+                                : 'អនុវត្តតាមលំដាប់៖ ពិនិត្យបញ្ជីគ្រប់លក្ខខណ្ឌ -> បង្កើតសំណើ -> ការអនុម័ត -> ផ្ទៀងផ្ទាត់ប្រវត្តិ/របាយការណ៍។' }}
+                        </small>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <span class="pay-promotion-flow-step">1. {{ $labelTabEligibleList }}</span>
+                        @if ($canManagePromotions)
+                            <span class="pay-promotion-flow-step">2. {{ $labelTabCreateRequest }}</span>
+                        @endif
+                        <span class="pay-promotion-flow-step">3. {{ $labelTabApproval }}</span>
+                        <span class="pay-promotion-flow-step">4. {{ $labelTabPromotionHistory }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pay-promotion-tab-section-title">
+                {{ app()->getLocale() === 'en' ? 'Main workflow tabs' : 'Tab ដំណាក់កាលស្នូល' }}
+            </div>
+            <ul class="nav pay-promotion-core-tabs flex-nowrap overflow-auto mb-2" id="payPromotionTabs" role="tablist" style="white-space: nowrap;">
                 <li class="nav-item" role="presentation">
                     <button class="nav-link {{ $activeTab === 'dashboard' ? 'active' : '' }}" id="tab-dashboard-trigger"
                         data-bs-toggle="tab" data-bs-target="#tab-dashboard" type="button" role="tab"
-                        aria-controls="tab-dashboard" aria-selected="{{ $activeTab === 'dashboard' ? 'true' : 'false' }}">
-                        1. {{ $labelTabDashboard }}
+                        aria-controls="tab-dashboard" aria-selected="{{ $activeTab === 'dashboard' ? 'true' : 'false' }}"
+                        data-tab-label="{{ $labelTabDashboard }}">
+                        <span class="tab-label-text">{{ $labelTabDashboard }}</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link {{ $activeTab === 'staff' ? 'active' : '' }}" id="tab-staff-trigger"
                         data-bs-toggle="tab" data-bs-target="#tab-staff" type="button" role="tab"
-                        aria-controls="tab-staff" aria-selected="{{ $activeTab === 'staff' ? 'true' : 'false' }}">
-                        2. {{ $labelTabEligibleList }}
+                        aria-controls="tab-staff" aria-selected="{{ $activeTab === 'staff' ? 'true' : 'false' }}"
+                        data-tab-label="{{ $labelTabEligibleList }}">
+                        <span class="tab-label-text">{{ $labelTabEligibleList }}</span>
                     </button>
                 </li>
+                @if ($canManagePromotions)
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {{ $activeTab === 'form' ? 'active' : '' }}" id="tab-form-trigger"
+                            data-bs-toggle="tab" data-bs-target="#tab-form" type="button" role="tab"
+                            aria-controls="tab-form" aria-selected="{{ $activeTab === 'form' ? 'true' : 'false' }}"
+                            data-tab-label="{{ $labelTabCreateRequest }}">
+                            <span class="tab-label-text">{{ $labelTabCreateRequest }}</span>
+                        </button>
+                    </li>
+                @endif
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link {{ $activeTab === 'detail' ? 'active' : '' }}" id="tab-detail-trigger"
-                        data-bs-toggle="tab" data-bs-target="#tab-detail" type="button" role="tab"
-                        aria-controls="tab-detail" aria-selected="{{ $activeTab === 'detail' ? 'true' : 'false' }}">
-                        3. {{ $labelTabEmployeeInfo }}
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link {{ $activeTab === 'form' ? 'active' : '' }}" id="tab-form-trigger"
-                        data-bs-toggle="tab" data-bs-target="#tab-form" type="button" role="tab"
-                        aria-controls="tab-form" aria-selected="{{ $activeTab === 'form' ? 'true' : 'false' }}">
-                        4. {{ $labelTabCreateRequest }}
+                    <button class="nav-link {{ $activeTab === 'approvals' ? 'active' : '' }}" id="tab-approvals-trigger"
+                        data-bs-toggle="tab" data-bs-target="#tab-approvals" type="button" role="tab"
+                        aria-controls="tab-approvals" aria-selected="{{ $activeTab === 'approvals' ? 'true' : 'false' }}"
+                        data-tab-label="{{ $labelTabApproval }}">
+                        <span class="tab-label-text">{{ $labelTabApproval }}</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link {{ $activeTab === 'requests' ? 'active' : '' }}" id="tab-requests-trigger"
                         data-bs-toggle="tab" data-bs-target="#tab-requests" type="button" role="tab"
-                        aria-controls="tab-requests" aria-selected="{{ $activeTab === 'requests' ? 'true' : 'false' }}">
-                        5. {{ $labelTabAllRequests }}
+                        aria-controls="tab-requests" aria-selected="{{ $activeTab === 'requests' ? 'true' : 'false' }}"
+                        data-tab-label="{{ $labelTabAllRequests }}">
+                        <span class="tab-label-text">{{ $labelTabAllRequests }}</span>
                         <span class="badge bg-secondary ms-1">{{ $pendingProposals->count() }}</span>
                     </button>
                 </li>
+            </ul>
+
+            <div class="pay-promotion-tab-section-title mt-2">
+                {{ app()->getLocale() === 'en' ? 'Additional information tabs' : 'Tab ព័ត៌មានបន្ថែម' }}
+            </div>
+            <ul class="nav nav-tabs pay-promotion-secondary-tabs flex-nowrap overflow-auto mb-3" role="tablist" style="white-space: nowrap;">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link {{ $activeTab === 'approvals' ? 'active' : '' }}" id="tab-approvals-trigger"
-                        data-bs-toggle="tab" data-bs-target="#tab-approvals" type="button" role="tab"
-                        aria-controls="tab-approvals" aria-selected="{{ $activeTab === 'approvals' ? 'true' : 'false' }}">
-                        6. {{ $labelTabApproval }}
+                    <button class="nav-link {{ $activeTab === 'detail' ? 'active' : '' }}" id="tab-detail-trigger"
+                        data-bs-toggle="tab" data-bs-target="#tab-detail" type="button" role="tab"
+                        aria-controls="tab-detail" aria-selected="{{ $activeTab === 'detail' ? 'true' : 'false' }}"
+                        data-tab-label="{{ $labelTabEmployeeInfo }}">
+                        <span class="tab-label-text-secondary">{{ $labelTabEmployeeInfo }}</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link {{ $activeTab === 'history' ? 'active' : '' }}" id="tab-history-trigger"
                         data-bs-toggle="tab" data-bs-target="#tab-history" type="button" role="tab"
-                        aria-controls="tab-history" aria-selected="{{ $activeTab === 'history' ? 'true' : 'false' }}">
-                        7. {{ $labelTabPromotionHistory }}
+                        aria-controls="tab-history" aria-selected="{{ $activeTab === 'history' ? 'true' : 'false' }}"
+                        data-tab-label="{{ $labelTabPromotionHistory }}">
+                        <span class="tab-label-text-secondary">{{ $labelTabPromotionHistory }}</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link {{ $activeTab === 'reports' ? 'active' : '' }}" id="tab-reports-trigger"
                         data-bs-toggle="tab" data-bs-target="#tab-reports" type="button" role="tab"
-                        aria-controls="tab-reports" aria-selected="{{ $activeTab === 'reports' ? 'true' : 'false' }}">
-                        8. {{ $labelTabReports }}
+                        aria-controls="tab-reports" aria-selected="{{ $activeTab === 'reports' ? 'true' : 'false' }}"
+                        data-tab-label="{{ $labelTabReports }}">
+                        <span class="tab-label-text-secondary">{{ $labelTabReports }}</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link {{ $activeTab === 'alerts' ? 'active' : '' }}" id="tab-alerts-trigger"
                         data-bs-toggle="tab" data-bs-target="#tab-alerts" type="button" role="tab"
-                        aria-controls="tab-alerts" aria-selected="{{ $activeTab === 'alerts' ? 'true' : 'false' }}">
-                        9. {{ $labelTabNotifications }}
+                        aria-controls="tab-alerts" aria-selected="{{ $activeTab === 'alerts' ? 'true' : 'false' }}"
+                        data-tab-label="{{ $labelTabNotifications }}">
+                        <span class="tab-label-text-secondary">{{ $labelTabNotifications }}</span>
                     </button>
                 </li>
             </ul>
 
             <div class="tab-content" id="payPromotionTabsContent">
-                <div class="tab-pane fade {{ $activeTab === 'dashboard' ? 'show active' : '' }}" id="tab-dashboard" role="tabpanel"
+                <div class="tab-pane fade pay-promotion-dashboard-pane {{ $activeTab === 'dashboard' ? 'show active' : '' }}" id="tab-dashboard" role="tabpanel"
                     aria-labelledby="tab-dashboard-trigger">
 
-                    <div class="alert alert-info mb-3">
+                    <div class="alert pay-promotion-summary-note mb-3">
                         {{ localize('pay_promotion_summary_note', 'System checks regular promotion eligibility by countable service years up to cutoff date.') }}
                         <strong>{{ localize('cutoff_date', 'Cutoff date') }}: {{ $cutoffDateDisplay }}</strong>
                     </div>
 
-                    <div class="pay-promotion-next-actions d-flex flex-wrap gap-2 mb-3">
-                        <a class="btn btn-primary btn-sm" href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'staff']) }}">
-                            <i class="fa fa-list me-1"></i>{{ $labelTabEligibleList }}
-                        </a>
-                        <a class="btn btn-success btn-sm" href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'form', 'record_mode' => 'request']) }}">
-                            <i class="fa fa-plus-circle me-1"></i>{{ $labelTabCreateRequest }}
-                        </a>
-                        <a class="btn btn-outline-secondary btn-sm" href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'approvals']) }}">
-                            <i class="fa fa-check-circle me-1"></i>{{ $labelTabApproval }}
-                        </a>
+                    @if ($isReadOnlyPromotionUser)
+                        <div class="alert alert-secondary mb-3">
+                            <strong>{{ app()->getLocale() === 'en' ? 'Read-only guidance' : 'ណែនាំសម្រាប់អ្នកប្រើមើលទិន្នន័យ' }}:</strong>
+                            {{ app()->getLocale() === 'en'
+                                ? 'Use Summary, Staff, Requests, Approvals, History, and Reports tabs to follow progress. Create/Edit/Batch actions are hidden for your role.'
+                                : 'សូមប្រើ Tab ផ្ទាំងសង្ខេប, បញ្ជីមន្ត្រី, សំណើ, ការអនុម័ត, ប្រវត្តិ និងរបាយការណ៍ សម្រាប់តាមដានដំណើរការ។ មុខងារ បង្កើត/កែប្រែ/ដំណើរការជាក្រុម ត្រូវបានលាក់តាមតួនាទីរបស់អ្នក។' }}
+                        </div>
+                    @else
+                        <div class="alert alert-primary mb-3">
+                            <strong>{{ app()->getLocale() === 'en' ? 'Quick path for managers' : 'ផ្លូវលឿនសម្រាប់អ្នកគ្រប់គ្រង' }}:</strong>
+                            {{ app()->getLocale() === 'en'
+                                ? '1) Check eligible list 2) Create request 3) Continue in approvals.'
+                                : '១) ពិនិត្យបញ្ជីគ្រប់លក្ខខណ្ឌ ២) បង្កើតសំណើ ៣) បន្តនៅ Tab ការអនុម័ត។' }}
+                        </div>
+                    @endif
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-12">
+                            <div class="card pay-promotion-dashboard-card h-100">
+                                <div class="card-header py-2">
+                                    <strong>{{ app()->getLocale() === 'en' ? 'Summary by indicators' : 'សង្ខេបតាមសូចនាករ' }}</strong>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-striped mb-0">
+                                            <tbody>
+                                                <tr>
+                                                    <td class="kpi-label">{{ $labelTotalEmployees }}</td>
+                                                    <td class="kpi-value">{{ $staffEmployees->count() }}</td>
+                                                    <td class="kpi-label">{{ $labelEligiblePromotion }}</td>
+                                                    <td class="kpi-value">{{ $dueRegularCount }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="kpi-label">{{ $labelPendingRequests }}</td>
+                                                    <td class="kpi-value">{{ $pendingProposals->count() }}</td>
+                                                    <td class="kpi-label">{{ $labelOverdue3Years }}</td>
+                                                    <td class="kpi-value">{{ $overdue3YearCount }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="kpi-label">{{ $labelNearNextCycle }}</td>
+                                                    <td class="kpi-value">{{ $nearDueSnapshots->count() }}</td>
+                                                    <td class="kpi-label">{{ $labelMissingDocs }}</td>
+                                                    <td class="kpi-value">{{ $missingDocumentCount }}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="kpi-label">{{ app()->getLocale() === 'en' ? 'Honorary pre-retirement due' : 'មុននិវត្តន៍ ១ ឆ្នាំ (កិត្តិយស)' }}</td>
+                                                    <td class="kpi-value">{{ $honoraryDueSnapshots->count() }}</td>
+                                                    <td class="kpi-label">{{ localize('inactive_or_suspended', 'អសកម្ម/ផ្អាកការងារ') }}</td>
+                                                    <td class="kpi-value">{{ $inactiveCadreSnapshots->count() }}</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="row g-3 mb-3">
-                        <div class="col-lg-6">
-                            <div class="card h-100">
-                                <div class="card-header py-2">
-                                    <strong>{{ localize('chart_status_summary', 'ស្ថិតិសរុបតាមឆ្នាំ') }}</strong>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="payPromotionStatusChart" height="120"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-6">
-                            <div class="card h-100">
-                                <div class="card-header py-2">
-                                    <strong>{{ localize('chart_yearly_trend', 'និន្នាការតាមឆ្នាំ') }}</strong>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="payPromotionTrendChart" height="120"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-6">
-                            <div class="card h-100">
-                                <div class="card-header py-2">
-                                    <strong>{{ localize('chart_by_unit_level', 'តាមកម្រិតអង្គភាព') }}</strong>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="payPromotionLevelChart" height="140"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-6">
-                            <div class="card h-100">
-                                <div class="card-header py-2">
-                                    <strong>{{ localize('chart_by_unit', 'តាមអង្គភាព') }}</strong>
-                                </div>
-                                <div class="card-body">
-                                    <canvas id="payPromotionUnitChart" height="140"></canvas>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mb-3">
-                        <div class="col-lg-6">
+                        <div class="col-lg-8">
                             <div class="card h-100">
                                 <div class="card-header py-2">
                                     <strong>{{ localize('recent_activity', 'សកម្មភាពថ្មីៗ') }}</strong>
@@ -1144,9 +1456,9 @@
                                     @if ($promotions->isEmpty())
                                         <div class="text-muted">{{ localize('empty_data', 'No data found') }}</div>
                                     @else
-                                        <ul class="list-unstyled mb-0 small">
+                                        <ul class="pay-promotion-activity-list list-unstyled mb-0 small">
                                             @foreach ($promotions->take(8) as $activity)
-                                                <li class="mb-2">
+                                                <li>
                                                     <strong>{{ $fixKhmerText($activity->employee?->full_name ?? '-') }}</strong>
                                                     - {{ display_date($activity->start_date) }}
                                                     <span class="text-muted">({{ $fixPayLevelKm($activity->payLevel?->level_name_km ?? ($activity->payLevel?->level_code ?? '-')) }})</span>
@@ -1157,18 +1469,18 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-lg-6">
+                        <div class="col-lg-4">
                             <div class="card h-100">
                                 <div class="card-header py-2">
                                     <strong>{{ localize('important_alerts', 'ការជូនដំណឹងសំខាន់') }}</strong>
                                 </div>
                                 <div class="card-body">
-                                    <ul class="mb-0 small">
-                                        <li>{{ $labelOverdue3Years }}: <strong>{{ $overdue3YearCount }}</strong></li>
-                                        <li>{{ $labelPendingRequests }}: <strong>{{ $pendingProposals->count() }}</strong></li>
-                                        <li>{{ $labelMissingDocs }}: <strong>{{ $missingDocumentCount }}</strong></li>
-                                        <li>{{ app()->getLocale() === 'en' ? 'Honorary pre-retirement due' : 'មុននិវត្តន៍ ១ ឆ្នាំ (កិត្តិយស)' }}: <strong>{{ $honoraryDueSnapshots->count() }}</strong></li>
-                                        <li>{{ localize('inactive_or_suspended', 'អសកម្ម/ផ្អាកការងារ') }}: <strong>{{ $inactiveCadreSnapshots->count() }}</strong></li>
+                                    <ul class="pay-promotion-alert-list small">
+                                        <li><span>{{ $labelOverdue3Years }}</span><strong>{{ $overdue3YearCount }}</strong></li>
+                                        <li><span>{{ $labelPendingRequests }}</span><strong>{{ $pendingProposals->count() }}</strong></li>
+                                        <li><span>{{ $labelMissingDocs }}</span><strong>{{ $missingDocumentCount }}</strong></li>
+                                        <li><span>{{ app()->getLocale() === 'en' ? 'Honorary pre-retirement due' : 'មុននិវត្តន៍ ១ ឆ្នាំ (កិត្តិយស)' }}</span><strong>{{ $honoraryDueSnapshots->count() }}</strong></li>
+                                        <li><span>{{ localize('inactive_or_suspended', 'អសកម្ម/ផ្អាកការងារ') }}</span><strong>{{ $inactiveCadreSnapshots->count() }}</strong></li>
                                     </ul>
                                 </div>
                             </div>
@@ -1176,9 +1488,9 @@
                     </div>
 
                     @if ($overdueReminders->isNotEmpty())
-                        <div class="alert alert-warning mb-0">
+                        <div class="alert alert-warning pay-promotion-overdue-alert mb-0">
                             <strong>{{ localize('overdue_list', 'Overdue reminder list') }}:</strong>
-                            <div class="small mt-1">
+                            <div class="small mt-1 pay-promotion-overdue-list">
                                 @foreach ($overdueReminders->take(20) as $reminder)
                                     <span class="me-3 d-inline-block">
                                         - {{ $fixKhmerText($reminder['employee_code'] ?? '') }} - {{ $fixKhmerText($reminder['full_name'] ?? '') }}
@@ -1246,7 +1558,6 @@
                                     $staffEmitted = [];
                                     $staffCounters = [];
                                     $staffLastPathByDepth = [];
-                                    $staffRowIndex = 0;
                                 @endphp
 
                                 @forelse ($staffEmployees as $employee)
@@ -1302,13 +1613,12 @@
                                             $groupKeysAttr[] = implode(' | ', array_slice($segments, 0, $depth + 1));
                                         }
                                     @endphp
-                                    @php $staffRowIndex++; @endphp
                                     <tr class="pay-staff-employee-row"
                                         data-staff-name="{{ mb_strtolower(trim($employee->employee_id . ' ' . $fixKhmerText($employee->full_name)), 'UTF-8') }}"
                                         data-staff-state="{{ $stateKey }}"
                                         data-staff-due="{{ $isDueRegular ? '1' : '0' }}"
                                         data-group-keys="{{ implode('||', $groupKeysAttr) }}">
-                                        <td>{{ $staffRowIndex }}</td>
+                                        <td>{{ $loop->iteration }}</td>
                                         <td>{{ $employee->employee_id }} - {{ $fixKhmerText($employee->full_name) }}</td>
                                         <td>{{ $fixKhmerText($current_pay_level_labels[$employee->id] ?? '-') }}</td>
                                         <td>
@@ -1334,10 +1644,12 @@
                                                 href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'detail', 'employee_id' => $employee->id]) }}">
                                                 {{ localize('view', 'View') }}
                                             </a>
-                                            <a class="btn btn-sm btn-outline-success"
-                                                href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'form', 'employee_id' => $employee->id]) }}">
-                                                {{ localize('open_form', 'Open form') }}
-                                            </a>
+                                            @if ($canManagePromotions)
+                                                <a class="btn btn-sm btn-outline-success"
+                                                    href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'form', 'employee_id' => $employee->id]) }}">
+                                                    {{ localize('open_form', 'Open form') }}
+                                                </a>
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty
@@ -1394,10 +1706,12 @@
                                         <p class="mb-2 text-muted">{{ localize('not_due_yet', 'Not due yet') }}</p>
                                     @endif
                                     <div class="d-flex gap-2">
-                                        <a class="btn btn-sm btn-success"
-                                            href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'form', 'employee_id' => $detailEmployee->id, 'record_mode' => 'request']) }}">
-                                            {{ localize('create_request', 'Create request') }}
-                                        </a>
+                                        @if ($canManagePromotions)
+                                            <a class="btn btn-sm btn-success"
+                                                href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'form', 'employee_id' => $detailEmployee->id, 'record_mode' => 'request']) }}">
+                                                {{ localize('create_request', 'Create request') }}
+                                            </a>
+                                        @endif
                                         @if ($detailEmployeePendingProposals->isNotEmpty())
                                             @php
                                                 $firstPendingProposal = $detailEmployeePendingProposals->first();
@@ -1423,6 +1737,14 @@
 
                 <div class="tab-pane fade {{ $activeTab === 'form' ? 'show active' : '' }}" id="tab-form" role="tabpanel"
                     aria-labelledby="tab-form-trigger">
+                    @if (!$canManagePromotions)
+                        <div class="alert alert-secondary mb-3">
+                            <strong>{{ app()->getLocale() === 'en' ? 'Read-only tab' : 'Tab សម្រាប់មើលតែប៉ុណ្ណោះ' }}:</strong>
+                            {{ app()->getLocale() === 'en'
+                                ? 'You do not have permission to create/edit requests. Please use Requests/Approvals/History tabs for tracking.'
+                                : 'អ្នកមិនមានសិទ្ធិបង្កើត ឬកែប្រែសំណើទេ។ សូមប្រើ Tab សំណើ/ការអនុម័ត/ប្រវត្តិ សម្រាប់តាមដានដំណើរការ។' }}
+                        </div>
+                    @else
                     <div class="alert alert-info mb-3">
                         <strong>{{ app()->getLocale() === 'en' ? 'How to use this tab' : 'របៀបប្រើប្រាស់ Tab នេះ' }}</strong>
                         <div class="small mt-1">
@@ -1736,12 +2058,12 @@
                                 <input type="date" name="request_date" class="form-control" value="{{ $prefillRequestDate }}">
                             </div>
 
-                            <div class="col-md-4" id="document_reference_wrap" style="{{ $prefillRecordMode === 'request' ? 'display:none;' : '' }}">
+                            <div class="col-md-4" id="document_reference_wrap" style="{{ $prefillRecordMode === 'approve' ? '' : 'display:none;' }}">
                                 <label class="form-label">{{ localize('document_reference', 'Document reference') }}</label>
                                 <input type="text" id="document_reference" name="document_reference" class="form-control" value="{{ $prefillDocumentReference }}">
                             </div>
 
-                            <div class="col-md-4" id="document_date_wrap" style="{{ $prefillRecordMode === 'request' ? 'display:none;' : '' }}">
+                            <div class="col-md-4" id="document_date_wrap" style="{{ $prefillRecordMode === 'approve' ? '' : 'display:none;' }}">
                                 <label class="form-label">{{ localize('document_date', 'Document date') }}</label>
                                 <input type="date" id="document_date" name="document_date" class="form-control" value="{{ $prefillDocumentDate }}">
                             </div>
@@ -1774,6 +2096,7 @@
                     @endif
                     </div>
                     </div>
+                    @endif
                 </div>
 
                 <div class="tab-pane fade {{ $activeTab === 'history' ? 'show active' : '' }}" id="tab-history" role="tabpanel" aria-labelledby="tab-history-trigger">
@@ -1871,6 +2194,13 @@
                             ? 'Review pending proposals, verify supporting documents, then recommend/approve/reject each case.'
                             : 'សម្រាប់ពិនិត្យសំណើកំពុងរង់ចាំ ផ្ទៀងផ្ទាត់ឯកសារ ហើយផ្តល់យោបល់/អនុម័ត/មិនអនុម័តតាមករណី។' }}
                     </div>
+                    @if (!$canManagePromotions)
+                        <div class="alert alert-secondary border mb-3">
+                            {{ app()->getLocale() === 'en'
+                                ? 'You are in read-only mode. Batch actions are disabled; you can still inspect status, permissions, and progress.'
+                                : 'អ្នកកំពុងប្រើរបៀបមើលទិន្នន័យ។ មុខងារដំណើរការជាក្រុមត្រូវបានបិទ ប៉ុន្តែអ្នកអាចពិនិត្យស្ថានភាព សិទ្ធិ និងវឌ្ឍនភាពបាន។' }}
+                        </div>
+                    @endif
                     <div class="row g-2 mb-3">
                         <div class="col-md-3">
                             <div class="alert alert-info py-2 mb-0">
@@ -1990,22 +2320,24 @@
 
                                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
                                     <div class="form-check mb-0">
-                                        <input class="form-check-input" type="checkbox" id="approvalSelectAllVisible">
+                                        <input class="form-check-input" type="checkbox" id="approvalSelectAllVisible" {{ $canManagePromotions ? '' : 'disabled' }}>
                                         <label class="form-check-label" for="approvalSelectAllVisible">
                                             {{ app()->getLocale() === 'en' ? 'Select all visible rows' : 'ជ្រើសទាំងអស់ (ជួរដែលកំពុងបង្ហាញ)' }}
                                         </label>
                                     </div>
-                                    <div class="d-flex gap-2">
-                                        <button type="submit" name="batch_action" value="recommend" id="approvalBatchRecommendBtn" class="btn btn-info btn-sm text-white" disabled>
-                                            <i class="fa fa-commenting me-1"></i>{{ app()->getLocale() === 'en' ? 'Recommend selected' : 'ផ្តល់យោបល់ឈ្មោះដែលបានជ្រើស' }}
-                                        </button>
-                                        <button type="submit" name="batch_action" value="approve" id="approvalBatchApproveBtn" class="btn btn-success btn-sm" disabled>
-                                            <i class="fa fa-check me-1"></i>{{ app()->getLocale() === 'en' ? 'Approve selected' : 'អនុម័តឈ្មោះដែលបានជ្រើស' }}
-                                        </button>
-                                        <button type="submit" name="batch_action" value="reject" id="approvalBatchRejectBtn" class="btn btn-danger btn-sm" disabled>
-                                            <i class="fa fa-times me-1"></i>{{ app()->getLocale() === 'en' ? 'Reject selected' : 'បដិសេធឈ្មោះដែលបានជ្រើស' }}
-                                        </button>
-                                    </div>
+                                    @if ($canManagePromotions)
+                                        <div class="d-flex gap-2">
+                                            <button type="submit" name="batch_action" value="recommend" id="approvalBatchRecommendBtn" class="btn btn-info btn-sm text-white" disabled>
+                                                <i class="fa fa-commenting me-1"></i>{{ app()->getLocale() === 'en' ? 'Recommend selected' : 'ផ្តល់យោបល់ឈ្មោះដែលបានជ្រើស' }}
+                                            </button>
+                                            <button type="submit" name="batch_action" value="approve" id="approvalBatchApproveBtn" class="btn btn-success btn-sm" disabled>
+                                                <i class="fa fa-check me-1"></i>{{ app()->getLocale() === 'en' ? 'Approve selected' : 'អនុម័តឈ្មោះដែលបានជ្រើស' }}
+                                            </button>
+                                            <button type="submit" name="batch_action" value="reject" id="approvalBatchRejectBtn" class="btn btn-danger btn-sm" disabled>
+                                                <i class="fa fa-times me-1"></i>{{ app()->getLocale() === 'en' ? 'Reject selected' : 'បដិសេធឈ្មោះដែលបានជ្រើស' }}
+                                            </button>
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="table-responsive">
                                     <table id="approvalTable" class="table table-bordered table-striped align-middle mb-0">
@@ -2073,7 +2405,7 @@
                                                     <td>
                                                         <input class="form-check-input approval-select-item" type="checkbox"
                                                             name="proposal_ids[]" value="{{ $proposal->id }}"
-                                                            {{ $canAnyAction ? '' : 'disabled' }}
+                                                            {{ ($canAnyAction && $canManagePromotions) ? '' : 'disabled' }}
                                                             title="{{ $canAnyAction ? '' : ($blockedMessage !== '' ? $blockedMessage : (app()->getLocale() === 'en' ? 'You do not have permission for this request.' : 'អ្នកមិនមានសិទ្ធិសម្រាប់សំណើនេះទេ។')) }}">
                                                     </td>
                                                     <td>{{ $loop->iteration }}</td>
@@ -2350,7 +2682,6 @@
             var bulkManualNote = document.getElementById('bulkManualNote');
             var bulkManualAddBtn = document.getElementById('bulkManualAddBtn');
             var toastContainer = null;
-            var chartData = @json($chartData);
             var employeeCurrentLevelMap = @json($employeeCurrentLevelMap);
             var candidateTargetOptionsByCurrent = @json($candidateTargetOptionsPayload);
             var employeeDisplayLabelMap = @json($employeeDisplayLabelMap);
@@ -2410,121 +2741,6 @@
                         existing.dispose();
                     }
                     window.bootstrap.Tooltip.getOrCreateInstance(el);
-                });
-            }
-
-            function buildOrUpdateChart(canvasId, config) {
-                if (typeof Chart === 'undefined') return;
-                var canvas = document.getElementById(canvasId);
-                if (!canvas) return;
-
-                if (canvas._chartInstance) {
-                    canvas._chartInstance.destroy();
-                }
-                canvas._chartInstance = new Chart(canvas, config);
-            }
-
-            function initializeDashboardCharts() {
-                if (typeof Chart === 'undefined') {
-                    return;
-                }
-
-                buildOrUpdateChart('payPromotionStatusChart', {
-                    type: 'bar',
-                    data: {
-                        labels: chartData.status_labels || [],
-                        datasets: [{
-                            label: '{{ localize('count', 'Count') }}',
-                            data: chartData.status_values || [],
-                            backgroundColor: ['#28a745', '#0d6efd', '#ffc107'],
-                            borderRadius: 6,
-                            maxBarThickness: 52
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-                    }
-                });
-
-                buildOrUpdateChart('payPromotionTrendChart', {
-                    type: 'line',
-                    data: {
-                        labels: chartData.trend_labels || [],
-                        datasets: [{
-                            label: '{{ localize('promoted', 'Promoted') }}',
-                            data: chartData.trend_promoted || [],
-                            borderColor: '#198754',
-                            backgroundColor: 'rgba(25,135,84,0.15)',
-                            fill: true,
-                            tension: 0.25
-                        }, {
-                            label: '{{ localize('requests', 'Requests') }}',
-                            data: chartData.trend_requested || [],
-                            borderColor: '#0d6efd',
-                            backgroundColor: 'rgba(13,110,253,0.12)',
-                            fill: true,
-                            tension: 0.25
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-                    }
-                });
-
-                buildOrUpdateChart('payPromotionLevelChart', {
-                    type: 'bar',
-                    data: {
-                        labels: chartData.level_labels || [],
-                        datasets: [{
-                            label: '{{ localize('promoted', 'Promoted') }}',
-                            data: chartData.level_promoted || [],
-                            backgroundColor: '#198754'
-                        }, {
-                            label: '{{ localize('requests', 'Requests') }}',
-                            data: chartData.level_requested || [],
-                            backgroundColor: '#0d6efd'
-                        }, {
-                            label: '{{ localize('overdue', 'Overdue') }}',
-                            data: chartData.level_overdue || [],
-                            backgroundColor: '#ffc107'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-                    }
-                });
-
-                buildOrUpdateChart('payPromotionUnitChart', {
-                    type: 'bar',
-                    data: {
-                        labels: chartData.unit_labels || [],
-                        datasets: [{
-                            label: '{{ localize('promoted', 'Promoted') }}',
-                            data: chartData.unit_promoted || [],
-                            backgroundColor: '#198754'
-                        }, {
-                            label: '{{ localize('requests', 'Requests') }}',
-                            data: chartData.unit_requested || [],
-                            backgroundColor: '#0d6efd'
-                        }, {
-                            label: '{{ localize('overdue', 'Overdue') }}',
-                            data: chartData.unit_overdue || [],
-                            backgroundColor: '#ffc107'
-                        }]
-                    },
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
-                    }
                 });
             }
 
@@ -2996,11 +3212,11 @@
                     return;
                 }
                 var mode = (recordModeInput.value || 'request').trim();
-                var isRequestMode = mode === 'request';
-                if (documentReferenceInput) documentReferenceInput.disabled = isRequestMode;
-                if (documentDateInput) documentDateInput.disabled = isRequestMode;
-                if (documentReferenceWrap) documentReferenceWrap.style.display = isRequestMode ? 'none' : '';
-                if (documentDateWrap) documentDateWrap.style.display = isRequestMode ? 'none' : '';
+                var isApproveMode = mode === 'approve';
+                if (documentReferenceInput) documentReferenceInput.disabled = !isApproveMode;
+                if (documentDateInput) documentDateInput.disabled = !isApproveMode;
+                if (documentReferenceWrap) documentReferenceWrap.style.display = isApproveMode ? '' : 'none';
+                if (documentDateWrap) documentDateWrap.style.display = isApproveMode ? '' : 'none';
             }
 
             function refreshEligibilityHint() {
@@ -3054,7 +3270,7 @@
 
                 return options.map(function(item) {
                     var selected = (selectedLevelId && parseInt(selectedLevelId, 10) === parseInt(item.id, 10)) ? ' selected' : '';
-                    return '<option value=\"' + item.id + '\"' + selected + '>' + item.label + '</option>';
+                    return '<option value=\\\"' + item.id + '\\\"' + selected + '>' + item.label + '</option>';
                 }).join('');
             }
 
@@ -3088,7 +3304,7 @@
                     if (!emptyRow) {
                         emptyRow = document.createElement('tr');
                         emptyRow.id = 'bulkEmptyRow';
-                        emptyRow.innerHTML = '<td colspan=\"8\" class=\"text-center text-muted\">{{ app()->getLocale() === 'en' ? 'No names selected for batch request.' : 'មិនមានឈ្មោះសម្រាប់ដាក់សំណើជាក្រុម។' }}</td>';
+                        emptyRow.innerHTML = '<td colspan=\\\"8\\\" class=\\\"text-center text-muted\\\">{{ app()->getLocale() === 'en' ? 'No names selected for batch request.' : 'មិនមានឈ្មោះសម្រាប់ដាក់សំណើជាក្រុម។' }}</td>';
                         bulkCandidateTableBody.appendChild(emptyRow);
                     }
                 } else if (emptyRow) {
@@ -3115,7 +3331,7 @@
                     cls = 'bg-secondary';
                 }
 
-                statusCell.innerHTML = '<span class=\"badge ' + cls + '\">' + label + '</span>';
+                statusCell.innerHTML = '<span class=\\\"badge ' + cls + '\\\">' + label + '</span>';
             }
 
             function refreshManualTargetLevelOptions() {
@@ -3131,7 +3347,7 @@
                 if (!bulkCandidateTableBody || !employeeId) {
                     return null;
                 }
-                return bulkCandidateTableBody.querySelector('tr.candidate-batch-row[data-employee-id=\"' + employeeId + '\"]');
+                return bulkCandidateTableBody.querySelector('tr.candidate-batch-row[data-employee-id=\\\"' + employeeId + '\\\"]');
             }
 
             function isEmployeeAlreadyInBulkTable(employeeId) {
@@ -3202,14 +3418,14 @@
                     row.className = 'candidate-batch-row table-info';
                     row.setAttribute('data-employee-id', employeeId);
                     row.innerHTML = ''
-                        + '<td class=\"candidate-row-no\">0</td>'
-                        + '<td class=\"candidate-employee-label\"></td>'
-                        + '<td class=\"candidate-reason-text\"></td>'
-                        + '<td class=\"candidate-last-promotion\">-</td>'
-                        + '<td class=\"candidate-current-level\"></td>'
-                        + '<td><select class=\"form-select form-select-sm candidate-target-level\"></select></td>'
-                        + '<td class=\"candidate-row-status\"></td>'
-                        + '<td><button type=\"button\" class=\"btn btn-sm btn-outline-danger candidate-remove-btn\">{{ app()->getLocale() === 'en' ? 'Remove' : 'ដកចេញ' }}</button></td>';
+                        + '<td class=\\\"candidate-row-no\\\">0</td>'
+                        + '<td class=\\\"candidate-employee-label\\\"></td>'
+                        + '<td class=\\\"candidate-reason-text\\\"></td>'
+                        + '<td class=\\\"candidate-last-promotion\\\">-</td>'
+                        + '<td class=\\\"candidate-current-level\\\"></td>'
+                        + '<td><select class=\\\"form-select form-select-sm candidate-target-level\\\"></select></td>'
+                        + '<td class=\\\"candidate-row-status\\\"></td>'
+                        + '<td><button type=\\\"button\\\" class=\\\"btn btn-sm btn-outline-danger candidate-remove-btn\\\">{{ app()->getLocale() === 'en' ? 'Remove' : 'ដកចេញ' }}</button></td>';
                     bulkCandidateTableBody.appendChild(row);
                 }
 
@@ -3291,14 +3507,14 @@
                 row.setAttribute('data-effective-date', '{{ $cutoffDateIso }}');
                 row.setAttribute('data-note', noteText);
                 row.innerHTML = ''
-                    + '<td class=\"candidate-row-no\">0</td>'
+                    + '<td class=\\\"candidate-row-no\\\">0</td>'
                     + '<td>' + employeeLabel + '</td>'
-                    + '<td class=\"candidate-reason-text\">' + reasonText + '</td>'
+                    + '<td class=\\\"candidate-reason-text\\\">' + reasonText + '</td>'
                     + '<td>-</td>'
                     + '<td>-</td>'
-                    + '<td><select class=\"form-select form-select-sm candidate-target-level\">' + buildTargetLevelOptions(employeeCurrentLevelMap[employeeId] || 0, targetLevelId) + '</select></td>'
-                    + '<td class=\"candidate-row-status\"></td>'
-                    + '<td><button type=\"button\" class=\"btn btn-sm btn-outline-danger candidate-remove-btn\">{{ app()->getLocale() === 'en' ? 'Remove' : 'ដកចេញ' }}</button></td>';
+                    + '<td><select class=\\\"form-select form-select-sm candidate-target-level\\\">' + buildTargetLevelOptions(employeeCurrentLevelMap[employeeId] || 0, targetLevelId) + '</select></td>'
+                    + '<td class=\\\"candidate-row-status\\\"></td>'
+                    + '<td><button type=\\\"button\\\" class=\\\"btn btn-sm btn-outline-danger candidate-remove-btn\\\">{{ app()->getLocale() === 'en' ? 'Remove' : 'ដកចេញ' }}</button></td>';
 
                 bulkCandidateTableBody.appendChild(row);
                 setCandidateRowStatus(row, 'manual');
@@ -3381,23 +3597,92 @@
             toggleRecordModeFields();
             refreshEligibilityHint();
             initYearFilterUnitTreeCombo();
-            initializeDashboardCharts();
             applyStaffTableFilters();
             applyApprovalTableFilters();
 
+            function enforceCoreTabTextVisibility() {
+                var coreTabs = document.querySelectorAll('#payPromotionTabs .nav-link');
+                if (!coreTabs.length) return;
+                var coreFallback = {
+                    'tab-dashboard-trigger': '{{ addslashes($labelTabDashboard) }}',
+                    'tab-staff-trigger': '{{ addslashes($labelTabEligibleList) }}',
+                    'tab-form-trigger': '{{ addslashes($labelTabCreateRequest) }}',
+                    'tab-approvals-trigger': '{{ addslashes($labelTabApproval) }}',
+                    'tab-requests-trigger': '{{ addslashes($labelTabAllRequests) }}'
+                };
+
+                coreTabs.forEach(function(tabBtn) {
+                    var isActive = tabBtn.classList.contains('active');
+                    var textColor = isActive ? '#ffffff' : '#243548';
+                    tabBtn.style.color = textColor;
+                    tabBtn.style.opacity = '1';
+                    tabBtn.style.webkitTextFillColor = textColor;
+                    tabBtn.style.textShadow = 'none';
+
+                    var labelNode = tabBtn.querySelector('.tab-label-text');
+                    if (labelNode && !labelNode.textContent.trim()) {
+                        var fallbackText = tabBtn.getAttribute('data-tab-label') || coreFallback[tabBtn.id] || '';
+                        labelNode.textContent = fallbackText;
+                    }
+                    if (labelNode) {
+                        labelNode.style.color = textColor;
+                        labelNode.style.webkitTextFillColor = textColor;
+                        labelNode.style.opacity = '1';
+                    }
+                });
+            }
+
+            function enforceSecondaryTabTextVisibility() {
+                var secondaryTabs = document.querySelectorAll('.pay-promotion-secondary-tabs .nav-link');
+                if (!secondaryTabs.length) return;
+                var secondaryFallback = {
+                    'tab-detail-trigger': '{{ addslashes($labelTabEmployeeInfo) }}',
+                    'tab-history-trigger': '{{ addslashes($labelTabPromotionHistory) }}',
+                    'tab-reports-trigger': '{{ addslashes($labelTabReports) }}',
+                    'tab-alerts-trigger': '{{ addslashes($labelTabNotifications) }}'
+                };
+
+                secondaryTabs.forEach(function(tabBtn) {
+                    var isActive = tabBtn.classList.contains('active');
+                    var textColor = isActive ? '#ffffff' : '#243548';
+                    tabBtn.style.color = textColor;
+                    tabBtn.style.opacity = '1';
+                    tabBtn.style.webkitTextFillColor = textColor;
+                    tabBtn.style.textShadow = 'none';
+
+                    var labelNode = tabBtn.querySelector('.tab-label-text-secondary');
+                    if (labelNode && !labelNode.textContent.trim()) {
+                        var fallbackText = tabBtn.getAttribute('data-tab-label') || secondaryFallback[tabBtn.id] || '';
+                        labelNode.textContent = fallbackText;
+                    }
+                    if (labelNode) {
+                        labelNode.style.color = textColor;
+                        labelNode.style.webkitTextFillColor = textColor;
+                        labelNode.style.opacity = '1';
+                    }
+                });
+            }
+
             var tabButtons = document.querySelectorAll('#payPromotionTabs button[data-bs-toggle="tab"]');
+            var secondaryTabButtons = document.querySelectorAll('.pay-promotion-secondary-tabs button[data-bs-toggle="tab"]');
             var yearFilterTabInput = document.getElementById('yearFilterTabInput');
-            if (tabButtons.length && yearFilterTabInput) {
+            enforceCoreTabTextVisibility();
+            enforceSecondaryTabTextVisibility();
+            if (tabButtons.length) {
                 tabButtons.forEach(function(btn) {
                     btn.addEventListener('shown.bs.tab', function(ev) {
                         var target = ev.target && ev.target.getAttribute('data-bs-target');
-                        if (!target) return;
-                        yearFilterTabInput.value = target.replace('#tab-', '');
-                        if (target === '#tab-dashboard') {
-                            setTimeout(function() {
-                                initializeDashboardCharts();
-                            }, 40);
+                        if (target && yearFilterTabInput) {
+                            yearFilterTabInput.value = target.replace('#tab-', '');
                         }
+                        enforceCoreTabTextVisibility();
+                    });
+                });
+            }
+            if (secondaryTabButtons.length) {
+                secondaryTabButtons.forEach(function(btn) {
+                    btn.addEventListener('shown.bs.tab', function() {
+                        enforceSecondaryTabTextVisibility();
                     });
                 });
             }
@@ -3416,7 +3701,7 @@
                 }
 
                 var headParts = [];
-                document.querySelectorAll('link[rel=\"stylesheet\"], style').forEach(function(node) {
+                document.querySelectorAll('link[rel=\\\"stylesheet\\\"], style').forEach(function(node) {
                     headParts.push(node.outerHTML);
                 });
 
@@ -3433,7 +3718,7 @@
 
                 printWindow.document.open();
                 printWindow.document.write(
-                    '<!doctype html><html><head><meta charset=\"utf-8\"><title>{{ app()->getLocale() === 'en' ? 'Official Promotion Report' : 'របាយការណ៍គ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ' }}</title>'
+                    '<!doctype html><html><head><meta charset=\\\"utf-8\\\"><title>{{ app()->getLocale() === 'en' ? 'Official Promotion Report' : 'របាយការណ៍គ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ' }}</title>'
                     + headParts.join('')
                     + printLayoutStyle
                     + '</head><body>'
@@ -3470,7 +3755,7 @@
                     Array.prototype.forEach.call(table.querySelectorAll('tr'), function(tr) {
                         var cols = [];
                         Array.prototype.forEach.call(tr.querySelectorAll('th, td'), function(cell) {
-                            var text = (cell.innerText || '').replace(/\s+/g, ' ').trim();
+                            var text = (cell.innerText || '').replace(/\\s+/g, ' ').trim();
                             cols.push('"' + text.replace(/"/g, '""') + '"');
                         });
                         if (cols.length) rows.push(cols.join(','));
@@ -3685,3 +3970,5 @@
         })(window.jQuery);
     </script>
 @endpush
+
+

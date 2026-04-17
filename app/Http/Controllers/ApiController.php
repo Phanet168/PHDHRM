@@ -397,9 +397,9 @@ class ApiController extends Controller
             ];
 
             $user = $this->checkUser($userData);
-            $img = $userInfo->profile_pic;
+            $img = $userInfo?->profile_pic;
 
-            if ($user) {
+            if ($user && $userInfo) {
                 $token_data = array(
                     'token_id' => $token,
                 );

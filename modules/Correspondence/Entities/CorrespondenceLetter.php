@@ -45,6 +45,7 @@ class CorrespondenceLetter extends Model
         'status',
         'letter_date',
         'received_date',
+        'sent_date',
         'due_date',
         'summary',
         'attachment_path',
@@ -65,6 +66,7 @@ class CorrespondenceLetter extends Model
     protected $casts = [
         'letter_date' => 'date',
         'received_date' => 'date',
+        'sent_date' => 'date',
         'due_date' => 'date',
         'decision_at' => 'datetime',
         'completed_at' => 'datetime',
@@ -80,11 +82,11 @@ class CorrespondenceLetter extends Model
     public static function stepLabels(): array
     {
         return [
-            self::STEP_INCOMING_RECEIVED => localize('letter_step_incoming_received', 'Letter received'),
-            self::STEP_INCOMING_DELEGATED => localize('letter_step_incoming_delegated', 'Delegated/assigned'),
-            self::STEP_INCOMING_OFFICE_COMMENT => localize('letter_step_incoming_office_comment', 'Office comment'),
-            self::STEP_INCOMING_DEPUTY_REVIEW => localize('letter_step_incoming_deputy_review', 'Deputy review'),
-            self::STEP_INCOMING_DIRECTOR_DECISION => localize('letter_step_incoming_director_decision', 'Director decision'),
+            self::STEP_INCOMING_RECEIVED => localize('letter_step_incoming_received_km', 'ទទួល/ចុះឈ្មោះលិខិត'),
+            self::STEP_INCOMING_DELEGATED => localize('letter_step_incoming_delegated_admin_office_km2', 'ពិនិត្យ និងបែងចែកលិខិត'),
+            self::STEP_INCOMING_OFFICE_COMMENT => localize('letter_step_incoming_office_comment_km2', 'ពិនិត្យ និងផ្តល់យោបល់'),
+            self::STEP_INCOMING_DEPUTY_REVIEW => localize('letter_step_incoming_deputy_review_km2', 'ពិនិត្យដោយអនុប្រធានមន្ទីរ'),
+            self::STEP_INCOMING_DIRECTOR_DECISION => localize('letter_step_incoming_director_decision_km2', 'សម្រេចដោយប្រធានមន្ទីរ'),
             self::STEP_INCOMING_DISTRIBUTED => localize('letter_step_incoming_distributed', 'Distributed to recipients'),
             self::STEP_OUTGOING_DRAFT => localize('letter_step_outgoing_draft', 'Outgoing draft'),
             self::STEP_OUTGOING_DISTRIBUTED => localize('letter_step_outgoing_distributed', 'Outgoing distributed'),

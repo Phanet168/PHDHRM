@@ -1,0 +1,140 @@
+@extends('backend.layouts.app')
+
+@section('title', $isEnglish ? 'Employee Management Help Center' : 'ជំនួយគ្រប់គ្រងបុគ្គលិក')
+
+@push('css')
+    <style>
+        .employee-help-layout {
+            display: grid;
+            grid-template-columns: 300px minmax(0, 1fr);
+            gap: 20px;
+        }
+
+        .employee-help-sidebar .list-group-item {
+            border: 0;
+            border-bottom: 1px solid rgba(25, 135, 84, 0.1);
+            padding: 12px 14px;
+            font-size: 0.95rem;
+        }
+
+        .employee-help-sidebar .list-group-item.active {
+            background: linear-gradient(135deg, #198754, #157347);
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .employee-help-content .card-header {
+            background: linear-gradient(135deg, #f1fbf7, #edf6ff);
+        }
+
+        .employee-help-article {
+            font-size: 15px;
+            line-height: 1.75;
+            color: #17352a;
+        }
+
+        .employee-help-article h1,
+        .employee-help-article h2,
+        .employee-help-article h3 {
+            color: #10462a;
+            margin-top: 1.4rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .employee-help-article h1 {
+            font-size: 1.8rem;
+            margin-top: 0;
+        }
+
+        .employee-help-article h2 {
+            font-size: 1.3rem;
+            border-bottom: 1px solid rgba(25, 135, 84, 0.15);
+            padding-bottom: 0.35rem;
+        }
+
+        .employee-help-article ul,
+        .employee-help-article ol {
+            padding-left: 1.4rem;
+        }
+
+        .employee-help-article li + li {
+            margin-top: 0.35rem;
+        }
+
+        .employee-help-article code {
+            background: #f2f7f3;
+            color: #145530;
+            padding: 2px 6px;
+            border-radius: 6px;
+        }
+
+        .employee-help-tip {
+            background: #edf7f0;
+            border: 1px solid rgba(25, 135, 84, 0.14);
+            border-radius: 14px;
+        }
+
+        @media (max-width: 991.98px) {
+            .employee-help-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+@endpush
+
+@section('content')
+    @include('humanresource::employee_header')
+
+    <div class="body-content">
+        <div class="employee-help-layout">
+            <div class="card employee-help-sidebar">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fa fa-life-ring me-1"></i>{{ $isEnglish ? 'Help topics' : 'ប្រធានបទជំនួយ' }}
+                    </h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    @foreach ($articles as $slug => $item)
+                        <a href="{{ route('employees.help', ['article' => $slug]) }}"
+                            class="list-group-item list-group-item-action {{ $activeArticle === $slug ? 'active' : '' }}">
+                            <i class="fa {{ $item['icon'] }} me-2"></i>{{ $isEnglish ? $item['title_en'] : $item['title_km'] }}
+                        </a>
+                    @endforeach
+                </div>
+            </div>
+
+            <div>
+                <div class="card employee-help-content mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <h5 class="mb-1">{{ $articleTitle }}</h5>
+                            <div class="text-muted small">
+                                {{ $isEnglish
+                                    ? 'Practical guide for all Employee Management screens and workflows'
+                                    : 'មគ្គុទេសក៍ប្រើប្រាស់សម្រាប់ផ្ទាំង និងដំណើរការទាំងអស់នៅក្នុងគ្រប់គ្រងបុគ្គលិក' }}
+                            </div>
+                        </div>
+                        <a href="{{ route('employees.help') }}" class="btn btn-sm btn-outline-success">
+                            <i class="fa fa-home me-1"></i>{{ $isEnglish ? 'Back to overview' : 'ត្រឡប់ទៅទិដ្ឋភាពទូទៅ' }}
+                        </a>
+                    </div>
+                    <div class="card-body employee-help-article">
+                        {!! $articleHtml !!}
+                    </div>
+                </div>
+
+                <div class="card employee-help-tip">
+                    <div class="card-body py-3">
+                        <div class="fw-semibold mb-1">{{ $isEnglish ? 'Usage tip' : 'គន្លឹះប្រើប្រាស់' }}</div>
+                        <div class="small text-muted mb-0">
+                            {{ $isEnglish
+                                ? 'Start from Overview and Employee List first, then continue to Career, Promotions, and Reports.'
+                                : 'សូមចាប់ផ្តើមពី ទិដ្ឋភាពទូទៅ និង បញ្ជីបុគ្គលិក មុនសិន បន្ទាប់មកទៅផ្នែក អាជីពការងារ ឡើងតួនាទី/ថ្នាក់ និង របាយការណ៍។' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection
+

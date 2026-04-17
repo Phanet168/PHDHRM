@@ -73,5 +73,6 @@ class Kernel extends HttpKernel
         'demo' => \App\Http\Middleware\DemoMode::class,
         'has.phone' => \App\Http\Middleware\EnsureUserHasContactNo::class,
         'otp.verified' => \App\Http\Middleware\EnsureUserOtpVerified::class,
+        'external.api.key' => \App\Http\Middleware\ValidateExternalApiKey::class,
     ];
 }

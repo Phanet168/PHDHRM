@@ -24,5 +24,6 @@
     "Adjustment": true,
     "OpeningStock": true,
     "UserManagement": true,
-    "Correspondence": true
+    "Correspondence": true,
+    "Pharmaceutical": true
 }

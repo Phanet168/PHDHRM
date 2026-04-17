@@ -1,7 +1,7 @@
-@extends('backend.layouts.app')
+﻿@extends('backend.layouts.app')
 @section('title', localize('org_role_management', 'គ្រប់គ្រងតួនាទីតាមអង្គភាព'))
 @section('content')
-    @include('humanresource::master-data.header')
+    @include('humanresource::master-data.org-structure.header')
     @include('backend.layouts.common.validation')
 
     @php
@@ -12,8 +12,11 @@
         ];
 
         $scopeLabels = [
+            'self_only' => localize('self_unit_only', 'តែអង្គភាពខ្លួនឯង'),
             'self' => localize('self_unit_only', 'តែអង្គភាពខ្លួនឯង'),
+            'self_unit_only' => localize('self_unit_same_type', 'អង្គភាពភេទដូចគ្នា'),
             'self_and_children' => localize('self_and_child_units', 'អង្គភាពខ្លួនឯង និងអង្គភាពរង'),
+            'all' => localize('all_units', 'អង្គភាពទាំងអស់'),
         ];
     @endphp
 

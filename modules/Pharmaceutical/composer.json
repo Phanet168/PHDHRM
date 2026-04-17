@@ -1,0 +1,11 @@
+{
+    "name": "modules/pharmaceutical",
+    "description": "Pharmaceutical management module",
+    "type": "laravel-module",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "Modules\\Pharmaceutical\\": ""
+        }
+    }
+}

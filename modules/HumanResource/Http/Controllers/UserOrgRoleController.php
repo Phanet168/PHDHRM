@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Validation\Rule;
 use App\Models\User;
+use Modules\HumanResource\Entities\SystemRole;
 use Modules\HumanResource\Entities\UserOrgRole;
 use Modules\HumanResource\Support\OrgUnitRuleService;
 
@@ -30,6 +31,7 @@ class UserOrgRoleController extends Controller
             ->with([
                 'user:id,full_name,email',
                 'department:id,department_name',
+                'systemRole:id,code,name,name_km',
             ]);
 
         if ($selectedUserId > 0) {
@@ -48,6 +50,12 @@ class UserOrgRoleController extends Controller
             ->get();
 
         $departments = $orgUnitRuleService->hierarchyOptions();
+
+        $systemRoles = SystemRole::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get(['id', 'code', 'name', 'name_km']);
+
         $selectedUser = null;
         if ($selectedUserId > 0) {
             $selectedUser = User::query()
@@ -68,6 +76,7 @@ class UserOrgRoleController extends Controller
         return view('humanresource::master-data.user-org-roles.index', [
             'roles' => $roles,
             'departments' => $departments,
+            'system_roles' => $systemRoles,
             'org_role_options' => UserOrgRole::roleOptions(),
             'scope_options' => UserOrgRole::scopeOptions(),
             'selected_user_id' => $selectedUserId,
@@ -146,6 +155,7 @@ class UserOrgRoleController extends Controller
             'user_id' => (int) $validated['user_id'],
             'department_id' => (int) $validated['department_id'],
             'org_role' => (string) $validated['org_role'],
+            'system_role_id' => SystemRole::where('code', $validated['org_role'])->value('id'),
             'scope_type' => (string) $validated['scope_type'],
             'effective_from' => !empty($validated['effective_from']) ? $validated['effective_from'] : null,
             'effective_to' => !empty($validated['effective_to']) ? $validated['effective_to'] : null,
@@ -182,6 +192,7 @@ class UserOrgRoleController extends Controller
             'user_id' => (int) $validated['user_id'],
             'department_id' => (int) $validated['department_id'],
             'org_role' => (string) $validated['org_role'],
+            'system_role_id' => SystemRole::where('code', $validated['org_role'])->value('id'),
             'scope_type' => (string) $validated['scope_type'],
             'effective_from' => !empty($validated['effective_from']) ? $validated['effective_from'] : null,
             'effective_to' => !empty($validated['effective_to']) ? $validated['effective_to'] : null,
