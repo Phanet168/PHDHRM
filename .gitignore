@@ -1,38 +1,43 @@
-/node_modules
-# /public/build
-/public/hot
-/public/storage
-/storage/*.key
-/storage/installed.php
-/vendor
-.env
-.env.backup
-.env.production
-.phpunit.result.cache
-Homestead.json
-Homestead.yaml
-auth.json
-npm-debug.log
-yarn-error.log
+/backend/node_modules
+/backend/package/node_modules
+# /backend/public/build
+/backend/public/hot
+/backend/public/storage
+/backend/storage/*.key
+/backend/storage/installed.php
+/backend/vendor
+/backend/.env
+/backend/.env.backup
+/backend/.env.production
+/backend/.phpunit.result.cache
+/backend/Homestead.json
+/backend/Homestead.yaml
+/backend/auth.json
+/backend/npm-debug.log
+/backend/yarn-error.log
 /.fleet
 /.idea
 /.vscode
 *.iml
 
-# Flutter / Dart
-/.dart_tool/
-/.flutter-plugins
-/.flutter-plugins-dependencies
-/.packages
-/.pub/
-/build/
+# Flutter / Dart in mobile subfolder
+/mobile/.dart_tool/
+/mobile/.flutter-plugins
+/mobile/.flutter-plugins-dependencies
+/mobile/.packages
+/mobile/.pub/
+/mobile/build/
+/mobile/*.iml
+/mobile/android/.gradle/
+/mobile/ios/Pods/
+/mobile/ios/Flutter/
 
 #ignore log files
 *.zip
 *.rar
-/public/front-assets
-/public/portfolio-assets
-/lang/*/language.php
-workflow_history.php
-/resources/js/apiClient.js
-/public/module-assets
+/backend/public/front-assets
+/backend/public/portfolio-assets
+/backend/lang/*/language.php
+/backend/workflow_history.php
+/backend/resources/js/apiClient.js
+/backend/public/module-assets

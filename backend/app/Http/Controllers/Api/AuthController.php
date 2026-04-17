@@ -8,12 +8,20 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Modules\HumanResource\Entities\Employee;
 
 class AuthController extends Controller
 {
     public function login(Request $request): JsonResponse
     {
-        $normalizedDeviceId = trim((string) ($request->input('device_id') ?? $request->input('deviceId') ?? ''));
+        $normalizedDeviceId = trim((string) (
+            $request->input('device_id')
+            ?? $request->input('deviceId')
+            ?? $request->input('device_name')
+            ?? $request->input('deviceName')
+            ?? $request->input('token_id')
+            ?? ''
+        ));
         if ($normalizedDeviceId === '') {
             return response()->json([
                 'status'  => 'error',
@@ -115,18 +123,20 @@ class AuthController extends Controller
             'message'      => 'Login successful.',
             'token_type'   => 'Bearer',
             'access_token' => $accessToken,
-            'user'         => [
-                'id'           => $user->id,
-                'full_name'    => $user->full_name,
-                'email'        => $user->email,
-                'user_type_id' => $user->user_type_id,
-            ],
+            'user'         => $this->buildUserProfilePayload($user),
         ]);
     }
 
     public function requestDeviceAccess(Request $request): JsonResponse
     {
-        $normalizedDeviceId = trim((string) ($request->input('device_id') ?? $request->input('deviceId') ?? ''));
+        $normalizedDeviceId = trim((string) (
+            $request->input('device_id')
+            ?? $request->input('deviceId')
+            ?? $request->input('device_name')
+            ?? $request->input('deviceName')
+            ?? $request->input('token_id')
+            ?? ''
+        ));
         if ($normalizedDeviceId === '') {
             return response()->json([
                 'status'  => 'error',
@@ -231,7 +241,14 @@ class AuthController extends Controller
 
     public function deviceRequestStatus(Request $request): JsonResponse
     {
-        $normalizedDeviceId = trim((string) ($request->input('device_id') ?? $request->input('deviceId') ?? ''));
+        $normalizedDeviceId = trim((string) (
+            $request->input('device_id')
+            ?? $request->input('deviceId')
+            ?? $request->input('device_name')
+            ?? $request->input('deviceName')
+            ?? $request->input('token_id')
+            ?? ''
+        ));
         if ($normalizedDeviceId === '') {
             return response()->json([
                 'status'  => 'error',
@@ -292,7 +309,14 @@ class AuthController extends Controller
 
     public function deviceHeartbeat(Request $request): JsonResponse
     {
-        $normalizedDeviceId = trim((string) ($request->input('device_id') ?? $request->input('deviceId') ?? ''));
+        $normalizedDeviceId = trim((string) (
+            $request->input('device_id')
+            ?? $request->input('deviceId')
+            ?? $request->input('device_name')
+            ?? $request->input('deviceName')
+            ?? $request->input('token_id')
+            ?? ''
+        ));
         if ($normalizedDeviceId === '') {
             return response()->json([
                 'status'  => 'error',
@@ -365,6 +389,16 @@ class AuthController extends Controller
         ]);
     }
 
+    public function profile(Request $request): JsonResponse
+    {
+        return response()->json([
+            'status' => 'ok',
+            'code' => 'employee_profile',
+            'message' => 'Employee profile retrieved successfully.',
+            'user' => $this->buildUserProfilePayload($request->user()),
+        ]);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
@@ -373,5 +407,245 @@ class AuthController extends Controller
             'status'  => 'ok',
             'message' => 'Logged out.',
         ]);
+    }
+
+    private function buildUserProfilePayload(User $user): array
+    {
+        $user->loadMissing([
+            'employee.department:id,department_name',
+            'employee.sub_department:id,department_name',
+            'employee.position:id,position_name,position_name_km',
+            'employee.gender:id,gender_name',
+            'employee.marital_status:id,marital_status_name',
+            'employee.employee_type:id,name,name_km',
+            'employee.currentPayGradeHistory.payLevel:id,level_name_km,level_code',
+            'employee.latestPayGradeHistory.payLevel:id,level_name_km,level_code',
+            'employee.profileExtra:id,employee_id,current_work_skill',
+        ]);
+
+        /** @var Employee|null $employee */
+        $employee = $user->employee;
+        if (!$employee) {
+            $employee = Employee::query()
+                ->with([
+                    'department:id,department_name',
+                    'sub_department:id,department_name',
+                    'position:id,position_name,position_name_km',
+                    'gender:id,gender_name',
+                    'marital_status:id,marital_status_name',
+                    'employee_type:id,name,name_km',
+                    'currentPayGradeHistory.payLevel:id,level_name_km,level_code',
+                    'latestPayGradeHistory.payLevel:id,level_name_km,level_code',
+                    'profileExtra:id,employee_id,current_work_skill',
+                ])
+                ->where(function ($query) use ($user) {
+                    $query->where('user_id', (int) $user->id);
+
+                    if (!empty($user->email)) {
+                        $query->orWhere('email', (string) $user->email);
+                    }
+                })
+                ->orderByRaw('CASE WHEN user_id = ? THEN 0 ELSE 1 END', [(int) $user->id])
+                ->first();
+        }
+
+        $roles = $user->getRoleNames()->values()->all();
+
+        if (!$employee) {
+            return [
+                'id' => (int) $user->id,
+                'user_id' => (int) $user->id,
+                'auth_user_id' => (int) $user->id,
+                'full_name' => (string) ($user->full_name ?? ''),
+                'name' => (string) ($user->full_name ?? ''),
+                'email' => (string) ($user->email ?? ''),
+                'user_type_id' => (int) ($user->user_type_id ?? 0),
+                'profile_pic' => $this->normalizeProfileImagePath($user->profile_image),
+                'roles' => $roles,
+                'role' => $roles[0] ?? null,
+            ];
+        }
+
+        $profilePic = $employee->profile_image ?: $user->profile_image;
+        $displayName = trim((string) ($employee->full_name ?: $user->full_name));
+        $phone = $this->normalizeText($employee->phone)
+            ?? $this->normalizeText($employee->cell_phone)
+            ?? $this->normalizeText($user->contact_no);
+        $positionDisplay = $this->normalizeText($employee->position?->position_name_km)
+            ?? $this->normalizeText($employee->position?->position_name);
+        $unitDisplay = $this->normalizeText($employee->sub_department?->department_name)
+            ?? $this->normalizeText($employee->department?->department_name);
+        $workStatus = $this->normalizeText($employee->work_status_name);
+        $skillDisplay = $this->resolveEmployeeSkill($employee);
+        $payLevelDisplay = $this->resolveEmployeePayLevel($employee);
+        $statusDisplay = $this->resolveEmployeeStatus($employee);
+
+        return [
+            'id' => (int) $employee->id,
+            'user_id' => (int) $user->id,
+            'auth_user_id' => (int) $user->id,
+            'full_name' => $displayName,
+            'name' => $displayName,
+            'first_name' => $this->normalizeText($employee->first_name),
+            'middle_name' => $this->normalizeText($employee->middle_name),
+            'last_name' => $this->normalizeText($employee->last_name),
+            'first_name_latin' => $this->normalizeText($employee->first_name_latin),
+            'last_name_latin' => $this->normalizeText($employee->last_name_latin),
+            'full_name_latin' => $this->normalizeText($employee->full_name_latin),
+            'email' => $this->normalizeText($employee->email) ?? (string) $user->email,
+            'user_type_id' => (int) ($user->user_type_id ?? 0),
+            'employee_id' => $this->normalizeText($employee->employee_id),
+            'employee_code' => $this->normalizeText($employee->employee_code),
+            'card_no' => $this->normalizeText($employee->card_no),
+            'official_id_10' => $this->normalizeText($employee->official_id_10),
+            'official_id' => $this->normalizeText($employee->official_id_10),
+            'profile_pic' => $this->normalizeProfileImagePath($profilePic),
+            'token_id' => $this->normalizeText($user->token_id),
+            'roles' => $roles,
+            'role' => $roles[0] ?? null,
+
+            // Organization
+            'department_id' => $employee->department_id ? (int) $employee->department_id : null,
+            'department_name' => $this->normalizeText($employee->department?->department_name),
+            'sub_department_id' => $employee->sub_department_id ? (int) $employee->sub_department_id : null,
+            'sub_department_name' => $this->normalizeText($employee->sub_department?->department_name),
+            'unit_name' => $unitDisplay,
+            'position_id' => $employee->position_id ? (int) $employee->position_id : null,
+            'position_name' => $this->normalizeText($employee->position?->position_name),
+            'position_name_km' => $this->normalizeText($employee->position?->position_name_km),
+            'role_display' => $positionDisplay,
+            'employee_type_id' => $employee->employee_type_id ? (int) $employee->employee_type_id : null,
+            'employee_type_name' => $this->normalizeText($employee->employee_type?->name),
+            'employee_type_name_km' => $this->normalizeText($employee->employee_type?->name_km),
+
+            // Personal
+            'phone' => $phone,
+            'mobile_no' => $phone,
+            'alternate_phone' => $this->normalizeText($employee->alternate_phone),
+            'date_of_birth' => $this->normalizeText($employee->date_of_birth),
+            'gender_id' => $employee->gender_id ? (int) $employee->gender_id : null,
+            'gender_name' => $this->normalizeText($employee->gender?->gender_name),
+            'gender_display' => $this->resolveEmployeeGenderDisplay($employee),
+            'marital_status_id' => $employee->marital_status_id ? (int) $employee->marital_status_id : null,
+            'marital_status_name' => $this->normalizeText($employee->marital_status?->marital_status_name),
+            'nationality' => $this->normalizeText($employee->nationality) ?? $this->normalizeText($employee->citizenship),
+            'religion' => $this->normalizeText($employee->religion),
+            'ethnic_group' => $this->normalizeText($employee->ethnic_group),
+            'present_address' => $this->normalizeText($employee->present_address) ?? $this->normalizeText($employee->present_address_address),
+            'permanent_address' => $this->normalizeText($employee->permanent_address) ?? $this->normalizeText($employee->permanent_address_address),
+
+            // Identity
+            'national_id_no' => $this->normalizeText($employee->national_id_no),
+            'national_id' => $this->normalizeText($employee->national_id),
+            'passport_no' => $this->normalizeText($employee->passport_no),
+            'driving_license_no' => $this->normalizeText($employee->driving_license_no),
+            'legal_document_type' => $this->normalizeText($employee->legal_document_type),
+            'legal_document_number' => $this->normalizeText($employee->legal_document_number),
+
+            // Work timeline
+            'joining_date' => $this->normalizeText($employee->joining_date),
+            'hire_date' => $this->normalizeText($employee->hire_date),
+            'service_start_date' => $this->normalizeText($employee->service_start_date),
+            'contract_start_date' => $this->normalizeText($employee->contract_start_date),
+            'contract_end_date' => $this->normalizeText($employee->contract_end_date),
+            'full_right_date' => $this->normalizeText($employee->full_right_date),
+            'is_full_right_officer' => $employee->is_full_right_officer !== null ? (int) $employee->is_full_right_officer : null,
+            'work_status_name' => $this->normalizeText($employee->work_status_name),
+            'work_status' => $workStatus,
+            'service_state' => $this->normalizeText($employee->service_state),
+            'employee_grade' => $this->normalizeText($employee->employee_grade),
+            'skill_name' => $this->normalizeText($employee->skill_name),
+            'current_work_skill' => $this->normalizeText($employee->skill_name),
+            'skill' => $skillDisplay,
+            'pay_level' => $payLevelDisplay,
+            'status' => $statusDisplay,
+        ];
+    }
+
+    private function resolveEmployeeSkill(Employee $employee): ?string
+    {
+        $skill = $this->normalizeText($employee->skill_name)
+            ?? $this->normalizeText($employee->profileExtra?->current_work_skill)
+            ?? (property_exists($employee, 'current_work_skill') ? $this->normalizeText($employee->current_work_skill) : null);
+
+        return $skill;
+    }
+
+    private function resolveEmployeePayLevel(Employee $employee): ?string
+    {
+        $current = $employee->currentPayGradeHistory?->payLevel;
+        if ($current) {
+            $km = $this->normalizeText($current->level_name_km);
+            if ($km !== null) {
+                return $km;
+            }
+
+            $code = $this->normalizeText($current->level_code);
+            if ($code !== null) {
+                return $code;
+            }
+        }
+
+        $latest = $employee->latestPayGradeHistory?->payLevel;
+        if ($latest) {
+            $km = $this->normalizeText($latest->level_name_km);
+            if ($km !== null) {
+                return $km;
+            }
+
+            $code = $this->normalizeText($latest->level_code);
+            if ($code !== null) {
+                return $code;
+            }
+        }
+
+        return $this->normalizeText($employee->employee_grade);
+    }
+
+    private function resolveEmployeeStatus(Employee $employee): string
+    {
+        $serviceState = strtolower((string) ($employee->service_state ?? ''));
+        if ($serviceState === 'suspended') {
+            return 'suspended';
+        }
+
+        return ((int) ($employee->is_active ?? 0) === 1) ? 'active' : 'inactive';
+    }
+
+    private function resolveEmployeeGenderDisplay(Employee $employee): ?string
+    {
+        $gender = mb_strtolower(trim((string) ($employee->gender?->gender_name ?? '')));
+        if (in_array($gender, ['male', 'm', 'ប្រុស'], true)) {
+            return localize('male');
+        }
+        if (in_array($gender, ['female', 'f', 'ស្រី'], true)) {
+            return localize('female');
+        }
+
+        return $this->normalizeText($employee->gender?->gender_name);
+    }
+
+    private function normalizeText(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $text = trim((string) $value);
+        return $text === '' ? null : $text;
+    }
+
+    private function normalizeProfileImagePath(mixed $value): ?string
+    {
+        $path = $this->normalizeText($value);
+        if ($path === null) {
+            return null;
+        }
+
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, 'storage/')) {
+            return $path;
+        }
+
+        return 'storage/' . ltrim($path, '/');
     }
 }
