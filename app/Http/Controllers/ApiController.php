@@ -443,11 +443,11 @@ class ApiController extends Controller
         $email = $request->get('email');
         $password =  $request->get('password');
         $token   = $request->get('token_id');
-        $deviceId = trim((string) $request->get('device_id', ''));
-        $deviceName = trim((string) $request->get('device_name', 'flutter-app'));
-        $platform = trim((string) $request->get('platform', ''));
-        $imei = trim((string) $request->get('imei', ''));
-        $fingerprint = trim((string) $request->get('fingerprint', ''));
+        $deviceId = trim((string) ($request->get('device_id') ?? $request->get('deviceId') ?? ''));
+        $deviceName = trim((string) ($request->get('device_name') ?? $request->get('deviceName') ?? 'flutter-app'));
+        $platform = trim((string) ($request->get('platform') ?? $request->get('device_platform') ?? ''));
+        $imei = trim((string) ($request->get('imei') ?? $request->get('device_imei') ?? ''));
+        $fingerprint = trim((string) ($request->get('fingerprint') ?? $request->get('device_fingerprint') ?? ''));
 
         $userInfo = $this->userData($email);
         if ($userInfo && $userInfo->profile_pic != null) {
@@ -550,88 +550,13 @@ class ApiController extends Controller
                             'updated_at' => now(),
                         ]);
                 } else {
-                    $trustedDevice = null;
-                    if ($imei !== '' || $fingerprint !== '') {
-                        $trustedQuery = DB::table('mobile_device_registrations')
-                            ->where('user_id', (int) $user->id);
-
-                        $trustedQuery->where(function ($q) use ($imei, $fingerprint) {
-                            if ($imei !== '') {
-                                $q->orWhere('imei', $imei);
-                            }
-                            if ($fingerprint !== '') {
-                                $q->orWhere('fingerprint', $fingerprint);
-                            }
-                        });
-
-                        $trustedDevice = $trustedQuery->orderByDesc('id')->first();
-                    }
-
-                    if ($trustedDevice) {
-                        if ($trustedDevice->status === 'blocked') {
-                            $json['response'] = [
-                                'status'  => localize('error'),
-                                'type'    => 'device_blocked',
-                                'message' => 'device_blocked',
-                            ];
-                            echo json_encode($json, JSON_UNESCAPED_UNICODE);
-                            return;
-                        }
-
-                        if ($trustedDevice->status === 'rejected') {
-                            $json['response'] = [
-                                'status'  => localize('error'),
-                                'type'    => 'device_rejected',
-                                'message' => 'device_rejected',
-                            ];
-                            echo json_encode($json, JSON_UNESCAPED_UNICODE);
-                            return;
-                        }
-
-                        if ($trustedDevice->status === 'pending') {
-                            $json['response'] = [
-                                'status'  => localize('error'),
-                                'type'    => 'device_pending',
-                                'message' => 'device_pending',
-                            ];
-                            echo json_encode($json, JSON_UNESCAPED_UNICODE);
-                            return;
-                        }
-
-                        DB::table('mobile_device_registrations')
-                            ->where('id', (int) $trustedDevice->id)
-                            ->update([
-                                'device_id' => $deviceId,
-                                'device_name' => ($deviceName !== '' ? $deviceName : $trustedDevice->device_name),
-                                'platform' => ($platform !== '' ? $platform : $trustedDevice->platform),
-                                'imei' => ($imei !== '' ? $imei : $trustedDevice->imei),
-                                'fingerprint' => ($fingerprint !== '' ? $fingerprint : $trustedDevice->fingerprint),
-                                'last_login_at' => now(),
-                                'updated_at' => now(),
-                            ]);
-                    } else {
-                        DB::table('mobile_device_registrations')->insert([
-                            'user_id' => (int) $user->id,
-                            'device_id' => $deviceId,
-                            'device_name' => ($deviceName !== '' ? $deviceName : null),
-                            'platform' => ($platform !== '' ? $platform : null),
-                            'imei' => ($imei !== '' ? $imei : null),
-                            'fingerprint' => ($fingerprint !== '' ? $fingerprint : null),
-                            'status' => 'pending',
-                            'register_ip' => $request->ip(),
-                            'register_ua' => substr((string) $request->userAgent(), 0, 500),
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
-
-                        $json['response'] = [
-                            'status'  => localize('error'),
-                            'type'    => 'device_pending',
-                            'message' => 'device_pending',
-                        ];
-                        echo json_encode($json, JSON_UNESCAPED_UNICODE);
-                        return;
-                    }
+                    $json['response'] = [
+                        'status'  => localize('error'),
+                        'type'    => 'device_not_registered',
+                        'message' => 'device_not_registered',
+                    ];
+                    echo json_encode($json, JSON_UNESCAPED_UNICODE);
+                    return;
                 }
 
                 $token_data = array(

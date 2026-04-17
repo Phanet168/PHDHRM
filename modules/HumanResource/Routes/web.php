@@ -380,6 +380,7 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
     // Mobile Device Management
     Route::name('mobile-devices.')->prefix('mobile-devices')->controller(MobileDeviceController::class)->group(function () {
         Route::get('/', 'index')->name('index');
+        Route::post('/store', 'store')->name('store');
         Route::post('/{device}/approve', 'approve')->name('approve');
         Route::post('/{device}/reject', 'reject')->name('reject');
         Route::post('/{device}/block', 'block')->name('block');

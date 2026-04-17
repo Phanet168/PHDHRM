@@ -3,6 +3,7 @@
 namespace Modules\HumanResource\Http\Controllers;
 
 use App\Models\MobileDeviceRegistration;
+use App\Models\User;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,6 +53,53 @@ class MobileDeviceController extends \App\Http\Controllers\Controller
         }
 
         return view('humanresource::mobile-device.index', compact('devices', 'tab', 'counts', 'search'));
+    }
+
+    public function store(Request $request, OrgScopeService $orgScopeService): RedirectResponse
+    {
+        $validated = $request->validate([
+            'user_email' => ['required', 'email'],
+            'device_id' => ['required', 'string', 'max:191'],
+            'device_name' => ['nullable', 'string', 'max:191'],
+            'platform' => ['nullable', 'in:android,ios,web'],
+            'imei' => ['nullable', 'string', 'max:50'],
+            'fingerprint' => ['nullable', 'string', 'max:255'],
+            'status' => ['required', 'in:active,blocked,pending,rejected'],
+        ]);
+
+        $user = User::query()->where('email', trim((string) $validated['user_email']))->first();
+        if (!$user) {
+            return back()->withErrors(['user_email' => localize('user_not_found', 'User not found')])->withInput();
+        }
+
+        $this->ensureUserIsAccessible($user, $orgScopeService);
+
+        $device = MobileDeviceRegistration::query()->where('user_id', (int) $user->id)
+            ->where('device_id', (string) $validated['device_id'])
+            ->first();
+
+        if ($device) {
+            return back()->withErrors(['device_id' => localize('device_id_already_registered_for_user', 'This device ID is already registered for the user')])->withInput();
+        }
+
+        MobileDeviceRegistration::create([
+            'user_id' => (int) $user->id,
+            'device_id' => trim((string) $validated['device_id']),
+            'device_name' => trim((string) ($validated['device_name'] ?? '')) ?: null,
+            'platform' => $validated['platform'] ?? null,
+            'imei' => trim((string) ($validated['imei'] ?? '')) ?: null,
+            'fingerprint' => trim((string) ($validated['fingerprint'] ?? '')) ?: null,
+            'status' => $validated['status'],
+            'approved_by' => $validated['status'] === 'active' ? auth()->id() : null,
+            'approved_at' => $validated['status'] === 'active' ? now() : null,
+            'blocked_by' => $validated['status'] === 'blocked' ? auth()->id() : null,
+            'blocked_at' => $validated['status'] === 'blocked' ? now() : null,
+            'register_ip' => $request->ip(),
+            'register_ua' => substr((string) $request->userAgent(), 0, 500),
+        ]);
+
+        Toastr::success(localize('device_registered_success', 'Device has been registered successfully'));
+        return redirect()->route('mobile-devices.index', ['tab' => $validated['status'] === 'rejected' ? 'rejected' : ($validated['status'] === 'blocked' ? 'blocked' : ($validated['status'] === 'pending' ? 'pending' : 'active'))]);
     }
 
     public function approve(Request $request, MobileDeviceRegistration $device): RedirectResponse
@@ -145,6 +193,24 @@ class MobileDeviceController extends \App\Http\Controllers\Controller
         $user = $device->user;
         if ($user && $device->device_name) {
             $user->tokens()->where('name', $device->device_name)->delete();
+        }
+    }
+
+    private function ensureUserIsAccessible(User $user, OrgScopeService $orgScopeService): void
+    {
+        $accessibleIds = $orgScopeService->accessibleDepartmentIds();
+        if ($accessibleIds === null) {
+            return;
+        }
+
+        $employee = $user->employee;
+        $allowed = $employee && (
+            in_array((int) ($employee->department_id ?? 0), $accessibleIds, true)
+            || in_array((int) ($employee->sub_department_id ?? 0), $accessibleIds, true)
+        );
+
+        if (!$allowed) {
+            abort(403, 'You are not allowed to register device for this user.');
         }
     }
 }

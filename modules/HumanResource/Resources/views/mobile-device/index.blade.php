@@ -11,6 +11,54 @@
             </h6>
         </div>
 
+        <div class="card-body border-bottom">
+            <h6 class="mb-3">{{ localize('manual_device_registration', 'បញ្ចូលឧបករណ៍ដោយដៃ') }}</h6>
+            <form method="POST" action="{{ route('mobile-devices.store') }}" class="row g-2 align-items-end">
+                @csrf
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">{{ localize('user_email', 'អ៊ីមែលអ្នកប្រើ') }}</label>
+                    <input type="email" name="user_email" class="form-control" value="{{ old('user_email') }}" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">{{ localize('device_id', 'លេខឧបករណ៍') }}</label>
+                    <input type="text" name="device_id" class="form-control" value="{{ old('device_id') }}" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">{{ localize('device_name', 'ឈ្មោះឧបករណ៍') }}</label>
+                    <input type="text" name="device_name" class="form-control" value="{{ old('device_name') }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">{{ localize('platform', 'វេទិកា') }}</label>
+                    <select name="platform" class="form-select">
+                        <option value="">--</option>
+                        <option value="android" @selected(old('platform') === 'android')>android</option>
+                        <option value="ios" @selected(old('platform') === 'ios')>ios</option>
+                        <option value="web" @selected(old('platform') === 'web')>web</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">{{ localize('status', 'ស្ថានភាព') }}</label>
+                    <select name="status" class="form-select" required>
+                        <option value="active" @selected(old('status', 'active') === 'active')>active</option>
+                        <option value="pending" @selected(old('status') === 'pending')>pending</option>
+                        <option value="blocked" @selected(old('status') === 'blocked')>blocked</option>
+                        <option value="rejected" @selected(old('status') === 'rejected')>rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">IMEI</label>
+                    <input type="text" name="imei" class="form-control" value="{{ old('imei') }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Fingerprint</label>
+                    <input type="text" name="fingerprint" class="form-control" value="{{ old('fingerprint') }}">
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-primary">{{ localize('save', 'រក្សាទុក') }}</button>
+                </div>
+            </form>
+        </div>
+
         {{-- Status Tabs --}}
         <div class="card-body border-bottom pb-0 pt-2">
             <ul class="nav nav-tabs border-0">
