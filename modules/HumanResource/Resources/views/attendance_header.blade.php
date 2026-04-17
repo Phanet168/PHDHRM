@@ -37,12 +37,6 @@
                         href="{{ route('attendances.qrCreate') }}">{{ localize('qr_attendance', 'QR attendance') }}</a>
                 </li>
             @endcan
-            @can('read_attendance')
-                <li class="nav-item">
-                    <a class="nav-link mt-0 {{ request()->routeIs('mobile-devices.*') ? 'active' : '' }}"
-                        href="{{ route('mobile-devices.index') }}">{{ localize('mobile_devices', 'ឧបករណ៍ទូរសព្ទ') }}</a>
-                </li>
-            @endcan
         </ul>
     </div>
 </div>

@@ -290,6 +290,81 @@ class AuthController extends Controller
         ]);
     }
 
+    public function deviceHeartbeat(Request $request): JsonResponse
+    {
+        $normalizedDeviceId = trim((string) ($request->input('device_id') ?? $request->input('deviceId') ?? ''));
+        if ($normalizedDeviceId === '') {
+            return response()->json([
+                'status'  => 'error',
+                'code'    => 'device_id_required',
+                'message' => 'Device ID is required.',
+            ], 422);
+        }
+
+        $request->merge([
+            'device_id' => $normalizedDeviceId,
+            'device_name' => $request->input('device_name') ?? $request->input('deviceName') ?? $request->input('device_model'),
+            'platform' => $request->input('platform') ?? $request->input('device_platform'),
+        ]);
+
+        $validated = $request->validate([
+            'device_id' => ['required', 'string', 'max:191'],
+            'device_name' => ['nullable', 'string', 'max:191'],
+            'platform' => ['nullable', 'in:android,ios,web'],
+        ]);
+
+        $user = $request->user();
+        $device = MobileDeviceRegistration::query()
+            ->where('user_id', (int) $user->id)
+            ->where('device_id', trim((string) $validated['device_id']))
+            ->first();
+
+        if (!$device) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 'device_not_registered',
+                'message' => 'This device is not registered.',
+            ], 404);
+        }
+
+        if ($device->isBlocked()) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 'device_blocked',
+                'message' => 'This device has been blocked. Please contact your administrator.',
+            ], 403);
+        }
+
+        if ($device->isRejected()) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 'device_rejected',
+                'message' => 'Your device registration was rejected. Please contact your administrator.',
+            ], 403);
+        }
+
+        if ($device->isPending()) {
+            return response()->json([
+                'status' => 'error',
+                'code' => 'device_pending',
+                'message' => 'Your device is waiting for administrator approval.',
+            ], 403);
+        }
+
+        $device->update([
+            'device_name' => trim((string) ($validated['device_name'] ?? '')) ?: $device->device_name,
+            'platform' => $validated['platform'] ?? $device->platform,
+            'last_login_at' => now(),
+        ]);
+
+        return response()->json([
+            'status' => 'ok',
+            'code' => 'device_online',
+            'message' => 'Device heartbeat received.',
+            'last_seen_at' => optional($device->fresh()->last_login_at)?->toDateTimeString(),
+        ]);
+    }
+
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();

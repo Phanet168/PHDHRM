@@ -29,12 +29,12 @@
                 @endcan
 
                 @can('read_attendance')
-                    <li class="{{ request()->routeIs('attendances.*') || request()->routeIs('mobile-devices.*') ? 'mm-active' : '' }}">
+                    <li class="{{ request()->routeIs('attendances.*') ? 'mm-active' : '' }}">
                         <a class="has-arrow material-ripple" href="#">
                             <i class="fa fa-user"></i>
                             <span> {{ localize('attendance') }}</span>
                         </a>
-                        <ul class="nav-second-level {{ request()->routeIs('attendances.*') || request()->routeIs('mobile-devices.*') ? 'mm-show' : '' }}">
+                        <ul class="nav-second-level {{ request()->routeIs('attendances.*') ? 'mm-show' : '' }}">
                             @can('read_attendance')
                                 <li class="{{ request()->routeIs('attendances.workflow') ? 'mm-active' : '' }}">
                                     <a class="dropdown-item"
@@ -58,10 +58,6 @@
                                             href="{{ route('attendances.missingAttendance') }}">{{ localize('missing_attendance') }}</a>
                                     </li>
                                 @endcan
-                                <li class="{{ request()->routeIs('mobile-devices.*') ? 'mm-active' : '' }}">
-                                    <a class="dropdown-item"
-                                        href="{{ route('mobile-devices.index') }}">{{ localize('mobile_device_management', 'គ្រប់គ្រងទូរសព្ទមន្រ្តី') }}</a>
-                                </li>
                             @endcan
                         </ul>
                     </li>

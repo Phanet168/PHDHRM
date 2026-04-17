@@ -92,6 +92,9 @@ class ManualAttendanceController extends Controller
     {
         $today = Carbon::today()->toDateString();
         $accessibleDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
+        $onlineWindowMinutes = max(1, (int) config('humanresource.attendance.device_online_window_minutes', 10));
+        $onlineSince = Carbon::now()->subMinutes($onlineWindowMinutes);
+        $recentActivityLimit = max(1, min(50, (int) config('humanresource.attendance.device_recent_activity_limit', 12)));
 
         $employeeQuery = $this->scopedEmployeeQuery($orgScopeService);
         $employeeIds = $employeeQuery->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -105,6 +108,26 @@ class ManualAttendanceController extends Controller
             });
         }
 
+        $activeDeviceCount = (clone $deviceQuery)->where('status', 'active')->count();
+        $onlineDeviceCount = (clone $deviceQuery)
+            ->where('status', 'active')
+            ->whereNotNull('last_login_at')
+            ->where('last_login_at', '>=', $onlineSince)
+            ->count();
+        $offlineDeviceCount = max(0, $activeDeviceCount - $onlineDeviceCount);
+
+        $recentDeviceActivity = (clone $deviceQuery)
+            ->orderByRaw('COALESCE(last_login_at, created_at) DESC')
+            ->limit($recentActivityLimit)
+            ->get()
+            ->map(function (MobileDeviceRegistration $device) use ($onlineSince) {
+                $isOnline = $device->status === 'active'
+                    && $device->last_login_at !== null
+                    && $device->last_login_at->greaterThanOrEqualTo($onlineSince);
+                $device->is_online = $isOnline;
+                return $device;
+            });
+
         $workflow = [
             'employees_in_scope' => count($employeeIds),
             'today_attendance' => empty($employeeIds) ? 0 : Attendance::query()->whereIn('employee_id', $employeeIds)->whereDate('time', $today)->distinct('employee_id')->count('employee_id'),
@@ -113,8 +136,12 @@ class ManualAttendanceController extends Controller
                 $query->whereDate('time', $today);
             })->count(),
             'device_pending' => (clone $deviceQuery)->where('status', 'pending')->count(),
-            'device_active' => (clone $deviceQuery)->where('status', 'active')->count(),
+            'device_active' => $activeDeviceCount,
             'device_blocked' => (clone $deviceQuery)->where('status', 'blocked')->count(),
+            'device_online' => $onlineDeviceCount,
+            'device_offline' => $offlineDeviceCount,
+            'device_online_window_minutes' => $onlineWindowMinutes,
+            'device_recent_activity' => $recentDeviceActivity,
             'qr_units' => is_array($accessibleDepartmentIds)
                 ? $orgUnitRuleService->hierarchyOptions()->filter(fn ($option) => in_array((int) data_get($option, 'id', 0), array_map('intval', $accessibleDepartmentIds), true))->count()
                 : $orgUnitRuleService->hierarchyOptions()->count(),

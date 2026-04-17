@@ -2,13 +2,16 @@
 @section('title', localize('mobile_devices', 'ឧបករណ៍ទូរសព្ទ'))
 
 @section('content')
-    @include('humanresource::attendance_header')
-
     <div class="card mb-4">
         <div class="card-header">
-            <h6 class="fs-17 fw-semi-bold mb-0">
-                {{ localize('mobile_device_management', 'ការគ្រប់គ្រងឧបករណ៍ទូរសព្ទ') }}
-            </h6>
+            <div class="d-flex justify-content-between align-items-center">
+                <h6 class="fs-17 fw-semi-bold mb-0">
+                    {{ localize('mobile_device_management', 'ការគ្រប់គ្រងឧបករណ៍ទូរសព្ទ') }}
+                </h6>
+                <a href="{{ route('role.user.list') }}" class="btn btn-outline-secondary btn-sm">
+                    {{ localize('back_to_user_list', 'ត្រលប់ទៅបញ្ជីអ្នកប្រើ') }}
+                </a>
+            </div>
         </div>
 
         <div class="card-body border-bottom">

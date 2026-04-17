@@ -54,6 +54,35 @@ class UserListDataTable extends DataTable
 
                 return $html !== '' ? $html : '<span class="text-muted">-</span>';
             })
+            ->addColumn('mobile_devices', function ($data) {
+                $total = (int) ($data->devices_total_count ?? 0);
+                if ($total < 1) {
+                    return '<span class="text-muted">-</span>';
+                }
+
+                $badges = [];
+                $badges[] = '<span class="badge bg-primary rounded-pill me-1 mb-1">' . e(localize('total', 'Total')) . ': ' . $total . '</span>';
+
+                $pending = (int) ($data->devices_pending_count ?? 0);
+                $active = (int) ($data->devices_active_count ?? 0);
+                $blocked = (int) ($data->devices_blocked_count ?? 0);
+                $rejected = (int) ($data->devices_rejected_count ?? 0);
+
+                if ($pending > 0) {
+                    $badges[] = '<span class="badge bg-warning rounded-pill me-1 mb-1">' . e(localize('pending', 'Pending')) . ': ' . $pending . '</span>';
+                }
+                if ($active > 0) {
+                    $badges[] = '<span class="badge bg-success rounded-pill me-1 mb-1">' . e(localize('active', 'Active')) . ': ' . $active . '</span>';
+                }
+                if ($blocked > 0) {
+                    $badges[] = '<span class="badge bg-danger rounded-pill me-1 mb-1">' . e(localize('blocked', 'Blocked')) . ': ' . $blocked . '</span>';
+                }
+                if ($rejected > 0) {
+                    $badges[] = '<span class="badge bg-secondary rounded-pill me-1 mb-1">' . e(localize('rejected', 'Rejected')) . ': ' . $rejected . '</span>';
+                }
+
+                return implode('', $badges);
+            })
             ->addColumn('image', function ($data) {
                 if (!empty($data->profile_image)) {
                     $image = "<img src='" . asset('storage/' . $data->profile_image) . "' class='img-fluid rounded-circle' width='35' height='35' alt='user'>";
@@ -86,7 +115,7 @@ class UserListDataTable extends DataTable
 
             })
 
-            ->rawColumns(['user_role', 'user_org_roles', 'image', 'status', 'action']);
+            ->rawColumns(['user_role', 'user_org_roles', 'mobile_devices', 'image', 'status', 'action']);
 
     }
 
@@ -97,6 +126,21 @@ class UserListDataTable extends DataTable
     {
         return $model->newQuery()
             ->with(['userRole', 'orgRoles.department'])
+            ->withCount([
+                'mobileDeviceRegistrations as devices_total_count',
+                'mobileDeviceRegistrations as devices_pending_count' => function ($query) {
+                    $query->where('status', 'pending');
+                },
+                'mobileDeviceRegistrations as devices_active_count' => function ($query) {
+                    $query->where('status', 'active');
+                },
+                'mobileDeviceRegistrations as devices_blocked_count' => function ($query) {
+                    $query->where('status', 'blocked');
+                },
+                'mobileDeviceRegistrations as devices_rejected_count' => function ($query) {
+                    $query->where('status', 'rejected');
+                },
+            ])
             ->orderBy('id', orderByData($this->request->get('order')));
     }
 
@@ -146,6 +190,10 @@ class UserListDataTable extends DataTable
             Column::make('contact_no')
                 ->title(localize('mobile'))
                 ->searchable(true),
+            Column::make('mobile_devices')
+                ->title(localize('mobile_device_management', 'Mobile Device Management'))
+                ->searchable(false)
+                ->orderable(false),
             Column::make('user_role')
                 ->title(localize('role'))
                 ->searchable(true),

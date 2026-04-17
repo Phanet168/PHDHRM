@@ -32,6 +32,8 @@ Route::post('/auth/device-request-status', [AuthController::class, 'deviceReques
 Route::post('/auth/device_request_status', [AuthController::class, 'deviceRequestStatus'])->name('api.auth.device_request_status_legacy');
 Route::post('/device-request-status', [AuthController::class, 'deviceRequestStatus'])->name('api.device_request_status');
 Route::post('/device_request_status', [AuthController::class, 'deviceRequestStatus'])->name('api.device_request_status_legacy');
+Route::middleware('auth:sanctum')->post('/auth/device-heartbeat', [AuthController::class, 'deviceHeartbeat'])->name('api.auth.device_heartbeat');
+Route::middleware('auth:sanctum')->post('/auth/device_heartbeat', [AuthController::class, 'deviceHeartbeat'])->name('api.auth.device_heartbeat_legacy');
 Route::middleware('auth:sanctum')->post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
 
 Route::controller(ApiController::class)->group(function () {
