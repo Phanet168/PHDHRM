@@ -25,6 +25,7 @@ class AuthUser {
     this.cardNo,
     this.employeeCode,
     this.position,
+    this.positionKm,
     this.joiningDate,
     this.hireDate,
     this.serviceStartDate,
@@ -36,6 +37,7 @@ class AuthUser {
     this.legalDocumentNumber,
     this.workStatusName,
     this.employeeGrade,
+    this.employeeGradeKm,
     this.skillName,
   });
 
@@ -64,6 +66,7 @@ class AuthUser {
   final String? cardNo;
   final String? employeeCode;
   final String? position;
+  final String? positionKm;
   final String? joiningDate;
   final String? hireDate;
   final String? serviceStartDate;
@@ -75,6 +78,7 @@ class AuthUser {
   final String? legalDocumentNumber;
   final String? workStatusName;
   final String? employeeGrade;
+  final String? employeeGradeKm;
   final String? skillName;
 
   factory AuthUser.fromJson(Map<String, dynamic> json) {
@@ -162,6 +166,7 @@ class AuthUser {
       cardNo: json['card_no'] as String?,
       employeeCode: json['employee_code'] as String?,
       position: json['position_name'] as String?,
+      positionKm: json['position_name_km'] as String?,
       joiningDate: json['joining_date'] as String?,
       hireDate: json['hire_date'] as String?,
       serviceStartDate:
@@ -176,6 +181,7 @@ class AuthUser {
       legalDocumentNumber: json['legal_document_number'] as String?,
       workStatusName: json['work_status_name'] as String?,
       employeeGrade: json['employee_grade'] as String?,
+      employeeGradeKm: json['employee_grade_km'] as String?,
       skillName:
           (json['skill_name'] as String?)?.isNotEmpty == true
               ? json['skill_name'] as String
@@ -207,6 +213,7 @@ class AuthUser {
       if (cardNo != null) 'card_no': cardNo,
       if (employeeCode != null) 'employee_code': employeeCode,
       if (position != null) 'position_name': position,
+      if (positionKm != null) 'position_name_km': positionKm,
       if (joiningDate != null) 'joining_date': joiningDate,
       if (hireDate != null) 'hire_date': hireDate,
       if (serviceStartDate != null) 'service_start_date': serviceStartDate,
@@ -220,6 +227,7 @@ class AuthUser {
         'legal_document_number': legalDocumentNumber,
       if (workStatusName != null) 'work_status_name': workStatusName,
       if (employeeGrade != null) 'employee_grade': employeeGrade,
+      if (employeeGradeKm != null) 'employee_grade_km': employeeGradeKm,
       if (skillName != null) 'skill_name': skillName,
     };
   }

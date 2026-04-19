@@ -560,6 +560,7 @@ class AuthController extends Controller
             'work_status' => $workStatus,
             'service_state' => $this->normalizeText($employee->service_state),
             'employee_grade' => $this->normalizeText($employee->employee_grade),
+            'employee_grade_km' => $payLevelDisplay,
             'skill_name' => $this->normalizeText($employee->skill_name),
             'current_work_skill' => $this->normalizeText($employee->skill_name),
             'skill' => $skillDisplay,
