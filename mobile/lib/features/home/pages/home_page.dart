@@ -4,6 +4,7 @@ import '../../../core/localization/laravel_language_service.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../models/attendance_day_record.dart';
 import '../models/dashboard_summary.dart';
+import 'attendance_scan_page.dart';
 import '../services/home_attendance_service.dart';
 import '../services/home_dashboard_service.dart';
 
@@ -78,6 +79,41 @@ class _HomePageState extends State<HomePage> {
     }
 
     return _attendanceService.fetchAttendanceHistory(user);
+  }
+
+  Future<void> _openAttendanceScanner(Map<String, String> language) async {
+    final user = widget.authController.currentUser;
+    if (user == null) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr(language, 'wrong_info_alert', 'User session not found'),
+          ),
+          backgroundColor: const Color(0xFFD34B5F),
+        ),
+      );
+      return;
+    }
+
+    final shouldRefresh = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder:
+            (_) => AttendanceScanPage(
+              user: user,
+              attendanceService: _attendanceService,
+            ),
+      ),
+    );
+
+    if (shouldRefresh == true && mounted) {
+      setState(() {
+        _attendanceFuture = _loadAttendance();
+      });
+    }
   }
 
   Widget _buildProfileSection(
@@ -601,6 +637,17 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildAttendance(Map<String, String> language) {
+    final scanAction = _AttendanceScanActionCard(
+      title: _tr(language, 'qr_attendance', 'QR Attendance'),
+      description: _tr(
+        language,
+        'confirm_attendance',
+        'Scan workplace QR and submit attendance with current GPS location.',
+      ),
+      buttonText: _tr(language, 'qr_scan', 'Scan QR'),
+      onPressed: () => _openAttendanceScanner(language),
+    );
+
     return RefreshIndicator(
       onRefresh: _refresh,
       child: FutureBuilder<List<AttendanceDayRecord>>(
@@ -608,8 +655,12 @@ class _HomePageState extends State<HomePage> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return ListView(
-              padding: const EdgeInsets.symmetric(vertical: 120),
-              children: const [Center(child: CircularProgressIndicator())],
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              children: [
+                scanAction,
+                const SizedBox(height: 24),
+                const Center(child: CircularProgressIndicator()),
+              ],
             );
           }
 
@@ -617,6 +668,8 @@ class _HomePageState extends State<HomePage> {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                scanAction,
+                const SizedBox(height: 12),
                 _ErrorStateCard(
                   title: _tr(language, 'attendance_list', 'Attendance'),
                   message: '${snapshot.error}',
@@ -631,6 +684,8 @@ class _HomePageState extends State<HomePage> {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                scanAction,
+                const SizedBox(height: 12),
                 _SectionCard(
                   title: _menuTitle(_selectedMenu, language),
                   description: _tr(
@@ -643,24 +698,26 @@ class _HomePageState extends State<HomePage> {
             );
           }
 
-          return ListView.separated(
+          return ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            itemCount: records.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              final record = records[index];
-              return _AttendanceRecordCard(
-                date: record.date,
-                timeInLabel: _tr(language, 'in_time', 'In'),
-                timeIn: record.timeIn,
-                timeOutLabel: _tr(language, 'out_time', 'Out'),
-                timeOut: record.timeOut,
-                totalLabel: _tr(language, 'total_hours', 'Total Hours'),
-                totalHours: record.totalHours,
-                punchesLabel: _tr(language, 'attendance_list', 'Punches'),
-                punchCount: record.punchCount.toString(),
-              );
-            },
+            children: [
+              scanAction,
+              const SizedBox(height: 12),
+              for (final record in records) ...[
+                _AttendanceRecordCard(
+                  date: record.date,
+                  timeInLabel: _tr(language, 'in_time', 'In'),
+                  timeIn: record.timeIn,
+                  timeOutLabel: _tr(language, 'out_time', 'Out'),
+                  timeOut: record.timeOut,
+                  totalLabel: _tr(language, 'total_hours', 'Total Hours'),
+                  totalHours: record.totalHours,
+                  punchesLabel: _tr(language, 'attendance_list', 'Punches'),
+                  punchCount: record.punchCount.toString(),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ],
           );
         },
       ),
@@ -1123,6 +1180,85 @@ class _NoticePanel extends StatelessWidget {
                   ),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AttendanceScanActionCard extends StatelessWidget {
+  const _AttendanceScanActionCard({
+    required this.title,
+    required this.description,
+    required this.buttonText,
+    required this.onPressed,
+  });
+
+  final String title;
+  final String description;
+  final String buttonText;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE8F4FF), Color(0xFFEAF8F2)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        border: Border.all(color: const Color(0xFFCDE0F0)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.qr_code_scanner_outlined,
+                    color: Color(0xFF174C88),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFF14211D),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              description,
+              style: const TextStyle(
+                color: Color(0xFF2A3B36),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: onPressed,
+              icon: const Icon(Icons.qr_code),
+              label: Text(buttonText),
+            ),
           ],
         ),
       ),

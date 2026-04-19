@@ -77,11 +77,13 @@ class ApiService {
     final headers = await _buildHeaders(requiresAuth: requiresAuth);
 
     final uriCandidates = ApiConfig.buildUriCandidates(path, queryParameters);
+    final attemptedUris = <String>[];
     ApiException? lastNetworkError;
 
     for (var i = 0; i < uriCandidates.length; i++) {
       final uri = uriCandidates[i];
       final isLastCandidate = i == uriCandidates.length - 1;
+      attemptedUris.add(uri.toString());
 
       try {
         late final http.Response response;
@@ -122,20 +124,25 @@ class ApiService {
         return _decodeResponse(response);
       } on TimeoutException {
         lastNetworkError = ApiException(
-          message: 'ការភ្ជាប់ទៅ server អស់ពេលកំណត់',
+          message: 'Connection timeout. Tried: ${attemptedUris.join(' | ')}',
         );
         if (isLastCandidate) {
           throw lastNetworkError;
         }
       } on http.ClientException catch (error) {
-        lastNetworkError = ApiException(message: error.message);
+        lastNetworkError = ApiException(
+          message: '${error.message}. Tried: ${attemptedUris.join(' | ')}',
+        );
         if (isLastCandidate) {
           throw lastNetworkError;
         }
       }
     }
 
-    throw lastNetworkError ?? ApiException(message: 'សំណើមិនបានជោគជ័យ');
+    throw lastNetworkError ??
+        ApiException(
+          message: 'Request failed. Tried: ${attemptedUris.join(' | ')}',
+        );
   }
 
   Future<Map<String, String>> _buildHeaders({
@@ -163,7 +170,7 @@ class ApiService {
 
     if (response.statusCode == 401) {
       throw UnauthorizedException(
-        message: _extractMessage(responseBody, fallback: 'Session ផុតសុពលភាព'),
+        message: _extractMessage(responseBody, fallback: 'Session expired'),
       );
     }
 
@@ -174,7 +181,7 @@ class ApiService {
           fallback:
               response.statusCode >= 500
                   ? 'Server error (${response.statusCode})'
-                  : 'សំណើមិនបានជោគជ័យ',
+                  : 'Request failed',
         ),
         statusCode: response.statusCode,
       );
@@ -202,7 +209,7 @@ class ApiService {
 
   String _extractMessage(
     Map<String, dynamic> body, {
-    String fallback = 'សំណើមិនបានជោគជ័យ',
+    String fallback = 'Request failed',
   }) {
     final message = body['message'] ?? body['error'];
     if (message is String && message.trim().isNotEmpty) {

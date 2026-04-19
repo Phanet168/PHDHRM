@@ -56,6 +56,8 @@ Route::controller(ApiController::class)->group(function () {
     Route::post('/recovery_submit/{token_id}','recoverySubmit')->name('recovery_submit');
 
     Route::match(['get', 'post'], '/add_attendance', 'addAttendance')->name('api.add_attendance');
+    Route::post('/attendance_scan_log', 'attendanceScanLog')->name('api.attendance_scan_log');
+    Route::get('/attendance_scan_logs', 'attendanceScanLogs')->name('api.attendance_scan_logs');
 
     Route::get('/attendance_history','attendanceHistory')->name('attendance_history');
     Route::get('/attendance_datewise','attendanceDatewise')->name('attendance_datewise');

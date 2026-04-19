@@ -7,10 +7,12 @@ use Illuminate\Validation\ValidationException;
 use Modules\Setting\Entities\Application;
 use App\Models\User;
 use App\Models\Appsetting;
+use App\Models\AttendanceScanLog;
 use Modules\HumanResource\Entities\Employee;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Modules\HumanResource\Entities\Attendance;
+use Modules\HumanResource\Entities\Department;
 use Modules\HumanResource\Entities\Notice;
 use Modules\HumanResource\Entities\Loan;
 use Modules\HumanResource\Entities\ApplyLeave;
@@ -20,6 +22,7 @@ use Modules\HumanResource\Entities\LeaveType;
 use Modules\HumanResource\Services\AttendanceCaptureService;
 use Modules\HumanResource\Services\QrAttendanceTokenService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Support\Str;
 
@@ -218,13 +221,64 @@ class ApiController extends Controller
         $employee_id = $request->get('employee_id');
         $time = $request->get('datetime');
         $userid = $request->get('user_id');
+        $requestedWorkplaceId = (int) $request->get('workplace_id', 0);
         $qrToken = (string) $request->get('qr_token', '');
         $qrPayloadRaw = $request->get('qr_payload');
+        $employeeId = (int) $employee_id;
+        $userId = is_numeric($userid) ? (int) $userid : null;
+
+        $scanLogContext = [
+            'employee_id' => $employeeId > 0 ? $employeeId : null,
+            'user_id' => $userId,
+            'workplace_id' => null,
+            'latitude' => $ulatitude,
+            'longitude' => $ulongitude,
+            'scanned_at' => $this->parseScanTime($time),
+            'qr_token' => $qrToken,
+            'meta_payload' => [
+                'source' => 'add_attendance',
+            ],
+        ];
+
+        if (!is_numeric($ulatitude) || !is_numeric($ulongitude)) {
+            $message = localize('location_required', 'Valid location is required');
+            $scanLogId = $this->recordAttendanceScanEvent(array_merge($scanLogContext, [
+                'status' => 'error',
+                'error_code' => 'location_required',
+                'message' => $message,
+            ]));
+            $json['response'] = [
+                'status' => 'error',
+                'error_code' => 'location_required',
+                'scan_log_id' => $scanLogId,
+                'message' => $message,
+            ];
+            echo json_encode($json, JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        if ($employeeId <= 0) {
+            $message = localize('employee_not_found', 'Employee not found');
+            $scanLogId = $this->recordAttendanceScanEvent(array_merge($scanLogContext, [
+                'status' => 'error',
+                'error_code' => 'employee_not_found',
+                'message' => $message,
+            ]));
+            $json['response'] = [
+                'status' => 'error',
+                'error_code' => 'employee_not_found',
+                'scan_log_id' => $scanLogId,
+                'message' => $message,
+            ];
+            echo json_encode($json, JSON_UNESCAPED_UNICODE);
+            return;
+        }
 
         if ($qrToken === '' && is_string($qrPayloadRaw) && trim($qrPayloadRaw) !== '') {
             $decodedPayload = json_decode($qrPayloadRaw, true);
             if (is_array($decodedPayload) && isset($decodedPayload['qr_token'])) {
                 $qrToken = (string) $decodedPayload['qr_token'];
+                $scanLogContext['qr_token'] = $qrToken;
             }
         }
 
@@ -237,21 +291,66 @@ class ApiController extends Controller
                 $qrClaims = QrAttendanceTokenService::verify($qrToken);
                 $resolvedWorkplaceId = (int) ($qrClaims['wid'] ?? 0);
             } catch (\Throwable $e) {
+                $message = localize('invalid_or_expired_qr', 'Invalid or expired QR token');
+                $scanLogId = $this->recordAttendanceScanEvent(array_merge($scanLogContext, [
+                    'status' => 'error',
+                    'error_code' => 'invalid_qr',
+                    'message' => $message,
+                ]));
                 $json['response'] = [
                     'status' => 'error',
-                    'message' => localize('invalid_or_expired_qr', 'Invalid or expired QR token'),
+                    'error_code' => 'invalid_qr',
+                    'scan_log_id' => $scanLogId,
+                    'message' => $message,
                 ];
                 echo json_encode($json, JSON_UNESCAPED_UNICODE);
                 return;
             }
         } elseif ($requireQrToken) {
+            $message = localize('qr_token_required', 'QR token is required');
+            $scanLogId = $this->recordAttendanceScanEvent(array_merge($scanLogContext, [
+                'status' => 'error',
+                'error_code' => 'qr_token_required',
+                'message' => $message,
+            ]));
             $json['response'] = [
                 'status' => 'error',
-                'message' => localize('qr_token_required', 'QR token is required'),
+                'error_code' => 'qr_token_required',
+                'scan_log_id' => $scanLogId,
+                'message' => $message,
             ];
             echo json_encode($json, JSON_UNESCAPED_UNICODE);
             return;
         }
+
+        $employee = Employee::query()
+            ->select('id', 'department_id', 'sub_department_id')
+            ->find($employeeId);
+        if (!$employee) {
+            $message = localize('employee_not_found', 'Employee not found');
+            $scanLogId = $this->recordAttendanceScanEvent(array_merge($scanLogContext, [
+                'status' => 'error',
+                'error_code' => 'employee_not_found',
+                'message' => $message,
+            ]));
+            $json['response'] = [
+                'status' => 'error',
+                'error_code' => 'employee_not_found',
+                'scan_log_id' => $scanLogId,
+                'message' => $message,
+            ];
+            echo json_encode($json, JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        if (empty($resolvedWorkplaceId) || $resolvedWorkplaceId <= 0) {
+            if ($requestedWorkplaceId > 0) {
+                $resolvedWorkplaceId = $requestedWorkplaceId;
+            } else {
+                $resolvedWorkplaceId = (int) ($employee->sub_department_id ?: $employee->department_id ?: 0);
+            }
+        }
+        $scanLogContext['workplace_id'] = $resolvedWorkplaceId > 0 ? (int) $resolvedWorkplaceId : null;
 
         $userInfo = User::query()->find($userid);
         $user_data = null;
@@ -265,45 +364,114 @@ class ApiController extends Controller
 
         $settingdata = Appsetting::first();
         if (!$settingdata) {
+            $message = localize('settings_not_found', 'Settings not found');
+            $scanLogId = $this->recordAttendanceScanEvent(array_merge($scanLogContext, [
+                'status' => 'error',
+                'error_code' => 'settings_not_found',
+                'message' => $message,
+            ]));
             $json['response'] = [
                 'status' => 'error',
-                'message' => localize('settings_not_found', 'Settings not found'),
+                'error_code' => 'settings_not_found',
+                'scan_log_id' => $scanLogId,
+                'message' => $message,
             ];
             echo json_encode($json, JSON_UNESCAPED_UNICODE);
             return;
         }
 
-        $lat1 = (float) ($settingdata->latitude ?? 0);
-        $lon1 = (float) ($settingdata->longitude ?? 0);
-        $lat2 = (float) $ulatitude;
-        $lon2 = (float) $ulongitude;
-        $theta = $lon1 - $lon2;
+        $acceptableRange = (float) ($settingdata->acceptablerange ?? 0);
+        if ($acceptableRange <= 0) {
+            $message = localize('invalid_attendance_range', 'Attendance range is not configured');
+            $scanLogId = $this->recordAttendanceScanEvent(array_merge($scanLogContext, [
+                'status' => 'error',
+                'error_code' => 'invalid_attendance_range',
+                'message' => $message,
+            ]));
+            $json['response'] = [
+                'status' => 'error',
+                'error_code' => 'invalid_attendance_range',
+                'scan_log_id' => $scanLogId,
+                'message' => $message,
+            ];
+            echo json_encode($json, JSON_UNESCAPED_UNICODE);
+            return;
+        }
 
-        $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
-        $dist = acos($dist);
-        $dist = rad2deg($dist);
-        $miles = $dist * 60 * 1.1515;
-        $metre = ($miles * 1.609344) * 1000;
+        $geofenceLatitude = is_numeric($settingdata->latitude) ? (float) $settingdata->latitude : null;
+        $geofenceLongitude = is_numeric($settingdata->longitude) ? (float) $settingdata->longitude : null;
+        $geofenceSource = 'global';
+        $workplace = null;
 
-        $distance = number_format($metre, 1);
+        if ($resolvedWorkplaceId > 0) {
+            $workplace = Department::withoutGlobalScopes()
+                ->select('id', 'department_name', 'latitude', 'longitude')
+                ->find((int) $resolvedWorkplaceId);
 
-        if ($settingdata->acceptablerange > $distance) {
+            if ($workplace && is_numeric($workplace->latitude) && is_numeric($workplace->longitude)) {
+                $geofenceLatitude = (float) $workplace->latitude;
+                $geofenceLongitude = (float) $workplace->longitude;
+                $geofenceSource = 'workplace';
+            }
+        }
+
+        if ($geofenceLatitude === null || $geofenceLongitude === null) {
+            $message = localize('geofence_not_configured', 'Geofence coordinates are not configured');
+            $scanLogId = $this->recordAttendanceScanEvent(array_merge($scanLogContext, [
+                'status' => 'error',
+                'error_code' => 'geofence_not_configured',
+                'message' => $message,
+                'acceptable_range_meters' => $acceptableRange,
+            ]));
+            $json['response'] = [
+                'status' => 'error',
+                'error_code' => 'geofence_not_configured',
+                'scan_log_id' => $scanLogId,
+                'message' => $message,
+            ];
+            echo json_encode($json, JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        $distanceMetre = $this->calculateDistanceMeters(
+            $geofenceLatitude,
+            $geofenceLongitude,
+            (float) $ulatitude,
+            (float) $ulongitude
+        );
+        $distance = number_format($distanceMetre, 1, '.', '');
+
+        if ($distanceMetre <= $acceptableRange) {
             
             $captured = AttendanceCaptureService::capture([
-                'employee_id' => (int) $employee_id,
-                'time' => $time,
+                'employee_id' => $employeeId,
+                'time' => $time ?: now()->format('Y-m-d H:i:s'),
                 'machine_state' => 1,
                 'attendance_source' => 'api_qr',
-                'workplace_id' => $resolvedWorkplaceId,
+                'workplace_id' => $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null,
                 'scan_latitude' => $ulatitude,
                 'scan_longitude' => $ulongitude,
                 'source_reference' => 'api_user:' . $userid . ($qrClaims ? '|qr:' . ($qrClaims['jti'] ?? '') : ''),
             ]);
 
             if ($captured) {
+                $scanLogId = $this->recordAttendanceScanEvent(array_merge($scanLogContext, [
+                    'status' => 'success',
+                    'error_code' => null,
+                    'message' => 'Successfully Saved',
+                    'range_meters' => $distanceMetre,
+                    'acceptable_range_meters' => $acceptableRange,
+                    'geofence_source' => $geofenceSource,
+                    'workplace_id' => $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null,
+                ]));
                 $json['response'] = [
                     'status'     => 'ok',
                     'range'     => $distance,
+                    'acceptable_range' => number_format($acceptableRange, 1, '.', ''),
+                    'workplace_id' => $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null,
+                    'workplace_name' => $workplace?->department_name,
+                    'geofence_source' => $geofenceSource,
+                    'scan_log_id' => $scanLogId,
                     'message'    => 'Successfully Saved',
 
                 ];
@@ -344,26 +512,269 @@ class ApiController extends Controller
                     curl_close($ch3);
                 }
             } else {
+                $message = localize('please_try_again');
+                $scanLogId = $this->recordAttendanceScanEvent(array_merge($scanLogContext, [
+                    'status' => 'error',
+                    'error_code' => 'capture_failed',
+                    'message' => $message,
+                    'range_meters' => $distanceMetre,
+                    'acceptable_range_meters' => $acceptableRange,
+                    'geofence_source' => $geofenceSource,
+                    'workplace_id' => $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null,
+                ]));
                 $json['response'] = [
                     'status'     => 'error',
+                    'error_code' => 'capture_failed',
                     'range'      => $distance,
-                    'lat'        => $lat1,
-                    'dfrange'    => $settingdata->acceptablerange,
-                    'message'    =>  localize('please_try_again'),
+                    'acceptable_range' => number_format($acceptableRange, 1, '.', ''),
+                    'workplace_id' => $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null,
+                    'workplace_name' => $workplace?->department_name,
+                    'geofence_source' => $geofenceSource,
+                    'scan_log_id' => $scanLogId,
+                    'message'    =>  $message,
 
                 ];
             }
         } else {
+            $message = localize('out_of_range');
+            $scanLogId = $this->recordAttendanceScanEvent(array_merge($scanLogContext, [
+                'status' => 'error',
+                'error_code' => 'out_of_range',
+                'message' => $message,
+                'range_meters' => $distanceMetre,
+                'acceptable_range_meters' => $acceptableRange,
+                'geofence_source' => $geofenceSource,
+                'workplace_id' => $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null,
+            ]));
             $json['response'] = [
                 'status'     => 'error',
+                'error_code' => 'out_of_range',
                 'range'    => $distance,
-                'message'    => localize('out_of_range'),
+                'acceptable_range' => number_format($acceptableRange, 1, '.', ''),
+                'workplace_id' => $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null,
+                'workplace_name' => $workplace?->department_name,
+                'geofence_source' => $geofenceSource,
+                'scan_log_id' => $scanLogId,
+                'message'    => $message,
 
             ];
         }
 
         echo json_encode($json, JSON_UNESCAPED_UNICODE);
 
+    }
+
+    protected function calculateDistanceMeters(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $earthRadiusMeters = 6371000.0;
+
+        $latFrom = deg2rad($lat1);
+        $lonFrom = deg2rad($lon1);
+        $latTo = deg2rad($lat2);
+        $lonTo = deg2rad($lon2);
+
+        $latDelta = $latTo - $latFrom;
+        $lonDelta = $lonTo - $lonFrom;
+
+        $a = sin($latDelta / 2) ** 2
+            + cos($latFrom) * cos($latTo) * sin($lonDelta / 2) ** 2;
+        $a = min(1.0, max(0.0, $a));
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadiusMeters * $c;
+    }
+
+    public function attendanceScanLog(Request $request)
+    {
+        $employeeId = (int) $request->get('employee_id');
+        $userId = $request->get('user_id');
+        $workplaceId = (int) $request->get('workplace_id');
+        $status = trim((string) $request->get('status', 'client_error'));
+        $errorCode = trim((string) $request->get('error_code', 'client_error'));
+        $message = trim((string) $request->get('message', ''));
+        $rangeMeters = $request->get('range');
+        $acceptableRange = $request->get('acceptable_range');
+        $latitude = $request->get('latitude');
+        $longitude = $request->get('longitude');
+        $qrToken = (string) $request->get('qr_token', '');
+        $geofenceSource = $request->get('geofence_source');
+        $scannedAt = $this->parseScanTime($request->get('datetime'));
+
+        $logId = $this->recordAttendanceScanEvent([
+            'employee_id' => $employeeId > 0 ? $employeeId : null,
+            'user_id' => is_numeric($userId) ? (int) $userId : null,
+            'workplace_id' => $workplaceId > 0 ? $workplaceId : null,
+            'status' => $status !== '' ? $status : 'client_error',
+            'error_code' => $errorCode !== '' ? $errorCode : null,
+            'message' => $message !== '' ? $message : null,
+            'range_meters' => $rangeMeters,
+            'acceptable_range_meters' => $acceptableRange,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'qr_token' => $qrToken,
+            'geofence_source' => is_string($geofenceSource) ? $geofenceSource : null,
+            'scanned_at' => $scannedAt,
+            'meta_payload' => [
+                'source' => 'mobile_client_log',
+                'client_payload' => $request->except(['qr_token']),
+            ],
+        ]);
+
+        $json['response'] = [
+            'status' => 'ok',
+            'log_id' => $logId,
+            'message' => localize('successfully_saved', 'Successfully saved'),
+        ];
+
+        echo json_encode($json, JSON_UNESCAPED_UNICODE);
+    }
+
+    public function attendanceScanLogs(Request $request)
+    {
+        $employeeId = (int) $request->get('employee_id');
+        $status = trim((string) $request->get('status', ''));
+        $errorCode = trim((string) $request->get('error_code', ''));
+        $fromDate = $request->get('from_date');
+        $toDate = $request->get('to_date');
+        $limit = (int) $request->get('limit', 50);
+        $limit = max(1, min(200, $limit));
+
+        $query = AttendanceScanLog::query()->orderByDesc('id');
+
+        if ($employeeId > 0) {
+            $query->where('employee_id', $employeeId);
+        }
+
+        if ($status !== '') {
+            $query->where('status', $status);
+        }
+
+        if ($errorCode !== '') {
+            $query->where('error_code', $errorCode);
+        }
+
+        if (is_string($fromDate) && trim($fromDate) !== '') {
+            $query->whereDate('scanned_at', '>=', Carbon::parse($fromDate)->format('Y-m-d'));
+        }
+
+        if (is_string($toDate) && trim($toDate) !== '') {
+            $query->whereDate('scanned_at', '<=', Carbon::parse($toDate)->format('Y-m-d'));
+        }
+
+        $logs = $query
+            ->limit($limit)
+            ->get([
+                'id',
+                'employee_id',
+                'user_id',
+                'workplace_id',
+                'status',
+                'error_code',
+                'message',
+                'range_meters',
+                'acceptable_range_meters',
+                'geofence_source',
+                'latitude',
+                'longitude',
+                'request_ip',
+                'scanned_at',
+                'created_at',
+            ]);
+
+        $json['response'] = [
+            'status' => 'ok',
+            'total' => $logs->count(),
+            'logs' => $logs,
+        ];
+
+        echo json_encode($json, JSON_UNESCAPED_UNICODE);
+    }
+
+    protected function recordAttendanceScanEvent(array $payload): ?int
+    {
+        try {
+            $entry = AttendanceScanLog::query()->create([
+                'employee_id' => $this->nullableInt($payload['employee_id'] ?? null),
+                'user_id' => $this->nullableInt($payload['user_id'] ?? null),
+                'workplace_id' => $this->nullableInt($payload['workplace_id'] ?? null),
+                'status' => (string) ($payload['status'] ?? 'error'),
+                'error_code' => $this->nullableString($payload['error_code'] ?? null),
+                'message' => $this->nullableString($payload['message'] ?? null),
+                'range_meters' => $this->nullableFloat($payload['range_meters'] ?? null),
+                'acceptable_range_meters' => $this->nullableFloat($payload['acceptable_range_meters'] ?? null),
+                'geofence_source' => $this->nullableString($payload['geofence_source'] ?? null),
+                'latitude' => $this->nullableFloat($payload['latitude'] ?? null),
+                'longitude' => $this->nullableFloat($payload['longitude'] ?? null),
+                'request_ip' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'qr_token_hash' => $this->tokenHash($payload['qr_token'] ?? null),
+                'meta_payload' => is_array($payload['meta_payload'] ?? null) ? $payload['meta_payload'] : null,
+                'scanned_at' => $this->parseScanTime($payload['scanned_at'] ?? null),
+            ]);
+
+            return (int) $entry->id;
+        } catch (\Throwable $e) {
+            Log::warning('attendance_scan_log_failed', [
+                'message' => $e->getMessage(),
+            ]);
+        }
+
+        return null;
+    }
+
+    protected function parseScanTime($value): string
+    {
+        try {
+            if (is_string($value) && trim($value) !== '') {
+                return Carbon::parse($value)->format('Y-m-d H:i:s');
+            }
+        } catch (\Throwable $e) {
+            // Fallback to now if payload date is invalid.
+        }
+
+        return now()->format('Y-m-d H:i:s');
+    }
+
+    protected function nullableInt($value): ?int
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return (int) $value;
+    }
+
+    protected function nullableFloat($value): ?float
+    {
+        if (!is_numeric($value)) {
+            return null;
+        }
+
+        return (float) $value;
+    }
+
+    protected function nullableString($value): ?string
+    {
+        if (!is_string($value)) {
+            return null;
+        }
+
+        $text = trim($value);
+        return $text === '' ? null : $text;
+    }
+
+    protected function tokenHash($token): ?string
+    {
+        if (!is_string($token)) {
+            return null;
+        }
+
+        $token = trim($token);
+        if ($token === '') {
+            return null;
+        }
+
+        return hash('sha256', $token);
     }
 
     /*
