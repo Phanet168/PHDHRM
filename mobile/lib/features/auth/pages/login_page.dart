@@ -122,6 +122,10 @@ class _LoginPageState extends State<LoginPage> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
+              backgroundColor: const Color(0xFFF8FAFC),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               title: Text(
                 _tr(language, 'request_access', 'ស្នើសុំសិទ្ធិចូលប្រើប្រាស់'),
               ),
@@ -286,7 +290,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
-    final panelWidth = screenWidth >= 500 ? 380.0 : 325.0;
+    final panelWidth = screenWidth >= 600 ? 420.0 : double.infinity;
 
     return FutureBuilder<Map<String, String>>(
       future: _languageFuture,
@@ -298,21 +302,35 @@ class _LoginPageState extends State<LoginPage> {
             fit: StackFit.expand,
             children: [
               Image.asset('assets/images/login_bg.webp', fit: BoxFit.cover),
-              Container(color: const Color(0xA6FFFFFF)),
+              Container(color: const Color(0x8F0B1B16)),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.white.withAlpha(18),
+                      const Color(0xFF0B1B16).withAlpha(118),
+                    ],
+                  ),
+                ),
+              ),
               SafeArea(
                 child: Center(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.fromLTRB(22, 28, 22, 28),
                     child: SizedBox(
                       width: panelWidth,
                       child: Card(
-                        elevation: 0,
+                        color: Colors.white.withAlpha(246),
+                        elevation: 12,
+                        shadowColor: Colors.black.withAlpha(46),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6),
-                          side: const BorderSide(color: Color(0xFFE7EFEB)),
+                          borderRadius: BorderRadius.circular(8),
+                          side: const BorderSide(color: Color(0xFFE3E9E6)),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.all(30),
+                          padding: const EdgeInsets.fromLTRB(26, 28, 26, 26),
                           child: Form(
                             key: _formKey,
                             child: Column(
@@ -321,26 +339,51 @@ class _LoginPageState extends State<LoginPage> {
                               children: [
                                 Center(
                                   child: Container(
-                                    width: 90,
-                                    height: 90,
+                                    width: 86,
+                                    height: 86,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: Colors.black12,
-                                        width: 1,
+                                        color: Colors.white,
+                                        width: 4,
                                       ),
                                       boxShadow: const [
                                         BoxShadow(
-                                          color: Color(0x14000000),
-                                          blurRadius: 8,
-                                          offset: Offset(0, 3),
+                                          color: Color(0x240B1B16),
+                                          blurRadius: 18,
+                                          offset: Offset(0, 10),
                                         ),
                                       ],
                                     ),
                                     clipBehavior: Clip.antiAlias,
                                     child: Image.asset(
                                       'assets/images/laravel_logo.png',
-                                      fit: BoxFit.cover,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+                                Align(
+                                  alignment: Alignment.center,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF6E1),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: const Color(0xFFF3D38A),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'PHD HRM',
+                                      style: TextStyle(
+                                        color: Color(0xFF7A4E00),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800,
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -352,6 +395,7 @@ class _LoginPageState extends State<LoginPage> {
                                       ?.copyWith(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 24,
+                                        color: const Color(0xFF14211D),
                                       ),
                                 ),
                                 const SizedBox(height: 4),
@@ -359,18 +403,21 @@ class _LoginPageState extends State<LoginPage> {
                                   _tr(language, 'welcome_msg', 'Welcome back'),
                                   textAlign: TextAlign.center,
                                   style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: const Color(0xFF5D6D65),
+                                    color: const Color(0xFF5C6B65),
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
                                   ),
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 26),
                                 TextFormField(
                                   controller: _emailController,
                                   keyboardType: TextInputType.emailAddress,
                                   decoration: InputDecoration(
                                     labelText: _tr(language, 'email', 'Email'),
-                                    border: const OutlineInputBorder(),
+                                    prefixIcon: const Icon(
+                                      Icons.mail_outline,
+                                      size: 20,
+                                    ),
                                   ),
                                   validator: (value) {
                                     if (value == null || value.trim().isEmpty) {
@@ -394,7 +441,10 @@ class _LoginPageState extends State<LoginPage> {
                                       'password',
                                       'Password',
                                     ),
-                                    border: const OutlineInputBorder(),
+                                    prefixIcon: const Icon(
+                                      Icons.lock_outline,
+                                      size: 20,
+                                    ),
                                     suffixIcon: IconButton(
                                       onPressed: () {
                                         setState(() {
@@ -421,75 +471,126 @@ class _LoginPageState extends State<LoginPage> {
                                   },
                                   onFieldSubmitted: (_) => _submit(),
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(height: 14),
                                 FutureBuilder<String>(
                                   future: _machineNumberFuture,
                                   builder: (context, machineSnapshot) {
                                     final machineNumber =
                                         machineSnapshot.data ?? '...';
                                     return Container(
-                                      padding: const EdgeInsets.all(12),
+                                      padding: const EdgeInsets.all(14),
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFF6FAF8),
+                                        color: const Color(0xFFF7FBFA),
                                         borderRadius: BorderRadius.circular(8),
                                         border: Border.all(
-                                          color: const Color(0xFFD6E6DD),
+                                          color: const Color(0xFFDDE9E4),
                                         ),
                                       ),
-                                      child: Column(
+                                      child: Row(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            _deviceRequestLabel(language),
-                                            style: theme.textTheme.bodySmall
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w700,
-                                                  color: const Color(
-                                                    0xFF1A4A35,
-                                                  ),
-                                                ),
+                                          Container(
+                                            width: 34,
+                                            height: 34,
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFFE8F4F0),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                            child: const Icon(
+                                              Icons.devices_other_outlined,
+                                              color: Color(0xFF0B6B58),
+                                              size: 19,
+                                            ),
                                           ),
-                                          const SizedBox(height: 4),
-                                          SelectableText(
-                                            machineNumber,
-                                            style: theme.textTheme.bodyMedium
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w600,
-                                                  color: const Color(
-                                                    0xFF0B5D4B,
+                                          const SizedBox(width: 12),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  _deviceRequestLabel(language),
+                                                  style: theme
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                        color: const Color(
+                                                          0xFF1A4A35,
+                                                        ),
+                                                      ),
+                                                ),
+                                                const SizedBox(height: 3),
+                                                SelectableText(
+                                                  machineNumber,
+                                                  style: theme
+                                                      .textTheme
+                                                      .bodyMedium
+                                                      ?.copyWith(
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: const Color(
+                                                          0xFF0B6B58,
+                                                        ),
+                                                      ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                Text(
+                                                  'ប្រសិនបើអ្នកមិនទាន់មានសិទ្ធិចូលប្រើ សូមផ្ញើលេខនេះទៅអ្នកគ្រប់គ្រងដើម្បីពិនិត្យ និងអនុញ្ញាត។',
+                                                  style: theme
+                                                      .textTheme
+                                                      .bodySmall
+                                                      ?.copyWith(
+                                                        color: const Color(
+                                                          0xFF5D6D65,
+                                                        ),
+                                                      ),
+                                                ),
+                                                const SizedBox(height: 10),
+                                                Align(
+                                                  alignment:
+                                                      Alignment.centerLeft,
+                                                  child: OutlinedButton.icon(
+                                                    onPressed:
+                                                        () =>
+                                                            _openAccessRequestForm(
+                                                              language,
+                                                              machineNumber,
+                                                            ),
+                                                    style: OutlinedButton.styleFrom(
+                                                      foregroundColor:
+                                                          const Color(
+                                                            0xFF0B6B58,
+                                                          ),
+                                                      side: const BorderSide(
+                                                        color: Color(
+                                                          0xFFB9D8CC,
+                                                        ),
+                                                      ),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    icon: const Icon(
+                                                      Icons.send_outlined,
+                                                      size: 18,
+                                                    ),
+                                                    label: Text(
+                                                      _tr(
+                                                        language,
+                                                        'send_request',
+                                                        'ផ្ញើសំណើអនុញ្ញាត',
+                                                      ),
+                                                    ),
                                                   ),
                                                 ),
-                                          ),
-                                          const SizedBox(height: 6),
-                                          Text(
-                                            'ប្រសិនបើអ្នកមិនទាន់មានសិទ្ធិចូលប្រើ សូមផ្ញើលេខនេះទៅអ្នកគ្រប់គ្រងដើម្បីពិនិត្យ និងអនុញ្ញាត។',
-                                            style: theme.textTheme.bodySmall
-                                                ?.copyWith(
-                                                  color: const Color(
-                                                    0xFF5D6D65,
-                                                  ),
-                                                ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Align(
-                                            alignment: Alignment.centerLeft,
-                                            child: OutlinedButton.icon(
-                                              onPressed:
-                                                  () => _openAccessRequestForm(
-                                                    language,
-                                                    machineNumber,
-                                                  ),
-                                              icon: const Icon(
-                                                Icons.send_outlined,
-                                              ),
-                                              label: Text(
-                                                _tr(
-                                                  language,
-                                                  'send_request',
-                                                  'ផ្ញើសំណើអនុញ្ញាត',
-                                                ),
-                                              ),
+                                              ],
                                             ),
                                           ),
                                         ],
@@ -504,7 +605,10 @@ class _LoginPageState extends State<LoginPage> {
                                           ? null
                                           : _submit,
                                   style: FilledButton.styleFrom(
-                                    minimumSize: const Size.fromHeight(46),
+                                    minimumSize: const Size.fromHeight(50),
+                                    textStyle: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
                                   child:
                                       widget.authController.isSubmitting

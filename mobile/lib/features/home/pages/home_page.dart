@@ -31,7 +31,7 @@ class _HomePageState extends State<HomePage> {
     _attendanceService = HomeAttendanceService();
     _languageFuture = LaravelLanguageService.instance.load();
     _summaryFuture = _loadSummary();
-    _attendanceFuture = _loadAttendance();
+    _attendanceFuture = null;
   }
 
   String _tr(Map<String, String> language, String key, String fallback) {
@@ -321,17 +321,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _refresh() async {
-    setState(() {
-      _summaryFuture = _loadSummary();
-      _attendanceFuture = _loadAttendance();
-    });
-
     if (_selectedMenu == _HomeMenuItem.attendance) {
-      await _attendanceFuture;
+      setState(() {
+        _attendanceFuture = _loadAttendance();
+      });
+
+      try {
+        await _attendanceFuture;
+      } catch (_) {
+        // FutureBuilder renders error state for failed attendance requests.
+      }
       return;
     }
 
-    await _summaryFuture;
+    setState(() {
+      _summaryFuture = _loadSummary();
+    });
+
+    try {
+      await _summaryFuture;
+    } catch (_) {
+      // FutureBuilder renders error state for failed dashboard requests.
+    }
   }
 
   void _onMenuTap(_HomeMenuItem item) {
@@ -344,7 +355,345 @@ class _HomePageState extends State<HomePage> {
 
     setState(() {
       _selectedMenu = item;
+      if (item == _HomeMenuItem.attendance && _attendanceFuture == null) {
+        _attendanceFuture = _loadAttendance();
+      }
     });
+  }
+
+  String _userInitial(dynamic user) {
+    final name = user?.name?.toString().trim() ?? '';
+    if (name.isEmpty) {
+      return 'U';
+    }
+
+    return name.substring(0, 1).toUpperCase();
+  }
+
+  Widget _buildDrawer(dynamic user, Map<String, String> language) {
+    return Drawer(
+      backgroundColor: Colors.white,
+      child: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+              decoration: const BoxDecoration(
+                color: Color(0xFF0B6B58),
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0B6B58), Color(0xFF174C88)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Colors.white,
+                    child: Text(
+                      _userInitial(user),
+                      style: const TextStyle(
+                        color: Color(0xFF0B6B58),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          user?.name ?? 'User',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          user?.email ?? '-',
+                          style: const TextStyle(
+                            color: Color(0xFFE7F1F5),
+                            fontSize: 12,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            _DrawerMenuTile(
+              icon: Icons.dashboard_outlined,
+              title: _menuTitle(_HomeMenuItem.dashboard, language),
+              selected: _selectedMenu == _HomeMenuItem.dashboard,
+              onTap: () => _onMenuTap(_HomeMenuItem.dashboard),
+            ),
+            _DrawerMenuTile(
+              icon: Icons.access_time_outlined,
+              title: _menuTitle(_HomeMenuItem.attendance, language),
+              selected: _selectedMenu == _HomeMenuItem.attendance,
+              onTap: () => _onMenuTap(_HomeMenuItem.attendance),
+            ),
+            _DrawerMenuTile(
+              icon: Icons.event_note_outlined,
+              title: _menuTitle(_HomeMenuItem.leave, language),
+              selected: _selectedMenu == _HomeMenuItem.leave,
+              onTap: () => _onMenuTap(_HomeMenuItem.leave),
+            ),
+            _DrawerMenuTile(
+              icon: Icons.account_balance_wallet_outlined,
+              title: _menuTitle(_HomeMenuItem.salary, language),
+              selected: _selectedMenu == _HomeMenuItem.salary,
+              onTap: () => _onMenuTap(_HomeMenuItem.salary),
+            ),
+            _DrawerMenuTile(
+              icon: Icons.campaign_outlined,
+              title: _menuTitle(_HomeMenuItem.notice, language),
+              selected: _selectedMenu == _HomeMenuItem.notice,
+              onTap: () => _onMenuTap(_HomeMenuItem.notice),
+            ),
+            _DrawerMenuTile(
+              icon: Icons.person_outline,
+              title: _menuTitle(_HomeMenuItem.profile, language),
+              selected: _selectedMenu == _HomeMenuItem.profile,
+              onTap: () => _onMenuTap(_HomeMenuItem.profile),
+            ),
+            const Spacer(),
+            const Divider(height: 1, color: Color(0xFFE8EEF0)),
+            _DrawerMenuTile(
+              icon: Icons.logout,
+              title: _menuTitle(_HomeMenuItem.logout, language),
+              selected: false,
+              onTap: () => _onMenuTap(_HomeMenuItem.logout),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDashboard(
+    dynamic user,
+    Map<String, String> language,
+    ThemeData theme,
+  ) {
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          _WelcomePanel(
+            greeting:
+                '${_tr(language, 'welcome_msg', 'សូមស្វាគមន៍')} ${user?.name ?? ''}',
+            name: user?.name ?? 'User',
+            email: user?.email ?? '-',
+            employeeId: '${user?.employeeId ?? '-'}',
+            department: user?.departmentName ?? '-',
+            position: user?.position,
+            initial: _userInitial(user),
+          ),
+          const SizedBox(height: 16),
+          FutureBuilder<DashboardSummary>(
+            future: _summaryFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 48),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return _ErrorStateCard(
+                  title: 'មិនអាចទាញ dashboard data បាន',
+                  message: '${snapshot.error}',
+                  onRetry: _refresh,
+                );
+              }
+
+              final summary = snapshot.data;
+              if (summary == null) {
+                return const SizedBox.shrink();
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GridView.count(
+                    crossAxisCount:
+                        MediaQuery.of(context).size.width >= 700 ? 3 : 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 1.28,
+                    physics: const NeverScrollableScrollPhysics(),
+                    shrinkWrap: true,
+                    children: [
+                      _MetricCard(
+                        title: 'Total Hours',
+                        value: summary.totalHours,
+                        icon: Icons.schedule_outlined,
+                        accent: const Color(0xFF0B6B58),
+                      ),
+                      _MetricCard(
+                        title: _tr(
+                          language,
+                          'leave_remaining',
+                          'Leave Remaining',
+                        ),
+                        value: summary.remainingLeave,
+                        icon: Icons.event_available_outlined,
+                        accent: const Color(0xFF246BFD),
+                      ),
+                      _MetricCard(
+                        title: _tr(language, 'loan_amount', 'Loan Amount'),
+                        value: summary.loanAmount,
+                        icon: Icons.credit_card_outlined,
+                        accent: const Color(0xFFD48516),
+                      ),
+                      _MetricCard(
+                        title: _tr(
+                          language,
+                          'salary_details',
+                          'Salary Records',
+                        ),
+                        value: summary.salaryCount.toString(),
+                        icon: Icons.payments_outlined,
+                        accent: const Color(0xFF7C4DFF),
+                      ),
+                      _MetricCard(
+                        title: _tr(language, 'notice_list', 'Notice Count'),
+                        value: summary.noticeCount.toString(),
+                        icon: Icons.campaign_outlined,
+                        accent: const Color(0xFFD34B5F),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _NoticePanel(
+                    title: _tr(language, 'notice_list', 'Recent Notices'),
+                    emptyText: _tr(
+                      language,
+                      'no_notice_to_show',
+                      'មិនទាន់មាន notice',
+                    ),
+                    notices: summary.notices,
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttendance(Map<String, String> language) {
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: FutureBuilder<List<AttendanceDayRecord>>(
+        future: _attendanceFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return ListView(
+              padding: const EdgeInsets.symmetric(vertical: 120),
+              children: const [Center(child: CircularProgressIndicator())],
+            );
+          }
+
+          if (snapshot.hasError) {
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _ErrorStateCard(
+                  title: _tr(language, 'attendance_list', 'Attendance'),
+                  message: '${snapshot.error}',
+                  onRetry: _refresh,
+                ),
+              ],
+            );
+          }
+
+          final records = snapshot.data ?? const <AttendanceDayRecord>[];
+          if (records.isEmpty) {
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _SectionCard(
+                  title: _menuTitle(_selectedMenu, language),
+                  description: _tr(
+                    language,
+                    'no_record_found',
+                    'មិនទាន់មានទិន្នន័យវត្តមាន',
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            itemCount: records.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) {
+              final record = records[index];
+              return _AttendanceRecordCard(
+                date: record.date,
+                timeInLabel: _tr(language, 'in_time', 'In'),
+                timeIn: record.timeIn,
+                timeOutLabel: _tr(language, 'out_time', 'Out'),
+                timeOut: record.timeOut,
+                totalLabel: _tr(language, 'total_hours', 'Total Hours'),
+                totalHours: record.totalHours,
+                punchesLabel: _tr(language, 'attendance_list', 'Punches'),
+                punchCount: record.punchCount.toString(),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBody(
+    dynamic user,
+    Map<String, String> language,
+    ThemeData theme,
+  ) {
+    switch (_selectedMenu) {
+      case _HomeMenuItem.dashboard:
+        return _buildDashboard(user, language, theme);
+      case _HomeMenuItem.attendance:
+        return _buildAttendance(language);
+      case _HomeMenuItem.profile:
+        return _buildProfileSection(user, language, theme);
+      case _HomeMenuItem.leave:
+      case _HomeMenuItem.salary:
+      case _HomeMenuItem.notice:
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _SectionCard(
+              title: _menuTitle(_selectedMenu, language),
+              description: 'ផ្នែកនេះត្រៀមសម្រាប់ភ្ជាប់ API ខាង Laravel បន្ត។',
+            ),
+          ],
+        );
+      case _HomeMenuItem.logout:
+        return const SizedBox.shrink();
+    }
   }
 
   @override
@@ -360,11 +709,18 @@ class _HomePageState extends State<HomePage> {
 
         return Scaffold(
           appBar: AppBar(
-            backgroundColor: const Color(0xFF188754),
-            foregroundColor: Colors.white,
-            elevation: 0,
-            title: Text(_menuTitle(_selectedMenu, language)),
+            title: Text(
+              _menuTitle(_selectedMenu, language),
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
             actions: [
+              if (_selectedMenu == _HomeMenuItem.dashboard ||
+                  _selectedMenu == _HomeMenuItem.attendance)
+                IconButton(
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Refresh',
+                ),
               IconButton(
                 onPressed:
                     authController.isSubmitting
@@ -377,434 +733,8 @@ class _HomePageState extends State<HomePage> {
               ),
             ],
           ),
-          drawer: Drawer(
-            backgroundColor: const Color(0xFFF8FBF9),
-            child: SafeArea(
-              child: Column(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 14),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF1C8E5B), Color(0xFF188754)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white70),
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: Image.asset(
-                            'assets/images/laravel_logo.png',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                user?.name ?? 'User',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                user?.email ?? '-',
-                                style: const TextStyle(
-                                  color: Color(0xFFE5F5EC),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  _DrawerMenuTile(
-                    icon: Icons.dashboard_outlined,
-                    title: _menuTitle(_HomeMenuItem.dashboard, language),
-                    selected: _selectedMenu == _HomeMenuItem.dashboard,
-                    onTap: () => _onMenuTap(_HomeMenuItem.dashboard),
-                  ),
-                  _DrawerMenuTile(
-                    icon: Icons.access_time_outlined,
-                    title: _menuTitle(_HomeMenuItem.attendance, language),
-                    selected: _selectedMenu == _HomeMenuItem.attendance,
-                    onTap: () => _onMenuTap(_HomeMenuItem.attendance),
-                  ),
-                  _DrawerMenuTile(
-                    icon: Icons.event_note_outlined,
-                    title: _menuTitle(_HomeMenuItem.leave, language),
-                    selected: _selectedMenu == _HomeMenuItem.leave,
-                    onTap: () => _onMenuTap(_HomeMenuItem.leave),
-                  ),
-                  _DrawerMenuTile(
-                    icon: Icons.account_balance_wallet_outlined,
-                    title: _menuTitle(_HomeMenuItem.salary, language),
-                    selected: _selectedMenu == _HomeMenuItem.salary,
-                    onTap: () => _onMenuTap(_HomeMenuItem.salary),
-                  ),
-                  _DrawerMenuTile(
-                    icon: Icons.campaign_outlined,
-                    title: _menuTitle(_HomeMenuItem.notice, language),
-                    selected: _selectedMenu == _HomeMenuItem.notice,
-                    onTap: () => _onMenuTap(_HomeMenuItem.notice),
-                  ),
-                  _DrawerMenuTile(
-                    icon: Icons.person_outline,
-                    title: _menuTitle(_HomeMenuItem.profile, language),
-                    selected: _selectedMenu == _HomeMenuItem.profile,
-                    onTap: () => _onMenuTap(_HomeMenuItem.profile),
-                  ),
-                  const Spacer(),
-                  const Divider(height: 1),
-                  _DrawerMenuTile(
-                    icon: Icons.logout,
-                    title: _menuTitle(_HomeMenuItem.logout, language),
-                    selected: false,
-                    onTap: () => _onMenuTap(_HomeMenuItem.logout),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          body:
-              _selectedMenu == _HomeMenuItem.dashboard
-                  ? RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: ListView(
-                      padding: const EdgeInsets.all(15),
-                      children: [
-                        Card(
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6),
-                            side: const BorderSide(color: Color(0xFFE7EFEB)),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${_tr(language, 'welcome_msg', 'សូមស្វាគមន៍')} ${user?.name ?? ''}',
-                                  style: theme.textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '${_tr(language, 'email', 'Email')}: ${user?.email ?? '-'}',
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${_tr(language, 'employee_id', 'Employee ID')}: ${user?.employeeId ?? '-'}',
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'Department: ${user?.departmentName ?? '-'}',
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        FutureBuilder<DashboardSummary>(
-                          future: _summaryFuture,
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 32),
-                                child: Center(
-                                  child: CircularProgressIndicator(),
-                                ),
-                              );
-                            }
-
-                            if (snapshot.hasError) {
-                              return Card(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'មិនអាចទាញ dashboard data បាន',
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text('${snapshot.error}'),
-                                      const SizedBox(height: 12),
-                                      FilledButton(
-                                        onPressed: _refresh,
-                                        child: const Text('សាកម្តងទៀត'),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }
-
-                            final summary = snapshot.data;
-                            if (summary == null) {
-                              return const SizedBox.shrink();
-                            }
-
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Wrap(
-                                  spacing: 12,
-                                  runSpacing: 12,
-                                  children: [
-                                    _MetricCard(
-                                      title: 'Total Hours',
-                                      value: summary.totalHours,
-                                    ),
-                                    _MetricCard(
-                                      title: _tr(
-                                        language,
-                                        'leave_remaining',
-                                        'Leave Remaining',
-                                      ),
-                                      value: summary.remainingLeave,
-                                    ),
-                                    _MetricCard(
-                                      title: _tr(
-                                        language,
-                                        'loan_amount',
-                                        'Loan Amount',
-                                      ),
-                                      value: summary.loanAmount,
-                                    ),
-                                    _MetricCard(
-                                      title: _tr(
-                                        language,
-                                        'salary_details',
-                                        'Salary Records',
-                                      ),
-                                      value: summary.salaryCount.toString(),
-                                    ),
-                                    _MetricCard(
-                                      title: _tr(
-                                        language,
-                                        'notice_list',
-                                        'Notice Count',
-                                      ),
-                                      value: summary.noticeCount.toString(),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                Card(
-                                  elevation: 0,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(6),
-                                    side: const BorderSide(
-                                      color: Color(0xFFE7EFEB),
-                                    ),
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          _tr(
-                                            language,
-                                            'notice_list',
-                                            'Recent Notices',
-                                          ),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        if (summary.notices.isEmpty)
-                                          Text(
-                                            _tr(
-                                              language,
-                                              'no_notice_to_show',
-                                              'មិនទាន់មាន notice',
-                                            ),
-                                          )
-                                        else
-                                          ...summary.notices.map(
-                                            (notice) => Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 6,
-                                              ),
-                                              child: Text('- $notice'),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  )
-                  : _selectedMenu == _HomeMenuItem.attendance
-                  ? RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: FutureBuilder<List<AttendanceDayRecord>>(
-                      future: _attendanceFuture,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return ListView(
-                            padding: const EdgeInsets.symmetric(vertical: 120),
-                            children: [
-                              Center(child: CircularProgressIndicator()),
-                            ],
-                          );
-                        }
-
-                        if (snapshot.hasError) {
-                          return ListView(
-                            padding: const EdgeInsets.all(15),
-                            children: [
-                              Card(
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                  side: const BorderSide(
-                                    color: Color(0xFFE7EFEB),
-                                  ),
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        _tr(
-                                          language,
-                                          'attendance_list',
-                                          'Attendance',
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text('${snapshot.error}'),
-                                      const SizedBox(height: 12),
-                                      FilledButton(
-                                        onPressed: _refresh,
-                                        child: Text(
-                                          _tr(
-                                            language,
-                                            'send_request',
-                                            'សាកម្តងទៀត',
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-
-                        final records =
-                            snapshot.data ?? const <AttendanceDayRecord>[];
-                        if (records.isEmpty) {
-                          return ListView(
-                            padding: const EdgeInsets.all(15),
-                            children: [
-                              _SectionCard(
-                                title: _menuTitle(_selectedMenu, language),
-                                description: _tr(
-                                  language,
-                                  'no_record_found',
-                                  'មិនទាន់មានទិន្នន័យវត្តមាន',
-                                ),
-                              ),
-                            ],
-                          );
-                        }
-
-                        return ListView.builder(
-                          padding: const EdgeInsets.all(15),
-                          itemCount: records.length,
-                          itemBuilder: (context, index) {
-                            final record = records[index];
-                            return Card(
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
-                                side: const BorderSide(
-                                  color: Color(0xFFE7EFEB),
-                                ),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      record.date,
-                                      style: theme.textTheme.titleMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      '${_tr(language, 'in_time', 'In')}: ${record.timeIn}',
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${_tr(language, 'out_time', 'Out')}: ${record.timeOut}',
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${_tr(language, 'total_hours', 'Total Hours')}: ${record.totalHours}',
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${_tr(language, 'attendance_list', 'Punches')}: ${record.punchCount}',
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      },
-                    ),
-                  )
-                  : _selectedMenu == _HomeMenuItem.profile
-                  ? _buildProfileSection(user, language, theme)
-                  : ListView(
-                    padding: const EdgeInsets.all(15),
-                    children: [
-                      _SectionCard(
-                        title: _menuTitle(_selectedMenu, language),
-                        description:
-                            'ផ្នែកនេះត្រៀមសម្រាប់ភ្ជាប់ API ខាង Laravel បន្ត។',
-                      ),
-                    ],
-                  ),
+          drawer: _buildDrawer(user, language),
+          body: _buildBody(user, language, theme),
         );
       },
     );
@@ -840,13 +770,29 @@ class _DrawerMenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon, color: selected ? const Color(0xFF188754) : null),
-      title: Text(title),
-      selected: selected,
-      selectedTileColor: const Color(0x1429A76C),
-      selectedColor: const Color(0xFF188754),
-      onTap: onTap,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      child: Material(
+        color: selected ? const Color(0xFFE9F4F1) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+        child: ListTile(
+          minLeadingWidth: 22,
+          leading: Icon(
+            icon,
+            color: selected ? const Color(0xFF0B6B58) : const Color(0xFF66746E),
+          ),
+          title: Text(
+            title,
+            style: TextStyle(
+              color:
+                  selected ? const Color(0xFF0B6B58) : const Color(0xFF24332E),
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            ),
+          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          onTap: onTap,
+        ),
+      ),
     );
   }
 }
@@ -859,17 +805,37 @@ class _SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(6),
-        side: const BorderSide(color: Color(0xFFE7EFEB)),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE3E9E6)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D14211D),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF6E1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.construction_outlined,
+                color: Color(0xFFD48516),
+              ),
+            ),
+            const SizedBox(height: 12),
             Text(
               title,
               style: Theme.of(
@@ -886,44 +852,474 @@ class _SectionCard extends StatelessWidget {
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard({required this.title, required this.value});
+  const _MetricCard({
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.accent,
+  });
 
   final String title;
   final String value;
+  final IconData icon;
+  final Color accent;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return SizedBox(
-      width: 170,
-      child: Card(
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-          side: const BorderSide(color: Color(0xFFE7EFEB)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: const Color(0xFF60736A),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                value,
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE3E9E6)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D14211D),
+            blurRadius: 18,
+            offset: Offset(0, 8),
           ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: accent.withAlpha(26),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: accent, size: 20),
+            ),
+            const Spacer(),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+                color: const Color(0xFF14211D),
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: const Color(0xFF60736A),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _WelcomePanel extends StatelessWidget {
+  const _WelcomePanel({
+    required this.greeting,
+    required this.name,
+    required this.email,
+    required this.employeeId,
+    required this.department,
+    required this.position,
+    required this.initial,
+  });
+
+  final String greeting;
+  final String name;
+  final String email;
+  final String employeeId;
+  final String department;
+  final String? position;
+  final String initial;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(8),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0B6B58), Color(0xFF174C88)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x2414211D),
+            blurRadius: 22,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.white,
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Color(0xFF0B6B58),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        greeting,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        position?.isNotEmpty == true ? position! : email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(color: Color(0xFFE7F1F5)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _SoftPill(
+                  icon: Icons.badge_outlined,
+                  label: employeeId,
+                  backgroundColor: Colors.white,
+                ),
+                _SoftPill(
+                  icon: Icons.apartment_outlined,
+                  label: department,
+                  backgroundColor: Colors.white,
+                ),
+                _SoftPill(
+                  icon: Icons.mail_outline,
+                  label: email,
+                  backgroundColor: Colors.white,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoticePanel extends StatelessWidget {
+  const _NoticePanel({
+    required this.title,
+    required this.emptyText,
+    required this.notices,
+  });
+
+  final String title;
+  final String emptyText;
+  final List<String> notices;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE3E9E6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEEF1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.campaign_outlined,
+                    color: Color(0xFFD34B5F),
+                    size: 19,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFF14211D),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (notices.isEmpty)
+              Text(
+                emptyText,
+                style: const TextStyle(
+                  color: Color(0xFF60736A),
+                  fontWeight: FontWeight.w600,
+                ),
+              )
+            else
+              ...notices.map(
+                (notice) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.fiber_manual_record,
+                        size: 8,
+                        color: Color(0xFFD34B5F),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          notice,
+                          style: const TextStyle(
+                            color: Color(0xFF24332E),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AttendanceRecordCard extends StatelessWidget {
+  const _AttendanceRecordCard({
+    required this.date,
+    required this.timeInLabel,
+    required this.timeIn,
+    required this.timeOutLabel,
+    required this.timeOut,
+    required this.totalLabel,
+    required this.totalHours,
+    required this.punchesLabel,
+    required this.punchCount,
+  });
+
+  final String date;
+  final String timeInLabel;
+  final String timeIn;
+  final String timeOutLabel;
+  final String timeOut;
+  final String totalLabel;
+  final String totalHours;
+  final String punchesLabel;
+  final String punchCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE3E9E6)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A14211D),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE9F4F1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.access_time_outlined,
+                    color: Color(0xFF0B6B58),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    date,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: const Color(0xFF14211D),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _SoftPill(
+                  icon: Icons.login,
+                  label: '$timeInLabel: $timeIn',
+                  backgroundColor: const Color(0xFFE9F4F1),
+                ),
+                _SoftPill(
+                  icon: Icons.logout,
+                  label: '$timeOutLabel: $timeOut',
+                  backgroundColor: const Color(0xFFFFF6E1),
+                ),
+                _SoftPill(
+                  icon: Icons.timer_outlined,
+                  label: '$totalLabel: $totalHours',
+                  backgroundColor: const Color(0xFFEFF3FF),
+                ),
+                _SoftPill(
+                  icon: Icons.touch_app_outlined,
+                  label: '$punchesLabel: $punchCount',
+                  backgroundColor: const Color(0xFFFFEEF1),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorStateCard extends StatelessWidget {
+  const _ErrorStateCard({
+    required this.title,
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String title;
+  final String message;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFF0CED5)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFD34B5F)),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: const Color(0xFF14211D),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(message, style: const TextStyle(color: Color(0xFF60736A))),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('សាកម្តងទៀត'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SoftPill extends StatelessWidget {
+  const _SoftPill({
+    required this.icon,
+    required this.label,
+    required this.backgroundColor,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color backgroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 260),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: backgroundColor.withAlpha(232),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withAlpha(92)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: const Color(0xFF0B6B58)),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              label.isEmpty ? '-' : label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF24332E),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
