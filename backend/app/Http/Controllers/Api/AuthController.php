@@ -12,6 +12,11 @@ use Modules\HumanResource\Entities\Employee;
 
 class AuthController extends Controller
 {
+    public function sanctumUser(Request $request): JsonResponse
+    {
+        return response()->json($request->user());
+    }
+
     public function login(Request $request): JsonResponse
     {
         $normalizedDeviceId = trim((string) (

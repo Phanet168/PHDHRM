@@ -55,30 +55,34 @@ if (!function_exists('app_setting')) {
             return Application::with(['currency', 'lang'])->first();
         });
 
-        if (storage_path('app/public/' . $appSetting->logo)) {
+        if (!$appSetting) {
+            return new Application();
+        }
+
+        if (!empty($appSetting->logo) && file_exists(storage_path('app/public/' . $appSetting->logo))) {
             $appSetting->logo = asset('storage/' . $appSetting->logo);
         } else {
             $appSetting->logo = asset('assets/HRM2.png');
         }
 
-        if (storage_path('app/public/' . $appSetting->sidebar_logo)) {
+        if (!empty($appSetting->sidebar_logo) && file_exists(storage_path('app/public/' . $appSetting->sidebar_logo))) {
             $appSetting->sidebar_logo = asset('storage/' . $appSetting->sidebar_logo);
         } else {
             $appSetting->sidebar_logo = asset('assets/HRM2.png');
         }
 
-        if (storage_path('app/public/' . $appSetting->sidebar_collapsed_logo)) {
+        if (!empty($appSetting->sidebar_collapsed_logo) && file_exists(storage_path('app/public/' . $appSetting->sidebar_collapsed_logo))) {
             $appSetting->sidebar_collapsed_logo = asset('storage/' . $appSetting->sidebar_collapsed_logo);
         } else {
             $appSetting->sidebar_collapsed_logo = asset('assets/mini-logo.png');
         }
 
-        if (storage_path('app/public/' . $appSetting->favicon)) {
+        if (!empty($appSetting->favicon) && file_exists(storage_path('app/public/' . $appSetting->favicon))) {
             $appSetting->favicon = asset('storage/' . $appSetting->favicon);
         } else {
             $appSetting->favicon = asset('assets/favicon.png');
         }
-        if (storage_path('app/public/' . $appSetting->login_image)) {
+        if (!empty($appSetting->login_image) && file_exists(storage_path('app/public/' . $appSetting->login_image))) {
             $appSetting->login_image = asset('storage/' . $appSetting->login_image);
         } else {
             $appSetting->login_image = asset('assets/HRM2.png');
@@ -398,7 +402,7 @@ if (!function_exists('isBankNature')) {
     }
 }
 if (!function_exists('check_expiry')) {
-    function check_expiry(string $expiry_date, int $interval = null): bool
+    function check_expiry(string $expiry_date, ?int $interval = null): bool
     {
         $today = Carbon::today();
 
@@ -419,7 +423,7 @@ if (!function_exists('check_expiry')) {
 }
 
 if (!function_exists('check_expiry')) {
-    function check_expiry(string $expiry_date, int $interval = null): bool
+    function check_expiry(string $expiry_date, ?int $interval = null): bool
     {
         $today = Carbon::today();
 
@@ -454,7 +458,7 @@ function size_convert(int $size): string
  *
  * @param  mixed  $user
  */
-function logNow(array $response = [], string $name = 'Default', string $log = 'error', string $user = null): void
+function logNow(array $response = [], string $name = 'Default', string $log = 'error', ?string $user = null): void
 {
     if (!$user) {
         $user = auth()->user();

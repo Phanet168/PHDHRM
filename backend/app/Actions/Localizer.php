@@ -3,6 +3,7 @@
 namespace App\Actions;
 
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 
 class Localizer
 {
@@ -12,6 +13,13 @@ class Localizer
      * @var array
      */
     protected $localData = [];
+
+    /**
+     * Per-request translation memoization to avoid repeated HTTP calls.
+     *
+     * @var array<string, string>
+     */
+    protected $translationMemo = [];
 
     /**
      * Get the path to the localization file for the given locale.
@@ -129,15 +137,30 @@ class Localizer
         if (array_key_exists($formattedKey, $local) === false) {
             // If the key is not found, store the default value in the localization file.
             $value = $default_value ?? $this->keyToValue($formattedKey);
+            $value = $this->normalizeLocalizedValue((string) $value);
+
+            // Auto-translate to Khmer when locale is km and value is still English.
+            $value = $this->maybeAutoTranslate((string) $value, $locale);
 
             // Store the default value in the localization file.
             $this->storeLocal($key, $value, $locale);
         } else {
             // If the key is found, use the localized value.
-            $value = $local[$formattedKey];
+            $value = $this->normalizeLocalizedValue((string) $local[$formattedKey]);
+
+            if ($value !== (string) $local[$formattedKey]) {
+                $this->storeLocal($key, $value, $locale);
+            }
+
+            // If current km value is English, translate once and persist.
+            $translatedValue = $this->maybeAutoTranslate((string) $value, $locale);
+            if ($translatedValue !== (string) $value) {
+                $value = $translatedValue;
+                $this->storeLocal($key, $value, $locale);
+            }
         }
 
-        return $value;
+        return $this->normalizeLocalizedValue((string) $value);
     }
 
     /**
@@ -192,13 +215,91 @@ class Localizer
         $value = $value ?? $formattedKey;
 
         // Update the localization data.
-        $local[$formattedKey] = htmlentities($value, ENT_QUOTES, 'UTF-8');
+        $local[$formattedKey] = $value;
 
         // Write language PHP file
         File::put($localizePath, '<?php return '.var_export($local, true).';');
 
         // Update the cached data for this locale.
         $this->localData[$locale] = $local;
+    }
+
+    /**
+     * Translate English-looking text to Khmer when locale is km.
+     */
+    protected function maybeAutoTranslate(string $text, string $locale): string
+    {
+        $text = $this->normalizeLocalizedValue($text);
+        if ($text === '') {
+            return $text;
+        }
+
+        // Keep production/staging fast by limiting auto translation to local env.
+        if (! app()->environment('local') || $locale !== 'km') {
+            return $text;
+        }
+
+        $memoKey = $locale.'|'.$text;
+        if (array_key_exists($memoKey, $this->translationMemo)) {
+            return $this->translationMemo[$memoKey];
+        }
+
+        // Skip values that already contain Khmer, or are mostly non-letter tokens.
+        if (preg_match('/[\x{1780}-\x{17FF}]/u', $text) === 1) {
+            $this->translationMemo[$memoKey] = $text;
+            return $text;
+        }
+
+        if (preg_match('/[A-Za-z]/', $text) !== 1) {
+            $this->translationMemo[$memoKey] = $text;
+            return $text;
+        }
+
+        // Keep common technical tokens unchanged.
+        if (preg_match('/^(id|url|api|pdf|csv|json|xml|sms|otp)$/i', $text) === 1) {
+            $this->translationMemo[$memoKey] = $text;
+            return $text;
+        }
+
+        try {
+            $response = Http::timeout(3)->get('https://api.mymemory.translated.net/get', [
+                'q' => $text,
+                'langpair' => 'en|km',
+            ]);
+
+            if (! $response->ok()) {
+                $this->translationMemo[$memoKey] = $text;
+                return $text;
+            }
+
+            $translated = trim((string) data_get($response->json(), 'responseData.translatedText', ''));
+            if ($translated === '') {
+                $this->translationMemo[$memoKey] = $text;
+                return $text;
+            }
+
+            $translated = $this->normalizeLocalizedValue($translated);
+
+            $translated = $translated !== '' ? $translated : $text;
+            $this->translationMemo[$memoKey] = $translated;
+
+            return $translated;
+        } catch (\Throwable $e) {
+            $this->translationMemo[$memoKey] = $text;
+            return $text;
+        }
+    }
+
+    /**
+     * Normalize localized value to plain, display-safe text.
+     */
+    protected function normalizeLocalizedValue(string $value): string
+    {
+        $value = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $value = strip_tags($value);
+        $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+
+        return trim($value);
     }
 
     /**

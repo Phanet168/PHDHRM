@@ -629,11 +629,11 @@ class EmployeeUpdateRequest extends FormRequest
         }
 
         $name = $this->normalizeComparisonKey((string) ($gender->gender_name ?? ''));
-        if ($name === 'male' || str_contains($name, 'male') || $name === 'ប្រុស') {
-            return 'male';
-        }
         if ($name === 'female' || str_contains($name, 'female') || $name === 'ស្រី') {
             return 'female';
+        }
+        if ($name === 'male' || str_contains($name, 'male') || $name === 'ប្រុស') {
+            return 'male';
         }
 
         return '';

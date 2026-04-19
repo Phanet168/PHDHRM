@@ -21,6 +21,8 @@ use Modules\HumanResource\Entities\WeekHoliday;
 use Modules\HumanResource\Entities\ProjectTasks;
 use Modules\HumanResource\Entities\ProjectManagement;
 use Modules\HumanResource\Entities\Holiday;
+use Modules\Localize\Entities\Langstring;
+use Modules\Localize\Entities\Langstrval;
 
 class HomeController extends Controller
 {
@@ -28,6 +30,14 @@ class HomeController extends Controller
     {
         $this->middleware(['auth']);
         $this->middleware('permission:read_dashboard')->only('index');
+    }
+
+    /**
+     * Public root redirect for /backend.
+     */
+    public function rootRedirect()
+    {
+        return redirect()->route('login');
     }
 
     /**
@@ -39,12 +49,11 @@ class HomeController extends Controller
     {
         $total_employee   = Employee::where('is_active', 1)->count();
         $present_employee = $this->count_attend_employee();
-        $today_leave      = $this->leave_employee()->leave_total;
+        $today_leave_data = $this->leave_employee();
+        $today_leave      = $today_leave_data ? (int) $today_leave_data->leave_total : 0;
 
-        $departments = Department::with([
-            'employees.attendances:id,employee_id,time',
-            'employees.leave:id,employee_id,leave_apply_start_date,leave_apply_end_date,leave_approved_start_date,leave_approved_end_date,is_approved_by_manager,is_approved',
-        ])->whereNull('parent_id')
+        $departments = Department::query()
+            ->whereNull('parent_id')
             ->where('is_active', true)
             ->get(['id', 'department_name']);
 
@@ -82,8 +91,23 @@ class HomeController extends Controller
 
         // department wise employee awards monthly [Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec]
         $months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        $monthMap = [
+            1 => 'January',
+            2 => 'February',
+            3 => 'March',
+            4 => 'April',
+            5 => 'May',
+            6 => 'June',
+            7 => 'July',
+            8 => 'August',
+            9 => 'September',
+            10 => 'October',
+            11 => 'November',
+            12 => 'December',
+        ];
         $currentYear = Carbon::now()->year;
         $awardReportData = [];
+        $departmentNameById = $departments->pluck('department_name', 'id');
 
         // Initialize the report array with the department names and month-wise data
         foreach ($departments as $department) {
@@ -92,18 +116,19 @@ class HomeController extends Controller
             }
         }
 
-        foreach ($departments as $department) {
-            foreach ($department->employees as $employee) {
-                // Filter awards to only include those from the current year
-                $employeeAwards = $employee->awards->filter(function ($award) use ($currentYear) {
-                    return Carbon::parse($award->date)->year == $currentYear;
-                })->groupBy(function ($item) {
-                    return Carbon::parse($item->date)->format('F'); // Group by full month name
-                });
+        $awardRows = Award::query()
+            ->join('employees', 'employees.id', '=', 'awards.employee_id')
+            ->selectRaw('employees.department_id as department_id, MONTH(awards.date) as month_no, COUNT(*) as total')
+            ->whereYear('awards.date', $currentYear)
+            ->whereIn('employees.department_id', $departmentNameById->keys()->all())
+            ->groupBy('employees.department_id', DB::raw('MONTH(awards.date)'))
+            ->get();
 
-                foreach ($employeeAwards as $month => $awards) {
-                    $awardReportData[$department->department_name][$month] += $awards->count();
-                }
+        foreach ($awardRows as $row) {
+            $departmentName = $departmentNameById->get((int) $row->department_id);
+            $monthLabel = $monthMap[(int) $row->month_no] ?? null;
+            if ($departmentName !== null && $monthLabel !== null) {
+                $awardReportData[$departmentName][$monthLabel] = (int) $row->total;
             }
         }
 
@@ -127,8 +152,7 @@ class HomeController extends Controller
             ->get();
 
         // loan received from system & loan paid from employee total amount
-        $loans = Loan::all();
-        $totalLoanPaid = $loans->sum('released_amount');
+        $totalLoanPaid = (float) Loan::query()->sum('released_amount');
 
         return view('backend.layouts.home', compact([
             'present_employee',
@@ -165,6 +189,72 @@ class HomeController extends Controller
         Artisan::call('storage:link');
 
         return redirect()->intended();
+    }
+
+    /**
+     * Backward-compatible redirect for legacy profile links.
+     */
+    public function redirectLegacyEmployeeProfile()
+    {
+        return redirect()->route('myProfile');
+    }
+
+    /**
+     * Legacy helper endpoint used during local setup.
+     */
+    public function storageLinkTools()
+    {
+        Artisan::call('module:asset-link');
+        Artisan::call('storage:unlink');
+        Artisan::call('storage:link');
+
+        return response('Storage links refreshed successfully.');
+    }
+
+    /**
+     * Legacy helper endpoint to seed language keys.
+     */
+    public function insertLanguage()
+    {
+        DB::table('langstrings')->truncate();
+        $langStrings = __('language');
+
+        foreach ($langStrings as $key => $value) {
+            Langstring::query()->create([
+                'key' => $key,
+            ]);
+        }
+
+        return response('Phrase Inserted Successfully..!!');
+    }
+
+    /**
+     * Legacy helper endpoint to seed language values.
+     */
+    public function insertLanguageValue()
+    {
+        $langStrings = __('language');
+        $index = 1;
+
+        foreach ($langStrings as $value) {
+            Langstrval::query()->create([
+                'localize_id' => 2,
+                'langstring_id' => $index,
+                'phrase_value' => $value,
+            ]);
+            $index++;
+        }
+
+        return response('Phrase Value Inserted Successfully..!!');
+    }
+
+    /**
+     * Legacy helper endpoint for session smoke test.
+     */
+    public function testSession()
+    {
+        session()->put('test1', 'Phrase Value Inserted Successfully..!!');
+        return response((string) session()->get('test1'));
     }
 
     // myProfile
@@ -608,66 +698,61 @@ class HomeController extends Controller
 
     public function attendanceDepartmentWise($type)
     {
-        $type = request()->get('type') ?? $type;
-        switch ($type) {
-            case 0:
-                $fromDate = Carbon::now()->startOfDay();
-                $toDate = Carbon::now()->endOfDay();
-                break;
+        [$fromDate, $toDate] = $this->resolveDateRangeByType(request()->get('type') ?? $type);
 
-            case 1:
-                $fromDate = Carbon::now()->startOfWeek();
-                $toDate = Carbon::now()->endOfWeek();
-                break;
-
-            case 2:
-                $fromDate = Carbon::now()->startOfMonth();
-                $toDate = Carbon::now()->endOfMonth();
-                break;
-
-            case 3:
-                $fromDate = Carbon::now()->startOfYear();
-                $toDate = Carbon::now()->endOfYear();
-                break;
-
-            default:
-                $fromDate = Carbon::now()->startOfDay();
-                $toDate = Carbon::now()->endOfDay();
-                break;
-        }
-
-        $departments = Department::with([
-            'employees.attendances:id,employee_id,time',
-            'employees.leave:id,employee_id,leave_apply_start_date,leave_apply_end_date,leave_approved_start_date,leave_approved_end_date,is_approved_by_manager,is_approved',
-        ])
+        $departments = Department::query()
             ->whereNull('parent_id')
             ->where('is_active', true)
             ->get(['id', 'department_name']);
 
+        $departmentIds = $departments->pluck('id')->all();
+        if (empty($departmentIds)) {
+            return [];
+        }
+
+        $totalEmployeesByDepartment = Employee::query()
+            ->select('department_id', DB::raw('COUNT(*) as total'))
+            ->whereIn('department_id', $departmentIds)
+            ->groupBy('department_id')
+            ->pluck('total', 'department_id');
+
+        $presentByDepartment = DB::table('attendances')
+            ->join('employees', 'employees.id', '=', 'attendances.employee_id')
+            ->whereIn('employees.department_id', $departmentIds)
+            ->whereBetween('attendances.time', [$fromDate, $toDate])
+            ->whereNull('employees.deleted_at')
+            ->whereNull('attendances.deleted_at')
+            ->select('employees.department_id', DB::raw('COUNT(DISTINCT attendances.employee_id) as present_count'))
+            ->groupBy('employees.department_id')
+            ->pluck('present_count', 'employees.department_id');
+
+        $fromDateOnly = $fromDate->toDateString();
+        $toDateOnly = $toDate->toDateString();
+        $leaveByDepartment = DB::table('apply_leaves')
+            ->join('employees', 'employees.id', '=', 'apply_leaves.employee_id')
+            ->whereIn('employees.department_id', $departmentIds)
+            ->whereNull('employees.deleted_at')
+            ->whereNull('apply_leaves.deleted_at')
+            ->where(function ($query) use ($fromDateOnly, $toDateOnly) {
+                $query->whereBetween('leave_apply_start_date', [$fromDateOnly, $toDateOnly])
+                    ->orWhereBetween('leave_apply_end_date', [$fromDateOnly, $toDateOnly])
+                    ->orWhere(function ($subQuery) use ($fromDateOnly, $toDateOnly) {
+                        $subQuery->where('leave_apply_start_date', '<=', $fromDateOnly)
+                            ->where('leave_apply_end_date', '>=', $toDateOnly);
+                    });
+            })
+            ->select('employees.department_id', DB::raw('COUNT(DISTINCT apply_leaves.employee_id) as leave_count'))
+            ->groupBy('employees.department_id')
+            ->pluck('leave_count', 'employees.department_id');
+
         $departmentWiseAttendanceReport = [];
         foreach ($departments as $department) {
-            $totalEmployees = $department->employees->count();
-            $presentCount = 0;
-            $leaveCount = 0;
-            foreach ($department->employees as $employee) {
-                $presentCount += $employee->attendances()
-                    ->selectRaw('DATE(time) as date')
-                    ->whereBetween('time', [$fromDate, $toDate])
-                    ->groupBy('date')
-                    ->get()
-                    ->count();
-                $leaveCount = $employee->leave()
-                    ->where(function ($query) use ($fromDate, $toDate) {
-                        $query->whereBetween('leave_apply_start_date', [$fromDate, $toDate])
-                            ->orWhereBetween('leave_apply_end_date', [$fromDate, $toDate])
-                            ->orWhere(function ($query) use ($fromDate, $toDate) {
-                                $query->where('leave_apply_start_date', '<=', $fromDate)
-                                    ->where('leave_apply_end_date', '>=', $toDate);
-                            });
-                    })
-                    ->count();
-            }
+            $departmentId = (int) $department->id;
+            $totalEmployees = (int) ($totalEmployeesByDepartment[$departmentId] ?? 0);
+            $presentCount = (int) ($presentByDepartment[$departmentId] ?? 0);
+            $leaveCount = (int) ($leaveByDepartment[$departmentId] ?? 0);
             $absentCount = $totalEmployees - $presentCount - $leaveCount;
+
             if ($totalEmployees > 0) {
                 if ($absentCount < 0) {
                     $absentCount = 0;
@@ -694,42 +779,21 @@ class HomeController extends Controller
 
     public function recruitmentPositionWise(int $type)
     {
-        $type = request()->get('type') ?? $type;
-        switch ($type) {
-            case 0:
-                $fromDate = Carbon::now()->startOfDay();
-                $toDate = Carbon::now()->endOfDay();
-                break;
+        [$fromDate, $toDate] = $this->resolveDateRangeByType(request()->get('type') ?? $type);
 
-            case 1:
-                $fromDate = Carbon::now()->startOfWeek();
-                $toDate = Carbon::now()->endOfWeek();
-                break;
-
-            case 2:
-                $fromDate = Carbon::now()->startOfMonth();
-                $toDate = Carbon::now()->endOfMonth();
-                break;
-
-            case 3:
-                $fromDate = Carbon::now()->startOfYear();
-                $toDate = Carbon::now()->endOfYear();
-                break;
-
-            default:
-                $fromDate = Carbon::now()->startOfDay();
-                $toDate = Carbon::now()->endOfDay();
-                break;
-        }
-        $positions   = Position::with(['candidates'])
+        $positions = Position::query()
             ->where('is_active', true)
             ->get(['id', 'position_name', 'is_active']);
 
+        $candidateCountByPosition = CandidateSelection::query()
+            ->select('position_id', DB::raw('COUNT(*) as total'))
+            ->whereBetween('created_at', [$fromDate, $toDate])
+            ->groupBy('position_id')
+            ->pluck('total', 'position_id');
+
         $positionWiseAttendanceReport = [];
         foreach ($positions as $position) {
-            $candidateCount = $position->candidates()
-                ->whereBetween('created_at', [$fromDate, $toDate])
-                ->count();
+            $candidateCount = (int) ($candidateCountByPosition[$position->id] ?? 0);
             $positionWiseAttendanceReport[] = [
                 'position' => $position->position_name,
                 'candidate' => $candidateCount,
@@ -737,5 +801,22 @@ class HomeController extends Controller
         }
 
         return $positionWiseAttendanceReport;
+    }
+
+    /**
+     * Resolve dashboard period selector to a date range.
+     *
+     * @return array{0:\Carbon\Carbon,1:\Carbon\Carbon}
+     */
+    private function resolveDateRangeByType($type): array
+    {
+        $rangeType = (int) $type;
+
+        return match ($rangeType) {
+            1 => [Carbon::now()->startOfWeek(), Carbon::now()->endOfWeek()],
+            2 => [Carbon::now()->startOfMonth(), Carbon::now()->endOfMonth()],
+            3 => [Carbon::now()->startOfYear(), Carbon::now()->endOfYear()],
+            default => [Carbon::now()->startOfDay(), Carbon::now()->endOfDay()],
+        };
     }
 }

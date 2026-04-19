@@ -333,6 +333,8 @@ class ApiController extends Controller
                     curl_setopt($ch3, CURLOPT_FAILONERROR, true);
                     curl_setopt($ch3, CURLOPT_RETURNTRANSFER, true);
                     curl_setopt($ch3, CURLOPT_SSL_VERIFYPEER, 0);
+                    curl_setopt($ch3, CURLOPT_CONNECTTIMEOUT, 3);
+                    curl_setopt($ch3, CURLOPT_TIMEOUT, 5);
                     curl_setopt($ch3, CURLOPT_POSTFIELDS, $post_data3);
                     curl_setopt($ch3, CURLOPT_HTTPHEADER, array(
                         $settingdata->googleapi_authkey,
@@ -1117,6 +1119,8 @@ class ApiController extends Controller
                 curl_setopt($ch3, CURLOPT_FAILONERROR, TRUE); 
                 curl_setopt($ch3, CURLOPT_RETURNTRANSFER, TRUE);
                 curl_setopt($ch3, CURLOPT_SSL_VERIFYPEER, 0); 
+                curl_setopt($ch3, CURLOPT_CONNECTTIMEOUT, 3);
+                curl_setopt($ch3, CURLOPT_TIMEOUT, 5);
                 curl_setopt($ch3, CURLOPT_POSTFIELDS, $post_data3);
                 curl_setopt($ch3, CURLOPT_HTTPHEADER, array($settingdata->googleapi_authkey,
                     'Content-Type: application/json')
@@ -1488,44 +1492,88 @@ class ApiController extends Controller
         $from_date = Carbon::parse($from_date)->format('Y-m-d');
         $to_date = Carbon::parse($to_date)->format('Y-m-d');
 
-        $query = Attendance::select('*', DB::raw('DATE(time) as mydate'))
-        ->where('employee_id', $id)
-        ->whereBetween(DB::raw('DATE(time)'), [$from_date, $to_date])
-        ->groupBy('mydate')
-        ->orderByDesc('time')
-        ->get();
+        $rows = Attendance::query()
+            ->select(['employee_id', 'time'])
+            ->where('employee_id', $id)
+            ->whereDate('time', '>=', $from_date)
+            ->whereDate('time', '<=', $to_date)
+            ->orderBy('time', 'asc')
+            ->get();
+
+        if ($rows->isEmpty()) {
+            return [];
+        }
 
         $attendance = [];
-        $i=1;
-        foreach ($query as $att) {
+        $groupedByDate = $rows
+            ->groupBy(function ($row) {
+                return Carbon::parse((string) $row->time)->format('Y-m-d');
+            })
+            ->sortKeysDesc();
 
-            $attendance[] = Attendance::selectRaw('MIN(time) as intime, MAX(time) as outtime, employee_id as uid, time, TIMEDIFF(MAX(time), MIN(time)) as totalhours, DATE(time) as date, TIME(time) as punchtime')
-            ->where('employee_id', $att->employee_id)
-            ->where('time', 'LIKE', date('Y-m-d', strtotime($att->mydate)) . '%')
-            ->orderBy('time', 'DESC')
-            ->get()
-            ->toArray();
+        foreach ($groupedByDate as $date => $dayRows) {
+            $orderedRows = $dayRows->sortBy('time')->values();
+            $firstPunch = Carbon::parse((string) $orderedRows->first()->time);
+            $lastPunch = Carbon::parse((string) $orderedRows->last()->time);
 
-            $i = 1;
-            foreach($attendance as $k => $v){
+            $totalWorkedSeconds = max(0, $lastPunch->diffInSeconds($firstPunch, false));
 
-                $resp = $this->employee_worked_hour_by_date($attendance[$k][0]['uid'], date('Y-m-d', strtotime($attendance[$k][0]['time'])));
-                
-                $attendance[$k]['totalhours'] = $attendance[$k][0]['totalhours'];
-                $attendance[$k]['date']       = $attendance[$k][0]['date'];
+            $breakSeconds = 0;
+            $timePoints = $orderedRows
+                ->map(function ($row) {
+                    return Carbon::parse((string) $row->time);
+                })
+                ->values();
 
+            $totalPoints = $timePoints->count();
+            for ($i = 1; $i < ($totalPoints - 1); $i += 2) {
+                $outTime = $timePoints->get($i);
+                $nextInTime = $timePoints->get($i + 1);
 
-                $attendance[$k]['wastage'] =   $resp['totalwasthour'];
-                $attendance[$k]['nethours'] = $resp['totalnetworkhour'];
-
-                        
+                if ($outTime && $nextInTime) {
+                    $gap = $nextInTime->diffInSeconds($outTime, false);
+                    if ($gap > 0) {
+                        $breakSeconds += $gap;
+                    }
+                }
             }
 
-            $i++;
+            $netSeconds = max(0, $totalWorkedSeconds - $breakSeconds);
+
+            $baseRow = [
+                'intime' => $firstPunch->format('Y-m-d H:i:s'),
+                'outtime' => $lastPunch->format('Y-m-d H:i:s'),
+                'uid' => (int) $id,
+                'time' => $lastPunch->format('Y-m-d H:i:s'),
+                'totalhours' => $this->formatSecondsToClock($totalWorkedSeconds),
+                'date' => (string) $date,
+                'punchtime' => $lastPunch->format('H:i:s'),
+            ];
+
+            // Keep legacy response shape: row payload at index 0 + summary keys.
+            $entry = [$baseRow];
+            $entry['totalhours'] = $baseRow['totalhours'];
+            $entry['date'] = (string) $date;
+            $entry['wastage'] = $this->formatSecondsToClock($breakSeconds);
+            $entry['nethours'] = $this->formatSecondsToClock($netSeconds);
+
+            $attendance[] = $entry;
         }
+
         return $attendance;
        
    }
+
+    protected function formatSecondsToClock(int $seconds): string
+    {
+        $seconds = max(0, $seconds);
+
+        $hours = intdiv($seconds, 3600);
+        $minutes = intdiv($seconds % 3600, 60);
+        $remainingSeconds = $seconds % 60;
+
+        return sprintf('%02d:%02d:%02d', $hours, $minutes, $remainingSeconds);
+    }
 
     /**
      * Calculating totalNetworkHours for an employee current_day

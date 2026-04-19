@@ -85,10 +85,35 @@
         while (count($workHistory) < 3) {
             $workHistory[] = [];
         }
+        $maleKh = json_decode('"\u1794\u17d2\u179a\u17bb\u179f"') ?: 'male';
+        $femaleKh = json_decode('"\u179f\u17d2\u179a\u17b8"') ?: 'female';
+        $resolveGenderKh = static function ($value, $genderId = null) use ($maleKh, $femaleKh): string {
+            $raw = trim((string) $value);
+            $norm = mb_strtolower($raw, 'UTF-8');
+
+            if (
+                str_contains($norm, $maleKh)
+                || in_array($norm, ['male', 'm', 'man', 'boy'], true)
+                || (int) $genderId === 1
+            ) {
+                return $maleKh;
+            }
+
+            if (
+                str_contains($norm, $femaleKh)
+                || in_array($norm, ['female', 'f', 'woman', 'girl'], true)
+                || (int) $genderId === 2
+            ) {
+                return $femaleKh;
+            }
+
+            return $raw;
+        };
+        $normalizedGender = $resolveGenderKh(data_get($p, 'gender', ''), data_get($p, 'gender_id'));
 
         $form = [
             'full_name' => $khmerOnly(data_get($p, 'full_name', '')),
-            'gender' => $khmerOnly(data_get($p, 'gender', '')),
+            'gender' => $khmerOnly($normalizedGender),
             'ethnicity' => $khmerOnly(data_get($p, 'nationality', '')),
             'nationality' => $khmerOnly(data_get($p, 'citizenship', '')),
             'birth_date' => $toDate(data_get($p, 'date_of_birth')),
@@ -131,13 +156,22 @@
         ];
 
         $genderText = trim((string) $form['gender']);
-        $applicantPronoun = 'ខ្ញុំបាទ';
-        $spouseLabel = 'ឈ្មោះប្រពន្ធ';
+        if ($genderText === '') {
+            $genderText = trim((string) $normalizedGender);
+        }
+
+        $malePronoun = json_decode('"\u1781\u17d2\u1789\u17bb\u17c6\u1794\u17b6\u1791"') ?: '';
+        $femalePronoun = json_decode('"\u1793\u17b6\u1784\u1781\u17d2\u1789\u17bb\u17c6"') ?: '';
+        $wifeLabel = json_decode('"\u1788\u17d2\u1798\u17c4\u17c7\u1794\u17d2\u179a\u1796\u1793\u17d2\u1792"') ?: '';
+        $husbandLabel = json_decode('"\u1788\u17d2\u1798\u17c4\u17c7\u1794\u17d2\u178f\u17b8"') ?: '';
+
+        $applicantPronoun = $malePronoun;
+        $spouseLabel = $wifeLabel;
         if ($genderText !== '') {
             $lowerGender = mb_strtolower($genderText, 'UTF-8');
-            if (str_contains($lowerGender, 'ស្រី') || $lowerGender === 'female' || $lowerGender === 'f') {
-                $applicantPronoun = 'នាងខ្ញុំ';
-                $spouseLabel = 'ឈ្មោះប្តី';
+            if (str_contains($lowerGender, $femaleKh) || $lowerGender === 'female' || $lowerGender === 'f') {
+                $applicantPronoun = $femalePronoun;
+                $spouseLabel = $husbandLabel;
             }
         }
 

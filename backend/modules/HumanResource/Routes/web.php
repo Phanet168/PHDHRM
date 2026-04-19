@@ -90,9 +90,8 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
         'destroy',
     ]);
     // Guard against malformed update submissions that target /positions without an id.
-    Route::match(['put', 'patch'], 'positions', function () {
-        return redirect()->route('positions.index');
-    })->name('positions.update.fallback');
+    Route::match(['put', 'patch'], 'positions', [PositionController::class, 'index'])
+        ->name('positions.update.fallback');
     Route::resource('professional-skills', ProfessionalSkillController::class)->only([
         'index',
         'store',
@@ -633,7 +632,7 @@ Route::group(['prefix' => 'payroll', 'middleware' => ['auth']], function () {
     Route::get('empl/payslip/{uuid}', [SalaryGenerateController::class, 'employeePayslip'])->name('employee.payslip');
     Route::get('empl/payslip/{uuid}/pdf', [SalaryGenerateController::class, 'downloadPayslip'])->name('employee.payslip-pdf');
     Route::get('salary-chart/{uuid}', [SalaryGenerateController::class, 'salaryChart'])->name('salary.chart');
-    Route::post('salary-approval/{uuid}', [SalaryGenerateController::class, 'salaryApproval'])->name('salary.approval');
+    Route::post('salary-approval/{uuid}', [SalaryGenerateController::class, 'salaryApproval'])->name('salary.approval.legacy');
     Route::delete('salary-sheet/{uuid}', [SalaryGenerateController::class, 'destroy'])->name('salary-sheet.destroy');
 
 });

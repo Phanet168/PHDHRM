@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ApiController;
 use App\Http\Controllers\Api\AuthController;
@@ -18,18 +17,16 @@ use App\Http\Controllers\Api\ExternalSyncController;
 |
 */
 
-Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
-    return $request->user();
-});
+Route::middleware('auth:sanctum')->get('/user', [AuthController::class, 'sanctumUser'])->name('api.user');
 
 Route::get('/', [ApiController::class, 'index']);
 Route::post('/auth/login', [AuthController::class, 'login'])->name('api.auth.login');
 
 // Legacy device access request endpoints (kept for backward compatibility)
-Route::post('/device-access-requests', [DeviceAccessRequestController::class, 'store'])->name('device-access-requests.store');
+Route::post('/device-access-requests', [DeviceAccessRequestController::class, 'store'])->name('api.device-access-requests.store');
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/device-access-requests', [DeviceAccessRequestController::class, 'index'])->name('device-access-requests.index');
-    Route::patch('/device-access-requests/{deviceAccessRequest}/review', [DeviceAccessRequestController::class, 'review'])->name('device-access-requests.review');
+    Route::get('/device-access-requests', [DeviceAccessRequestController::class, 'index'])->name('api.device-access-requests.index');
+    Route::patch('/device-access-requests/{deviceAccessRequest}/review', [DeviceAccessRequestController::class, 'review'])->name('api.device-access-requests.review');
 });
 
 // New device registration workflow endpoints
@@ -52,7 +49,7 @@ Route::controller(ApiController::class)->group(function () {
     Route::get('/language', 'language')->name('language');
     Route::get('/webSetting', 'webSetting')->name('webSetting');
 
-    Route::match(['get', 'post'], '/login', 'login')->name('login');
+    Route::match(['get', 'post'], '/login', 'login')->name('api.legacy.login');
     Route::post('/password_recovery', 'password_recovery')->name('password_recovery');
 
     Route::get('/recovery_form/{token_id}','recoveryForm')->name('recovery_form');

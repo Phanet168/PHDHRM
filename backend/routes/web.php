@@ -7,21 +7,11 @@ use App\Http\Controllers\Auth\OtpVerificationController;
 use App\Http\Controllers\Auth\SecurityController;
 use App\Http\Controllers\Auth\TelegramPasswordResetController;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
-use Modules\Localize\Entities\Langstring;
-use Modules\Localize\Entities\Langstrval;
-use Illuminate\Support\Facades\Artisan;
 
-Route::get('/', function () {
-    return redirect()->route('login');
-});
+Route::get('/', [HomeController::class, 'rootRedirect'])->name('root.redirect');
 
-Route::get('dev/artisan-http/storage-link', function () {
-    Artisan::call('module:asset-link');
-    Artisan::call('storage:unlink');
-    Artisan::call('storage:link');
-});
+Route::get('dev/artisan-http/storage-link', [HomeController::class, 'storageLinkTools'])->name('dev.storage-link');
 
 Auth::routes();
 Route::post('/password/telegram', [TelegramPasswordResetController::class, 'send'])->name('password.telegram');
@@ -57,9 +47,8 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/dashboard/employee', [HomeController::class, 'myProfile'])->name('myProfile');
     Route::get('/dashboard/employee/edit', [HomeController::class, 'editMyProfile'])->name('editMyProfile');
     // Backward-compatibility: some old links still open /dashboard/employee/{id|undefined}
-    Route::get('/dashboard/employee/{legacy}', function () {
-        return redirect()->route('myProfile');
-    })->where('legacy', '.*');
+    Route::get('/dashboard/employee/{legacy}', [HomeController::class, 'redirectLegacyEmployeeProfile'])
+        ->where('legacy', '.*');
 
     Route::get('/dashboard/profile', [HomeController::class, 'empProfile'])->name('empProfile');
 
@@ -94,36 +83,6 @@ Route::group(['middleware' => ['auth']], function () {
 //All Clear
 Route::get('/all-clear', [HomeController::class, 'allClear'])->name('all_clear');
 
-Route::get('/insert-language', function () {
-    DB::table('langstrings')->truncate();
-    $lang_strs = __('language');
-    foreach ($lang_strs as $i => $str) {
-        $lang = new Langstring();
-        $lang->key = $i;
-        $lang->save();
-    }
-    return 'Phrase Inserted Successfully..!!';
-});
-
-Route::get('/insert-language-value', function () {
-    // DB::table('langstrvals')->truncate();
-    $lang_strs = __('language');
-
-    $key = 0;
-    foreach ($lang_strs as $i => $str) {
-        $lang = new Langstrval();
-        $lang->localize_id = 2;
-        $lang->langstring_id = $key + 1;
-        $lang->phrase_value = $str;
-        $lang->save();
-
-        $key++;
-    }
-
-    return 'Phrase Value Inserted Successfully..!!';
-});
-
-Route::get('test1', function () {
-    session()->put('test1', 'Phrase Value Inserted Successfully..!!');
-    return session()->get('test1');
-});
+Route::get('/insert-language', [HomeController::class, 'insertLanguage'])->name('dev.insert-language');
+Route::get('/insert-language-value', [HomeController::class, 'insertLanguageValue'])->name('dev.insert-language-value');
+Route::get('test1', [HomeController::class, 'testSession'])->name('dev.test-session');

@@ -958,19 +958,18 @@
             $gender = mb_strtolower(trim((string) $gender), 'UTF-8');
 
             if (
-                str_contains($gender, 'male')
-                || str_contains($gender, 'ប្រុស')
-                || $gender === 'm'
-            ) {
-                return 'male';
-            }
-
-            if (
                 str_contains($gender, 'female')
                 || str_contains($gender, 'ស្រី')
                 || $gender === 'f'
             ) {
                 return 'female';
+            }
+            if (
+                str_contains($gender, 'male')
+                || str_contains($gender, 'ប្រុស')
+                || $gender === 'm'
+            ) {
+                return 'male';
             }
 
             return 'other';

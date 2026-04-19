@@ -368,13 +368,14 @@ class EmployeeController extends Controller
             $user->assignRole(2);
 
             $employee = new Employee();
-            $employee->fill($request->except([
+            $employeePayload = $this->enrichAddressPayloadFromGazetteer($request->except([
                 'user_id',
                 'employee_id',
                 'uuid',
                 'created_by',
                 'updated_by',
             ]));
+            $employee->fill($employeePayload);
             $employee->employee_grade = $this->resolvePayLevelKmLabel(
                 $request->input('employee_grade', $request->input('current_salary_type'))
             );
@@ -701,13 +702,14 @@ class EmployeeController extends Controller
             $originalPositionId = $employee->position_id;
             $originalOrgUnitId = $employee->sub_department_id ?: $employee->department_id;
 
-            $employee->fill($request->except([
+            $employeePayload = $this->enrichAddressPayloadFromGazetteer($request->except([
                 'user_id',
                 'employee_id',
                 'uuid',
                 'created_by',
                 'updated_by',
             ]));
+            $employee->fill($employeePayload);
             $employee->employee_grade = $this->resolvePayLevelKmLabel(
                 $request->input('employee_grade', $request->input('current_salary_type'))
             );
@@ -1189,7 +1191,10 @@ class EmployeeController extends Controller
 
     protected function renderEmployeeProfilePdfFromWordTemplate(array $viewData, string $fileName, bool $inline = false): ?BinaryFileResponse
     {
-        $templatePath = $this->resolveEmployeeProfileWordTemplatePath();
+        $profile = (array) data_get($viewData, 'profile', []);
+        $placeholders = $this->employeeProfileWordTemplateVariables($profile);
+
+        $templatePath = $this->resolveEmployeeProfileWordTemplatePath(['full_name']);
         if (!$templatePath) {
             return null;
         }
@@ -1198,9 +1203,6 @@ class EmployeeController extends Controller
         if (!$officePath) {
             return null;
         }
-
-        $profile = (array) data_get($viewData, 'profile', []);
-        $placeholders = $this->employeeProfileWordTemplateVariables($profile);
 
         $tmpDir = storage_path('app/tmp/employee-profile-docx');
         if (!is_dir($tmpDir)) {
@@ -1271,22 +1273,37 @@ class EmployeeController extends Controller
         }
     }
 
-    protected function resolveEmployeeProfileWordTemplatePath(): ?string
+    protected function resolveEmployeeProfileWordTemplatePath(array $requiredPlaceholders = []): ?string
     {
-        $envPath = trim((string) env('EMPLOYEE_PROFILE_WORD_TEMPLATE', ''));
-        if ($envPath !== '' && is_file($envPath)) {
-            return $envPath;
+        $requiredPlaceholders = array_values(array_filter(array_map(static function ($placeholder): string {
+            return trim((string) $placeholder);
+        }, $requiredPlaceholders), static function (string $placeholder): bool {
+            return $placeholder !== '';
+        }));
+
+        $envRawPath = trim((string) env('EMPLOYEE_PROFILE_WORD_TEMPLATE', ''));
+        $envPath = $this->resolvePrintableFilePath($envRawPath);
+        if ($envRawPath !== '' && !$envPath) {
+            Log::warning('EMPLOYEE_PROFILE_WORD_TEMPLATE points to a non-existent file.', [
+                'path' => $envRawPath,
+            ]);
         }
 
-        $candidates = [
+        $candidates = [];
+        if ($envPath) {
+            $candidates[] = $envPath;
+        }
+
+        $candidates = array_merge($candidates, [
             storage_path('app/public/templates/employee-profile-template.docx'),
             storage_path('app/templates/employee-profile-template.docx'),
             base_path('templates/employee-profile-template.docx'),
-        ];
+        ]);
 
         $dynamicGlobs = [
             storage_path('app/public/templates/*.docx'),
             storage_path('app/templates/*.docx'),
+            base_path('templates/*.docx'),
         ];
 
         foreach ($dynamicGlobs as $pattern) {
@@ -1296,13 +1313,137 @@ class EmployeeController extends Controller
             }
         }
 
+        $seen = [];
+        foreach ($candidates as $candidate) {
+            $resolvedPath = $this->resolvePrintableFilePath((string) $candidate);
+            if (!$resolvedPath) {
+                continue;
+            }
+
+            $normalizedPath = str_replace('\\', '/', $resolvedPath);
+            if (isset($seen[$normalizedPath])) {
+                continue;
+            }
+            $seen[$normalizedPath] = true;
+
+            $missingRequiredPlaceholders = $this->wordTemplateMissingPlaceholders($resolvedPath, $requiredPlaceholders);
+            if ($missingRequiredPlaceholders !== []) {
+                if ($envPath && str_replace('\\', '/', $envPath) === $normalizedPath) {
+                    Log::warning('Employee profile Word template missing required placeholders. Falling back to browser/DomPDF.', [
+                        'template' => $resolvedPath,
+                        'missing_placeholders' => $missingRequiredPlaceholders,
+                    ]);
+                }
+                continue;
+            }
+
+            return $resolvedPath;
+        }
+
+        return null;
+    }
+
+    protected function resolvePrintableFilePath(string $path): ?string
+    {
+        $rawPath = trim($path);
+        if ($rawPath === '') {
+            return null;
+        }
+
+        $normalizedPath = trim($rawPath, " \t\n\r\0\x0B\"'");
+        if ($normalizedPath === '') {
+            return null;
+        }
+
+        $candidates = [$normalizedPath];
+        if (!$this->isAbsoluteFilePath($normalizedPath)) {
+            $candidates[] = base_path($normalizedPath);
+            $candidates[] = storage_path($normalizedPath);
+            $candidates[] = public_path($normalizedPath);
+        }
+
         foreach ($candidates as $candidate) {
             if (is_file($candidate)) {
-                return $candidate;
+                $realPath = realpath($candidate);
+                return is_string($realPath) && $realPath !== '' ? $realPath : $candidate;
             }
         }
 
         return null;
+    }
+
+    protected function isAbsoluteFilePath(string $path): bool
+    {
+        $normalized = str_replace('\\', '/', $path);
+        if (str_starts_with($normalized, '/')) {
+            return true;
+        }
+
+        if (str_starts_with($normalized, '//')) {
+            return true;
+        }
+
+        return (bool) preg_match('/^[A-Za-z]:\//', $normalized);
+    }
+
+    protected function wordTemplateMissingPlaceholders(string $templatePath, array $placeholderKeys): array
+    {
+        $placeholderKeys = array_values(array_unique(array_filter(array_map(static function ($placeholder): string {
+            return trim((string) $placeholder);
+        }, $placeholderKeys), static function (string $placeholder): bool {
+            return $placeholder !== '';
+        })));
+
+        if ($placeholderKeys === []) {
+            return [];
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($templatePath) !== true) {
+            return $placeholderKeys;
+        }
+
+        $combinedXml = '';
+        try {
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $entryName = $zip->getNameIndex($i);
+                if (!is_string($entryName) || !str_starts_with($entryName, 'word/') || !str_ends_with($entryName, '.xml')) {
+                    continue;
+                }
+
+                $xml = $zip->getFromIndex($i);
+                if (!is_string($xml) || $xml === '') {
+                    continue;
+                }
+
+                $combinedXml .= "\n" . $xml;
+            }
+        } finally {
+            $zip->close();
+        }
+
+        if ($combinedXml === '') {
+            return $placeholderKeys;
+        }
+
+        $combinedXml = preg_replace('/<w:proofErr[^>]*\/>/u', '', $combinedXml) ?? $combinedXml;
+
+        $missing = [];
+        foreach ($placeholderKeys as $key) {
+            $token = '${' . $key . '}';
+            if (str_contains($combinedXml, $token)) {
+                continue;
+            }
+
+            $splitTokenPattern = $this->buildSplitWordTokenPattern($token);
+            if ($splitTokenPattern !== null && preg_match($splitTokenPattern, $combinedXml) === 1) {
+                continue;
+            }
+
+            $missing[] = $key;
+        }
+
+        return $missing;
     }
 
     protected function resolveOfficeConverterPath(): ?string
@@ -1990,12 +2131,11 @@ class EmployeeController extends Controller
             $maleKh = json_decode('"\u1794\u17d2\u179a\u17bb\u179f"') ?: 'áž”áŸ’ážšáž»ážŸ';
             $femaleKh = json_decode('"\u179f\u17d2\u179a\u17b8"') ?: 'ážŸáŸ’ážšáž¸';
 
-            if (str_contains($lower, 'male') || $lower === 'm' || str_contains($clean, $maleKh)) {
-                return $maleKh;
-            }
-
             if (str_contains($lower, 'female') || $lower === 'f' || str_contains($clean, $femaleKh)) {
                 return $femaleKh;
+            }
+            if (str_contains($lower, 'male') || $lower === 'm' || str_contains($clean, $maleKh)) {
+                return $maleKh;
             }
 
             if (str_contains($clean, 'Ãƒ') || str_contains($clean, 'Ã‚') || str_contains($clean, 'Ã¢â‚¬')) {
@@ -3497,6 +3637,280 @@ class EmployeeController extends Controller
             ['employee_id' => $employee->id],
             $payload
         );
+    }
+
+    protected function enrichAddressPayloadFromGazetteer(array $payload): array
+    {
+        if ($this->rowHasAnyValue($payload, [
+            'birth_place_state_id',
+            'birth_place_city_id',
+            'birth_place_commune_id',
+            'birth_place_village_id',
+        ])) {
+            $birthNames = $this->resolveGazetteerAddressNameParts(
+                $payload['birth_place_state_id'] ?? null,
+                $payload['birth_place_city_id'] ?? null,
+                $payload['birth_place_commune_id'] ?? null,
+                $payload['birth_place_village_id'] ?? null
+            );
+
+            $birthProvince = $this->strOrNull($birthNames['province'] !== '' ? $birthNames['province'] : ($payload['birth_place_state'] ?? null));
+            $birthDistrict = $this->strOrNull($birthNames['district'] !== '' ? $birthNames['district'] : ($payload['birth_place_city'] ?? null));
+            $birthCommune = $this->strOrNull($birthNames['commune'] !== '' ? $birthNames['commune'] : ($payload['birth_place_commune'] ?? null));
+            $birthVillage = $this->strOrNull($birthNames['village'] !== '' ? $birthNames['village'] : ($payload['birth_place_village'] ?? null));
+
+            $payload['birth_place_state'] = $birthProvince;
+            $payload['birth_place_city'] = $birthDistrict;
+            $payload['birth_place_commune'] = $birthCommune;
+            $payload['birth_place_village'] = $birthVillage;
+
+            $birthParts = array_values(array_filter([
+                $birthProvince,
+                $birthDistrict,
+                $birthCommune,
+                $birthVillage,
+            ], static function ($value): bool {
+                return trim((string) $value) !== '';
+            }));
+
+            if (!empty($birthParts)) {
+                $payload['birth_place'] = implode(' > ', $birthParts);
+            }
+        }
+
+        if ($this->rowHasAnyValue($payload, [
+            'present_address_state_id',
+            'present_address_city_id',
+            'present_address_commune_id',
+            'present_address_village_id',
+        ])) {
+            $presentNames = $this->resolveGazetteerAddressNameParts(
+                $payload['present_address_state_id'] ?? null,
+                $payload['present_address_city_id'] ?? null,
+                $payload['present_address_commune_id'] ?? null,
+                $payload['present_address_village_id'] ?? null
+            );
+
+            $presentProvince = $this->strOrNull($presentNames['province'] !== '' ? $presentNames['province'] : ($payload['present_address_state'] ?? null));
+            $presentDistrict = $this->strOrNull($presentNames['district'] !== '' ? $presentNames['district'] : ($payload['present_address_city'] ?? null));
+            $presentCommune = $this->strOrNull(
+                $presentNames['commune'] !== ''
+                    ? $presentNames['commune']
+                    : ($payload['present_address_post_code'] ?? ($payload['present_address_commune'] ?? null))
+            );
+            $presentVillage = $this->strOrNull(
+                $presentNames['village'] !== ''
+                    ? $presentNames['village']
+                    : ($payload['present_address_address'] ?? ($payload['present_address_village'] ?? null))
+            );
+
+            $payload['present_address_state'] = $presentProvince;
+            $payload['present_address_city'] = $presentDistrict;
+            $payload['present_address_post_code'] = $presentCommune;
+            $payload['present_address_address'] = $presentVillage;
+
+            $presentParts = array_values(array_filter([
+                $presentProvince,
+                $presentDistrict,
+                $presentCommune,
+                $presentVillage,
+            ], static function ($value): bool {
+                return trim((string) $value) !== '';
+            }));
+
+            if (!empty($presentParts)) {
+                $payload['present_address'] = implode(' > ', $presentParts);
+            }
+        }
+
+        return $payload;
+    }
+
+    protected function resolveGazetteerAddressNameParts($provinceCode, $districtCode, $communeCode, $villageCode): array
+    {
+        $provinceCode = trim((string) $provinceCode);
+        $districtCode = trim((string) $districtCode);
+        $communeCode = trim((string) $communeCode);
+        $villageCode = trim((string) $villageCode);
+
+        if ($districtCode === '' && strlen($communeCode) >= 4) {
+            $districtCode = substr($communeCode, 0, 4);
+        }
+        if ($districtCode === '' && strlen($villageCode) >= 4) {
+            $districtCode = substr($villageCode, 0, 4);
+        }
+        if ($communeCode === '' && strlen($villageCode) >= 6) {
+            $communeCode = substr($villageCode, 0, 6);
+        }
+        if ($provinceCode === '' && strlen($districtCode) >= 2) {
+            $provinceCode = substr($districtCode, 0, 2);
+        }
+        if ($provinceCode === '' && strlen($communeCode) >= 2) {
+            $provinceCode = substr($communeCode, 0, 2);
+        }
+        if ($provinceCode === '' && strlen($villageCode) >= 2) {
+            $provinceCode = substr($villageCode, 0, 2);
+        }
+
+        $indexes = $this->loadGazetteerAddressIndexes();
+
+        if ($villageCode !== '' && isset($indexes['village'][$villageCode])) {
+            $villageMeta = $indexes['village'][$villageCode];
+            if ($communeCode === '') {
+                $communeCode = trim((string) ($villageMeta['commune_code'] ?? ''));
+            }
+            if ($districtCode === '') {
+                $districtCode = trim((string) ($villageMeta['district_code'] ?? ''));
+            }
+            if ($provinceCode === '') {
+                $provinceCode = trim((string) ($villageMeta['province_code'] ?? ''));
+            }
+        }
+
+        if ($communeCode !== '' && isset($indexes['commune'][$communeCode])) {
+            $communeMeta = $indexes['commune'][$communeCode];
+            if ($districtCode === '') {
+                $districtCode = trim((string) ($communeMeta['district_code'] ?? ''));
+            }
+            if ($provinceCode === '') {
+                $provinceCode = trim((string) ($communeMeta['province_code'] ?? ''));
+            }
+        }
+
+        if ($districtCode !== '' && isset($indexes['district'][$districtCode])) {
+            $districtMeta = $indexes['district'][$districtCode];
+            if ($provinceCode === '') {
+                $provinceCode = trim((string) ($districtMeta['province_code'] ?? ''));
+            }
+        }
+
+        $provinceLabel = trim((string) ($indexes['province'][$provinceCode] ?? ''));
+        $districtLabel = trim((string) (($indexes['district'][$districtCode]['name'] ?? '')));
+        $communeLabel = trim((string) (($indexes['commune'][$communeCode]['name'] ?? '')));
+        $villageLabel = trim((string) (($indexes['village'][$villageCode]['name'] ?? '')));
+
+        return [
+            'province' => $provinceLabel,
+            'district' => $districtLabel,
+            'commune' => $communeLabel,
+            'village' => $villageLabel,
+        ];
+    }
+
+    protected function loadGazetteerAddressIndexes(): array
+    {
+        static $indexes = null;
+        if (is_array($indexes)) {
+            return $indexes;
+        }
+
+        $indexes = [
+            'province' => [],
+            'district' => [],
+            'commune' => [],
+            'village' => [],
+        ];
+
+        $path = public_path('module-assets/HumanResource/data/cambodia_gazetteer.json');
+        if (!is_file($path)) {
+            return $indexes;
+        }
+
+        $raw = @file_get_contents($path);
+        if ($raw === false || trim($raw) === '') {
+            return $indexes;
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return $indexes;
+        }
+
+        $nodeLabel = static function (array $node): string {
+            return trim((string) ($node['khmer'] ?? $node['name'] ?? $node['latin'] ?? ''));
+        };
+        $nodeCode = static function (array $node): string {
+            return trim((string) ($node['code'] ?? $node['id'] ?? ''));
+        };
+
+        foreach ($decoded as $province) {
+            if (!is_array($province)) {
+                continue;
+            }
+
+            $provinceCode = $nodeCode($province);
+            $provinceName = $nodeLabel($province);
+            if ($provinceCode !== '' && $provinceName !== '') {
+                $indexes['province'][$provinceCode] = $provinceName;
+            }
+
+            $districts = $province['districts'] ?? [];
+            if (!is_array($districts)) {
+                continue;
+            }
+
+            foreach ($districts as $district) {
+                if (!is_array($district)) {
+                    continue;
+                }
+
+                $districtCode = $nodeCode($district);
+                $districtName = $nodeLabel($district);
+                if ($districtCode !== '') {
+                    $indexes['district'][$districtCode] = [
+                        'name' => $districtName,
+                        'province_code' => $provinceCode,
+                    ];
+                }
+
+                $communes = $district['communes'] ?? [];
+                if (!is_array($communes)) {
+                    continue;
+                }
+
+                foreach ($communes as $commune) {
+                    if (!is_array($commune)) {
+                        continue;
+                    }
+
+                    $communeCode = $nodeCode($commune);
+                    $communeName = $nodeLabel($commune);
+                    if ($communeCode !== '') {
+                        $indexes['commune'][$communeCode] = [
+                            'name' => $communeName,
+                            'district_code' => $districtCode,
+                            'province_code' => $provinceCode,
+                        ];
+                    }
+
+                    $villages = $commune['villages'] ?? [];
+                    if (!is_array($villages)) {
+                        continue;
+                    }
+
+                    foreach ($villages as $village) {
+                        if (!is_array($village)) {
+                            continue;
+                        }
+
+                        $villageCode = $nodeCode($village);
+                        $villageName = $nodeLabel($village);
+                        if ($villageCode === '') {
+                            continue;
+                        }
+
+                        $indexes['village'][$villageCode] = [
+                            'name' => $villageName,
+                            'commune_code' => $communeCode,
+                            'district_code' => $districtCode,
+                            'province_code' => $provinceCode,
+                        ];
+                    }
+                }
+            }
+        }
+
+        return $indexes;
     }
 
     protected function replaceEducationHistories(Employee $employee, array $rows): void
