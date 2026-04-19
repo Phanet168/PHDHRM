@@ -4,6 +4,20 @@
 @section('content')
     @include('humanresource::attendance_header')
 
+    {{-- Auto-refresh indicator --}}
+    <div class="d-flex align-items-center justify-content-end mb-2 gap-2">
+        <span class="text-muted small" id="last-refresh-label">
+            {{ localize('last_refreshed', 'Last refreshed') }}: <span id="last-refresh-time">{{ now()->format('H:i:s') }}</span>
+        </span>
+        <span class="badge bg-success text-white small" id="auto-refresh-badge">
+            <span class="spinner-grow spinner-grow-sm me-1" role="status" aria-hidden="true"></span>
+            {{ localize('auto_refresh', 'Auto-refresh ON') }}
+        </span>
+        <button class="btn btn-sm btn-outline-secondary" id="manual-refresh-btn" title="{{ localize('refresh_now', 'Refresh Now') }}">
+            <i class="fas fa-sync-alt"></i>
+        </button>
+    </div>
+
     <div class="row g-3 mb-4">
         <div class="col-md-3">
             <div class="card h-100 border-0 shadow-sm">
@@ -206,3 +220,22 @@
         </div>
     </div>
 @endsection
+
+@push('js')
+<script>
+    // Auto-refresh the workflow page every 30 seconds to show live device online status
+    const REFRESH_INTERVAL_MS = 30000;
+    let countdown = REFRESH_INTERVAL_MS / 1000;
+
+    setInterval(function () {
+        countdown--;
+        if (countdown <= 0) {
+            window.location.reload();
+        }
+    }, 1000);
+
+    document.getElementById('manual-refresh-btn').addEventListener('click', function () {
+        window.location.reload();
+    });
+</script>
+@endpush
