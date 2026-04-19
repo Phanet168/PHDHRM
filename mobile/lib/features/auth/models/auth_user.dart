@@ -22,6 +22,7 @@ class AuthUser {
     // Identity
     this.nationalId,
     // Work
+    this.employeeNo,
     this.cardNo,
     this.employeeCode,
     this.position,
@@ -63,6 +64,7 @@ class AuthUser {
   // Identity
   final String? nationalId;
   // Work
+  final String? employeeNo;
   final String? cardNo;
   final String? employeeCode;
   final String? position;
@@ -90,22 +92,26 @@ class AuthUser {
       role = roles.first as String;
     }
 
-    final firstName = (json['first_name'] as String?) ?? '';
-    final lastName = (json['last_name'] as String?) ?? '';
+    final firstName = (json['first_name'] as String?)?.trim() ?? '';
+    final middleName = (json['middle_name'] as String?)?.trim() ?? '';
+    final lastName = (json['last_name'] as String?)?.trim() ?? '';
     final combinedName = ('$firstName $lastName').trim();
+    final combinedWithMiddle = ('$firstName $middleName $lastName').trim();
 
-    // Gender mapping from gender_id
+    // Gender mapping from payload
     final genderId = json['gender_id'];
-    String? gender;
+    String? gender = (json['gender_display'] as String?)?.trim();
     if (genderId == 1 || genderId == '1') {
       gender = 'ប្រុស';
     } else if (genderId == 2 || genderId == '2') {
       gender = 'ស្រី';
+    } else if ((gender == null || gender.isEmpty) && json['gender_name'] is String) {
+      gender = (json['gender_name'] as String).trim();
     }
 
-    // Marital status mapping from marital_status_id
+    // Marital status mapping from payload
     final maritalId = json['marital_status_id'];
-    String? maritalStatus;
+    String? maritalStatus = (json['marital_status_name'] as String?)?.trim();
     if (maritalId == 1 || maritalId == '1') {
       maritalStatus = 'អវីវាហៈ';
     } else if (maritalId == 2 || maritalId == '2') {
@@ -126,17 +132,24 @@ class AuthUser {
     return AuthUser(
       employeeId: (json['id'] as num?)?.toInt() ?? 0,
       name:
-          combinedName.isNotEmpty
-              ? combinedName
-              : (json['name'] as String?) ??
-                  (json['full_name'] as String?) ??
-                  '',
+        (json['full_name'] as String?)?.trim().isNotEmpty == true
+          ? (json['full_name'] as String).trim()
+          : combinedWithMiddle.isNotEmpty
+          ? combinedWithMiddle
+          : combinedName.isNotEmpty
+          ? combinedName
+          : ((json['name'] as String?)?.trim() ?? ''),
       email: (json['email'] as String?) ?? '',
       userId:
           (json['user_id'] as num?)?.toInt() ??
           (json['id'] as num?)?.toInt() ??
           0,
-      departmentName: json['department_name'] as String?,
+        departmentName:
+          (json['sub_department_name'] as String?)?.isNotEmpty == true
+            ? json['sub_department_name'] as String
+            : ((json['department_name'] as String?)?.isNotEmpty == true
+              ? json['department_name'] as String
+              : json['unit_name'] as String?),
       profilePic: json['profile_pic'] as String?,
       fcmToken: json['token_id'] as String?,
       role: role,
@@ -163,9 +176,16 @@ class AuthUser {
               ? json['national_id_no'] as String
               : json['national_id'] as String?,
       // Work
+        employeeNo:
+          (json['employee_id'] as String?)?.isNotEmpty == true
+            ? json['employee_id'] as String
+            : (json['official_id_10'] as String?),
       cardNo: json['card_no'] as String?,
       employeeCode: json['employee_code'] as String?,
-      position: json['position_name'] as String?,
+        position:
+          (json['position_name'] as String?)?.isNotEmpty == true
+            ? json['position_name'] as String
+            : (json['role_display'] as String?),
       positionKm: json['position_name_km'] as String?,
       joiningDate: json['joining_date'] as String?,
       hireDate: json['hire_date'] as String?,
@@ -179,13 +199,21 @@ class AuthUser {
       isFullRightOfficer: isFullRight,
       legalDocumentType: json['legal_document_type'] as String?,
       legalDocumentNumber: json['legal_document_number'] as String?,
-      workStatusName: json['work_status_name'] as String?,
-      employeeGrade: json['employee_grade'] as String?,
+        workStatusName:
+          (json['work_status_name'] as String?)?.isNotEmpty == true
+            ? json['work_status_name'] as String
+            : (json['work_status'] as String?),
+        employeeGrade:
+          (json['employee_grade'] as String?)?.isNotEmpty == true
+            ? json['employee_grade'] as String
+            : (json['pay_level'] as String?),
       employeeGradeKm: json['employee_grade_km'] as String?,
       skillName:
           (json['skill_name'] as String?)?.isNotEmpty == true
               ? json['skill_name'] as String
-              : json['current_work_skill'] as String?,
+            : ((json['current_work_skill'] as String?)?.isNotEmpty == true
+              ? json['current_work_skill'] as String
+              : json['skill'] as String?),
     );
   }
 
@@ -210,6 +238,7 @@ class AuthUser {
       if (presentAddress != null) 'present_address': presentAddress,
       if (permanentAddress != null) 'permanent_address': permanentAddress,
       if (nationalId != null) 'national_id': nationalId,
+      if (employeeNo != null) 'employee_id': employeeNo,
       if (cardNo != null) 'card_no': cardNo,
       if (employeeCode != null) 'employee_code': employeeCode,
       if (position != null) 'position_name': position,

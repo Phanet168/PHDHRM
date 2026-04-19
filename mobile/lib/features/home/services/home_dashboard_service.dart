@@ -8,11 +8,25 @@ class HomeDashboardService {
     : _apiService = apiService ?? ApiService();
 
   final ApiService _apiService;
+  static const Duration _cacheLifetime = Duration(seconds: 45);
 
-  Future<DashboardSummary> fetchSummary(AuthUser user) async {
+  DashboardSummary? _cachedSummary;
+  DateTime? _cachedAt;
+
+  Future<DashboardSummary> fetchSummary(
+    AuthUser user, {
+    bool forceRefresh = false,
+  }) async {
     final employeeId = user.employeeId;
     if (employeeId <= 0) {
       throw ApiException(message: 'Employee ID មិនត្រឹមត្រូវ');
+    }
+
+    if (!forceRefresh && _cachedSummary != null && _cachedAt != null) {
+      final age = DateTime.now().difference(_cachedAt!);
+      if (age <= _cacheLifetime) {
+        return _cachedSummary!;
+      }
     }
 
     final results = await Future.wait<Map<String, dynamic>>([
@@ -57,7 +71,7 @@ class HomeDashboardService {
     final noticeList =
         notice['historydata'] as List<dynamic>? ?? const <dynamic>[];
 
-    return DashboardSummary(
+    final summary = DashboardSummary(
       totalHours: (hours['totalhours'] ?? '0').toString(),
       remainingLeave: (leave['total'] ?? '0').toString(),
       loanAmount: (loan['totalamount'] ?? '0').toString(),
@@ -78,6 +92,11 @@ class HomeDashboardService {
             return 'Notice item';
           }).toList(),
     );
+
+            _cachedSummary = summary;
+            _cachedAt = DateTime.now();
+
+            return summary;
   }
 
   Map<String, dynamic> _asResponse(

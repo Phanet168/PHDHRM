@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/config/api_config.dart';
 import '../../../core/localization/laravel_language_service.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../models/attendance_day_record.dart';
@@ -72,13 +73,13 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<DashboardSummary> _loadSummary() {
+  Future<DashboardSummary> _loadSummary({bool forceRefresh = false}) {
     final user = widget.authController.currentUser;
     if (user == null) {
       throw Exception('User session មិនមាន');
     }
 
-    return _dashboardService.fetchSummary(user);
+    return _dashboardService.fetchSummary(user, forceRefresh: forceRefresh);
   }
 
   Future<List<AttendanceDayRecord>> _loadAttendance() {
@@ -142,6 +143,50 @@ class _HomePageState extends State<HomePage> {
     } catch (_) {
       return dateString;
     }
+  }
+
+  String _apiOrigin() {
+    final uri = Uri.parse(ApiConfig.baseUrl);
+    final hasPort = uri.hasPort;
+    final portPart = hasPort ? ':${uri.port}' : '';
+    return '${uri.scheme}://${uri.host}$portPart';
+  }
+
+  String? _resolveProfileImageUrl(String? rawValue) {
+    final value = rawValue?.trim();
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+
+    final origin = _apiOrigin();
+
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      final uri = Uri.tryParse(value);
+      if (uri == null) {
+        return value;
+      }
+
+      final isLocalHost =
+          uri.host == '127.0.0.1' ||
+          uri.host == 'localhost' ||
+          uri.host == '10.0.2.2';
+      if (!isLocalHost) {
+        return value;
+      }
+
+      final normalizedPath = uri.path.startsWith('/') ? uri.path : '/${uri.path}';
+      return '$origin$normalizedPath';
+    }
+
+    if (value.startsWith('/')) {
+      return '$origin$value';
+    }
+
+    if (value.startsWith('storage/')) {
+      return '$origin/$value';
+    }
+
+    return '$origin/storage/$value';
   }
 
   AttendanceDayRecord? _findTodayRecord(List<AttendanceDayRecord> records) {
@@ -322,10 +367,7 @@ class _HomePageState extends State<HomePage> {
         _ProfileRow(label: label, value: value ?? '');
 
     // Build profile picture URL
-    String? picUrl = user.profilePic as String?;
-    if (picUrl != null && picUrl.isNotEmpty && !picUrl.startsWith('http')) {
-      picUrl = 'http://192.168.1.15:8000/$picUrl';
-    }
+    final picUrl = _resolveProfileImageUrl(user.profilePic as String?);
 
     Widget avatar;
     if (picUrl != null && picUrl.isNotEmpty) {
@@ -492,7 +534,14 @@ class _HomePageState extends State<HomePage> {
             _ProfileSubsection(
               label: 'ឯកលក្ខណ៍របស់មន្ត្រី',
               rows: [
-                r('លេខសម្គាល់មន្ត្រី', user.employeeId.toString()),
+                r(
+                  'លេខសម្គាល់មន្ត្រី',
+                  (user.employeeNo as String?)?.isNotEmpty == true
+                      ? user.employeeNo as String
+                      : ((user.employeeCode as String?)?.isNotEmpty == true
+                          ? user.employeeCode as String
+                          : user.employeeId.toString()),
+                ),
                 r('Employee Code', user.employeeCode as String?),
                 r('Card No', user.cardNo as String?),
               ],
@@ -567,7 +616,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     setState(() {
-      _summaryFuture = _loadSummary();
+      _summaryFuture = _loadSummary(forceRefresh: true);
     });
 
     try {

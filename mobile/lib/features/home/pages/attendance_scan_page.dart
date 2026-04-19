@@ -67,7 +67,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
 
     String? rawValue;
     for (final barcode in capture.barcodes) {
-      final value = barcode.rawValue?.trim();
+      final value = _barcodeText(barcode);
       if (value != null && value.isNotEmpty) {
         rawValue = value;
         break;
@@ -79,6 +79,28 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
     }
 
     await _submitAttendance(rawValue);
+  }
+
+  String? _barcodeText(Barcode barcode) {
+    final fromRaw = barcode.rawValue?.trim();
+    if (fromRaw != null && fromRaw.isNotEmpty) {
+      return fromRaw;
+    }
+
+    final fromDisplay = barcode.displayValue?.trim();
+    if (fromDisplay != null && fromDisplay.isNotEmpty) {
+      return fromDisplay;
+    }
+
+    final bytes = barcode.rawBytes;
+    if (bytes != null && bytes.isNotEmpty) {
+      final decoded = utf8.decode(bytes, allowMalformed: true).trim();
+      if (decoded.isNotEmpty) {
+        return decoded;
+      }
+    }
+
+    return null;
   }
 
   Future<void> _submitAttendance(String rawValue) async {
@@ -235,13 +257,24 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
       return null;
     }
 
-    if (text.startsWith('{')) {
+    final normalized = text
+        .replaceAll('\n', '&')
+        .replaceAll('\r', '&')
+        .replaceAll(';', '&')
+        .trim();
+
+    if (normalized.startsWith('{')) {
       try {
-        final decoded = jsonDecode(text);
+        final decoded = jsonDecode(normalized);
         if (decoded is Map<String, dynamic>) {
           final token = decoded['qr_token']?.toString().trim();
           if (token != null && token.isNotEmpty) {
             return token;
+          }
+
+          final altToken = decoded['token']?.toString().trim();
+          if (altToken != null && altToken.isNotEmpty) {
+            return altToken;
           }
         }
       } catch (_) {
@@ -249,20 +282,26 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
       }
     }
 
-    final uri = Uri.tryParse(text);
+    final uri = Uri.tryParse(normalized);
     if (uri != null) {
       final queryToken = uri.queryParameters['qr_token']?.trim();
       if (queryToken != null && queryToken.isNotEmpty) {
         return queryToken;
       }
+
+      final altQueryToken = uri.queryParameters['token']?.trim();
+      if (altQueryToken != null && altQueryToken.isNotEmpty) {
+        return altQueryToken;
+      }
     }
 
-    final fromRegex = RegExp(r'qr_token=([^&\s]+)').firstMatch(text);
+    final fromRegex =
+        RegExp(r'(?:qr_token|token)=([^&\s]+)').firstMatch(normalized);
     if (fromRegex != null) {
       return Uri.decodeQueryComponent(fromRegex.group(1)!);
     }
 
-    return text;
+    return normalized;
   }
 
   Future<void> _toggleTorch() async {
