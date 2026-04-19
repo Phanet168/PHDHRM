@@ -3,6 +3,7 @@
 namespace Modules\HumanResource\Entities;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
 
 class AttendanceDailySnapshot extends Model
@@ -36,4 +37,9 @@ class AttendanceDailySnapshot extends Model
         'policy_payload' => 'array',
         'computed_at' => 'datetime',
     ];
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
 }

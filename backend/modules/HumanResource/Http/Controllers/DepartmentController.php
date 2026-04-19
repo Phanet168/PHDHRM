@@ -121,6 +121,9 @@ class DepartmentController extends Controller
             'location_code' => 'nullable|string|max:100|unique:departments,location_code',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
+            'geofence_latitude' => 'nullable|numeric|between:-90,90',
+            'geofence_longitude' => 'nullable|numeric|between:-180,180',
+            'geofence_radius_meters' => 'nullable|integer|min:50|max:50000',
         ]);
 
         $orgUnitRuleService->validateParentRule((int) $request->unit_type_id, $parentId);
@@ -133,6 +136,9 @@ class DepartmentController extends Controller
             'location_code',
             'latitude',
             'longitude',
+            'geofence_latitude',
+            'geofence_longitude',
+            'geofence_radius_meters',
             'parent_id',
             'is_active',
         ]));
@@ -195,6 +201,9 @@ class DepartmentController extends Controller
             'location_code' => 'nullable|string|max:100|unique:departments,location_code,' . $department->id,
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
+            'geofence_latitude' => 'nullable|numeric|between:-90,90',
+            'geofence_longitude' => 'nullable|numeric|between:-180,180',
+            'geofence_radius_meters' => 'nullable|integer|min:50|max:50000',
         ]);
 
         $orgUnitRuleService->validateParentRule((int) $request->unit_type_id, $parentId, $department);
@@ -207,6 +216,9 @@ class DepartmentController extends Controller
             'location_code',
             'latitude',
             'longitude',
+            'geofence_latitude',
+            'geofence_longitude',
+            'geofence_radius_meters',
             'parent_id',
             'is_active',
         ]));

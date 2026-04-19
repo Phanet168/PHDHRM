@@ -26,6 +26,9 @@ class Department extends Model
         'location_code',
         'latitude',
         'longitude',
+        'geofence_latitude',
+        'geofence_longitude',
+        'geofence_radius_meters',
         'parent_id',
         'is_active',
     ];

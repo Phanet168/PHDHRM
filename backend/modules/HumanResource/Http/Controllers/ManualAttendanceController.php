@@ -4,6 +4,7 @@ namespace Modules\HumanResource\Http\Controllers;
 
 use App\Imports\AttendanceImport;
 use App\Imports\ManualAttendanceImport;
+use App\Models\AttendanceScanLog;
 use App\Models\MobileDeviceRegistration;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
@@ -34,7 +35,7 @@ class ManualAttendanceController extends Controller
         $query = Employee::query()->where('is_active', 1);
 
         $accessibleDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
-        if (is_array($accessibleDepartmentIds)) {
+        if (is_array($accessibleDepartmentIds) && count($accessibleDepartmentIds) > 0) {
             $departmentIds = array_map('intval', $accessibleDepartmentIds);
             $query->where(function ($inner) use ($departmentIds) {
                 $inner->whereIn('department_id', $departmentIds)
@@ -187,14 +188,14 @@ class ManualAttendanceController extends Controller
     }
 
     /**
-     * QR attendance token generator page.
+     * QR attendance page — static printed workplace QR.
      */
-    public function qrCreate(OrgUnitRuleService $orgUnitRuleService, OrgScopeService $orgScopeService)
+    public function qrCreate(Request $request, OrgUnitRuleService $orgUnitRuleService, OrgScopeService $orgScopeService)
     {
         $orgUnitOptions = $orgUnitRuleService->hierarchyOptions();
         $scopedDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
 
-        if (is_array($scopedDepartmentIds)) {
+        if (is_array($scopedDepartmentIds) && count($scopedDepartmentIds) > 0) {
             $allowedDepartmentIds = array_map('intval', $scopedDepartmentIds);
             $orgUnitOptions = $orgUnitOptions
                 ->filter(function ($option) use ($allowedDepartmentIds) {
@@ -203,32 +204,46 @@ class ManualAttendanceController extends Controller
                 ->values();
         }
 
-        $defaultExpiry = (int) config('humanresource.attendance.qr_default_expiry_minutes', 2);
-        $maxExpiry = (int) config('humanresource.attendance.qr_max_expiry_minutes', 30);
+        $selectedWorkplaceId = $request->integer('workplace_id', 0) ?: null;
+        $selectedWorkplace   = null;
+        $scanLogs            = collect();
+        $logDate             = $request->input('log_date', date('Y-m-d'));
+
+        if ($selectedWorkplaceId) {
+            $selectedWorkplace = Department::withoutGlobalScopes()
+                ->whereNull('deleted_at')
+                ->find($selectedWorkplaceId);
+
+            $scanLogs = AttendanceScanLog::with(['employee', 'workplace'])
+                ->where('workplace_id', $selectedWorkplaceId)
+                ->whereDate('created_at', $logDate)
+                ->orderByDesc('created_at')
+                ->limit(100)
+                ->get();
+        }
 
         return view('humanresource::attendance.qr', [
-            'orgUnitOptions' => $orgUnitOptions,
-            'defaultExpiry' => max(1, min($defaultExpiry, $maxExpiry)),
-            'maxExpiry' => max(1, $maxExpiry),
-            'generated' => null,
-            'selectedWorkplaceId' => null,
-            'selectedExpiryMinutes' => max(1, min($defaultExpiry, $maxExpiry)),
+            'orgUnitOptions'      => $orgUnitOptions,
+            'generated'           => null,
+            'selectedWorkplaceId' => $selectedWorkplaceId,
+            'selectedWorkplace'   => $selectedWorkplace,
+            'scanLogs'            => $scanLogs,
+            'logDate'             => $logDate,
         ]);
     }
 
     /**
-     * Generate a signed/expiring QR token for attendance scan.
+     * Generate a permanent signed QR token for a static printed workplace poster.
      */
     public function qrGenerate(Request $request, OrgUnitRuleService $orgUnitRuleService, OrgScopeService $orgScopeService)
     {
-        $maxExpiry = (int) config('humanresource.attendance.qr_max_expiry_minutes', 30);
         $validated = $request->validate([
             'workplace_id' => 'required|integer|exists:departments,id',
-            'expires_minutes' => 'nullable|integer|min:1|max:' . max(1, $maxExpiry),
         ]);
 
         $scopedDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
-        if (is_array($scopedDepartmentIds)) {
+
+        if (is_array($scopedDepartmentIds) && count($scopedDepartmentIds) > 0) {
             $allowedDepartmentIds = array_map('intval', $scopedDepartmentIds);
             if (!in_array((int) $validated['workplace_id'], $allowedDepartmentIds, true)) {
                 return back()
@@ -239,11 +254,10 @@ class ManualAttendanceController extends Controller
             }
         }
 
-        $expiresMinutes = (int) ($validated['expires_minutes'] ?? config('humanresource.attendance.qr_default_expiry_minutes', 2));
-        $expiresMinutes = max(1, min($expiresMinutes, max(1, $maxExpiry)));
 
-        $issuedAt = Carbon::now();
-        $expiresAt = $issuedAt->copy()->addMinutes($expiresMinutes);
+        // Permanent QR: expires in 10 years (not a time-limited event QR).
+        $issuedAt  = Carbon::now();
+        $expiresAt = $issuedAt->copy()->addYears(10);
 
         $token = QrAttendanceTokenService::generate([
             'wid' => (int) $validated['workplace_id'],
@@ -256,25 +270,26 @@ class ManualAttendanceController extends Controller
             ->whereNull('deleted_at')
             ->find((int) $validated['workplace_id']);
 
-        $qrPayload = [
-            'type' => 'attendance_qr',
-            'qr_token' => $token,
+        // Payload encoded in QR: only type + token + workplace_id (no expiry shown to user).
+        $qrPayload     = [
+            'type'         => 'attendance_qr',
+            'qr_token'     => $token,
             'workplace_id' => (int) $validated['workplace_id'],
-            'expires_at' => $expiresAt->toIso8601String(),
         ];
         $qrPayloadJson = json_encode($qrPayload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
         $generated = [
-            'token' => $token,
-            'payload_json' => $qrPayloadJson,
-            'workplace_name' => $workplace?->department_name,
-            'expires_at' => $expiresAt,
-            'minutes' => $expiresMinutes,
-            'qr_image_url' => 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=' . rawurlencode((string) $qrPayloadJson),
+            'token'             => $token,
+            'payload_json'      => $qrPayloadJson,
+            'workplace_name'    => $workplace?->department_name,
+            'generated_at'      => $issuedAt,
+            'qr_image_url'      => 'https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=' . rawurlencode((string) $qrPayloadJson),
+            'qr_image_url_print'=> 'https://api.qrserver.com/v1/create-qr-code/?size=800x800&margin=10&data=' . rawurlencode((string) $qrPayloadJson),
         ];
 
         $orgUnitOptions = $orgUnitRuleService->hierarchyOptions();
-        if (is_array($scopedDepartmentIds)) {
+
+        if (is_array($scopedDepartmentIds) && count($scopedDepartmentIds) > 0) {
             $allowedDepartmentIds = array_map('intval', $scopedDepartmentIds);
             $orgUnitOptions = $orgUnitOptions
                 ->filter(function ($option) use ($allowedDepartmentIds) {
@@ -283,13 +298,21 @@ class ManualAttendanceController extends Controller
                 ->values();
         }
 
+        $logDate  = $request->input('log_date', date('Y-m-d'));
+        $scanLogs = AttendanceScanLog::with(['employee', 'workplace'])
+            ->where('workplace_id', (int) $validated['workplace_id'])
+            ->whereDate('created_at', $logDate)
+            ->orderByDesc('created_at')
+            ->limit(100)
+            ->get();
+
         return view('humanresource::attendance.qr', [
-            'orgUnitOptions' => $orgUnitOptions,
-            'defaultExpiry' => (int) config('humanresource.attendance.qr_default_expiry_minutes', 2),
-            'maxExpiry' => max(1, $maxExpiry),
-            'generated' => $generated,
+            'orgUnitOptions'      => $orgUnitOptions,
+            'generated'           => $generated,
             'selectedWorkplaceId' => (int) $validated['workplace_id'],
-            'selectedExpiryMinutes' => $expiresMinutes,
+            'selectedWorkplace'   => $workplace,
+            'scanLogs'            => $scanLogs,
+            'logDate'             => $logDate,
         ]);
     }
 
@@ -821,15 +844,35 @@ class ManualAttendanceController extends Controller
         }
     }
 
-    public function monthlyCreate(Request $request, OrgScopeService $orgScopeService)
+    public function monthlyCreate(Request $request, OrgScopeService $orgScopeService, OrgUnitRuleService $orgUnitRuleService)
     {
-        $employees = $this->scopedEmployeeQuery($orgScopeService)
-            ->with(['department', 'sub_department'])
-            ->get(['id', 'full_name', 'employee_id', 'department_id', 'sub_department_id']);
-
+        $selectedDepartmentId = $request->integer('department_id', 0) ?: null;
+        $selectedEmployeeId = $request->input('employee_id');
         $selectedYear  = (int) $request->input('year', now()->year);
         $selectedMonth = (int) $request->input('month', now()->month);
-        $selectedEmployeeId = $request->input('employee_id');
+
+        $employeeQuery = $this->scopedEmployeeQuery($orgScopeService);
+        if ($selectedDepartmentId) {
+            $employeeQuery->where(function ($q) use ($selectedDepartmentId) {
+                $q->where('department_id', (int) $selectedDepartmentId)
+                    ->orWhere('sub_department_id', (int) $selectedDepartmentId);
+            });
+        }
+
+        $employees = $employeeQuery
+            ->with(['department', 'sub_department'])
+            ->get(['id', 'first_name', 'middle_name', 'last_name', 'employee_id', 'department_id', 'sub_department_id']);
+
+        $orgUnitOptions = $orgUnitRuleService->hierarchyOptions();
+        $scopedDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
+        if (is_array($scopedDepartmentIds) && count($scopedDepartmentIds) > 0) {
+            $allowedDepartmentIds = array_map('intval', $scopedDepartmentIds);
+            $orgUnitOptions = $orgUnitOptions
+                ->filter(function ($option) use ($allowedDepartmentIds) {
+                    return in_array((int) data_get($option, 'id', 0), $allowedDepartmentIds, true);
+                })
+                ->values();
+        }
 
         // Compute days in selected month for grid header
         $daysInMonth = \Carbon\Carbon::create($selectedYear, $selectedMonth, 1)->daysInMonth;
@@ -863,7 +906,7 @@ class ManualAttendanceController extends Controller
 
         return view('humanresource::attendance.monthlycreate', compact(
             'employee', 'employees', 'displayEmployees', 'snapshotMap',
-            'selectedYear', 'selectedMonth', 'selectedEmployeeId',
+            'selectedYear', 'selectedMonth', 'selectedEmployeeId', 'selectedDepartmentId', 'orgUnitOptions',
             'daysInMonth', 'monthDays'
         ));
     }
@@ -1021,7 +1064,7 @@ class ManualAttendanceController extends Controller
             ->orderBy('employee_id')
             ->get();
 
-        if (is_array($accessibleDepartmentIds)) {
+        if (is_array($accessibleDepartmentIds) && count($accessibleDepartmentIds) > 0) {
             $departmentIds = array_map('intval', $accessibleDepartmentIds);
             $exceptions = $exceptions->filter(function ($row) use ($departmentIds) {
                 $employee = $row->employee;

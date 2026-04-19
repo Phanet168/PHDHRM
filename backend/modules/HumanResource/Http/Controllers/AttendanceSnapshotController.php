@@ -21,7 +21,11 @@ class AttendanceSnapshotController extends Controller
     {
         // Web view: no required employee_id, loads grid
         if (!$request->expectsJson()) {
-            $employees = Employee::query()->where('is_active', 1)->orderBy('full_name')->get(['id', 'full_name', 'employee_id']);
+            $employees = Employee::query()
+                ->where('is_active', 1)
+                ->orderBy('last_name')
+                ->orderBy('first_name')
+                ->get(['id', 'first_name', 'middle_name', 'last_name', 'employee_id']);
             $selectedDate = $request->input('date', now()->toDateString());
             $selectedEmployeeId = $request->input('employee_id');
 

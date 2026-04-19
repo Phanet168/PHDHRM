@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Modules\HumanResource\Entities\Department;
+use Modules\HumanResource\Entities\Employee;
 
 class AttendanceScanLog extends Model
 {
@@ -13,6 +15,7 @@ class AttendanceScanLog extends Model
         'status',
         'error_code',
         'message',
+        'machine_state',
         'range_meters',
         'acceptable_range_meters',
         'geofence_source',
@@ -27,6 +30,16 @@ class AttendanceScanLog extends Model
 
     protected $casts = [
         'meta_payload' => 'array',
-        'scanned_at' => 'datetime',
+        'scanned_at'   => 'datetime',
     ];
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
+
+    public function workplace()
+    {
+        return $this->belongsTo(Department::class, 'workplace_id');
+    }
 }

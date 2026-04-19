@@ -99,6 +99,39 @@
                                 </div>
                             </div>
                         </div>
+                        {{-- Geofence fields --}}
+                        <div class="form-group mb-2 mx-0 row">
+                            <label class="col-sm-3 col-form-label ps-0 fw-semibold text-danger">
+                                <i class="fa fa-map-marker-alt me-1"></i>{{ localize('geofence_latitude', 'Geofence Lat') }}
+                            </label>
+                            <div class="col-lg-9">
+                                <input type="number" step="0.0000001" name="geofence_latitude" class="form-control"
+                                    placeholder="{{ localize('geofence_latitude', 'Geofence Latitude') }}"
+                                    value="{{ old('geofence_latitude') }}">
+                                <small class="text-muted">{{ localize('geofence_fields_note', 'ប្រើសម្រាប់ QR Geofence — ខុសពី Latitude ខាងលើ') }}</small>
+                            </div>
+                        </div>
+                        <div class="form-group mb-2 mx-0 row">
+                            <label class="col-sm-3 col-form-label ps-0 fw-semibold text-danger">
+                                <i class="fa fa-map-marker-alt me-1"></i>{{ localize('geofence_longitude', 'Geofence Lng') }}
+                            </label>
+                            <div class="col-lg-9">
+                                <input type="number" step="0.0000001" name="geofence_longitude" class="form-control"
+                                    placeholder="{{ localize('geofence_longitude', 'Geofence Longitude') }}"
+                                    value="{{ old('geofence_longitude') }}">
+                            </div>
+                        </div>
+                        <div class="form-group mb-2 mx-0 row">
+                            <label class="col-sm-3 col-form-label ps-0 fw-semibold text-danger">
+                                <i class="fa fa-circle me-1"></i>{{ localize('geofence_radius', 'Radius (m)') }}
+                            </label>
+                            <div class="col-lg-9">
+                                <input type="number" min="50" max="50000" name="geofence_radius_meters" class="form-control"
+                                    placeholder="500"
+                                    value="{{ old('geofence_radius_meters', 500) }}">
+                                <small class="text-muted">{{ localize('geofence_radius_note', 'ចម្ងាយអនុញ្ញាតក្នុង meter (min 50, default 500)') }}</small>
+                            </div>
+                        </div>
                         @radio(['input_name' => 'is_active', 'data_set' => [1 => localize('active'), 0 => localize('inactive')], 'value' => 1])
                     </div>
                 </div>

@@ -55,7 +55,7 @@ class _HomePageState extends State<HomePage> {
       case _HomeMenuItem.dashboard:
         return _tr(language, 'dashboard', 'Dashboard');
       case _HomeMenuItem.attendance:
-        return _tr(language, 'attendance_list', 'Attendance');
+        return _tr(language, 'attendance_history', 'ប្រវត្តិវត្តមាន');
       case _HomeMenuItem.leave:
         return _tr(language, 'leave_type', 'Leave');
       case _HomeMenuItem.mission:
@@ -118,6 +118,110 @@ class _HomePageState extends State<HomePage> {
       default:
         return status!.replaceAll('_', ' ').trim();
     }
+  }
+
+  String _formatDateKey(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
+  AttendanceDayRecord? _findTodayRecord(List<AttendanceDayRecord> records) {
+    final todayKey = _formatDateKey(DateTime.now());
+    for (final record in records) {
+      if (record.date.startsWith(todayKey)) {
+        return record;
+      }
+    }
+    return null;
+  }
+
+  void _showServiceMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+    );
+  }
+
+  void _openAdditionalService(
+    _HomeMenuItem item,
+    Map<String, String> language, {
+    String? message,
+  }) {
+    setState(() {
+      _selectedMenu = item;
+      if (item == _HomeMenuItem.attendance && _attendanceFuture == null) {
+        _attendanceFuture = _loadAttendance();
+      }
+      if (item == _HomeMenuItem.mission && _missionsFuture == null) {
+        _missionsFuture = _loadMissions();
+      }
+    });
+
+    if (message != null && message.trim().isNotEmpty) {
+      _showServiceMessage(message);
+    }
+  }
+
+  Widget _buildAdditionalServicesGrid(Map<String, String> language) {
+    return GridView.count(
+      crossAxisCount: 2,
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+      childAspectRatio: 1.45,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        _AdditionalServiceCard(
+          icon: Icons.assignment_late_outlined,
+          title: _tr(language, 'missing_attendance', 'វត្តមានខកខាន'),
+          onTap: () => _openAdditionalService(
+            _HomeMenuItem.attendance,
+            language,
+            message: _tr(
+              language,
+              'service_redirect_missing',
+              'សូមពិនិត្យប្រវត្តិវត្តមាន និងស្កេនជាបន្ទាន់ប្រសិនបើខកខាន។',
+            ),
+          ),
+        ),
+        _AdditionalServiceCard(
+          icon: Icons.work_outline,
+          title: _tr(language, 'mission', 'បេសកកម្ម'),
+          onTap: () => _openAdditionalService(_HomeMenuItem.mission, language),
+        ),
+        _AdditionalServiceCard(
+          icon: Icons.event_note_outlined,
+          title: _tr(language, 'leave_type', 'ស្នើច្បាប់'),
+          onTap: () => _openAdditionalService(
+            _HomeMenuItem.leave,
+            language,
+            message: _tr(
+              language,
+              'service_redirect_leave',
+              'ផ្នែកស្នើច្បាប់កំពុងត្រៀមភ្ជាប់ API។',
+            ),
+          ),
+        ),
+        _AdditionalServiceCard(
+          icon: Icons.campaign_outlined,
+          title: _tr(language, 'notice_list', 'សេចក្តីជូនដំណឹង'),
+          onTap: () => _openAdditionalService(
+            _HomeMenuItem.notice,
+            language,
+            message: _tr(
+              language,
+              'service_redirect_notice',
+              'អាចតាមដានសេចក្តីជូនដំណឹងថ្មីៗបាននៅផ្នែកនេះ។',
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   Future<void> _openAttendanceScanner(Map<String, String> language) async {
@@ -699,17 +803,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildAttendance(Map<String, String> language) {
-    final scanAction = _AttendanceScanActionCard(
-      title: _tr(language, 'qr_attendance', 'QR Attendance'),
-      description: _tr(
-        language,
-        'confirm_attendance',
-        'Scan workplace QR and submit attendance with current GPS location.',
-      ),
-      buttonText: _tr(language, 'qr_scan', 'Scan QR'),
-      onPressed: () => _openAttendanceScanner(language),
-    );
-
     return RefreshIndicator(
       onRefresh: _refresh,
       child: FutureBuilder<List<AttendanceDayRecord>>(
@@ -719,7 +812,32 @@ class _HomePageState extends State<HomePage> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
-                scanAction,
+                _AttendanceSectionHeader(
+                  title: _tr(language, 'today_status', 'ស្ថានភាពថ្ងៃនេះ'),
+                  subtitle: _tr(language, 'loading', 'កំពុងទាញទិន្នន័យ...'),
+                ),
+                const SizedBox(height: 12),
+                const Center(child: CircularProgressIndicator()),
+                const SizedBox(height: 20),
+                _AttendanceSectionHeader(
+                  title: _tr(language, 'scan_attendance', 'ស្កេនវត្តមាន'),
+                  subtitle: _tr(
+                    language,
+                    'qr_attendance',
+                    'បញ្ជាក់វត្តមានដោយ QR',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _ProminentScanCard(
+                  title: _tr(language, 'scan_now', 'ចុចស្កេនឥឡូវនេះ'),
+                  subtitle: _tr(
+                    language,
+                    'confirm_attendance',
+                    'ស្កេន QR អង្គភាព ដើម្បីកត់វត្តមានជាមួយ GPS បច្ចុប្បន្ន។',
+                  ),
+                  buttonText: _tr(language, 'qr_scan', 'ស្កេន QR'),
+                  onPressed: () => _openAttendanceScanner(language),
+                ),
                 const SizedBox(height: 24),
                 const Center(child: CircularProgressIndicator()),
               ],
@@ -730,10 +848,13 @@ class _HomePageState extends State<HomePage> {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                scanAction,
-                const SizedBox(height: 12),
+                _AttendanceSectionHeader(
+                  title: _tr(language, 'today_status', 'ស្ថានភាពថ្ងៃនេះ'),
+                  subtitle: _tr(language, 'attendance', 'វត្តមាន'),
+                ),
+                const SizedBox(height: 10),
                 _ErrorStateCard(
-                  title: _tr(language, 'attendance_list', 'Attendance'),
+                  title: _tr(language, 'attendance_history', 'ប្រវត្តិវត្តមាន'),
                   message: '${snapshot.error}',
                   onRetry: _refresh,
                 ),
@@ -742,20 +863,85 @@ class _HomePageState extends State<HomePage> {
           }
 
           final records = snapshot.data ?? const <AttendanceDayRecord>[];
+          final recentRecords = records.take(7).toList();
+          final todayRecord = _findTodayRecord(records);
+          final statusToday = _attendanceStatusLabel(
+            language,
+            todayRecord?.attendanceStatus,
+          );
+          final shiftToday =
+              (todayRecord == null ||
+                      todayRecord.timeIn == '-' ||
+                      todayRecord.timeOut == '-')
+                  ? _tr(language, 'no_shift_today', 'មិនទាន់មានវេនបង្ហាញ')
+                  : '${todayRecord.timeIn} - ${todayRecord.timeOut}';
+
+          final historyTitle = _tr(
+            language,
+            'attendance_history',
+            'ប្រវត្តិវត្តមាន',
+          );
+
           if (records.isEmpty) {
             return ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
-                scanAction,
-                const SizedBox(height: 12),
+                _AttendanceSectionHeader(
+                  title: _tr(language, 'today_status', 'ស្ថានភាពថ្ងៃនេះ'),
+                  subtitle: _tr(language, 'today', 'ថ្ងៃនេះ'),
+                ),
+                const SizedBox(height: 10),
+                _TodayAttendanceStatusCard(
+                  shiftLabel: _tr(language, 'today_shift', 'វេនថ្ងៃនេះ'),
+                  shiftValue: shiftToday,
+                  statusLabel: _tr(language, 'status', 'ស្ថានភាព'),
+                  statusValue: statusToday,
+                  inTimeLabel: _tr(language, 'last_in', 'ម៉ោងចូលចុងក្រោយ'),
+                  inTime: '-',
+                  outTimeLabel: _tr(
+                    language,
+                    'last_out',
+                    'ម៉ោងចេញចុងក្រោយ',
+                  ),
+                  outTime: '-',
+                ),
+                const SizedBox(height: 14),
+                _AttendanceSectionHeader(
+                  title: _tr(language, 'scan_attendance', 'ស្កេនវត្តមាន'),
+                  subtitle: _tr(language, 'qr_attendance', 'ស្កេន QR'),
+                ),
+                const SizedBox(height: 10),
+                _ProminentScanCard(
+                  title: _tr(language, 'scan_now', 'ចុចស្កេនឥឡូវនេះ'),
+                  subtitle: _tr(
+                    language,
+                    'confirm_attendance',
+                    'ស្កេន QR អង្គភាព ដើម្បីកត់វត្តមានជាមួយ GPS បច្ចុប្បន្ន។',
+                  ),
+                  buttonText: _tr(language, 'qr_scan', 'ស្កេន QR'),
+                  onPressed: () => _openAttendanceScanner(language),
+                ),
+                const SizedBox(height: 14),
+                _AttendanceSectionHeader(
+                  title: historyTitle,
+                  subtitle: _tr(language, 'latest_records', 'កំណត់ត្រាថ្មីៗ'),
+                ),
+                const SizedBox(height: 10),
                 _SectionCard(
-                  title: _menuTitle(_selectedMenu, language),
+                  title: historyTitle,
                   description: _tr(
                     language,
                     'no_record_found',
                     'មិនទាន់មានទិន្នន័យវត្តមាន',
                   ),
                 ),
+                const SizedBox(height: 14),
+                _AttendanceSectionHeader(
+                  title: _tr(language, 'additional_services', 'សេវាកម្មបន្ថែម'),
+                  subtitle: _tr(language, 'quick_access', 'ចូលប្រើរហ័ស'),
+                ),
+                const SizedBox(height: 10),
+                _buildAdditionalServicesGrid(language),
               ],
             );
           }
@@ -763,9 +949,48 @@ class _HomePageState extends State<HomePage> {
           return ListView(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             children: [
-              scanAction,
-              const SizedBox(height: 12),
-              for (final record in records) ...[
+              _AttendanceSectionHeader(
+                title: _tr(language, 'today_status', 'ស្ថានភាពថ្ងៃនេះ'),
+                subtitle: _tr(language, 'today', 'ថ្ងៃនេះ'),
+              ),
+              const SizedBox(height: 10),
+              _TodayAttendanceStatusCard(
+                shiftLabel: _tr(language, 'today_shift', 'វេនថ្ងៃនេះ'),
+                shiftValue: shiftToday,
+                statusLabel: _tr(language, 'status', 'ស្ថានភាព'),
+                statusValue: statusToday,
+                inTimeLabel: _tr(language, 'last_in', 'ម៉ោងចូលចុងក្រោយ'),
+                inTime: todayRecord?.timeIn ?? '-',
+                outTimeLabel: _tr(language, 'last_out', 'ម៉ោងចេញចុងក្រោយ'),
+                outTime: todayRecord?.timeOut ?? '-',
+              ),
+              const SizedBox(height: 14),
+              _AttendanceSectionHeader(
+                title: _tr(language, 'scan_attendance', 'ស្កេនវត្តមាន'),
+                subtitle: _tr(
+                  language,
+                  'confirm_attendance',
+                  'ស្កេន QR ដើម្បីបញ្ជាក់វត្តមាន',
+                ),
+              ),
+              const SizedBox(height: 10),
+              _ProminentScanCard(
+                title: _tr(language, 'scan_now', 'ចុចស្កេនឥឡូវនេះ'),
+                subtitle: _tr(
+                  language,
+                  'confirm_attendance',
+                  'ស្កេន QR អង្គភាព ដើម្បីកត់វត្តមានជាមួយ GPS បច្ចុប្បន្ន។',
+                ),
+                buttonText: _tr(language, 'qr_scan', 'ស្កេន QR'),
+                onPressed: () => _openAttendanceScanner(language),
+              ),
+              const SizedBox(height: 14),
+              _AttendanceSectionHeader(
+                title: historyTitle,
+                subtitle: _tr(language, 'latest_7_days', 'កំណត់ត្រា 7 ថ្ងៃចុងក្រោយ'),
+              ),
+              const SizedBox(height: 10),
+              for (final record in recentRecords) ...[
                 _AttendanceRecordCard(
                   date: record.date,
                   timeInLabel: _tr(language, 'in_time', 'In'),
@@ -774,7 +999,7 @@ class _HomePageState extends State<HomePage> {
                   timeOut: record.timeOut,
                   totalLabel: _tr(language, 'total_hours', 'Total Hours'),
                   totalHours: record.totalHours,
-                  punchesLabel: _tr(language, 'attendance_list', 'Punches'),
+                  punchesLabel: _tr(language, 'punches', 'ចំនួនស្កេន'),
                   punchCount: record.punchCount.toString(),
                   statusLabel: _tr(language, 'status', 'Status'),
                   statusValue: _attendanceStatusLabel(
@@ -790,6 +1015,13 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 12),
               ],
+              const SizedBox(height: 2),
+              _AttendanceSectionHeader(
+                title: _tr(language, 'additional_services', 'សេវាកម្មបន្ថែម'),
+                subtitle: _tr(language, 'quick_access', 'ចូលប្រើរហ័ស'),
+              ),
+              const SizedBox(height: 10),
+              _buildAdditionalServicesGrid(language),
             ],
           );
         },
@@ -1405,6 +1637,304 @@ class _AttendanceScanActionCard extends StatelessWidget {
               label: Text(buttonText),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AttendanceSectionHeader extends StatelessWidget {
+  const _AttendanceSectionHeader({required this.title, required this.subtitle});
+
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFF14211D),
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            color: Color(0xFF60736A),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TodayAttendanceStatusCard extends StatelessWidget {
+  const _TodayAttendanceStatusCard({
+    required this.shiftLabel,
+    required this.shiftValue,
+    required this.statusLabel,
+    required this.statusValue,
+    required this.inTimeLabel,
+    required this.inTime,
+    required this.outTimeLabel,
+    required this.outTime,
+  });
+
+  final String shiftLabel;
+  final String shiftValue;
+  final String statusLabel;
+  final String statusValue;
+  final String inTimeLabel;
+  final String inTime;
+  final String outTimeLabel;
+  final String outTime;
+
+  Color _statusTone(String status) {
+    final normalized = status.trim().toLowerCase();
+    if (normalized.contains('on time') ||
+        normalized.contains('មានវត្តមាន') ||
+        normalized == 'on_time') {
+      return const Color(0xFF0B6B58);
+    }
+    if (normalized.contains('late') || normalized.contains('យឺត')) {
+      return const Color(0xFFA85C00);
+    }
+    if (normalized.contains('absent') || normalized.contains('អវត្តមាន')) {
+      return const Color(0xFFD34B5F);
+    }
+    return const Color(0xFF1D4F91);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusTone(statusValue);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE3E9E6)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A14211D),
+            blurRadius: 18,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.today_outlined, color: Color(0xFF1D4F91)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '$shiftLabel: $shiftValue',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF14211D),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: statusColor.withAlpha(22),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$statusLabel: $statusValue',
+                style: TextStyle(
+                  color: statusColor,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _SoftPill(
+                  icon: Icons.login,
+                  label: '$inTimeLabel: $inTime',
+                  backgroundColor: const Color(0xFFE9F4F1),
+                ),
+                _SoftPill(
+                  icon: Icons.logout,
+                  label: '$outTimeLabel: $outTime',
+                  backgroundColor: const Color(0xFFFFF6E1),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProminentScanCard extends StatelessWidget {
+  const _ProminentScanCard({
+    required this.title,
+    required this.subtitle,
+    required this.buttonText,
+    required this.onPressed,
+  });
+
+  final String title;
+  final String subtitle;
+  final String buttonText;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0B6B58), Color(0xFF174C88)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x2414211D),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.qr_code_scanner_rounded, color: Colors.white),
+                SizedBox(width: 8),
+                Text(
+                  'QR Attendance',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 15,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              subtitle,
+              style: const TextStyle(
+                color: Color(0xFFE7F1F5),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: onPressed,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF0B6B58),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                icon: const Icon(Icons.qr_code),
+                label: Text(
+                  buttonText,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdditionalServiceCard extends StatelessWidget {
+  const _AdditionalServiceCard({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE3E9E6)),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE9F4F1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: const Color(0xFF0B6B58), size: 18),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF14211D),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

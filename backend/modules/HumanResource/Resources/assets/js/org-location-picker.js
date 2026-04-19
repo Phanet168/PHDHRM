@@ -68,25 +68,46 @@
         pickerRegistry.set(wrapper, map);
     }
 
-    function initPickersInContainer(container) {
-        const root = container || document;
-        root.querySelectorAll("[data-map-picker]").forEach(initPicker);
+    function isInsideModal(el) {
+        return !!el.closest(".modal");
     }
 
-    document.addEventListener("shown.bs.modal", function (event) {
-        initPickersInContainer(event.target);
-        event.target.querySelectorAll("[data-map-picker]").forEach(function (wrapper) {
-            const map = pickerRegistry.get(wrapper);
-            if (map) {
-                setTimeout(function () {
-                    map.invalidateSize();
-                }, 120);
+    function initPickersInContainer(container, skipModalCheck) {
+        const root = container || document;
+        root.querySelectorAll("[data-map-picker]").forEach(function (wrapper) {
+            if (!skipModalCheck && isInsideModal(wrapper)) {
+                return; // defer to shown.bs.modal
             }
+            initPicker(wrapper);
         });
+    }
+
+    function initAndResizePickersInContainer(container) {
+        const root = container || document;
+        root.querySelectorAll("[data-map-picker]").forEach(function (wrapper) {
+            if (!pickerRegistry.has(wrapper)) {
+                initPicker(wrapper);
+            }
+            setTimeout(function () {
+                const map = pickerRegistry.get(wrapper);
+                if (map) {
+                    map.invalidateSize();
+                }
+            }, 200);
+        });
+    }
+
+    // Public API: call this after dynamically inserting content with [data-map-picker]
+    window.initOrgMapPickers = function (container) {
+        initAndResizePickersInContainer(container || document);
+    };
+
+    document.addEventListener("shown.bs.modal", function (event) {
+        initAndResizePickersInContainer(event.target);
     });
 
     document.addEventListener("DOMContentLoaded", function () {
-        initPickersInContainer(document);
+        initPickersInContainer(document, false);
     });
 })();
 

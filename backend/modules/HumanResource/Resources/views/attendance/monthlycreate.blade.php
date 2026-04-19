@@ -57,6 +57,21 @@
             {{-- Filter --}}
             <form action="{{ route('attendances.monthlyCreate') }}" method="GET" class="mb-3">
                 <div class="row g-2 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold small">{{ localize('org_unit', 'អង្គភាព') }}</label>
+                        <select name="department_id" class="form-control select-basic-single">
+                            <option value="">{{ localize('all_org_units', 'អង្គភាពទាំងអស់') }}</option>
+                            @foreach(($orgUnitOptions ?? collect()) as $option)
+                                @php
+                                    $optId = data_get($option, 'id');
+                                    $optText = data_get($option, 'path') ?? data_get($option, 'label') ?? data_get($option, 'name') ?? ('#' . $optId);
+                                @endphp
+                                <option value="{{ $optId }}" @selected(($selectedDepartmentId ?? null) == $optId)>
+                                    {{ $optText }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
                     <div class="col-md-2">
                         <label class="form-label fw-semibold small">{{ localize('year', 'ឆ្នាំ') }}</label>
                         <select name="year" class="form-control">

@@ -549,6 +549,12 @@
                         var modal = window.jQuery('#edit-department');
                         modal.find('.modal-content').html(html);
                         modal.modal('show');
+                        // Init map pickers after modal animation completes
+                        setTimeout(function () {
+                            if (window.initOrgMapPickers) {
+                                window.initOrgMapPickers(document.getElementById('edit-department'));
+                            }
+                        }, 350);
                     }
                 });
             }
