@@ -65,3 +65,36 @@
 2. អនុម័តឧបករណ៍ (pending -> active)
 3. អ្នកប្រើ login ម្តងទៀត
 
+## 7) តេស្ត API v1 មិនឆ្លើយតប ឬ Response ខុស
+
+រោគសញ្ញា:
+
+- `401 Unauthorized` នៅ endpoints `/api/v1/*`
+- `422 Unprocessable Entity` ពេល POST payload
+- API ឆ្លើយយឺត ឬ timeout ពេល regenerate snapshot
+
+ដោះស្រាយ (Smoke Verify):
+
+1. បើក server:
+   - `php artisan serve --host=127.0.0.1 --port=8000`
+2. Run automated smoke test:
+   - `php artisan test --filter=AttendanceV1SmokeTest`
+3. បើ test `skipped`:
+   - បង្កើត user យ៉ាងហោចណាស់ 1
+   - បង្កើត employee យ៉ាងហោចណាស់ 1
+4. បើបាន `401`:
+   - ពិនិត្យ Sanctum setup និង auth guard
+   - ពិនិត្យថា request header មាន Bearer token ត្រឹមត្រូវ
+5. បើបាន `422`:
+   - ពិនិត្យ payload fields:
+   - `employee_id` ត្រូវមានក្នុង `employees`
+   - `shift_id` ត្រូវមានក្នុង `shifts` (សម្រាប់ roster)
+   - `start_date/end_date` ទម្រង់ `YYYY-MM-DD`
+6. បើ regenerate យឺត:
+   - តេស្តជួរថ្ងៃតូចជាមុន (1 ថ្ងៃ)
+   - កំណត់ `employee_ids` ជាក់លាក់ មិនគួរ empty នៅពេល debug
+
+ចំណាំ:
+
+- Smoke test នេះគ្របដណ្តប់ endpoints ថ្មី 10 routes ក្នុង `/api/v1` និងពិនិត្យស្ថានភាព response មូលដ្ឋាន (`200/201`)។
+

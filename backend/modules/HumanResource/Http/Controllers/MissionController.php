@@ -12,15 +12,29 @@ use Modules\HumanResource\Entities\MissionAssignment;
 
 class MissionController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): mixed
     {
-        return response()->json([
-            'status' => 'ok',
-            'data' => Mission::query()->orderByDesc('id')->get(),
-        ]);
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'ok',
+                'data' => Mission::query()->with('assignments.employee')->orderByDesc('id')->paginate(20),
+            ]);
+        }
+
+        $missions = Mission::query()
+            ->withCount('assignments')
+            ->orderByDesc('id')
+            ->paginate(20);
+
+        $employees = \Modules\HumanResource\Entities\Employee::query()
+            ->where('is_active', 1)
+            ->orderBy('full_name')
+            ->get(['id', 'full_name', 'employee_id']);
+
+        return view('humanresource::attendance.missions.index', compact('missions', 'employees'));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request): mixed
     {
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
@@ -56,10 +70,33 @@ class MissionController extends Controller
             return $mission;
         });
 
-        return response()->json([
-            'status' => 'ok',
-            'message' => 'Mission saved successfully.',
-            'data' => $mission,
-        ], 201);
+        if ($request->expectsJson()) {
+            return response()->json(['status' => 'ok', 'message' => 'Mission saved successfully.', 'data' => $mission], 201);
+        }
+
+        return redirect()->route('missions.index')->with('success', localize('mission_created', 'បេសកម្មបានបង្កើតរួចរាល់'));
+    }
+
+    public function show(Request $request, int $id): mixed
+    {
+        $mission = Mission::query()->with('assignments.employee')->findOrFail($id);
+
+        if ($request->expectsJson()) {
+            return response()->json(['status' => 'ok', 'data' => $mission]);
+        }
+
+        return view('humanresource::attendance.missions.show', compact('mission'));
+    }
+
+    public function destroy(Request $request, int $id): mixed
+    {
+        $mission = Mission::query()->findOrFail($id);
+        $mission->delete();
+
+        if ($request->expectsJson()) {
+            return response()->json(['status' => 'ok', 'message' => 'Mission deleted successfully.']);
+        }
+
+        return redirect()->route('missions.index')->with('success', localize('mission_deleted', 'បេសកម្មបានលុបរួចរាល់'));
     }
 }

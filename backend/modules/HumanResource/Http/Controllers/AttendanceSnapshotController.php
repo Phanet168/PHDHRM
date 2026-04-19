@@ -17,8 +17,31 @@ class AttendanceSnapshotController extends Controller
     {
     }
 
-    public function daily(Request $request): JsonResponse
+    public function daily(Request $request): mixed
     {
+        // Web view: no required employee_id, loads grid
+        if (!$request->expectsJson()) {
+            $employees = Employee::query()->where('is_active', 1)->orderBy('full_name')->get(['id', 'full_name', 'employee_id']);
+            $selectedDate = $request->input('date', now()->toDateString());
+            $selectedEmployeeId = $request->input('employee_id');
+
+            $snapshots = collect();
+            if ($selectedDate) {
+                $query = AttendanceDailySnapshot::query()
+                    ->with('employee')
+                    ->whereDate('snapshot_date', $selectedDate);
+
+                if ($selectedEmployeeId) {
+                    $query->where('employee_id', (int) $selectedEmployeeId);
+                }
+                $snapshots = $query->orderBy('employee_id')->get();
+            }
+
+            return view('humanresource::attendance.daily-snapshot', compact(
+                'employees', 'selectedDate', 'selectedEmployeeId', 'snapshots'
+            ));
+        }
+
         $validated = $request->validate([
             'employee_id' => ['required', 'integer', 'exists:employees,id'],
             'date' => ['nullable', 'date'],
@@ -55,7 +78,7 @@ class AttendanceSnapshotController extends Controller
         ]);
     }
 
-    public function regenerate(Request $request): JsonResponse
+    public function regenerate(Request $request): mixed
     {
         $validated = $request->validate([
             'start_date' => ['required', 'date'],
@@ -91,6 +114,11 @@ class AttendanceSnapshotController extends Controller
                 Carbon::parse($validated['start_date'])->startOfDay(),
                 Carbon::parse($validated['end_date'])->startOfDay(),
             );
+        }
+
+        if (!$request->expectsJson()) {
+            return redirect()->route('attendance-snapshots.daily', ['date' => $validated['start_date']])
+                ->with('success', localize('snapshots_regenerated', 'Snapshots បានបង្កើតឡើងវិញចំនួន ' . $processed . ' records'));
         }
 
         return response()->json([

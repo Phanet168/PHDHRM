@@ -1,7 +1,33 @@
 @extends('backend.layouts.app')
-@section('title', localize('missing_attendance'))
+@section('title', localize('missing_attendance', 'បុគ្គលិករំលងការចូល-ចេញ'))
 @section('content')
     @include('humanresource::attendance_header')
+
+    {{-- Sub-tab bar: Exceptions / Missing / Adjustments --}}
+    <div class="card fixed-tab mb-2">
+        <ul class="nav nav-pills px-3 py-2 gap-1">
+            @can('read_attendance')
+                <li class="nav-item">
+                    <a class="nav-link py-1 px-3" href="{{ route('attendances.exceptions') }}">
+                        <i class="fa fa-exclamation-circle me-1"></i>{{ localize('attendance_exceptions', 'ករណីពុំប្រក្រតី') }}
+                    </a>
+                </li>
+            @endcan
+            <li class="nav-item">
+                <a class="nav-link active py-1 px-3" href="{{ route('attendances.missingAttendance') }}">
+                    <i class="fa fa-user-times me-1"></i>{{ localize('missing_attendance', 'បុគ្គលិករំលងការចូល-ចេញ') }}
+                </a>
+            </li>
+            @can('read_attendance_adjustment')
+                <li class="nav-item">
+                    <a class="nav-link py-1 px-3" href="{{ route('attendance-adjustments.index') }}">
+                        <i class="fa fa-edit me-1"></i>{{ localize('attendance_adjustments', 'ការកែប្រែ') }}
+                    </a>
+                </li>
+            @endcan
+        </ul>
+    </div>
+
     <div class="card mb-4 fixed-tab-body">
         @include('backend.layouts.common.validation')
         @include('backend.layouts.common.message')
@@ -9,12 +35,16 @@
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('missing_attendance') }}</h6>
+                    <h6 class="fs-17 fw-semi-bold mb-0">
+                        <i class="fa fa-user-times text-warning me-1"></i>
+                        {{ localize('missing_attendance', 'បុគ្គលិករំលងការចូល-ចេញ') }}
+                    </h6>
                 </div>
                 <div class="text-end">
                     <div class="actions">
-                        <a href="{{ route('attendances.create') }}" class="btn btn-success btn-sm"><i
-                                class="fa fa-list"></i>&nbsp;{{ localize('attendance_form') }}</a>
+                        <a href="{{ route('attendances.create') }}" class="btn btn-success btn-sm">
+                            <i class="fa fa-plus-circle"></i>&nbsp;{{ localize('attendance_record', 'បញ្ចូលការចូល-ចេញ') }}
+                        </a>
                     </div>
                 </div>
             </div>
@@ -24,7 +54,7 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group row">
-                            <label for="date" class="col-md-4 col-form-label">{{ localize('date') }}
+                            <label for="date" class="col-md-4 col-form-label">{{ localize('date', 'ថ្ងៃ') }}
                                 <span class="text-danger">*</span>
                             </label>
                             <div class="col-md-6">
@@ -34,7 +64,7 @@
                             </div>
                             <div class="col-md-2 text-center">
                                 <button type="submit" class="btn btn-success"
-                                    autocomplete="off">{{ localize('search') }}</button>
+                                    autocomplete="off">{{ localize('search', 'ស្វែងរក') }}</button>
                             </div>
                         </div>
                     </div>
@@ -46,14 +76,14 @@
                     <table class="table table-bordered table-hover">
                         <thead>
                             <tr>
-                                <th>{{ localize('all') }} <input type="checkbox" id="checkAll"></th>
-                                <th>{{ localize('employee_id') }}</th>
-                                <th>{{ localize('name') }}</th>
-                                <th>{{ localize('designation') }}</th>
-                                <th>{{ localize('in_time') }}</th>
-                                <th>{{ localize('out_time') }}</th>
-                                <th>{{ localize('date') }}</th>
-                                <th>{{ localize('status') }}</th>
+                                <th>{{ localize('all', 'ទាំងអស់') }} <input type="checkbox" id="checkAll"></th>
+                                <th>{{ localize('employee_id', 'លេខបុគ្គលិក') }}</th>
+                                <th>{{ localize('name', 'ឈ្មោះ') }}</th>
+                                <th>{{ localize('designation', 'តួនាទី') }}</th>
+                                <th>{{ localize('in_time', 'ម៉ោងចូល') }}</th>
+                                <th>{{ localize('out_time', 'ម៉ោងចេញ') }}</th>
+                                <th>{{ localize('date', 'ថ្ងៃ') }}</th>
+                                <th>{{ localize('status', 'ស្ថានភាព') }}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -67,14 +97,14 @@
                                     <td><input type="time" class="form-control in_time" name="in_time[]" /></td>
                                     <td><input type="time" class="form-control out_time" name="out_time[]" /></td>
                                     <td>{{ $date }}</td>
-                                    <td>{{ localize('absent') }}</td>
+                                    <td><span class="badge badge-danger-soft">{{ localize('absent', 'អវត្តមាន') }}</span></td>
                                 </tr>
                             @endforeach
                         </tbody>
                         <tfoot>
                             <tr class="m-2">
                                 <td colspan="8" class="text-end">
-                                    <button class="btn btn-success" id="submit">{{ localize('submit') }}</button>
+                                    <button class="btn btn-success" id="submit"><i class="fa fa-save me-1"></i>{{ localize('submit', 'រក្សាទុក') }}</button>
                                 </td>
                             </tr>
                         </tfoot>

@@ -20,4 +20,9 @@ class MissionAssignment extends Model
     {
         return $this->belongsTo(Mission::class, 'mission_id', 'id');
     }
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class, 'employee_id', 'id');
+    }
 }

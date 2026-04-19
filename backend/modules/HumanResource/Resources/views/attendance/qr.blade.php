@@ -54,6 +54,10 @@
                     <div class="col-lg-4 text-center">
                         <img src="{{ $generated['qr_image_url'] }}" alt="Attendance QR"
                             class="img-fluid border rounded p-2 bg-white" style="max-width: 320px;">
+                        <p class="text-muted mt-2 small">
+                            <i class="fa fa-clock me-1"></i>{{ localize('valid_until', 'មានសុពលភាពដល់') }}:
+                            <strong>{{ $generated['expires_at']->format('H:i:s d/m/Y') }}</strong>
+                        </p>
                     </div>
 
                     <div class="col-lg-8">
@@ -71,6 +75,82 @@
                     </div>
                 </div>
             @endif
+        </div>
+    </div>
+
+    {{-- QR Scan Log Section --}}
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h6 class="fs-17 fw-semi-bold mb-0">
+                <i class="fa fa-list-alt me-1"></i>{{ localize('qr_scan_log', 'កំណត់ហេតុការស្កេន QR') }}
+            </h6>
+            <div class="d-flex gap-2 align-items-end">
+                <form id="scanLogFilterForm" action="{{ route('attendances.qrCreate') }}" method="GET" class="d-flex gap-2 align-items-end mb-0">
+                    @if($selectedWorkplaceId)
+                        <input type="hidden" name="workplace_id" value="{{ $selectedWorkplaceId }}">
+                    @endif
+                    <div>
+                        <label class="form-label fw-semibold small mb-1">{{ localize('date', 'ថ្ងៃ') }}</label>
+                        <input type="date" class="form-control form-control-sm" name="log_date"
+                            value="{{ request('log_date', date('Y-m-d')) }}">
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-outline-primary mt-auto">
+                        <i class="fa fa-search me-1"></i>{{ localize('search', 'ស្វែងរក') }}
+                    </button>
+                </form>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle mb-0" id="scanLogTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>{{ localize('sl', 'លរ') }}</th>
+                            <th>{{ localize('employee', 'ឈ្មោះបុគ្គលិក') }}</th>
+                            <th>{{ localize('workplace', 'អង្គភាព') }}</th>
+                            <th>{{ localize('scan_time', 'ម៉ោងស្កេន') }}</th>
+                            <th>{{ localize('punch_type', 'ប្រភេទ') }}</th>
+                            <th>{{ localize('distance_m', 'ចំងាយ (m)') }}</th>
+                            <th>{{ localize('status', 'ស្ថានភាព') }}</th>
+                            <th>{{ localize('reject_reason', 'មូលហេតុ') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scanLogBody">
+                        @forelse($scanLogs ?? [] as $i => $log)
+                            <tr>
+                                <td>{{ $i + 1 }}</td>
+                                <td class="fw-semibold">{{ $log->employee?->full_name ?? '-' }}</td>
+                                <td>{{ $log->workplace?->department_name ?? '-' }}</td>
+                                <td>{{ \Carbon\Carbon::parse($log->created_at)->format('H:i:s') }}</td>
+                                <td>
+                                    @if(($log->machine_state ?? '') === 'in')
+                                        <span class="badge badge-success-soft"><i class="fa fa-sign-in-alt me-1"></i>{{ localize('check_in', 'ចូល') }}</span>
+                                    @elseif(($log->machine_state ?? '') === 'out')
+                                        <span class="badge badge-danger-soft"><i class="fa fa-sign-out-alt me-1"></i>{{ localize('check_out', 'ចេញ') }}</span>
+                                    @else
+                                        <span class="badge badge-secondary-soft">{{ $log->machine_state ?? '-' }}</span>
+                                    @endif
+                                </td>
+                                <td>{{ $log->range_meters !== null ? number_format($log->range_meters, 0) . 'm' : '-' }}</td>
+                                <td>
+                                    @if(($log->status ?? '') === 'accepted')
+                                        <span class="badge badge-success-soft"><i class="fa fa-check me-1"></i>{{ localize('accepted', 'បានទទួល') }}</span>
+                                    @else
+                                        <span class="badge badge-danger-soft"><i class="fa fa-times me-1"></i>{{ localize('rejected', 'បដិសេធ') }}</span>
+                                    @endif
+                                </td>
+                                <td class="text-muted small">{{ $log->reject_reason ?? '-' }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="8" class="text-center py-4 text-muted">
+                                    <i class="fa fa-qrcode me-2"></i>{{ localize('no_scan_logs', 'មិនមានកំណត់ហេតុការស្កេនទេ') }}
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 @endsection

@@ -392,6 +392,9 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
         Route::post('/shifts', 'store')
             ->middleware('permission:create_shift')
             ->name('store');
+        Route::delete('/shifts/{id}', 'destroy')
+            ->middleware('permission:create_shift')
+            ->name('destroy');
     });
 
     Route::name('shift-rosters.')->controller(ShiftRosterController::class)->group(function () {
@@ -401,15 +404,24 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
         Route::post('/shift-rosters', 'store')
             ->middleware('permission:create_shift_roster')
             ->name('store');
+        Route::delete('/shift-rosters/{id}', 'destroy')
+            ->middleware('permission:create_shift_roster')
+            ->name('destroy');
     });
 
     Route::name('missions.')->controller(MissionController::class)->group(function () {
         Route::get('/missions', 'index')
             ->middleware('permission:read_mission')
             ->name('index');
+        Route::get('/missions/{id}', 'show')
+            ->middleware('permission:read_mission')
+            ->name('show');
         Route::post('/missions', 'store')
             ->middleware('permission:create_mission')
             ->name('store');
+        Route::delete('/missions/{id}', 'destroy')
+            ->middleware('permission:create_mission')
+            ->name('destroy');
     });
 
     Route::name('attendance-adjustments.')->controller(AttendanceAdjustmentController::class)->group(function () {

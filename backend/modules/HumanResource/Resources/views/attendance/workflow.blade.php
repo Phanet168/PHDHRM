@@ -162,8 +162,8 @@
             <div class="workflow-stat-card card h-100">
                 <div class="card-body">
                     <span class="icon-pill green mb-2"><i class="fas fa-check-circle"></i></span>
-                    <div class="text-muted small">{{ localize('today_attendance', 'វត្តមានថ្ងៃនេះ') }}</div>
-                    <div class="fs-2 fw-bold text-success">{{ $workflow['today_attendance'] }}</div>
+                    <div class="text-muted small">{{ localize('today_present', 'វត្តមានថ្ងៃនេះ') }}</div>
+                    <div class="fs-2 fw-bold text-success">{{ $workflow['today_present'] }}</div>
                 </div>
             </div>
         </div>
@@ -171,8 +171,8 @@
             <div class="workflow-stat-card card h-100">
                 <div class="card-body">
                     <span class="icon-pill orange mb-2"><i class="fas fa-user-clock"></i></span>
-                    <div class="text-muted small">{{ localize('today_missing', 'អវត្តមានថ្ងៃនេះ') }}</div>
-                    <div class="fs-2 fw-bold text-warning">{{ $workflow['missing_today'] }}</div>
+                    <div class="text-muted small">{{ localize('today_absent', 'អវត្តមានថ្ងៃនេះ') }}</div>
+                    <div class="fs-2 fw-bold text-warning">{{ $workflow['today_absent'] }}</div>
                 </div>
             </div>
         </div>
@@ -180,8 +180,11 @@
             <div class="workflow-stat-card card h-100">
                 <div class="card-body">
                     <span class="icon-pill red mb-2"><i class="fas fa-exclamation-triangle"></i></span>
-                    <div class="text-muted small">{{ localize('today_exceptions', 'ករណីខុសថ្ងៃនេះ') }}</div>
-                    <div class="fs-2 fw-bold text-danger">{{ $workflow['today_exceptions'] }}</div>
+                    <div class="text-muted small">{{ localize('pending_adjustments', 'សំណើកែប្រែរង់ចាំ') }}</div>
+                    <div class="fs-2 fw-bold text-danger">{{ $workflow['pending_adjustments'] }}</div>
+                    <div class="small text-muted mt-1">
+                        {{ localize('today_exceptions', 'ករណីខុសថ្ងៃនេះ') }}: {{ $workflow['today_exceptions'] }}
+                    </div>
                 </div>
             </div>
         </div>

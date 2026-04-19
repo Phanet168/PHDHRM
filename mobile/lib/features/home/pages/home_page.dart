@@ -4,9 +4,11 @@ import '../../../core/localization/laravel_language_service.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../models/attendance_day_record.dart';
 import '../models/dashboard_summary.dart';
+import '../models/mission_summary.dart';
 import 'attendance_scan_page.dart';
 import '../services/home_attendance_service.dart';
 import '../services/home_dashboard_service.dart';
+import '../services/home_mission_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.authController});
@@ -20,9 +22,11 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final HomeDashboardService _dashboardService;
   late final HomeAttendanceService _attendanceService;
+  late final HomeMissionService _missionService;
   late final Future<Map<String, String>> _languageFuture;
   Future<DashboardSummary>? _summaryFuture;
   Future<List<AttendanceDayRecord>>? _attendanceFuture;
+  Future<List<MissionSummary>>? _missionsFuture;
   _HomeMenuItem _selectedMenu = _HomeMenuItem.dashboard;
 
   @override
@@ -30,9 +34,11 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _dashboardService = HomeDashboardService();
     _attendanceService = HomeAttendanceService();
+    _missionService = HomeMissionService();
     _languageFuture = LaravelLanguageService.instance.load();
     _summaryFuture = _loadSummary();
     _attendanceFuture = null;
+    _missionsFuture = null;
   }
 
   String _tr(Map<String, String> language, String key, String fallback) {
@@ -52,6 +58,8 @@ class _HomePageState extends State<HomePage> {
         return _tr(language, 'attendance_list', 'Attendance');
       case _HomeMenuItem.leave:
         return _tr(language, 'leave_type', 'Leave');
+      case _HomeMenuItem.mission:
+        return _tr(language, 'mission', 'Mission');
       case _HomeMenuItem.salary:
         return _tr(language, 'salary_details', 'Salary');
       case _HomeMenuItem.notice:
@@ -81,6 +89,37 @@ class _HomePageState extends State<HomePage> {
     return _attendanceService.fetchAttendanceHistory(user);
   }
 
+  Future<List<MissionSummary>> _loadMissions() {
+    final user = widget.authController.currentUser;
+    if (user == null) {
+      throw Exception('User session មិនមាន');
+    }
+
+    return _missionService.fetchMissions(user);
+  }
+
+  String _attendanceStatusLabel(Map<String, String> language, String? status) {
+    final normalized = status?.trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty) {
+      return '-';
+    }
+
+    switch (normalized) {
+      case 'on_time':
+        return _tr(language, 'on_time', 'On Time');
+      case 'late':
+        return _tr(language, 'late', 'Late');
+      case 'early_leave':
+        return _tr(language, 'early_leave', 'Early Leave');
+      case 'late_and_early_leave':
+        return _tr(language, 'late_and_early_leave', 'Late & Early Leave');
+      case 'incomplete':
+        return _tr(language, 'incomplete', 'Incomplete');
+      default:
+        return status!.replaceAll('_', ' ').trim();
+    }
+  }
+
   Future<void> _openAttendanceScanner(Map<String, String> language) async {
     final user = widget.authController.currentUser;
     if (user == null) {
@@ -105,6 +144,7 @@ class _HomePageState extends State<HomePage> {
             (_) => AttendanceScanPage(
               user: user,
               attendanceService: _attendanceService,
+              language: language,
             ),
       ),
     );
@@ -370,6 +410,19 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    if (_selectedMenu == _HomeMenuItem.mission) {
+      setState(() {
+        _missionsFuture = _loadMissions();
+      });
+
+      try {
+        await _missionsFuture;
+      } catch (_) {
+        // FutureBuilder renders error state for failed mission requests.
+      }
+      return;
+    }
+
     setState(() {
       _summaryFuture = _loadSummary();
     });
@@ -393,6 +446,9 @@ class _HomePageState extends State<HomePage> {
       _selectedMenu = item;
       if (item == _HomeMenuItem.attendance && _attendanceFuture == null) {
         _attendanceFuture = _loadAttendance();
+      }
+      if (item == _HomeMenuItem.mission && _missionsFuture == null) {
+        _missionsFuture = _loadMissions();
       }
     });
   }
@@ -487,6 +543,12 @@ class _HomePageState extends State<HomePage> {
               title: _menuTitle(_HomeMenuItem.leave, language),
               selected: _selectedMenu == _HomeMenuItem.leave,
               onTap: () => _onMenuTap(_HomeMenuItem.leave),
+            ),
+            _DrawerMenuTile(
+              icon: Icons.work_outline,
+              title: _menuTitle(_HomeMenuItem.mission, language),
+              selected: _selectedMenu == _HomeMenuItem.mission,
+              onTap: () => _onMenuTap(_HomeMenuItem.mission),
             ),
             _DrawerMenuTile(
               icon: Icons.account_balance_wallet_outlined,
@@ -714,6 +776,85 @@ class _HomePageState extends State<HomePage> {
                   totalHours: record.totalHours,
                   punchesLabel: _tr(language, 'attendance_list', 'Punches'),
                   punchCount: record.punchCount.toString(),
+                  statusLabel: _tr(language, 'status', 'Status'),
+                  statusValue: _attendanceStatusLabel(
+                    language,
+                    record.attendanceStatus,
+                  ),
+                  statusCode: record.attendanceStatus,
+                  lateLabel: _tr(language, 'late', 'Late'),
+                  lateMinutes: record.lateMinutes,
+                  earlyLeaveLabel: _tr(language, 'early_leave', 'Early Leave'),
+                  earlyLeaveMinutes: record.earlyLeaveMinutes,
+                  hasException: record.hasException == true,
+                ),
+                const SizedBox(height: 12),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMissions(Map<String, String> language) {
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: FutureBuilder<List<MissionSummary>>(
+        future: _missionsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: const [
+                SizedBox(height: 24),
+                Center(child: CircularProgressIndicator()),
+              ],
+            );
+          }
+
+          if (snapshot.hasError) {
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _ErrorStateCard(
+                  title: _tr(language, 'mission', 'Mission'),
+                  message: '${snapshot.error}',
+                  onRetry: _refresh,
+                ),
+              ],
+            );
+          }
+
+          final missions = snapshot.data ?? const <MissionSummary>[];
+          if (missions.isEmpty) {
+            return ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _SectionCard(
+                  title: _tr(language, 'mission', 'Mission'),
+                  description: _tr(
+                    language,
+                    'no_missions',
+                    'មិនទាន់មានបេសកម្ម',
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              for (final mission in missions) ...[
+                _MissionRecordCard(
+                  title: mission.title.isEmpty ? '-' : mission.title,
+                  destination:
+                      mission.destination.isEmpty ? '-' : mission.destination,
+                  dateRange: '${mission.startDate} - ${mission.endDate}',
+                  status: mission.status,
+                  employeeCount: mission.employeeCount,
+                  language: language,
                 ),
                 const SizedBox(height: 12),
               ],
@@ -734,6 +875,8 @@ class _HomePageState extends State<HomePage> {
         return _buildDashboard(user, language, theme);
       case _HomeMenuItem.attendance:
         return _buildAttendance(language);
+      case _HomeMenuItem.mission:
+        return _buildMissions(language);
       case _HomeMenuItem.profile:
         return _buildProfileSection(user, language, theme);
       case _HomeMenuItem.leave:
@@ -772,7 +915,8 @@ class _HomePageState extends State<HomePage> {
             ),
             actions: [
               if (_selectedMenu == _HomeMenuItem.dashboard ||
-                  _selectedMenu == _HomeMenuItem.attendance)
+                  _selectedMenu == _HomeMenuItem.attendance ||
+                  _selectedMenu == _HomeMenuItem.mission)
                 IconButton(
                   onPressed: _refresh,
                   icon: const Icon(Icons.refresh),
@@ -802,6 +946,7 @@ enum _HomeMenuItem {
   dashboard('Dashboard'),
   attendance('Attendance'),
   leave('Leave'),
+  mission('Mission'),
   salary('Salary'),
   notice('Notice'),
   profile('Profile'),
@@ -1277,6 +1422,14 @@ class _AttendanceRecordCard extends StatelessWidget {
     required this.totalHours,
     required this.punchesLabel,
     required this.punchCount,
+    required this.statusLabel,
+    required this.statusValue,
+    this.statusCode,
+    required this.lateLabel,
+    required this.earlyLeaveLabel,
+    this.lateMinutes,
+    this.earlyLeaveMinutes,
+    this.hasException = false,
   });
 
   final String date;
@@ -1288,6 +1441,98 @@ class _AttendanceRecordCard extends StatelessWidget {
   final String totalHours;
   final String punchesLabel;
   final String punchCount;
+  final String statusLabel;
+  final String statusValue;
+  final String? statusCode;
+  final String lateLabel;
+  final String earlyLeaveLabel;
+  final int? lateMinutes;
+  final int? earlyLeaveMinutes;
+  final bool hasException;
+
+  String get _normalizedStatus {
+    final source = (statusCode ?? statusValue).trim().toLowerCase();
+    return source;
+  }
+
+  Color _statusBackgroundColor() {
+    final normalized = _normalizedStatus;
+    if (normalized == 'on_time' ||
+        normalized == 'present' ||
+        normalized == 'p') {
+      return const Color(0xFFE9F4F1);
+    }
+    if (normalized == 'late' || normalized == 'l') {
+      return const Color(0xFFFFF1E5);
+    }
+    if (normalized == 'early_leave') {
+      return const Color(0xFFFFF5E9);
+    }
+    if (normalized == 'late_and_early_leave') {
+      return const Color(0xFFFFECE5);
+    }
+    if (normalized == 'mission' || normalized == 'm') {
+      return const Color(0xFFEFF3FF);
+    }
+    if (normalized == 'leave' || normalized == 'lv') {
+      return const Color(0xFFEDE9FF);
+    }
+    if (normalized == 'holiday' || normalized == 'h') {
+      return const Color(0xFFF2F4F7);
+    }
+    if (normalized == 'day_off' || normalized == 'off' || normalized == 'o') {
+      return const Color(0xFFF3F4F6);
+    }
+    if (normalized == 'absent' ||
+        normalized == 'a' ||
+        normalized.contains('incomplete') ||
+        hasException) {
+      return const Color(0xFFFFEEF1);
+    }
+
+    return const Color(0xFFEFF3FF);
+  }
+
+  Color _statusTextColor() {
+    final normalized = _normalizedStatus;
+    if (normalized == 'on_time' ||
+        normalized == 'present' ||
+        normalized == 'p') {
+      return const Color(0xFF0B6B58);
+    }
+    if (normalized == 'late' || normalized == 'l') {
+      return const Color(0xFFA85C00);
+    }
+    if (normalized == 'early_leave') {
+      return const Color(0xFF9A4D00);
+    }
+    if (normalized == 'late_and_early_leave') {
+      return const Color(0xFF9A2F00);
+    }
+    if (normalized == 'mission' || normalized == 'm') {
+      return const Color(0xFF1D4F91);
+    }
+    if (normalized == 'leave' || normalized == 'lv') {
+      return const Color(0xFF5B2D82);
+    }
+    if (normalized == 'holiday' || normalized == 'h') {
+      return const Color(0xFF3D495A);
+    }
+    if (normalized == 'day_off' || normalized == 'off' || normalized == 'o') {
+      return const Color(0xFF4B5563);
+    }
+    if (normalized == 'absent' ||
+        normalized == 'a' ||
+        normalized.contains('incomplete') ||
+        hasException) {
+      return const Color(0xFFD34B5F);
+    }
+
+    return const Color(0xFF1D4F91);
+  }
+
+  bool get _hasLate => (lateMinutes ?? 0) > 0;
+  bool get _hasEarlyLeave => (earlyLeaveMinutes ?? 0) > 0;
 
   @override
   Widget build(BuildContext context) {
@@ -1335,6 +1580,25 @@ class _AttendanceRecordCard extends StatelessWidget {
                     ),
                   ),
                 ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _statusBackgroundColor(),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: Colors.white.withAlpha(150)),
+                  ),
+                  child: Text(
+                    '$statusLabel: $statusValue',
+                    style: TextStyle(
+                      color: _statusTextColor(),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 14),
@@ -1361,6 +1625,144 @@ class _AttendanceRecordCard extends StatelessWidget {
                   icon: Icons.touch_app_outlined,
                   label: '$punchesLabel: $punchCount',
                   backgroundColor: const Color(0xFFFFEEF1),
+                ),
+                if (_hasLate)
+                  _SoftPill(
+                    icon: Icons.warning_amber_outlined,
+                    label: '$lateLabel: $lateMinutes min',
+                    backgroundColor: const Color(0xFFFFF1E5),
+                  ),
+                if (_hasEarlyLeave)
+                  _SoftPill(
+                    icon: Icons.outbox_outlined,
+                    label: '$earlyLeaveLabel: $earlyLeaveMinutes min',
+                    backgroundColor: const Color(0xFFFFEEF1),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MissionRecordCard extends StatelessWidget {
+  const _MissionRecordCard({
+    required this.title,
+    required this.destination,
+    required this.dateRange,
+    required this.status,
+    required this.employeeCount,
+    required this.language,
+  });
+
+  final String title;
+  final String destination;
+  final String dateRange;
+  final String status;
+  final int employeeCount;
+  final Map<String, String> language;
+
+  String _tr(String key, String fallback) {
+    final value = language[key]?.trim();
+    if (value == null || value.isEmpty) {
+      return fallback;
+    }
+
+    return value;
+  }
+
+  Color _statusColor(String value) {
+    final normalized = value.trim().toLowerCase();
+    switch (normalized) {
+      case 'approved':
+        return const Color(0xFF0B6B58);
+      case 'pending':
+        return const Color(0xFFA85C00);
+      case 'rejected':
+      case 'cancelled':
+        return const Color(0xFFD34B5F);
+      default:
+        return const Color(0xFF3D495A);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tone = _statusColor(status);
+    final normalizedStatus = status.trim().isEmpty ? '-' : status.toUpperCase();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE3E9E6)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A14211D),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.work_outline, color: Color(0xFF1D4F91)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF14211D),
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: tone.withAlpha(24),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    normalizedStatus,
+                    style: TextStyle(
+                      color: tone,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _SoftPill(
+                  icon: Icons.apartment_outlined,
+                  label: '${_tr('destination', 'Destination')}: $destination',
+                  backgroundColor: const Color(0xFFEFF3FF),
+                ),
+                _SoftPill(
+                  icon: Icons.date_range_outlined,
+                  label: dateRange,
+                  backgroundColor: const Color(0xFFE9F4F1),
+                ),
+                _SoftPill(
+                  icon: Icons.group_outlined,
+                  label: '${_tr('employee', 'Employees')}: $employeeCount',
+                  backgroundColor: const Color(0xFFFFF1E5),
                 ),
               ],
             ),

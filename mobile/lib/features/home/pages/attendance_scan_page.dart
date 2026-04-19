@@ -13,10 +13,12 @@ class AttendanceScanPage extends StatefulWidget {
     super.key,
     required this.user,
     required this.attendanceService,
+    required this.language,
   });
 
   final AuthUser user;
   final HomeAttendanceService attendanceService;
+  final Map<String, String> language;
 
   @override
   State<AttendanceScanPage> createState() => _AttendanceScanPageState();
@@ -25,15 +27,17 @@ class AttendanceScanPage extends StatefulWidget {
 class _AttendanceScanPageState extends State<AttendanceScanPage> {
   late final MobileScannerController _scannerController;
   bool _isSubmitting = false;
+  bool _isPreviewing = false;
   bool _torchEnabled = false;
   bool _scanSucceeded = false;
-  String _statusMessage = 'Scan QR attendance code';
+  String _statusMessage = '';
   Color _statusColor = const Color(0xFF0B6B58);
   AttendanceScanResult? _latestResult;
 
   @override
   void initState() {
     super.initState();
+    _statusMessage = _tr('qr_scan', 'Scan QR attendance code');
     _scannerController = MobileScannerController(
       detectionSpeed: DetectionSpeed.noDuplicates,
       facing: CameraFacing.back,
@@ -48,8 +52,17 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
     super.dispose();
   }
 
+  String _tr(String key, String fallback) {
+    final value = widget.language[key]?.trim();
+    if (value == null || value.isEmpty) {
+      return fallback;
+    }
+
+    return value;
+  }
+
   Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_isSubmitting) {
+    if (_isSubmitting || _isPreviewing) {
       return;
     }
 
@@ -72,17 +85,23 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
   Future<void> _submitAttendance(String rawValue) async {
     final qrToken = _extractQrToken(rawValue);
     if (qrToken == null || qrToken.isEmpty) {
+      final invalidQrMessage = _tr('invalid_qr', 'Invalid QR data');
       await widget.attendanceService.reportScanIssue(
         widget.user,
         status: 'client_error',
         errorCode: 'invalid_qr_data',
-        message: 'Invalid QR data',
+        message: invalidQrMessage,
       );
       setState(() {
         _scanSucceeded = false;
-        _statusMessage = 'Invalid QR data';
+        _statusMessage = invalidQrMessage;
         _statusColor = const Color(0xFFD34B5F);
       });
+      return;
+    }
+
+    final shouldSubmit = await _confirmPunchPreview();
+    if (!shouldSubmit || !mounted) {
       return;
     }
 
@@ -90,7 +109,10 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
       _isSubmitting = true;
       _scanSucceeded = false;
       _latestResult = null;
-      _statusMessage = 'Checking location and saving attendance...';
+      _statusMessage = _tr(
+        'checking_attendance',
+        'Checking location and saving attendance...',
+      );
       _statusColor = const Color(0xFF0B6B58);
     });
 
@@ -120,11 +142,13 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
         return;
       }
 
+      final internalErrorCode =
+          error.toString().replaceFirst('Exception: ', '').trim();
       final errorMessage = _normalizeErrorMessage(error);
       await widget.attendanceService.reportScanIssue(
         widget.user,
         status: 'client_error',
-        errorCode: _clientErrorCode(errorMessage),
+        errorCode: _clientErrorCode(internalErrorCode),
         message: errorMessage,
         qrToken: qrToken,
       );
@@ -187,7 +211,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
   Future<Position> _resolveCurrentPosition() async {
     final isEnabled = await Geolocator.isLocationServiceEnabled();
     if (!isEnabled) {
-      throw Exception('Location service is disabled');
+      throw Exception('ERR_NO_GPS_SERVICE');
     }
 
     var permission = await Geolocator.checkPermission();
@@ -196,11 +220,11 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
     }
 
     if (permission == LocationPermission.denied) {
-      throw Exception('Location permission denied');
+      throw Exception('ERR_NO_GPS_PERMISSION');
     }
 
     if (permission == LocationPermission.deniedForever) {
-      throw Exception('Location permission permanently denied');
+      throw Exception('ERR_NO_GPS_PERMISSION_PERMANENT');
     }
 
     return Geolocator.getCurrentPosition(
@@ -259,7 +283,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
       _isSubmitting = false;
       _scanSucceeded = false;
       _latestResult = null;
-      _statusMessage = 'Scan QR attendance code';
+      _statusMessage = _tr('qr_scan', 'Scan QR attendance code');
       _statusColor = const Color(0xFF0B6B58);
     });
     await _scannerController.start();
@@ -267,8 +291,21 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
 
   String _normalizeErrorMessage(Object error) {
     final text = error.toString().replaceFirst('Exception: ', '').trim();
+    if (text == 'ERR_NO_GPS_SERVICE') {
+      return _tr('location_service_disabled', 'Location service is disabled');
+    }
+    if (text == 'ERR_NO_GPS_PERMISSION') {
+      return _tr('location_permission_denied', 'Location permission denied');
+    }
+    if (text == 'ERR_NO_GPS_PERMISSION_PERMANENT') {
+      return _tr(
+        'location_permission_denied_permanent',
+        'Location permission permanently denied',
+      );
+    }
+
     if (text.isEmpty) {
-      return 'Unexpected error';
+      return _tr('unexpected_error', 'Unexpected error');
     }
 
     return text;
@@ -276,6 +313,15 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
 
   String _clientErrorCode(String message) {
     final normalized = message.toLowerCase();
+    if (normalized.contains('err_no_gps_service')) {
+      return 'no_gps_service';
+    }
+    if (normalized.contains('err_no_gps_permission_permanent')) {
+      return 'no_gps_permission_permanent';
+    }
+    if (normalized.contains('err_no_gps_permission')) {
+      return 'no_gps_permission';
+    }
     if (normalized.contains('location service')) {
       return 'no_gps_service';
     }
@@ -298,6 +344,22 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
     }
 
     return '${meters.toStringAsFixed(1)} m';
+  }
+
+  String _formatPunchType(String? punchType) {
+    final normalized = punchType?.trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty) {
+      return '-';
+    }
+
+    if (normalized == 'in') {
+      return _tr('time_in', 'IN');
+    }
+    if (normalized == 'out') {
+      return _tr('time_out', 'OUT');
+    }
+
+    return punchType!.toUpperCase();
   }
 
   Widget _buildResultCard(AttendanceScanResult result) {
@@ -343,17 +405,22 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
             children: [
               _MetricPill(
                 icon: Icons.apartment_outlined,
-                label: 'Workplace',
+                label: _tr('department', 'Workplace'),
                 value: result.workplaceName ?? '-',
               ),
               _MetricPill(
+                icon: Icons.sync_alt_outlined,
+                label: _tr('attendance_type', 'Punch'),
+                value: _formatPunchType(result.punchType),
+              ),
+              _MetricPill(
                 icon: Icons.straighten_outlined,
-                label: 'Distance',
+                label: _tr('distance', 'Distance'),
                 value: _formatMeters(result.rangeMeters),
               ),
               _MetricPill(
                 icon: Icons.rule_outlined,
-                label: 'Allowed',
+                label: _tr('allowed_range', 'Allowed'),
                 value: _formatMeters(result.acceptableRangeMeters),
               ),
             ],
@@ -367,16 +434,16 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scan Attendance'),
+        title: Text(_tr('qr_scan', 'Scan Attendance')),
         actions: [
           IconButton(
             onPressed: _isSubmitting ? null : _openManualTokenDialog,
-            tooltip: 'Manual token',
+            tooltip: _tr('manual_token', 'Manual token'),
             icon: const Icon(Icons.keyboard_alt_outlined),
           ),
           IconButton(
             onPressed: _toggleTorch,
-            tooltip: 'Torch',
+            tooltip: _tr('flashlight', 'Torch'),
             icon: Icon(
               _torchEnabled
                   ? Icons.flash_on_outlined
@@ -398,9 +465,12 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: const Color(0xFFCDE4DB)),
                 ),
-                child: const Text(
-                  'Align the unit QR code inside the frame, then wait for auto submit.',
-                  style: TextStyle(
+                child: Text(
+                  _tr(
+                    'scan_qr_instruction',
+                    'Align the unit QR code inside the frame, then wait for auto submit.',
+                  ),
+                  style: const TextStyle(
                     color: Color(0xFF173F35),
                     fontWeight: FontWeight.w600,
                   ),
@@ -422,7 +492,10 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
                             alignment: Alignment.center,
                             child: Text(
                               error.errorDetails?.message ??
-                                  'Unable to access camera',
+                                  _tr(
+                                    'camera_access_failed',
+                                    'Unable to access camera',
+                                  ),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.white,
@@ -473,13 +546,13 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
                 FilledButton.icon(
                   onPressed: () => Navigator.of(context).pop(true),
                   icon: const Icon(Icons.done_all_outlined),
-                  label: const Text('Done'),
+                  label: Text(_tr('done', 'Done')),
                 ),
               if (_scanSucceeded) const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: _isSubmitting ? null : _restartScan,
                 icon: const Icon(Icons.qr_code_scanner_outlined),
-                label: const Text('Scan Again'),
+                label: Text(_tr('scan_again', 'Scan Again')),
               ),
             ],
           ),
@@ -495,24 +568,27 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Manual QR token'),
+          title: Text(_tr('manual_qr_token', 'Manual QR token')),
           content: TextField(
             controller: controller,
             maxLines: 3,
             minLines: 1,
-            decoration: const InputDecoration(
-              hintText: 'Paste qr_token or QR payload text',
+            decoration: InputDecoration(
+              hintText: _tr(
+                'manual_qr_hint',
+                'Paste qr_token or QR payload text',
+              ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
+              child: Text(_tr('cancel', 'Cancel')),
             ),
             FilledButton(
               onPressed:
                   () => Navigator.of(context).pop(controller.text.trim()),
-              child: const Text('Submit'),
+              child: Text(_tr('submit', 'Submit')),
             ),
           ],
         );
@@ -524,6 +600,93 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
     }
 
     await _submitAttendance(token);
+  }
+
+  Future<bool> _confirmPunchPreview() async {
+    setState(() {
+      _isPreviewing = true;
+    });
+
+    try {
+      final punchType = await widget.attendanceService.predictNextPunchType(
+        widget.user,
+      );
+      if (!mounted) {
+        return false;
+      }
+
+      final normalized = punchType.trim().toLowerCase();
+      final isIn = normalized == 'in';
+      final label = isIn
+          ? _tr('time_in', 'IN')
+          : _tr('time_out', 'OUT');
+
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: Text(_tr('punch_preview', 'Punch Preview')),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr(
+                    'punch_preview_desc',
+                    'The next attendance action is estimated as:',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isIn
+                        ? const Color(0xFFE9F4F1)
+                        : const Color(0xFFFFF1E5),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: isIn
+                          ? const Color(0xFFCDE4DB)
+                          : const Color(0xFFF0D8B6),
+                    ),
+                  ),
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: isIn
+                          ? const Color(0xFF0B6B58)
+                          : const Color(0xFFA85C00),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(_tr('cancel', 'Cancel')),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(_tr('confirm', 'Confirm')),
+              ),
+            ],
+          );
+        },
+      );
+
+      return confirmed == true;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isPreviewing = false;
+        });
+      }
+    }
   }
 }
 

@@ -65,7 +65,7 @@
                         <div class="row">
                             @can('create_attendance')
                                 <div class="form-group">
-                                    <button type="submit" class="btn btn-success">{{ localize('submit') }}</button>
+                                    <button type="submit" class="btn btn-success"><i class="fa fa-save me-1"></i>{{ localize('submit', 'រក្សាទុក') }}</button>
                                 </div>
                             @endcan
                         </div>

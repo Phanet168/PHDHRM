@@ -13,6 +13,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use Modules\HumanResource\Entities\Attendance;
+use Modules\HumanResource\Entities\AttendanceAdjustment;
 use Modules\HumanResource\Entities\Department;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\Holiday;
@@ -133,10 +134,40 @@ class ManualAttendanceController extends Controller
                 return $device;
             });
 
+        $employeesInScope = count($employeeIds);
+        $todayPresent = empty($employeeIds)
+            ? 0
+            : Attendance::query()
+                ->whereIn('employee_id', $employeeIds)
+                ->whereDate('time', $today)
+                ->distinct('employee_id')
+                ->count('employee_id');
+        $todayAbsent = max(0, $employeesInScope - $todayPresent);
+        $todayExceptions = empty($employeeIds)
+            ? 0
+            : Attendance::query()
+                ->whereIn('employee_id', $employeeIds)
+                ->whereDate('time', $today)
+                ->where('exception_flag', true)
+                ->distinct('employee_id')
+                ->count('employee_id');
+        $pendingAdjustments = empty($employeeIds)
+            ? 0
+            : AttendanceAdjustment::query()
+                ->whereIn('employee_id', $employeeIds)
+                ->where(function ($query) {
+                    $query->where('status', 'pending')
+                        ->orWhereNull('status');
+                })
+                ->count();
+
         $workflow = [
-            'employees_in_scope' => count($employeeIds),
-            'today_attendance' => empty($employeeIds) ? 0 : Attendance::query()->whereIn('employee_id', $employeeIds)->whereDate('time', $today)->distinct('employee_id')->count('employee_id'),
-            'today_exceptions' => empty($employeeIds) ? 0 : Attendance::query()->whereIn('employee_id', $employeeIds)->whereDate('time', $today)->where('exception_flag', true)->distinct('employee_id')->count('employee_id'),
+            'employees_in_scope' => $employeesInScope,
+            'today_attendance' => $todayPresent,
+            'today_present' => $todayPresent,
+            'today_absent' => $todayAbsent,
+            'pending_adjustments' => $pendingAdjustments,
+            'today_exceptions' => $todayExceptions,
             'missing_today' => empty($employeeIds) ? 0 : $this->scopedEmployeeQuery($orgScopeService)->doesntHave('attendances', 'and', function ($query) use ($today) {
                 $query->whereDate('time', $today);
             })->count(),
@@ -790,11 +821,51 @@ class ManualAttendanceController extends Controller
         }
     }
 
-    public function monthlyCreate(OrgScopeService $orgScopeService)
+    public function monthlyCreate(Request $request, OrgScopeService $orgScopeService)
     {
-        $employee = $this->scopedEmployeeQuery($orgScopeService)->get();
+        $employees = $this->scopedEmployeeQuery($orgScopeService)
+            ->with(['department', 'sub_department'])
+            ->get(['id', 'full_name', 'employee_id', 'department_id', 'sub_department_id']);
 
-        return view('humanresource::attendance.monthlycreate', compact('employee'));
+        $selectedYear  = (int) $request->input('year', now()->year);
+        $selectedMonth = (int) $request->input('month', now()->month);
+        $selectedEmployeeId = $request->input('employee_id');
+
+        // Compute days in selected month for grid header
+        $daysInMonth = \Carbon\Carbon::create($selectedYear, $selectedMonth, 1)->daysInMonth;
+        $monthDays = range(1, $daysInMonth);
+
+        // Load snapshots for the month
+        $startDate = \Carbon\Carbon::create($selectedYear, $selectedMonth, 1)->startOfDay();
+        $endDate   = \Carbon\Carbon::create($selectedYear, $selectedMonth, $daysInMonth)->endOfDay();
+
+        $employeeIds = $employees->pluck('id')->all();
+
+        $snapshotQuery = \Modules\HumanResource\Entities\AttendanceDailySnapshot::query()
+            ->whereBetween('snapshot_date', [$startDate->toDateString(), $endDate->toDateString()])
+            ->whereIn('employee_id', $employeeIds);
+
+        if ($selectedEmployeeId) {
+            $snapshotQuery->where('employee_id', (int) $selectedEmployeeId);
+        }
+
+        // Group snapshots by employee_id → day
+        $snapshotMap = $snapshotQuery->get()
+            ->groupBy('employee_id')
+            ->map(fn ($rows) => $rows->keyBy(fn ($r) => (int) \Carbon\Carbon::parse($r->snapshot_date)->day));
+
+        // If no snapshot data, fallback to attendance records for display
+        $displayEmployees = $selectedEmployeeId
+            ? $employees->where('id', (int) $selectedEmployeeId)
+            : $employees;
+
+        $employee = $employees; // backward-compat for monthlyStore view
+
+        return view('humanresource::attendance.monthlycreate', compact(
+            'employee', 'employees', 'displayEmployees', 'snapshotMap',
+            'selectedYear', 'selectedMonth', 'selectedEmployeeId',
+            'daysInMonth', 'monthDays'
+        ));
     }
 
     public function monthlyStore(Request $request, OrgScopeService $orgScopeService)
