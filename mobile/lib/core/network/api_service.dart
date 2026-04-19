@@ -74,51 +74,68 @@ class ApiService {
     Map<String, dynamic>? body,
     required bool requiresAuth,
   }) async {
-    final uri = ApiConfig.buildUri(path, queryParameters);
     final headers = await _buildHeaders(requiresAuth: requiresAuth);
 
-    late final http.Response response;
+    final uriCandidates = ApiConfig.buildUriCandidates(path, queryParameters);
+    ApiException? lastNetworkError;
 
-    try {
-      switch (method) {
-        case 'GET':
-          response = await _client
-              .get(uri, headers: headers)
-              .timeout(ApiConfig.connectTimeout);
-        case 'POST':
-          response = await _client
-              .post(
-                uri,
-                headers: headers,
-                body: jsonEncode(body ?? <String, dynamic>{}),
-              )
-              .timeout(ApiConfig.connectTimeout);
-        case 'PUT':
-          response = await _client
-              .put(
-                uri,
-                headers: headers,
-                body: jsonEncode(body ?? <String, dynamic>{}),
-              )
-              .timeout(ApiConfig.connectTimeout);
-        case 'DELETE':
-          response = await _client
-              .delete(
-                uri,
-                headers: headers,
-                body: jsonEncode(body ?? <String, dynamic>{}),
-              )
-              .timeout(ApiConfig.connectTimeout);
-        default:
-          throw ApiException(message: 'Unsupported method: $method');
+    for (var i = 0; i < uriCandidates.length; i++) {
+      final uri = uriCandidates[i];
+      final isLastCandidate = i == uriCandidates.length - 1;
+
+      try {
+        late final http.Response response;
+
+        switch (method) {
+          case 'GET':
+            response = await _client
+                .get(uri, headers: headers)
+                .timeout(ApiConfig.connectTimeout);
+          case 'POST':
+            response = await _client
+                .post(
+                  uri,
+                  headers: headers,
+                  body: jsonEncode(body ?? <String, dynamic>{}),
+                )
+                .timeout(ApiConfig.connectTimeout);
+          case 'PUT':
+            response = await _client
+                .put(
+                  uri,
+                  headers: headers,
+                  body: jsonEncode(body ?? <String, dynamic>{}),
+                )
+                .timeout(ApiConfig.connectTimeout);
+          case 'DELETE':
+            response = await _client
+                .delete(
+                  uri,
+                  headers: headers,
+                  body: jsonEncode(body ?? <String, dynamic>{}),
+                )
+                .timeout(ApiConfig.connectTimeout);
+          default:
+            throw ApiException(message: 'Unsupported method: $method');
+        }
+
+        return _decodeResponse(response);
+      } on TimeoutException {
+        lastNetworkError = ApiException(
+          message: 'ការភ្ជាប់ទៅ server អស់ពេលកំណត់',
+        );
+        if (isLastCandidate) {
+          throw lastNetworkError;
+        }
+      } on http.ClientException catch (error) {
+        lastNetworkError = ApiException(message: error.message);
+        if (isLastCandidate) {
+          throw lastNetworkError;
+        }
       }
-    } on TimeoutException {
-      throw ApiException(message: 'ការភ្ជាប់ទៅ server អស់ពេលកំណត់');
-    } on http.ClientException catch (error) {
-      throw ApiException(message: error.message);
     }
 
-    return _decodeResponse(response);
+    throw lastNetworkError ?? ApiException(message: 'សំណើមិនបានជោគជ័យ');
   }
 
   Future<Map<String, String>> _buildHeaders({

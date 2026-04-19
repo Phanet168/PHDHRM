@@ -114,7 +114,11 @@ class _LoginPageState extends State<LoginPage> {
     );
     final phoneController = TextEditingController();
     final reasonController = TextEditingController();
+    final requestPasswordController = TextEditingController(
+      text: _passwordController.text,
+    );
     bool isSubmitting = false;
+    bool obscureRequestPassword = true;
 
     final result = await showDialog<DeviceAccessRequestResult>(
       context: context,
@@ -161,6 +165,33 @@ class _LoginPageState extends State<LoginPage> {
                           }
                           if (!raw.contains('@')) {
                             return 'Email មិនត្រឹមត្រូវ';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: requestPasswordController,
+                        obscureText: obscureRequestPassword,
+                        decoration: InputDecoration(
+                          labelText: _tr(language, 'password', 'Password'),
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setDialogState(() {
+                                obscureRequestPassword =
+                                    !obscureRequestPassword;
+                              });
+                            },
+                            icon: Icon(
+                              obscureRequestPassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'សូមបញ្ចូល password';
                           }
                           return null;
                         },
@@ -228,6 +259,8 @@ class _LoginPageState extends State<LoginPage> {
                                       .submitRequest(
                                         fullName: nameController.text,
                                         email: requestEmailController.text,
+                                    password:
+                                      requestPasswordController.text,
                                         phone: phoneController.text,
                                         machineNumber: machineNumber,
                                         deviceInfo: deviceInfo,
@@ -272,6 +305,7 @@ class _LoginPageState extends State<LoginPage> {
     requestEmailController.dispose();
     phoneController.dispose();
     reasonController.dispose();
+    requestPasswordController.dispose();
 
     if (!mounted || result == null) {
       return;

@@ -417,15 +417,15 @@ class AuthController extends Controller
     private function buildUserProfilePayload(User $user): array
     {
         $user->loadMissing([
-            'employee.department:id,department_name',
-            'employee.sub_department:id,department_name',
-            'employee.position:id,position_name,position_name_km',
-            'employee.gender:id,gender_name',
-            'employee.marital_status:id,marital_status_name',
-            'employee.employee_type:id,name,name_km',
-            'employee.currentPayGradeHistory.payLevel:id,level_name_km,level_code',
-            'employee.latestPayGradeHistory.payLevel:id,level_name_km,level_code',
-            'employee.profileExtra:id,employee_id,current_work_skill',
+            'employee.department',
+            'employee.sub_department',
+            'employee.position',
+            'employee.gender',
+            'employee.marital_status',
+            'employee.employee_type',
+            'employee.currentPayGradeHistory.payLevel',
+            'employee.latestPayGradeHistory.payLevel',
+            'employee.profileExtra',
         ]);
 
         /** @var Employee|null $employee */
@@ -433,15 +433,15 @@ class AuthController extends Controller
         if (!$employee) {
             $employee = Employee::query()
                 ->with([
-                    'department:id,department_name',
-                    'sub_department:id,department_name',
-                    'position:id,position_name,position_name_km',
-                    'gender:id,gender_name',
-                    'marital_status:id,marital_status_name',
-                    'employee_type:id,name,name_km',
-                    'currentPayGradeHistory.payLevel:id,level_name_km,level_code',
-                    'latestPayGradeHistory.payLevel:id,level_name_km,level_code',
-                    'profileExtra:id,employee_id,current_work_skill',
+                    'department',
+                    'sub_department',
+                    'position',
+                    'gender',
+                    'marital_status',
+                    'employee_type',
+                    'currentPayGradeHistory.payLevel',
+                    'latestPayGradeHistory.payLevel',
+                    'profileExtra',
                 ])
                 ->where(function ($query) use ($user) {
                     $query->where('user_id', (int) $user->id);
@@ -532,7 +532,8 @@ class AuthController extends Controller
             'gender_name' => $this->normalizeText($employee->gender?->gender_name),
             'gender_display' => $this->resolveEmployeeGenderDisplay($employee),
             'marital_status_id' => $employee->marital_status_id ? (int) $employee->marital_status_id : null,
-            'marital_status_name' => $this->normalizeText($employee->marital_status?->marital_status_name),
+            'marital_status_name' => $this->normalizeText($employee->marital_status?->name)
+                ?? $this->normalizeText($employee->marital_status?->marital_status_name),
             'nationality' => $this->normalizeText($employee->nationality) ?? $this->normalizeText($employee->citizenship),
             'religion' => $this->normalizeText($employee->religion),
             'ethnic_group' => $this->normalizeText($employee->ethnic_group),

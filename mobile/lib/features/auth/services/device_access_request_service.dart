@@ -10,6 +10,7 @@ class DeviceAccessRequestService {
   Future<DeviceAccessRequestResult> submitRequest({
     required String fullName,
     required String email,
+    required String password,
     required String machineNumber,
     Map<String, dynamic>? deviceInfo,
     String? deviceSummary,
@@ -18,7 +19,11 @@ class DeviceAccessRequestService {
   }) async {
     final payload = <String, dynamic>{
       'full_name': fullName.trim(),
-      'email': email.trim().isEmpty ? null : email.trim(),
+      'email': email.trim(),
+      'password': password,
+      'device_id': machineNumber.trim(),
+      'device_name': machineNumber.trim(),
+      'token_id': machineNumber.trim(),
       'phone': (phone ?? '').trim().isEmpty ? null : phone!.trim(),
       'machine_number': machineNumber.trim(),
       'device_info': deviceInfo,
@@ -28,7 +33,7 @@ class DeviceAccessRequestService {
     };
 
     final response = await _apiService.post(
-      '/device-access-requests',
+      '/auth/device-request',
       requiresAuth: false,
       body: payload,
     );
