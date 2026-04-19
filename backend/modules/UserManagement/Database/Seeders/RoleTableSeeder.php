@@ -19,18 +19,14 @@ class RoleTableSeeder extends Seeder
     {
         Model::unguard();
 
-        $superAdmin = Role::create([
+        $superAdmin = Role::firstOrCreate([
             'name' => 'Super Admin',
             'guard_name' => 'web',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
-        $employee = Role::create([
+        $employee = Role::firstOrCreate([
             'name' => 'Employee',
             'guard_name' => 'web',
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
         $permissions = [
@@ -472,6 +468,36 @@ class RoleTableSeeder extends Seeder
                 'update_missing_attendance',
                 'delete_missing_attendance',
             ],
+            'Shift' => [
+                'create_shift',
+                'read_shift',
+                'update_shift',
+                'delete_shift',
+            ],
+            'Shift Roster' => [
+                'create_shift_roster',
+                'read_shift_roster',
+                'update_shift_roster',
+                'delete_shift_roster',
+            ],
+            'Mission' => [
+                'create_mission',
+                'read_mission',
+                'update_mission',
+                'delete_mission',
+            ],
+            'Attendance Adjustment' => [
+                'create_attendance_adjustment',
+                'read_attendance_adjustment',
+                'update_attendance_adjustment',
+                'delete_attendance_adjustment',
+            ],
+            'Attendance Snapshot' => [
+                'create_attendance_snapshot',
+                'read_attendance_snapshot',
+                'update_attendance_snapshot',
+                'delete_attendance_snapshot',
+            ],
             'Quarter' => [
                 'create_quarter',
                 'read_quarter',
@@ -901,6 +927,25 @@ class RoleTableSeeder extends Seeder
             ],
         ];
 
+        $syncPermission = function (string $permissionName, int $menuId) use ($superAdmin) {
+            $permission = Permission::firstOrCreate(
+                [
+                    'name' => $permissionName,
+                    'guard_name' => 'web',
+                ],
+                [
+                    'per_menu_id' => $menuId,
+                ]
+            );
+
+            if ((int) $permission->per_menu_id !== $menuId) {
+                $permission->per_menu_id = $menuId;
+                $permission->save();
+            }
+
+            $permission->assignRole($superAdmin);
+        };
+
         foreach ($permissions as $menu => $sub_permissions) {
             $menuModel = PerMenu::firstOrCreate([
                 'menu_name' => $menu,
@@ -918,25 +963,16 @@ class RoleTableSeeder extends Seeder
 
                         // Loop through the sub-permissions
                         foreach ($permission as $subPermission) {
-                            Permission::firstOrCreate([
-                                'name' => $subPermission,
-                                'per_menu_id' => $subPerMenu->id,
-                            ])->assignRole($superAdmin);
+                            $syncPermission($subPermission, $subPerMenu->id);
                         }
                     } else {
                         // If it's not an array, treat it as a single permission
-                        Permission::firstOrCreate([
-                            'name' => $permission,
-                            'per_menu_id' => $menuModel->id,
-                        ])->assignRole($superAdmin);
+                        $syncPermission($permission, $menuModel->id);
                     }
                 }
             } else {
                 // If $sub_permissions is not an array, treat it as a single permission
-                Permission::firstOrCreate([
-                    'name' => $sub_permissions,
-                    'per_menu_id' => $menuModel->id,
-                ])->assignRole($superAdmin);
+                $syncPermission($sub_permissions, $menuModel->id);
             }
         }
     }

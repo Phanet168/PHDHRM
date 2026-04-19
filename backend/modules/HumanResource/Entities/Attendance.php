@@ -22,6 +22,13 @@ class Attendance extends Model
         'scan_latitude',
         'scan_longitude',
         'time',
+        'attendance_status',
+        'shift_id',
+        'leave_id',
+        'mission_id',
+        'is_manual_adjustment',
+        'adjusted_by_id',
+        'adjustment_reason',
         'exception_flag',
         'exception_reason',
     ];

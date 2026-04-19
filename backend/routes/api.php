@@ -5,6 +5,11 @@ use App\Http\Controllers\ApiController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DeviceAccessRequestController;
 use App\Http\Controllers\Api\ExternalSyncController;
+use Modules\HumanResource\Http\Controllers\ShiftController;
+use Modules\HumanResource\Http\Controllers\ShiftRosterController;
+use Modules\HumanResource\Http\Controllers\MissionController;
+use Modules\HumanResource\Http\Controllers\AttendanceAdjustmentController;
+use Modules\HumanResource\Http\Controllers\AttendanceSnapshotController;
 
 /*
 |--------------------------------------------------------------------------
@@ -83,4 +88,23 @@ Route::prefix('integration/v1')
         Route::get('/employees', [ExternalSyncController::class, 'employees']);
         Route::get('/employees/{id}', [ExternalSyncController::class, 'employee'])->whereNumber('id');
         Route::get('/departments', [ExternalSyncController::class, 'departments']);
+    });
+
+Route::prefix('v1')
+    ->middleware('auth:sanctum')
+    ->group(function () {
+        Route::get('/shifts', [ShiftController::class, 'index'])->name('api.v1.shifts.index');
+        Route::post('/shifts', [ShiftController::class, 'store'])->name('api.v1.shifts.store');
+
+        Route::get('/shift-rosters', [ShiftRosterController::class, 'index'])->name('api.v1.shift_rosters.index');
+        Route::post('/shift-rosters', [ShiftRosterController::class, 'store'])->name('api.v1.shift_rosters.store');
+
+        Route::get('/missions', [MissionController::class, 'index'])->name('api.v1.missions.index');
+        Route::post('/missions', [MissionController::class, 'store'])->name('api.v1.missions.store');
+
+        Route::get('/attendance-adjustments', [AttendanceAdjustmentController::class, 'index'])->name('api.v1.attendance_adjustments.index');
+        Route::post('/attendance-adjustments', [AttendanceAdjustmentController::class, 'store'])->name('api.v1.attendance_adjustments.store');
+
+        Route::get('/attendance-snapshots/daily', [AttendanceSnapshotController::class, 'daily'])->name('api.v1.attendance_snapshots.daily');
+        Route::post('/attendance-snapshots/regenerate', [AttendanceSnapshotController::class, 'regenerate'])->name('api.v1.attendance_snapshots.regenerate');
     });

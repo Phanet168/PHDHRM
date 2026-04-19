@@ -61,6 +61,11 @@ use Modules\HumanResource\Http\Controllers\ProjectTasksController;
 use Modules\HumanResource\Http\Controllers\ProjectSprintsController;
 use Modules\HumanResource\Http\Controllers\ProjectReportsController;
 use Modules\HumanResource\Http\Controllers\TaxCalculationController;
+use Modules\HumanResource\Http\Controllers\ShiftController;
+use Modules\HumanResource\Http\Controllers\ShiftRosterController;
+use Modules\HumanResource\Http\Controllers\MissionController;
+use Modules\HumanResource\Http\Controllers\AttendanceAdjustmentController;
+use Modules\HumanResource\Http\Controllers\AttendanceSnapshotController;
 
 /*
 |--------------------------------------------------------------------------
@@ -378,6 +383,51 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
             Route::put('/update/attendances/{attendance}', 'update')->name('update');
             Route::delete('/attendances/delete/{attendance}', 'destroy')->name('destroy');
         });
+    });
+
+    Route::name('shifts.')->controller(ShiftController::class)->group(function () {
+        Route::get('/shifts', 'index')
+            ->middleware('permission:read_shift')
+            ->name('index');
+        Route::post('/shifts', 'store')
+            ->middleware('permission:create_shift')
+            ->name('store');
+    });
+
+    Route::name('shift-rosters.')->controller(ShiftRosterController::class)->group(function () {
+        Route::get('/shift-rosters', 'index')
+            ->middleware('permission:read_shift_roster')
+            ->name('index');
+        Route::post('/shift-rosters', 'store')
+            ->middleware('permission:create_shift_roster')
+            ->name('store');
+    });
+
+    Route::name('missions.')->controller(MissionController::class)->group(function () {
+        Route::get('/missions', 'index')
+            ->middleware('permission:read_mission')
+            ->name('index');
+        Route::post('/missions', 'store')
+            ->middleware('permission:create_mission')
+            ->name('store');
+    });
+
+    Route::name('attendance-adjustments.')->controller(AttendanceAdjustmentController::class)->group(function () {
+        Route::get('/attendance-adjustments', 'index')
+            ->middleware('permission:read_attendance_adjustment')
+            ->name('index');
+        Route::post('/attendance-adjustments', 'store')
+            ->middleware('permission:create_attendance_adjustment')
+            ->name('store');
+    });
+
+    Route::name('attendance-snapshots.')->controller(AttendanceSnapshotController::class)->group(function () {
+        Route::get('/attendance-snapshots/daily', 'daily')
+            ->middleware('permission:read_attendance_snapshot')
+            ->name('daily');
+        Route::post('/attendance-snapshots/regenerate', 'regenerate')
+            ->middleware('permission:create_attendance_snapshot')
+            ->name('regenerate');
     });
 
     Route::name('idprint.')->group(function () {
