@@ -5,6 +5,7 @@ import '../../auth/controllers/auth_controller.dart';
 import '../models/attendance_day_record.dart';
 import '../models/dashboard_summary.dart';
 import '../models/mission_summary.dart';
+import 'attendance_history_page.dart';
 import 'attendance_scan_page.dart';
 import '../services/home_attendance_service.dart';
 import '../services/home_dashboard_service.dart';
@@ -193,17 +194,18 @@ class _HomePageState extends State<HomePage> {
       physics: const NeverScrollableScrollPhysics(),
       children: [
         _AdditionalServiceCard(
-          icon: Icons.assignment_late_outlined,
-          title: _tr(language, 'missing_attendance', 'វត្តមានខកខាន'),
-          onTap: () => _openAdditionalService(
-            _HomeMenuItem.attendance,
-            language,
-            message: _tr(
-              language,
-              'service_redirect_missing',
-              'សូមពិនិត្យប្រវត្តិវត្តមាន និងស្កេនជាបន្ទាន់ប្រសិនបើខកខាន។',
-            ),
-          ),
+          icon: Icons.event_note_outlined,
+          title: _tr(language, 'leave_type', 'សុំច្បាប់'),
+          onTap:
+              () => _openAdditionalService(
+                _HomeMenuItem.leave,
+                language,
+                message: _tr(
+                  language,
+                  'service_redirect_leave',
+                  'Please submit a leave request and wait for approval.',
+                ),
+              ),
         ),
         _AdditionalServiceCard(
           icon: Icons.work_outline,
@@ -211,32 +213,62 @@ class _HomePageState extends State<HomePage> {
           onTap: () => _openAdditionalService(_HomeMenuItem.mission, language),
         ),
         _AdditionalServiceCard(
-          icon: Icons.event_note_outlined,
-          title: _tr(language, 'leave_type', 'ស្នើច្បាប់'),
-          onTap: () => _openAdditionalService(
-            _HomeMenuItem.leave,
-            language,
-            message: _tr(
-              language,
-              'service_redirect_leave',
-              'ផ្នែកស្នើច្បាប់កំពុងត្រៀមភ្ជាប់ API។',
-            ),
-          ),
+          icon: Icons.fact_check_outlined,
+          title: _tr(language, 'attendance_adjustment', 'កែវត្តមាន'),
+          onTap: () {
+            _showServiceMessage(
+              _tr(
+                language,
+                'service_adjustment_hint',
+                'Submit attendance adjustment request and wait for manager approval.',
+              ),
+            );
+          },
         ),
         _AdditionalServiceCard(
-          icon: Icons.campaign_outlined,
-          title: _tr(language, 'notice_list', 'សេចក្តីជូនដំណឹង'),
-          onTap: () => _openAdditionalService(
-            _HomeMenuItem.notice,
-            language,
-            message: _tr(
-              language,
-              'service_redirect_notice',
-              'អាចតាមដានសេចក្តីជូនដំណឹងថ្មីៗបាននៅផ្នែកនេះ។',
-            ),
-          ),
+          icon: Icons.calendar_month_outlined,
+          title: _tr(language, 'work_shift', 'វេណការងារ'),
+          onTap: () {
+            _showServiceMessage(
+              _tr(
+                language,
+                'service_shift_hint',
+                'Your shift and roster details are shown in attendance history.',
+              ),
+            );
+          },
         ),
       ],
+    );
+  }
+
+  Future<void> _openAttendanceHistory(Map<String, String> language) async {
+    final user = widget.authController.currentUser;
+    if (user == null) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _tr(language, 'wrong_info_alert', 'User session not found'),
+          ),
+          backgroundColor: const Color(0xFFD34B5F),
+        ),
+      );
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder:
+            (_) => AttendanceHistoryPage(
+              user: user,
+              attendanceService: _attendanceService,
+              language: language,
+            ),
+      ),
     );
   }
 
@@ -324,7 +356,8 @@ class _HomePageState extends State<HomePage> {
     final String? fullRightText =
         fro == null ? null : (fro ? 'ពេញសិទ្ធ' : 'មិនទាន់ពេញសិទ្ធ');
     final String positionText =
-        ((user.positionKm ?? user.position) as String?)?.trim().isNotEmpty == true
+        ((user.positionKm ?? user.position) as String?)?.trim().isNotEmpty ==
+                true
             ? ((user.positionKm ?? user.position) as String).trim()
             : '-';
     final String departmentText =
@@ -391,9 +424,15 @@ class _HomePageState extends State<HomePage> {
                         : user.cardNo as String?,
               ),
             if ((user.phone as String?)?.isNotEmpty == true)
-              _InfoBadge(icon: Icons.phone_outlined, text: user.phone as String),
+              _InfoBadge(
+                icon: Icons.phone_outlined,
+                text: user.phone as String,
+              ),
             if ((user.email as String).isNotEmpty)
-              _InfoBadge(icon: Icons.email_outlined, text: user.email as String),
+              _InfoBadge(
+                icon: Icons.email_outlined,
+                text: user.email as String,
+              ),
           ],
         ),
         const SizedBox(height: 12),
@@ -464,7 +503,10 @@ class _HomePageState extends State<HomePage> {
                 r('នាយកដ្ឋាន', user.departmentName as String?),
                 r('តួនាទី', (user.positionKm ?? user.position) as String?),
                 r('ជំនាញ', user.skillName as String?),
-                r('កាំប្រាក់', (user.employeeGradeKm ?? user.employeeGrade) as String?),
+                r(
+                  'កាំប្រាក់',
+                  (user.employeeGradeKm ?? user.employeeGrade) as String?,
+                ),
               ],
             ),
             _ProfileSubsection(
@@ -473,8 +515,14 @@ class _HomePageState extends State<HomePage> {
                 r('ថ្ងៃចូលបម្រើ', _formatDateDisplay(user.serviceStartDate)),
                 r('ថ្ងៃជួលចូល', _formatDateDisplay(user.hireDate)),
                 r('ថ្ងៃចូលធ្វើការ', _formatDateDisplay(user.joiningDate)),
-                r('ចាប់ផ្ដើមកិច្ចសន្យា', _formatDateDisplay(user.contractStartDate)),
-                r('ផុតកំណត់កិច្ចសន្យា', _formatDateDisplay(user.contractEndDate)),
+                r(
+                  'ចាប់ផ្ដើមកិច្ចសន្យា',
+                  _formatDateDisplay(user.contractStartDate),
+                ),
+                r(
+                  'ផុតកំណត់កិច្ចសន្យា',
+                  _formatDateDisplay(user.contractEndDate),
+                ),
               ],
             ),
             _ProfileSubsection(
@@ -819,9 +867,9 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 const SizedBox(height: 10),
-                _ProminentScanCard(
+                _AttendanceScanActionCard(
                   title: _tr(language, 'scan_now', 'ចុចស្កេនឥឡូវនេះ'),
-                  subtitle: _tr(
+                  description: _tr(
                     language,
                     'confirm_attendance',
                     'ស្កេន QR អង្គភាព ដើម្បីកត់វត្តមានជាមួយ GPS បច្ចុប្បន្ន។',
@@ -889,11 +937,7 @@ class _HomePageState extends State<HomePage> {
                   statusValue: statusToday,
                   inTimeLabel: _tr(language, 'last_in', 'ម៉ោងចូលចុងក្រោយ'),
                   inTime: '-',
-                  outTimeLabel: _tr(
-                    language,
-                    'last_out',
-                    'ម៉ោងចេញចុងក្រោយ',
-                  ),
+                  outTimeLabel: _tr(language, 'last_out', 'ម៉ោងចេញចុងក្រោយ'),
                   outTime: '-',
                 ),
                 const SizedBox(height: 14),
@@ -924,6 +968,14 @@ class _HomePageState extends State<HomePage> {
                     language,
                     'no_record_found',
                     'មិនទាន់មានទិន្នន័យវត្តមាន',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: () => _openAttendanceHistory(language),
+                  icon: const Icon(Icons.calendar_view_month_outlined),
+                  label: Text(
+                    _tr(language, 'view_full_history', 'មើលប្រវត្តិតាមខែ'),
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -978,7 +1030,11 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 14),
               _AttendanceSectionHeader(
                 title: historyTitle,
-                subtitle: _tr(language, 'latest_7_days', 'កំណត់ត្រា 7 ថ្ងៃចុងក្រោយ'),
+                subtitle: _tr(
+                  language,
+                  'latest_7_days',
+                  'កំណត់ត្រា 7 ថ្ងៃចុងក្រោយ',
+                ),
               ),
               const SizedBox(height: 10),
               for (final record in recentRecords) ...[
@@ -1006,6 +1062,13 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 12),
               ],
+              OutlinedButton.icon(
+                onPressed: () => _openAttendanceHistory(language),
+                icon: const Icon(Icons.calendar_view_month_outlined),
+                label: Text(
+                  _tr(language, 'view_full_history', 'មើលប្រវត្តិតាមខែ'),
+                ),
+              ),
               const SizedBox(height: 2),
               _AttendanceSectionHeader(
                 title: _tr(language, 'additional_services', 'សេវាកម្មបន្ថែម'),
@@ -1419,81 +1482,81 @@ class _WelcomePanel extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(3),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(28),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: CircleAvatar(
-                    radius: 24,
-                    backgroundColor: Colors.white,
-                    child: Text(
-                      initial,
-                      style: const TextStyle(
-                        color: Color(0xFF0B6B58),
-                        fontWeight: FontWeight.w900,
-                        fontSize: 18,
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(28),
+                        borderRadius: BorderRadius.circular(999),
                       ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        greeting,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          height: 1.15,
+                      child: CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.white,
+                        child: Text(
+                          initial,
+                          style: const TextStyle(
+                            color: Color(0xFF0B6B58),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 18,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        position?.isNotEmpty == true ? position! : email,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(color: Color(0xFFE7F1F5)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            greeting,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              height: 1.15,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            position?.isNotEmpty == true ? position! : email,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Color(0xFFE7F1F5)),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _SoftPill(
+                      icon: Icons.badge_outlined,
+                      label: employeeId,
+                      backgroundColor: Colors.white,
+                    ),
+                    _SoftPill(
+                      icon: Icons.apartment_outlined,
+                      label: department,
+                      backgroundColor: Colors.white,
+                    ),
+                    _SoftPill(
+                      icon: Icons.mail_outline,
+                      label: email,
+                      backgroundColor: Colors.white,
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _SoftPill(
-                  icon: Icons.badge_outlined,
-                  label: employeeId,
-                  backgroundColor: Colors.white,
-                ),
-                _SoftPill(
-                  icon: Icons.apartment_outlined,
-                  label: department,
-                  backgroundColor: Colors.white,
-                ),
-                _SoftPill(
-                  icon: Icons.mail_outline,
-                  label: email,
-                  backgroundColor: Colors.white,
-                ),
-              ],
-            ),
-          ],
-        ),
           ),
         ],
       ),
@@ -1914,64 +1977,64 @@ class _ProminentScanCard extends StatelessWidget {
             ),
           ),
           Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.qr_code_scanner_rounded, color: Colors.white),
-                SizedBox(width: 8),
+                const Row(
+                  children: [
+                    Icon(Icons.qr_code_scanner_rounded, color: Colors.white),
+                    SizedBox(width: 8),
+                    Text(
+                      'QR Attendance',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
                 Text(
-                  'QR Attendance',
-                  style: TextStyle(
+                  title,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
-                    fontSize: 16,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: Color(0xFFE7F1F5),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: onPressed,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF0B6B58),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    icon: const Icon(Icons.qr_code),
+                    label: Text(
+                      buttonText,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w900,
-                fontSize: 15,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: const TextStyle(
-                color: Color(0xFFE7F1F5),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: onPressed,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF0B6B58),
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                icon: const Icon(Icons.qr_code),
-                label: Text(
-                  buttonText,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
-          ],
-        ),
           ),
         ],
       ),
@@ -2586,7 +2649,8 @@ class _ProfileHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final visibleBadges = badges.where((widget) => widget is! SizedBox).toList();
+    final visibleBadges =
+        badges.where((widget) => widget is! SizedBox).toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -2856,7 +2920,11 @@ class _ProfileSection extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
-                colors: [Color(0xFFF4FAF7), Color(0xFFEDF7F2), Color(0xFFF7FBFC)],
+                colors: [
+                  Color(0xFFF4FAF7),
+                  Color(0xFFEDF7F2),
+                  Color(0xFFF7FBFC),
+                ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),

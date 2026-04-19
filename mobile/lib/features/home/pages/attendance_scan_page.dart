@@ -6,6 +6,7 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../auth/models/auth_user.dart';
 import '../models/attendance_scan_result.dart';
+import 'attendance_scan_result_page.dart';
 import '../services/home_attendance_service.dart';
 
 class AttendanceScanPage extends StatefulWidget {
@@ -29,10 +30,8 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
   bool _isSubmitting = false;
   bool _isPreviewing = false;
   bool _torchEnabled = false;
-  bool _scanSucceeded = false;
   String _statusMessage = '';
   Color _statusColor = const Color(0xFF0B6B58);
-  AttendanceScanResult? _latestResult;
 
   @override
   void initState() {
@@ -92,11 +91,13 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
         errorCode: 'invalid_qr_data',
         message: invalidQrMessage,
       );
-      setState(() {
-        _scanSucceeded = false;
-        _statusMessage = invalidQrMessage;
-        _statusColor = const Color(0xFFD34B5F);
-      });
+      await _openScanResultScreen(
+        AttendanceScanResult(
+          status: 'error',
+          message: invalidQrMessage,
+          errorCode: 'invalid_qr_data',
+        ),
+      );
       return;
     }
 
@@ -107,8 +108,6 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
 
     setState(() {
       _isSubmitting = true;
-      _scanSucceeded = false;
-      _latestResult = null;
       _statusMessage = _tr(
         'checking_attendance',
         'Checking location and saving attendance...',
@@ -153,13 +152,13 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
         qrToken: qrToken,
       );
 
-      setState(() {
-        _isSubmitting = false;
-        _scanSucceeded = false;
-        _statusMessage = errorMessage;
-        _statusColor = const Color(0xFFD34B5F);
-      });
-      await _scannerController.start();
+      await _openScanResultScreen(
+        AttendanceScanResult(
+          status: 'error',
+          message: errorMessage,
+          errorCode: _clientErrorCode(internalErrorCode),
+        ),
+      );
     }
   }
 
@@ -174,13 +173,11 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
     }
 
     if (result.isSuccess) {
-      setState(() {
-        _isSubmitting = false;
-        _scanSucceeded = true;
-        _latestResult = result;
-        _statusMessage = result.message;
-        _statusColor = const Color(0xFF0B6B58);
-      });
+      await _openScanResultScreen(
+        result,
+        latitude: latitude,
+        longitude: longitude,
+      );
       return;
     }
 
@@ -198,14 +195,11 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
       geofenceSource: result.geofenceSource,
     );
 
-    setState(() {
-      _isSubmitting = false;
-      _scanSucceeded = false;
-      _latestResult = result;
-      _statusMessage = result.message;
-      _statusColor = const Color(0xFFD34B5F);
-    });
-    await _scannerController.start();
+    await _openScanResultScreen(
+      result,
+      latitude: latitude,
+      longitude: longitude,
+    );
   }
 
   Future<Position> _resolveCurrentPosition() async {
@@ -278,11 +272,32 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
     });
   }
 
+  Future<void> _openScanResultScreen(
+    AttendanceScanResult result, {
+    double? latitude,
+    double? longitude,
+  }) async {
+    if (!mounted) {
+      return;
+    }
+
+    await Navigator.of(context).pushReplacement<bool, bool>(
+      MaterialPageRoute<bool>(
+        builder:
+            (_) => AttendanceScanResultPage(
+              result: result,
+              language: widget.language,
+              scannedAt: DateTime.now(),
+              latitude: latitude,
+              longitude: longitude,
+            ),
+      ),
+    );
+  }
+
   Future<void> _restartScan() async {
     setState(() {
       _isSubmitting = false;
-      _scanSucceeded = false;
-      _latestResult = null;
       _statusMessage = _tr('qr_scan', 'Scan QR attendance code');
       _statusColor = const Color(0xFF0B6B58);
     });
@@ -336,98 +351,6 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
     }
 
     return 'client_scan_error';
-  }
-
-  String _formatMeters(double? meters) {
-    if (meters == null) {
-      return '-';
-    }
-
-    return '${meters.toStringAsFixed(1)} m';
-  }
-
-  String _formatPunchType(String? punchType) {
-    final normalized = punchType?.trim().toLowerCase();
-    if (normalized == null || normalized.isEmpty) {
-      return '-';
-    }
-
-    if (normalized == 'in') {
-      return _tr('time_in', 'IN');
-    }
-    if (normalized == 'out') {
-      return _tr('time_out', 'OUT');
-    }
-
-    return punchType!.toUpperCase();
-  }
-
-  Widget _buildResultCard(AttendanceScanResult result) {
-    final successColor = const Color(0xFF0B6B58);
-    final dangerColor = const Color(0xFFD34B5F);
-    final isSuccess = result.isSuccess;
-
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isSuccess ? const Color(0xFFE9F4F1) : const Color(0xFFFFEEF1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isSuccess ? const Color(0xFFCDE4DB) : const Color(0xFFF0CED5),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                isSuccess ? Icons.check_circle_outline : Icons.error_outline,
-                color: isSuccess ? successColor : dangerColor,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  result.message,
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: isSuccess ? successColor : dangerColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _MetricPill(
-                icon: Icons.apartment_outlined,
-                label: _tr('department', 'Workplace'),
-                value: result.workplaceName ?? '-',
-              ),
-              _MetricPill(
-                icon: Icons.sync_alt_outlined,
-                label: _tr('attendance_type', 'Punch'),
-                value: _formatPunchType(result.punchType),
-              ),
-              _MetricPill(
-                icon: Icons.straighten_outlined,
-                label: _tr('distance', 'Distance'),
-                value: _formatMeters(result.rangeMeters),
-              ),
-              _MetricPill(
-                icon: Icons.rule_outlined,
-                label: _tr('allowed_range', 'Allowed'),
-                value: _formatMeters(result.acceptableRangeMeters),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -540,15 +463,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              if (_latestResult != null) _buildResultCard(_latestResult!),
               const SizedBox(height: 10),
-              if (_scanSucceeded)
-                FilledButton.icon(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  icon: const Icon(Icons.done_all_outlined),
-                  label: Text(_tr('done', 'Done')),
-                ),
-              if (_scanSucceeded) const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: _isSubmitting ? null : _restartScan,
                 icon: const Icon(Icons.qr_code_scanner_outlined),
@@ -617,9 +532,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
 
       final normalized = punchType.trim().toLowerCase();
       final isIn = normalized == 'in';
-      final label = isIn
-          ? _tr('time_in', 'IN')
-          : _tr('time_out', 'OUT');
+      final label = isIn ? _tr('time_in', 'IN') : _tr('time_out', 'OUT');
 
       final confirmed = await showDialog<bool>(
         context: context,
@@ -643,23 +556,26 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
                     vertical: 6,
                   ),
                   decoration: BoxDecoration(
-                    color: isIn
-                        ? const Color(0xFFE9F4F1)
-                        : const Color(0xFFFFF1E5),
+                    color:
+                        isIn
+                            ? const Color(0xFFE9F4F1)
+                            : const Color(0xFFFFF1E5),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
-                      color: isIn
-                          ? const Color(0xFFCDE4DB)
-                          : const Color(0xFFF0D8B6),
+                      color:
+                          isIn
+                              ? const Color(0xFFCDE4DB)
+                              : const Color(0xFFF0D8B6),
                     ),
                   ),
                   child: Text(
                     label,
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
-                      color: isIn
-                          ? const Color(0xFF0B6B58)
-                          : const Color(0xFFA85C00),
+                      color:
+                          isIn
+                              ? const Color(0xFF0B6B58)
+                              : const Color(0xFFA85C00),
                     ),
                   ),
                 ),
@@ -687,44 +603,5 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
         });
       }
     }
-  }
-}
-
-class _MetricPill extends StatelessWidget {
-  const _MetricPill({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: Colors.white.withAlpha(200),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFD8E2DF)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: const Color(0xFF0B6B58)),
-          const SizedBox(width: 6),
-          Text(
-            '$label: $value',
-            style: const TextStyle(
-              color: Color(0xFF24332E),
-              fontWeight: FontWeight.w700,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
