@@ -100,11 +100,16 @@ class ManualAttendanceController extends Controller
         $employeeIds = $employeeQuery->pluck('id')->map(fn ($id) => (int) $id)->all();
 
         $deviceQuery = MobileDeviceRegistration::query()->with('user.employee');
-        if (is_array($accessibleDepartmentIds)) {
+        if (is_array($accessibleDepartmentIds) && count($accessibleDepartmentIds) > 0) {
             $departmentIds = array_map('intval', $accessibleDepartmentIds);
-            $deviceQuery->whereHas('user.employee', function ($q) use ($departmentIds) {
-                $q->whereIn('department_id', $departmentIds)
-                    ->orWhereIn('sub_department_id', $departmentIds);
+            $deviceQuery->where(function ($q) use ($departmentIds) {
+                // Show devices where employee is in accessible departments
+                $q->whereHas('user.employee', function ($q2) use ($departmentIds) {
+                    $q2->whereIn('department_id', $departmentIds)
+                        ->orWhereIn('sub_department_id', $departmentIds);
+                })
+                // Also show devices whose user has no linked employee (e.g. admin accounts)
+                ->orWhereDoesntHave('user.employee');
             });
         }
 
