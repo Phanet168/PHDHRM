@@ -8,6 +8,9 @@ use Modules\HumanResource\Entities\Employee;
 
 class AttendanceCaptureService
 {
+    private const MACHINE_STATE_IN = 1;
+    private const MACHINE_STATE_OUT = 2;
+
     /**
      * Capture attendance with dedupe + daily exception sync.
      *
@@ -26,11 +29,15 @@ class AttendanceCaptureService
     public static function capture(array $payload): Attendance
     {
         $employeeId = (int) ($payload['employee_id'] ?? 0);
-        $time = Carbon::parse($payload['time'])->format('Y-m-d H:i:s');
+        $time = self::normalizeTime($payload['time'] ?? null);
         $source = (string) ($payload['attendance_source'] ?? 'manual');
 
         $employee = Employee::query()->select('id', 'department_id', 'sub_department_id')->find($employeeId);
-        $resolvedWorkplaceId = $payload['workplace_id'] ?? ($employee?->sub_department_id ?: $employee?->department_id);
+        $resolvedWorkplaceId = (int) ($payload['workplace_id'] ?? 0);
+        if ($resolvedWorkplaceId <= 0) {
+            $resolvedWorkplaceId = (int) ($employee?->sub_department_id ?: $employee?->department_id ?: 0);
+        }
+        $resolvedWorkplaceId = $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null;
 
         // 1) Exact duplicate guard.
         $exact = Attendance::query()
@@ -45,7 +52,21 @@ class AttendanceCaptureService
         // 2) Near duplicate guard (same source & same state within 60 sec).
         $windowStart = Carbon::parse($time)->subMinute()->format('Y-m-d H:i:s');
         $windowEnd = Carbon::parse($time)->addMinute()->format('Y-m-d H:i:s');
-        $state = (int) ($payload['machine_state'] ?? 0);
+
+        // For QR scan flow, block accidental double-scan even if state would toggle.
+        if ($source === 'api_qr') {
+            $recentQr = Attendance::query()
+                ->where('employee_id', $employeeId)
+                ->whereBetween('time', [$windowStart, $windowEnd])
+                ->where('attendance_source', $source)
+                ->first();
+            if ($recentQr) {
+                self::syncDailyExceptionStatus($employeeId, Carbon::parse($time)->toDateString());
+                return $recentQr;
+            }
+        }
+
+        $state = self::resolveMachineState($employeeId, $time, $payload['machine_state'] ?? null);
 
         $near = Attendance::query()
             ->where('employee_id', $employeeId)
@@ -73,6 +94,59 @@ class AttendanceCaptureService
         self::syncDailyExceptionStatus($employeeId, Carbon::parse($time)->toDateString());
 
         return $attendance;
+    }
+
+    protected static function normalizeTime($value): string
+    {
+        try {
+            if ($value !== null) {
+                return Carbon::parse($value)->format('Y-m-d H:i:s');
+            }
+        } catch (\Throwable $e) {
+            // Fall back to now when input time is invalid.
+        }
+
+        return now()->format('Y-m-d H:i:s');
+    }
+
+    protected static function resolveMachineState(int $employeeId, string $time, $requestedState): int
+    {
+        if (is_numeric($requestedState)) {
+            $state = (int) $requestedState;
+            if (in_array($state, [self::MACHINE_STATE_IN, self::MACHINE_STATE_OUT], true)) {
+                return $state;
+            }
+        }
+
+        $date = Carbon::parse($time)->toDateString();
+        $latestPunch = Attendance::query()
+            ->where('employee_id', $employeeId)
+            ->whereDate('time', $date)
+            ->where('time', '<=', $time)
+            ->orderByDesc('time')
+            ->orderByDesc('id')
+            ->first(['id', 'machine_state']);
+
+        if (!$latestPunch) {
+            return self::MACHINE_STATE_IN;
+        }
+
+        $latestState = (int) $latestPunch->machine_state;
+        if ($latestState === self::MACHINE_STATE_IN) {
+            return self::MACHINE_STATE_OUT;
+        }
+
+        if ($latestState === self::MACHINE_STATE_OUT) {
+            return self::MACHINE_STATE_IN;
+        }
+
+        $recordsBeforeCount = Attendance::query()
+            ->where('employee_id', $employeeId)
+            ->whereDate('time', $date)
+            ->where('time', '<=', $time)
+            ->count();
+
+        return ($recordsBeforeCount % 2 === 0) ? self::MACHINE_STATE_IN : self::MACHINE_STATE_OUT;
     }
 
     /**

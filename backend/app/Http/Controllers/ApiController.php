@@ -19,6 +19,7 @@ use Modules\HumanResource\Entities\ApplyLeave;
 use Modules\HumanResource\Entities\WeekHoliday;
 use Modules\HumanResource\Entities\SalaryGenerate;
 use Modules\HumanResource\Entities\LeaveType;
+use Modules\HumanResource\Entities\PointSettings;
 use Modules\HumanResource\Services\AttendanceCaptureService;
 use Modules\HumanResource\Services\QrAttendanceTokenService;
 use Illuminate\Support\Facades\DB;
@@ -220,7 +221,9 @@ class ApiController extends Controller
         $ulongitude = $request->get('longitude');
         $employee_id = $request->get('employee_id');
         $time = $request->get('datetime');
+        $scanTime = $this->parseScanTime($time);
         $userid = $request->get('user_id');
+        $requestedMachineState = $request->get('machine_state');
         $requestedWorkplaceId = (int) $request->get('workplace_id', 0);
         $qrToken = (string) $request->get('qr_token', '');
         $qrPayloadRaw = $request->get('qr_payload');
@@ -233,7 +236,7 @@ class ApiController extends Controller
             'workplace_id' => null,
             'latitude' => $ulatitude,
             'longitude' => $ulongitude,
-            'scanned_at' => $this->parseScanTime($time),
+            'scanned_at' => $scanTime,
             'qr_token' => $qrToken,
             'meta_payload' => [
                 'source' => 'add_attendance',
@@ -445,8 +448,8 @@ class ApiController extends Controller
             
             $captured = AttendanceCaptureService::capture([
                 'employee_id' => $employeeId,
-                'time' => $time ?: now()->format('Y-m-d H:i:s'),
-                'machine_state' => 1,
+                'time' => $scanTime,
+                'machine_state' => is_numeric($requestedMachineState) ? (int) $requestedMachineState : null,
                 'attendance_source' => 'api_qr',
                 'workplace_id' => $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null,
                 'scan_latitude' => $ulatitude,
@@ -455,6 +458,8 @@ class ApiController extends Controller
             ]);
 
             if ($captured) {
+                $machineState = (int) ($captured->machine_state ?? 0);
+                $punchType = $this->machineStateLabel($machineState);
                 $scanLogId = $this->recordAttendanceScanEvent(array_merge($scanLogContext, [
                     'status' => 'success',
                     'error_code' => null,
@@ -463,6 +468,11 @@ class ApiController extends Controller
                     'acceptable_range_meters' => $acceptableRange,
                     'geofence_source' => $geofenceSource,
                     'workplace_id' => $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null,
+                    'meta_payload' => [
+                        'source' => 'add_attendance',
+                        'machine_state' => $machineState,
+                        'punch_type' => $punchType,
+                    ],
                 ]));
                 $json['response'] = [
                     'status'     => 'ok',
@@ -471,6 +481,8 @@ class ApiController extends Controller
                     'workplace_id' => $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null,
                     'workplace_name' => $workplace?->department_name,
                     'geofence_source' => $geofenceSource,
+                    'machine_state' => $machineState,
+                    'punch_type' => $punchType,
                     'scan_log_id' => $scanLogId,
                     'message'    => 'Successfully Saved',
 
@@ -661,6 +673,8 @@ class ApiController extends Controller
             $query->whereDate('scanned_at', '<=', Carbon::parse($toDate)->format('Y-m-d'));
         }
 
+        $summaryBaseQuery = clone $query;
+
         $logs = $query
             ->limit($limit)
             ->get([
@@ -681,10 +695,34 @@ class ApiController extends Controller
                 'created_at',
             ]);
 
+        $statusSummary = (clone $summaryBaseQuery)
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status')
+            ->map(function ($value) {
+                return (int) $value;
+            })
+            ->toArray();
+
+        $errorSummary = (clone $summaryBaseQuery)
+            ->select('error_code', DB::raw('COUNT(*) as total'))
+            ->whereNotNull('error_code')
+            ->where('error_code', '!=', '')
+            ->groupBy('error_code')
+            ->pluck('total', 'error_code')
+            ->map(function ($value) {
+                return (int) $value;
+            })
+            ->toArray();
+
         $json['response'] = [
             'status' => 'ok',
             'total' => $logs->count(),
             'logs' => $logs,
+            'summary' => [
+                'status' => $statusSummary,
+                'error_code' => $errorSummary,
+            ],
         ];
 
         echo json_encode($json, JSON_UNESCAPED_UNICODE);
@@ -733,6 +771,19 @@ class ApiController extends Controller
         }
 
         return now()->format('Y-m-d H:i:s');
+    }
+
+    protected function machineStateLabel(int $machineState): string
+    {
+        if ($machineState === 1) {
+            return 'IN';
+        }
+
+        if ($machineState === 2) {
+            return 'OUT';
+        }
+
+        return 'UNKNOWN';
     }
 
     protected function nullableInt($value): ?int
@@ -1116,12 +1167,20 @@ class ApiController extends Controller
         $fromdate = $request->get('from_date');
         $todate = $request->get('to_date');
         $attendance = $this->attendance_history_datewise($employee_id,$fromdate,$todate);
+        $policy = $this->attendancePolicy();
 
 
         if(!empty($attendance)){
             $json['response'] = [
                 'status'      => 'ok',
                 'historydata' =>  $attendance,
+                'summary'     => $this->attendanceSummary($attendance),
+                'policy'      => [
+                    'attendance_start' => $policy['attendance_start'],
+                    'attendance_end' => $policy['attendance_end'],
+                    'late_grace_minutes' => $policy['late_grace_minutes'],
+                    'early_leave_grace_minutes' => $policy['early_leave_grace_minutes'],
+                ],
                 'message'     => localize('found_some_data'),
                 
             ];
@@ -1902,9 +1961,10 @@ class ApiController extends Controller
 
         $from_date = Carbon::parse($from_date)->format('Y-m-d');
         $to_date = Carbon::parse($to_date)->format('Y-m-d');
+        $policy = $this->attendancePolicy();
 
         $rows = Attendance::query()
-            ->select(['employee_id', 'time'])
+            ->select(['employee_id', 'time', 'machine_state', 'exception_flag', 'exception_reason'])
             ->where('employee_id', $id)
             ->whereDate('time', '>=', $from_date)
             ->whereDate('time', '<=', $to_date)
@@ -1950,6 +2010,7 @@ class ApiController extends Controller
             }
 
             $netSeconds = max(0, $totalWorkedSeconds - $breakSeconds);
+            $statusMeta = $this->buildAttendanceDayStatus($date, $firstPunch, $lastPunch, $totalPoints, $orderedRows, $policy);
 
             $baseRow = [
                 'intime' => $firstPunch->format('Y-m-d H:i:s'),
@@ -1967,6 +2028,19 @@ class ApiController extends Controller
             $entry['date'] = (string) $date;
             $entry['wastage'] = $this->formatSecondsToClock($breakSeconds);
             $entry['nethours'] = $this->formatSecondsToClock($netSeconds);
+            $entry['punch_count'] = $totalPoints;
+            $entry['is_complete_day'] = ($totalPoints % 2) === 0;
+            $entry['first_punch'] = $firstPunch->format('Y-m-d H:i:s');
+            $entry['last_punch'] = $lastPunch->format('Y-m-d H:i:s');
+            $entry['attendance_status'] = $statusMeta['status'];
+            $entry['has_exception'] = $statusMeta['has_exception'];
+            $entry['exception_reason'] = $statusMeta['exception_reason'];
+            $entry['late_minutes'] = $statusMeta['late_minutes'];
+            $entry['early_leave_minutes'] = $statusMeta['early_leave_minutes'];
+            $entry['policy_start'] = $statusMeta['policy_start'];
+            $entry['policy_end'] = $statusMeta['policy_end'];
+            $entry['late_grace_minutes'] = $policy['late_grace_minutes'];
+            $entry['early_leave_grace_minutes'] = $policy['early_leave_grace_minutes'];
 
             $attendance[] = $entry;
         }
@@ -1984,6 +2058,193 @@ class ApiController extends Controller
         $remainingSeconds = $seconds % 60;
 
         return sprintf('%02d:%02d:%02d', $hours, $minutes, $remainingSeconds);
+    }
+
+    protected function attendancePolicy(): array
+    {
+        $pointSetting = PointSettings::query()
+            ->select(['attendance_start', 'attendance_end'])
+            ->first();
+
+        $lateGrace = (int) config('humanresource.attendance.late_grace_minutes', 10);
+        $earlyGrace = (int) config('humanresource.attendance.early_leave_grace_minutes', 10);
+
+        return [
+            'attendance_start' => $this->normalizePolicyTime($pointSetting?->attendance_start),
+            'attendance_end' => $this->normalizePolicyTime($pointSetting?->attendance_end),
+            'late_grace_minutes' => max(0, $lateGrace),
+            'early_leave_grace_minutes' => max(0, $earlyGrace),
+        ];
+    }
+
+    protected function normalizePolicyTime($value): ?string
+    {
+        if (!is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse(trim($value))->format('H:i:s');
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    protected function dateTimeFromPolicy(string $date, ?string $time): ?Carbon
+    {
+        if (!is_string($time) || trim($time) === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($date . ' ' . trim($time));
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    protected function buildAttendanceDayStatus(
+        string $date,
+        Carbon $firstPunch,
+        Carbon $lastPunch,
+        int $punchCount,
+        $orderedRows,
+        array $policy
+    ): array {
+        $hasException = ($punchCount % 2) !== 0;
+        $exceptionReason = null;
+
+        foreach ($orderedRows as $row) {
+            if ((bool) ($row->exception_flag ?? false)) {
+                $hasException = true;
+            }
+
+            $rowReason = trim((string) ($row->exception_reason ?? ''));
+            if ($rowReason !== '' && $exceptionReason === null) {
+                $exceptionReason = $rowReason;
+            }
+        }
+
+        if ($hasException && $exceptionReason === null) {
+            $exceptionReason = 'UNPAIRED_PUNCH';
+        }
+
+        $policyStartAt = $this->dateTimeFromPolicy($date, $policy['attendance_start'] ?? null);
+        $policyEndAt = $this->dateTimeFromPolicy($date, $policy['attendance_end'] ?? null);
+
+        $lateMinutes = 0;
+        if ($policyStartAt) {
+            $lateSeconds = $firstPunch->getTimestamp() - $policyStartAt->getTimestamp();
+            if ($lateSeconds > 0) {
+                $lateMinutes = (int) ceil($lateSeconds / 60);
+            }
+        }
+
+        $earlyLeaveMinutes = 0;
+        if ($policyEndAt) {
+            $earlySeconds = $policyEndAt->getTimestamp() - $lastPunch->getTimestamp();
+            if ($earlySeconds > 0) {
+                $earlyLeaveMinutes = (int) ceil($earlySeconds / 60);
+            }
+        }
+
+        $lateGrace = (int) ($policy['late_grace_minutes'] ?? 0);
+        $earlyGrace = (int) ($policy['early_leave_grace_minutes'] ?? 0);
+        $isLate = $lateMinutes > $lateGrace;
+        $isEarlyLeave = $earlyLeaveMinutes > $earlyGrace;
+
+        if ($hasException) {
+            $status = 'PARTIAL';
+        } elseif ($isLate && $isEarlyLeave) {
+            $status = 'LATE_EARLY_LEAVE';
+        } elseif ($isLate) {
+            $status = 'LATE';
+        } elseif ($isEarlyLeave) {
+            $status = 'EARLY_LEAVE';
+        } else {
+            $status = 'PRESENT';
+        }
+
+        return [
+            'status' => $status,
+            'has_exception' => $hasException,
+            'exception_reason' => $exceptionReason,
+            'late_minutes' => $lateMinutes,
+            'early_leave_minutes' => $earlyLeaveMinutes,
+            'policy_start' => $policyStartAt?->format('Y-m-d H:i:s'),
+            'policy_end' => $policyEndAt?->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    protected function attendanceSummary(array $attendance): array
+    {
+        $summary = [
+            'total_days' => count($attendance),
+            'complete_days' => 0,
+            'incomplete_days' => 0,
+            'present_days' => 0,
+            'late_days' => 0,
+            'early_leave_days' => 0,
+            'late_early_leave_days' => 0,
+            'partial_days' => 0,
+            'total_worked_hours' => '00:00:00',
+            'total_net_hours' => '00:00:00',
+            'average_net_hours_per_day' => '00:00:00',
+        ];
+
+        $totalWorkedSeconds = 0;
+        $totalNetSeconds = 0;
+
+        foreach ($attendance as $row) {
+            $status = strtoupper((string) ($row['attendance_status'] ?? 'PRESENT'));
+            $isComplete = (bool) ($row['is_complete_day'] ?? false);
+            if ($isComplete) {
+                $summary['complete_days']++;
+            } else {
+                $summary['incomplete_days']++;
+            }
+
+            if ($status === 'PARTIAL') {
+                $summary['partial_days']++;
+            } elseif ($status === 'LATE_EARLY_LEAVE') {
+                $summary['late_early_leave_days']++;
+            } elseif ($status === 'LATE') {
+                $summary['late_days']++;
+            } elseif ($status === 'EARLY_LEAVE') {
+                $summary['early_leave_days']++;
+            } else {
+                $summary['present_days']++;
+            }
+
+            $totalWorkedSeconds += $this->clockToSeconds((string) ($row['totalhours'] ?? '00:00:00'));
+            $totalNetSeconds += $this->clockToSeconds((string) ($row['nethours'] ?? '00:00:00'));
+        }
+
+        $summary['total_worked_hours'] = $this->formatSecondsToClock($totalWorkedSeconds);
+        $summary['total_net_hours'] = $this->formatSecondsToClock($totalNetSeconds);
+        $summary['average_net_hours_per_day'] = $summary['total_days'] > 0
+            ? $this->formatSecondsToClock((int) floor($totalNetSeconds / $summary['total_days']))
+            : '00:00:00';
+
+        return $summary;
+    }
+
+    protected function clockToSeconds(string $clock): int
+    {
+        $parts = explode(':', trim($clock));
+        if (count($parts) !== 3) {
+            return 0;
+        }
+
+        if (!is_numeric($parts[0]) || !is_numeric($parts[1]) || !is_numeric($parts[2])) {
+            return 0;
+        }
+
+        $hours = (int) $parts[0];
+        $minutes = (int) $parts[1];
+        $seconds = (int) $parts[2];
+
+        return max(0, ($hours * 3600) + ($minutes * 60) + $seconds);
     }
 
     /**

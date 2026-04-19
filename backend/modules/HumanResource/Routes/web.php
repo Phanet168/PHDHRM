@@ -22,6 +22,7 @@ use Modules\HumanResource\Http\Controllers\EmployeeRetirementController;
 use Modules\HumanResource\Http\Controllers\EmployeeWorkplaceTransferController;
 use Modules\HumanResource\Http\Controllers\GradeRankHelpController;
 use Modules\HumanResource\Http\Controllers\EmployeeHelpController;
+use Modules\HumanResource\Http\Controllers\AttendanceHelpController;
 use Modules\HumanResource\Http\Controllers\GovPayLevelController;
 use Modules\HumanResource\Http\Controllers\GovSalaryScaleController;
 use Modules\HumanResource\Http\Controllers\PositionController;
@@ -354,6 +355,10 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
     Route::resource('leave-types', LeaveTypeController::class);
 
     Route::name('attendances.')->group(function () {
+        Route::get('/attendances/help/{article?}', [AttendanceHelpController::class, 'index'])
+            ->middleware('permission:read_attendance')
+            ->name('help');
+
         Route::controller(ManualAttendanceController::class)->group(function () {
             Route::get('/attendances/workflow', 'workflow')->name('workflow');
             Route::get('/attendances/index', 'index')->name('index');
