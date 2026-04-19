@@ -648,10 +648,21 @@ class AuthController extends Controller
             return null;
         }
 
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, 'storage/')) {
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            $parsedPath = parse_url($path, PHP_URL_PATH);
+            $normalizedPath = $this->normalizeText($parsedPath);
+
+            if ($normalizedPath !== null && str_contains($normalizedPath, '/storage/')) {
+                return url($normalizedPath);
+            }
+
             return $path;
         }
 
-        return 'storage/' . ltrim($path, '/');
+        if (str_starts_with($path, 'storage/') || str_starts_with($path, '/storage/')) {
+            return url('/' . ltrim($path, '/'));
+        }
+
+        return url('/storage/' . ltrim($path, '/'));
     }
 }

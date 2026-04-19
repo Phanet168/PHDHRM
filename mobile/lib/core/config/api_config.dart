@@ -14,8 +14,8 @@ class ApiConfig {
     if (kIsWeb) {
       final host = Uri.base.host.isEmpty ? '127.0.0.1' : Uri.base.host;
       return <String>[
-        'http://$host:8000/api',
         'http://192.168.1.14:8000/api',
+        'http://$host:8000/api',
         'http://127.0.0.1:8000/api',
       ];
     }
@@ -29,8 +29,8 @@ class ApiConfig {
     }
 
     return const <String>[
-      'http://127.0.0.1:8000/api',
       'http://192.168.1.14:8000/api',
+      'http://127.0.0.1:8000/api',
     ];
   }
 
