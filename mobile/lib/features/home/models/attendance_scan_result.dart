@@ -9,6 +9,8 @@ class AttendanceScanResult {
     this.workplaceId,
     this.workplaceName,
     this.geofenceSource,
+    this.machineState,
+    this.punchType,
   });
 
   final String status;
@@ -20,6 +22,8 @@ class AttendanceScanResult {
   final int? workplaceId;
   final String? workplaceName;
   final String? geofenceSource;
+  final int? machineState;
+  final String? punchType;
 
   bool get isSuccess => status.toLowerCase() == 'ok';
 
@@ -34,6 +38,8 @@ class AttendanceScanResult {
       workplaceId: _toInt(payload['workplace_id']),
       workplaceName: _toStringOrNull(payload['workplace_name']),
       geofenceSource: _toStringOrNull(payload['geofence_source']),
+      machineState: _toInt(payload['machine_state']),
+      punchType: _toStringOrNull(payload['punch_type']),
     );
   }
 
