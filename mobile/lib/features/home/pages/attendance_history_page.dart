@@ -323,7 +323,8 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
           maxChildSize: 0.86,
           expand: false,
           builder: (context, controller) {
-            final sheetBottomPadding = MediaQuery.of(context).padding.bottom + 24;
+            final sheetBottomPadding =
+                MediaQuery.of(context).padding.bottom + 24;
 
             return Container(
               decoration: const BoxDecoration(
@@ -372,7 +373,10 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: statusBackground,
                           borderRadius: BorderRadius.circular(999),
@@ -401,7 +405,8 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                       Expanded(
                         child: _HistoryPill(
                           icon: Icons.qr_code_scanner_outlined,
-                          text: '${_tr('scan', 'ស្កេន')}: ${_scanWindowText(record)}',
+                          text:
+                              '${_tr('scan', 'ស្កេន')}: ${_scanWindowText(record)}',
                         ),
                       ),
                     ],
@@ -526,7 +531,21 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
     ];
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F7FB),
       appBar: AppBar(
+        elevation: 0,
+        centerTitle: true,
+        backgroundColor: const Color(0xFFF4F7FB),
+        surfaceTintColor: Colors.transparent,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFFF7FAFF), Color(0xFFEFF5FF)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         leading: Padding(
           padding: const EdgeInsets.only(left: 10),
           child: IconButton(
@@ -540,7 +559,14 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
             icon: const Icon(Icons.arrow_back_rounded),
           ),
         ),
-        title: Text(_tr('attendance_history', 'ប្រវត្តិវត្តមាន')),
+        title: Text(
+          _tr('attendance_history', 'ប្រវត្តិវត្តមាន'),
+          style: const TextStyle(
+            fontWeight: FontWeight.w900,
+            color: Color(0xFF143545),
+            letterSpacing: 0.2,
+          ),
+        ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -560,13 +586,15 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                 ),
               ),
               icon: Icon(
-                _showSearchField
-                    ? Icons.close_rounded
-                    : Icons.tune_rounded,
+                _showSearchField ? Icons.close_rounded : Icons.tune_rounded,
               ),
             ),
           ),
         ],
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, thickness: 1, color: Color(0xFFE4ECF6)),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,
@@ -604,21 +632,52 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
               padding: EdgeInsets.fromLTRB(16, 12, 16, listBottomPadding),
               children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE5EBF0)),
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFFFFF), Color(0xFFF8FBFF)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: const Color(0xFFE1EAF5)),
                     boxShadow: const [
                       BoxShadow(
-                        color: Color(0x0A14211D),
-                        blurRadius: 14,
-                        offset: Offset(0, 6),
+                        color: Color(0x1014202B),
+                        blurRadius: 18,
+                        offset: Offset(0, 8),
                       ),
                     ],
                   ),
                   child: Column(
                     children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 30,
+                            height: 30,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEAF1FF),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.calendar_month_rounded,
+                              size: 18,
+                              color: Color(0xFF355A8A),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _tr('filter', 'តម្រង'),
+                            style: const TextStyle(
+                              color: Color(0xFF1F3953),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
                       Row(
                         children: [
                           Expanded(
@@ -740,7 +799,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
@@ -782,13 +841,13 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Container(
                   padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FBFA),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2EAE7)),
+                    color: const Color(0xFFF8FAFF),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE1EAF5)),
                   ),
                   child: Wrap(
                     spacing: 8,
@@ -847,7 +906,10 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                 const SizedBox(height: 10),
                 if (records.isEmpty)
                   _HistoryEmptyCard(
-                    message: _tr('no_record_found', 'មិនទាន់មានប្រវត្តិវត្តមាន'),
+                    message: _tr(
+                      'no_record_found',
+                      'មិនទាន់មានប្រវត្តិវត្តមាន',
+                    ),
                   )
                 else
                   ...records.map((record) {
@@ -862,7 +924,9 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                         shift: _resolvedShift(record),
                         statusLabel: _statusLabel(record.attendanceStatus),
                         statusColor: statusColor,
-                        statusBackground: _statusBackground(record.attendanceStatus),
+                        statusBackground: _statusBackground(
+                          record.attendanceStatus,
+                        ),
                         onTap: () => _showRecordDetails(record),
                       ),
                     );
@@ -925,57 +989,61 @@ class _SummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 94,
+      width: 100,
       child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5EBF0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A14211D),
-            blurRadius: 12,
-            offset: Offset(0, 5),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFFFFFF), Color(0xFFF8FBFF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: color.withAlpha(30),
-              borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE1EAF5)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0D14211D),
+              blurRadius: 14,
+              offset: Offset(0, 6),
             ),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF5C6E79),
-              fontWeight: FontWeight.w700,
-              fontSize: 11,
-              height: 1.3,
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: color.withAlpha(28),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: color, size: 18),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
+            const SizedBox(height: 8),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF516778),
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+                height: 1.3,
+              ),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                color: color,
+                fontSize: 19,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -998,8 +1066,9 @@ class _CompactDropdownField<T> extends StatelessWidget {
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F6F8),
+        color: const Color(0xFFF7FAFF),
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFDCE6F3)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<T>(
@@ -1028,7 +1097,7 @@ class _FilterSearchButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: active ? const Color(0xFFEAF1FF) : const Color(0xFFF8FAFB),
+      color: active ? const Color(0xFFEAF1FF) : const Color(0xFFF7FAFF),
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -1037,6 +1106,12 @@ class _FilterSearchButton extends StatelessWidget {
           width: 46,
           height: 46,
           alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: active ? const Color(0xFFC8D8F5) : const Color(0xFFDCE6F3),
+            ),
+          ),
           child: Icon(
             Icons.search_rounded,
             color: active ? const Color(0xFF1D4F91) : const Color(0xFF5E7180),
@@ -1143,7 +1218,10 @@ class _AttendanceHistoryCard extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
+                    ),
                     decoration: BoxDecoration(
                       color: statusBackground,
                       borderRadius: BorderRadius.circular(999),
@@ -1163,10 +1241,7 @@ class _AttendanceHistoryCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: _HistoryInfoCell(
-                      label: 'ចូល',
-                      value: timeIn,
-                    ),
+                    child: _HistoryInfoCell(label: 'ចូល', value: timeIn),
                   ),
                   Container(
                     width: 1,
@@ -1174,10 +1249,7 @@ class _AttendanceHistoryCard extends StatelessWidget {
                     color: const Color(0xFFEDF1F4),
                   ),
                   Expanded(
-                    child: _HistoryInfoCell(
-                      label: 'ចេញ',
-                      value: timeOut,
-                    ),
+                    child: _HistoryInfoCell(label: 'ចេញ', value: timeOut),
                   ),
                 ],
               ),
@@ -1341,7 +1413,10 @@ class _HistoryEmptyCard extends StatelessWidget {
               color: const Color(0xFFEFF6F3),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.history_toggle_off_rounded, color: Color(0xFF0B6B58)),
+            child: const Icon(
+              Icons.history_toggle_off_rounded,
+              color: Color(0xFF0B6B58),
+            ),
           ),
           const SizedBox(height: 12),
           Text(
