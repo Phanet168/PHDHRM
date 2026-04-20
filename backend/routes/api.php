@@ -10,6 +10,7 @@ use Modules\HumanResource\Http\Controllers\ShiftRosterController;
 use Modules\HumanResource\Http\Controllers\MissionController;
 use Modules\HumanResource\Http\Controllers\AttendanceAdjustmentController;
 use Modules\HumanResource\Http\Controllers\AttendanceSnapshotController;
+use Modules\HumanResource\Http\Controllers\LeaveRequestApiController;
 
 /*
 |--------------------------------------------------------------------------
@@ -101,6 +102,13 @@ Route::prefix('v1')
 
         Route::get('/missions', [MissionController::class, 'index'])->name('api.v1.missions.index');
         Route::post('/missions', [MissionController::class, 'store'])->name('api.v1.missions.store');
+
+        Route::get('/leave-types', [LeaveRequestApiController::class, 'types'])->name('api.v1.leave_types.index');
+        Route::get('/leave-requests/summary', [LeaveRequestApiController::class, 'summary'])->name('api.v1.leave_requests.summary');
+        Route::get('/leave-requests', [LeaveRequestApiController::class, 'index'])->name('api.v1.leave_requests.index');
+        Route::post('/leave-requests', [LeaveRequestApiController::class, 'store'])->name('api.v1.leave_requests.store');
+        Route::get('/leave-requests/{leaveRequest}', [LeaveRequestApiController::class, 'show'])->name('api.v1.leave_requests.show');
+        Route::post('/leave-requests/{leaveRequest}/cancel', [LeaveRequestApiController::class, 'cancel'])->name('api.v1.leave_requests.cancel');
 
         Route::get('/attendance-adjustments', [AttendanceAdjustmentController::class, 'index'])->name('api.v1.attendance_adjustments.index');
         Route::post('/attendance-adjustments', [AttendanceAdjustmentController::class, 'store'])->name('api.v1.attendance_adjustments.store');

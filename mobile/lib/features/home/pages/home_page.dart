@@ -7,6 +7,7 @@ import '../models/attendance_day_record.dart';
 import '../models/dashboard_summary.dart';
 import '../models/mission_summary.dart';
 import 'attendance_history_page.dart';
+import 'leave_request_page.dart';
 import 'attendance_scan_page.dart';
 import '../services/home_attendance_service.dart';
 import '../services/home_dashboard_service.dart';
@@ -1215,6 +1216,19 @@ class _HomePageState extends State<HomePage> {
       case _HomeMenuItem.profile:
         return _buildProfileSection(user, language, theme);
       case _HomeMenuItem.leave:
+        if (user == null) {
+          return ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
+              _SectionCard(
+                title: _menuTitle(_selectedMenu, language),
+                description: _tr(language, 'wrong_info_alert', 'User session not found'),
+              ),
+            ],
+          );
+        }
+
+        return LeaveRequestPage(user: user, language: language);
       case _HomeMenuItem.salary:
       case _HomeMenuItem.notice:
         return ListView(
