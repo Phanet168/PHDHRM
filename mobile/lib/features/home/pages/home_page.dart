@@ -40,7 +40,8 @@ class _HomePageState extends State<HomePage> {
     _missionService = HomeMissionService();
     _languageFuture = LaravelLanguageService.instance.load();
     _summaryFuture = _loadSummary();
-    _attendanceFuture = null;
+    // Preload attendance data so the dashboard can show today's status quickly.
+    _attendanceFuture = _loadAttendance();
     _missionsFuture = null;
   }
 
@@ -262,27 +263,24 @@ class _HomePageState extends State<HomePage> {
           icon: Icons.fact_check_outlined,
           title: _tr(language, 'attendance_adjustment', 'កែវត្តមាន'),
           onTap: () {
+            setState(() {
+              _selectedMenu = _HomeMenuItem.attendance;
+              _attendanceFuture ??= _loadAttendance();
+            });
+
             _showServiceMessage(
               _tr(
                 language,
                 'service_adjustment_hint',
-                'Submit attendance adjustment request and wait for manager approval.',
+                'បើកប្រវត្តិវត្តមាន រួចជ្រើសថ្ងៃដើម្បីស្នើកែប្រែវត្តមាន។',
               ),
             );
           },
         ),
         _AdditionalServiceCard(
           icon: Icons.calendar_month_outlined,
-          title: _tr(language, 'work_shift', 'វេណការងារ'),
-          onTap: () {
-            _showServiceMessage(
-              _tr(
-                language,
-                'service_shift_hint',
-                'Your shift and roster details are shown in attendance history.',
-              ),
-            );
-          },
+          title: _tr(language, 'attendance_history', 'ប្រវត្តិវត្តមាន'),
+          onTap: () => _openAttendanceHistory(language),
         ),
       ],
     );
@@ -781,51 +779,105 @@ class _HomePageState extends State<HomePage> {
     Map<String, String> language,
     ThemeData theme,
   ) {
+    final attendanceFuture = _attendanceFuture ?? _loadAttendance();
+
     return RefreshIndicator(
       onRefresh: _refresh,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          _WelcomePanel(
-            greeting:
-                '${_tr(language, 'welcome_msg', 'សូមស្វាគមន៍')} ${user?.name ?? ''}',
-            name: user?.name ?? 'User',
-            email: user?.email ?? '-',
-            employeeId: '${user?.employeeId ?? '-'}',
-            department: user?.departmentName ?? '-',
-            position: user?.position,
-            initial: _userInitial(user),
-          ),
-          const SizedBox(height: 16),
-          FutureBuilder<DashboardSummary>(
-            future: _summaryFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 48),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
+      child: FutureBuilder<DashboardSummary>(
+        future: _summaryFuture,
+        builder: (context, summarySnapshot) {
+          if (summarySnapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              if (snapshot.hasError) {
-                return _ErrorStateCard(
+          if (summarySnapshot.hasError) {
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              children: [
+                _ErrorStateCard(
                   title: 'មិនអាចទាញ dashboard data បាន',
-                  message: '${snapshot.error}',
+                  message: '${summarySnapshot.error}',
                   onRetry: _refresh,
-                );
-              }
+                ),
+              ],
+            );
+          }
 
-              final summary = snapshot.data;
-              if (summary == null) {
-                return const SizedBox.shrink();
-              }
+          final summary = summarySnapshot.data;
+          if (summary == null) {
+            return const SizedBox.shrink();
+          }
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          return FutureBuilder<List<AttendanceDayRecord>>(
+            future: attendanceFuture,
+            builder: (context, attendanceSnapshot) {
+              final records = attendanceSnapshot.data ?? const <AttendanceDayRecord>[];
+              final todayRecord = _findTodayRecord(records);
+              final statusToday = _attendanceStatusLabel(
+                language,
+                todayRecord?.attendanceStatus,
+              );
+              final shiftToday =
+                  (todayRecord == null ||
+                          todayRecord.timeIn == '-' ||
+                          todayRecord.timeOut == '-')
+                      ? _tr(language, 'no_shift_today', 'មិនទាន់មានវេនបង្ហាញ')
+                      : '${todayRecord.timeIn} - ${todayRecord.timeOut}';
+
+              return ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
                 children: [
+                  _WelcomePanel(
+                    greeting:
+                        '${_tr(language, 'welcome_msg', 'សូមស្វាគមន៍')} ${user?.name ?? ''}',
+                    name: user?.name ?? 'User',
+                    email: user?.email ?? '-',
+                    employeeId: '${user?.employeeId ?? '-'}',
+                    department: user?.departmentName ?? '-',
+                    position: user?.position,
+                    initial: _userInitial(user),
+                  ),
+                  const SizedBox(height: 16),
+                  _AttendanceSectionHeader(
+                    title: _tr(language, 'today_status', 'ស្ថានភាពថ្ងៃនេះ'),
+                    subtitle: _tr(language, 'today', 'ថ្ងៃនេះ'),
+                  ),
+                  const SizedBox(height: 10),
+                  _TodayAttendanceStatusCard(
+                    shiftLabel: _tr(language, 'today_shift', 'វេនថ្ងៃនេះ'),
+                    shiftValue: shiftToday,
+                    statusLabel: _tr(language, 'status', 'ស្ថានភាព'),
+                    statusValue: statusToday,
+                    inTimeLabel: _tr(language, 'last_in', 'ម៉ោងចូលចុងក្រោយ'),
+                    inTime: todayRecord?.timeIn ?? '-',
+                    outTimeLabel: _tr(language, 'last_out', 'ម៉ោងចេញចុងក្រោយ'),
+                    outTime: todayRecord?.timeOut ?? '-',
+                  ),
+                  const SizedBox(height: 14),
+                  _ProminentScanCard(
+                    title: _tr(language, 'scan_now', 'ចុចស្កេនឥឡូវនេះ'),
+                    subtitle: _tr(
+                      language,
+                      'confirm_attendance',
+                      'ស្កេន QR អង្គភាព ដើម្បីកត់វត្តមានជាមួយ GPS បច្ចុប្បន្ន។',
+                    ),
+                    buttonText: _tr(language, 'qr_scan', 'ស្កេន QR'),
+                    onPressed: () => _openAttendanceScanner(language),
+                  ),
+                  const SizedBox(height: 14),
+                  _AttendanceSectionHeader(
+                    title: _tr(language, 'quick_access', 'ចូលប្រើរហ័ស'),
+                    subtitle: _tr(
+                      language,
+                      'additional_services',
+                      'សេវាកម្មបន្ថែម',
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildAdditionalServicesGrid(language),
+                  const SizedBox(height: 14),
                   GridView.count(
-                    crossAxisCount:
-                        MediaQuery.of(context).size.width >= 700 ? 3 : 2,
+                    crossAxisCount: MediaQuery.of(context).size.width >= 700 ? 3 : 2,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
                     childAspectRatio: 1.28,
@@ -839,11 +891,7 @@ class _HomePageState extends State<HomePage> {
                         accent: const Color(0xFF0B6B58),
                       ),
                       _MetricCard(
-                        title: _tr(
-                          language,
-                          'leave_remaining',
-                          'Leave Remaining',
-                        ),
+                        title: _tr(language, 'leave_remaining', 'Leave Remaining'),
                         value: summary.remainingLeave,
                         icon: Icons.event_available_outlined,
                         accent: const Color(0xFF246BFD),
@@ -853,16 +901,6 @@ class _HomePageState extends State<HomePage> {
                         value: summary.loanAmount,
                         icon: Icons.credit_card_outlined,
                         accent: const Color(0xFFD48516),
-                      ),
-                      _MetricCard(
-                        title: _tr(
-                          language,
-                          'salary_details',
-                          'Salary Records',
-                        ),
-                        value: summary.salaryCount.toString(),
-                        icon: Icons.payments_outlined,
-                        accent: const Color(0xFF7C4DFF),
                       ),
                       _MetricCard(
                         title: _tr(language, 'notice_list', 'Notice Count'),
@@ -875,18 +913,14 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 16),
                   _NoticePanel(
                     title: _tr(language, 'notice_list', 'Recent Notices'),
-                    emptyText: _tr(
-                      language,
-                      'no_notice_to_show',
-                      'មិនទាន់មាន notice',
-                    ),
+                    emptyText: _tr(language, 'no_notice_to_show', 'មិនទាន់មាន notice'),
                     notices: summary.notices,
                   ),
                 ],
               );
             },
-          ),
-        ],
+          );
+        },
       ),
     );
   }

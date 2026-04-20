@@ -26,7 +26,7 @@
         ];
     @endphp
 
-    <div class="card mb-4 fixed-tab-body">
+    <div class="card mb-4 fixed-tab-body att-card">
         @include('backend.layouts.common.validation')
         @include('backend.layouts.common.message')
         <div class="card-header">

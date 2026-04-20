@@ -5,7 +5,7 @@
 @section('content')
     @include('humanresource::leave_header')
 
-    <div class="card mb-4 fixed-tab-body">
+    <div class="card mb-4 fixed-tab-body att-card">
         @include('backend.layouts.common.validation')
         @include('backend.layouts.common.message')
         <div class="card-body">
@@ -54,7 +54,7 @@
         </div>
     </div>
 
-    <div class="card mb-4">
+    <div class="card mb-4 att-card">
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
                 <div>

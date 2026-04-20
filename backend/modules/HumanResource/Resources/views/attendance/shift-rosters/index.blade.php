@@ -23,17 +23,17 @@
         .weekend-col { background: #fafafa; }
     </style>
 
-    <div class="row g-3">
+    <div class="row g-3 ams-page">
         <div class="col-lg-9">
-            <div class="card mb-3">
+            <div class="card mb-3 ams-card att-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="mb-0 fw-semi-bold">
+                    <h6 class="mb-0 fw-semi-bold ams-title">
                         <i class="fa fa-calendar-alt text-primary me-1"></i>
                         {{ localize('shift_roster_calendar', 'តារាង Roster ប្រចាំខែ') }}
                     </h6>
                 </div>
                 <div class="card-body">
-                    <form method="GET" class="row g-2 mb-3">
+                    <form method="GET" class="row g-2 mb-3 ams-filter-row">
                         <div class="col-md-2">
                             <label class="form-label">{{ localize('year', 'ឆ្នាំ') }}</label>
                             <select name="year" class="form-select">
@@ -64,13 +64,13 @@
                             </select>
                         </div>
                         <div class="col-md-3 d-flex align-items-end gap-2">
-                            <button class="btn btn-primary w-100" type="submit">
+                            <button class="btn btn-primary w-100 ams-btn-primary" type="submit">
                                 <i class="fa fa-filter me-1"></i>{{ localize('filter', 'ស្វែងរក') }}
                             </button>
                         </div>
                     </form>
 
-                    <div class="roster-table-wrap">
+                    <div class="roster-table-wrap ams-table">
                         <table class="table table-bordered roster-table align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
@@ -133,9 +133,9 @@
 
         <div class="col-lg-3">
             @can('create_shift_roster')
-                <div class="card mb-3 border-primary">
+                <div class="card mb-3 border-primary ams-card att-card">
                     <div class="card-header bg-primary-soft">
-                        <h6 class="mb-0 text-primary fw-semi-bold">
+                        <h6 class="mb-0 text-primary fw-semi-bold ams-title">
                             <i class="fa fa-plus-circle me-1"></i>{{ localize('set_roster', 'កំណត់ Roster') }}
                         </h6>
                     </div>
@@ -184,7 +184,7 @@
                                 <textarea name="note" class="form-control" rows="2"></textarea>
                             </div>
 
-                            <button type="submit" class="btn btn-primary w-100">
+                            <button type="submit" class="btn btn-primary w-100 ams-btn-primary">
                                 <i class="fa fa-save me-1"></i>{{ localize('save', 'រក្សាទុក') }}
                             </button>
                         </form>

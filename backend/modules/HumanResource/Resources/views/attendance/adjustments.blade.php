@@ -4,7 +4,7 @@
     @include('humanresource::attendance_header')
 
     {{-- Sub-tab bar: Exceptions / Missing / Adjustments --}}
-    <div class="card fixed-tab mb-2">
+    <div class="card fixed-tab att-card mb-2">
         <ul class="nav nav-pills px-3 py-2 gap-1">
             @can('read_attendance')
                 <li class="nav-item">
@@ -28,12 +28,12 @@
         </ul>
     </div>
 
-    <div class="row g-3">
+    <div class="row g-3 ams-page">
         {{-- Left: List --}}
         <div class="col-lg-8">
-            <div class="card mb-4">
+            <div class="card mb-4 ams-card att-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="fs-17 fw-semi-bold mb-0">
+                    <h6 class="fs-17 fw-semi-bold mb-0 ams-title">
                         <i class="fa fa-edit text-primary me-1"></i>
                         {{ localize('attendance_adjustment_list', 'បញ្ជីការស្នើសុំកែប្រែ') }}
                     </h6>
@@ -44,7 +44,7 @@
                 <div class="card-body">
                     {{-- Filter --}}
                     <form action="{{ route('attendance-adjustments.index') }}" method="GET" class="mb-3">
-                        <div class="row g-2 align-items-end">
+                        <div class="row g-2 align-items-end ams-filter-row">
                             <div class="col-md-3">
                                 <label class="form-label fw-semibold small">{{ localize('employee', 'បុគ្គលិក') }}</label>
                                 <select name="employee_id" class="form-control select-basic-single">
@@ -65,17 +65,17 @@
                                 <input type="date" class="form-control" name="date_to" value="{{ request('date_to') }}">
                             </div>
                             <div class="col-md-3 d-flex gap-2">
-                                <button type="submit" class="btn btn-success flex-grow-1">
+                                <button type="submit" class="btn btn-success flex-grow-1 ams-btn-primary">
                                     <i class="fa fa-search me-1"></i>{{ localize('search', 'ស្វែងរក') }}
                                 </button>
-                                <a href="{{ route('attendance-adjustments.index') }}" class="btn btn-outline-secondary">
+                                <a href="{{ route('attendance-adjustments.index') }}" class="btn btn-outline-secondary ams-btn-secondary">
                                     <i class="fa fa-redo"></i>
                                 </a>
                             </div>
                         </div>
                     </form>
 
-                    <div class="table-responsive">
+                    <div class="table-responsive ams-table">
                         <table class="table table-bordered table-hover align-middle">
                             <thead class="table-light">
                                 <tr>
@@ -145,9 +145,9 @@
         {{-- Right: Create Form --}}
         @can('create_attendance_adjustment')
             <div class="col-lg-4">
-                <div class="card mb-4 border-primary">
+                <div class="card mb-4 border-primary ams-card att-card">
                     <div class="card-header bg-primary-soft">
-                        <h6 class="fs-15 fw-semi-bold mb-0 text-primary">
+                        <h6 class="fs-15 fw-semi-bold mb-0 text-primary ams-title">
                             <i class="fa fa-plus-circle me-1"></i>{{ localize('create_adjustment', 'ចុះបញ្ជីការកែប្រែថ្មី') }}
                         </h6>
                     </div>
@@ -206,7 +206,7 @@
                                 @error('reason')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                             </div>
 
-                            <button type="submit" class="btn btn-primary w-100">
+                            <button type="submit" class="btn btn-primary w-100 ams-btn-primary">
                                 <i class="fa fa-save me-1"></i>{{ localize('submit', 'រក្សាទុក') }}
                             </button>
                         </form>

@@ -5,7 +5,7 @@
 
     <div class="row g-3">
         <div class="col-lg-8">
-            <div class="card mb-3">
+            <div class="card mb-3 att-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <h6 class="mb-0 fw-semi-bold">
                         <i class="fa fa-briefcase text-primary me-1"></i>
@@ -91,7 +91,7 @@
         @can('create_mission')
             @if(request('mode') === 'create')
                 <div class="col-lg-4">
-                    <div class="card border-primary mb-3">
+                    <div class="card border-primary mb-3 att-card">
                         <div class="card-header bg-primary-soft">
                             <h6 class="mb-0 text-primary fw-semi-bold">
                                 <i class="fa fa-plus-circle me-1"></i>{{ localize('create_mission', 'បង្កើតបេសកម្ម') }}

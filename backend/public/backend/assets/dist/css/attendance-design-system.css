@@ -1,0 +1,217 @@
+/* Attendance Design System - aligned with Pharmaceutical UI */
+:root {
+    --ams-primary: #1a6e3e;
+    --ams-primary-hover: #145530;
+    --ams-secondary: #2980b9;
+    --ams-success: #15803d;
+    --ams-warning: #b45309;
+    --ams-danger: #b91c1c;
+    --ams-info: #0369a1;
+    --ams-bg: #f5f8f6;
+    --ams-surface: #ffffff;
+    --ams-border: #d9e2e8;
+    --ams-text-primary: #0f172a;
+    --ams-text-secondary: #475569;
+    --ams-radius-card: 14px;
+    --ams-radius-input: 10px;
+    --ams-radius-btn: 12px;
+    --ams-shadow-soft: 0 10px 24px rgba(15, 48, 30, 0.08);
+}
+
+/* Optional scope class: add .ams-page to a container when refactoring pages */
+.ams-page {
+    background: var(--ams-bg);
+    color: var(--ams-text-primary);
+}
+
+.ams-card {
+    background: #fff;
+    border: 0;
+    border-radius: var(--ams-radius-card);
+    box-shadow: var(--ams-shadow-soft);
+}
+
+.att-card {
+    border: 0;
+    border-radius: var(--ams-radius-card);
+    box-shadow: var(--ams-shadow-soft);
+}
+
+.att-card .card-header,
+.fixed-tab-body .card-header,
+.ams-card .card-header {
+    background: #f4faf6;
+    border-bottom: 1px solid rgba(26, 110, 62, 0.12);
+}
+
+.attendance-ui .att-tabs .nav-link {
+    border: 0;
+    border-radius: 999px;
+    padding: 6px 16px;
+    margin-right: 6px;
+    background: rgba(255, 255, 255, 0.8);
+    color: #0f3a2f;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.attendance-ui .att-tabs .nav-link.active {
+    background: var(--ams-primary);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(26, 110, 62, 0.25);
+}
+
+.leave-ui .leave-tabs .nav-link {
+    border: 0;
+    border-radius: 999px;
+    padding: 6px 16px;
+    margin-right: 6px;
+    background: rgba(255, 255, 255, 0.8);
+    color: #0f3a2f;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.leave-ui .leave-tabs .nav-link.active {
+    background: var(--ams-primary);
+    color: #fff;
+    box-shadow: 0 8px 18px rgba(26, 110, 62, 0.25);
+}
+
+.ams-title {
+    color: var(--ams-text-primary);
+    font-weight: 700;
+    letter-spacing: 0.1px;
+}
+
+.ams-subtitle {
+    color: var(--ams-text-secondary);
+    font-size: 13px;
+}
+
+.ams-filter-row {
+    padding: 10px;
+    border: 1px solid var(--ams-border);
+    border-radius: var(--ams-radius-card);
+    background: #f8fbf9;
+}
+
+.ams-table {
+    border: 1px solid var(--ams-border);
+    border-radius: var(--ams-radius-card);
+    overflow: hidden;
+}
+
+.ams-table .table {
+    margin-bottom: 0;
+}
+
+.ams-table .table thead th {
+    background: #f1f6f9;
+    color: #1e293b;
+    border-bottom: 1px solid var(--ams-border);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+}
+
+.ams-table .table td {
+    color: var(--ams-text-primary);
+    border-color: #e7eef3;
+}
+
+.ams-btn-primary,
+.btn.ams-btn-primary {
+    background: var(--ams-primary);
+    border-color: var(--ams-primary);
+    color: #fff;
+    border-radius: var(--ams-radius-btn);
+    font-weight: 600;
+}
+
+.ams-btn-primary:hover,
+.btn.ams-btn-primary:hover {
+    background: var(--ams-primary-hover);
+    border-color: var(--ams-primary-hover);
+    color: #fff;
+}
+
+.ams-btn-secondary,
+.btn.ams-btn-secondary {
+    background: #fff;
+    border: 1px solid var(--ams-border);
+    color: var(--ams-text-primary);
+    border-radius: var(--ams-radius-btn);
+    font-weight: 600;
+}
+
+.ams-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.ams-badge--success { background: #eaf7ef; color: #166534; }
+.ams-badge--warning { background: #fff3e6; color: #9a3412; }
+.ams-badge--danger { background: #fdecec; color: #991b1b; }
+.ams-badge--info { background: #e8f4fb; color: #075985; }
+
+/* Attendance tab polish */
+.fixed-tab {
+    border-radius: var(--ams-radius-card);
+    border: 0;
+    box-shadow: var(--ams-shadow-soft);
+}
+
+.fixed-tab .nav-link {
+    border-radius: 10px;
+    color: #0f3a2f;
+    font-weight: 600;
+}
+
+.fixed-tab .nav-link.active {
+    background: #eaf6ee;
+    color: var(--ams-primary);
+}
+
+.fixed-tab-body {
+    border: 0;
+    border-radius: var(--ams-radius-card);
+    box-shadow: var(--ams-shadow-soft);
+}
+
+/* Inputs */
+.form-control,
+.form-select,
+.select2-container--bootstrap4 .select2-selection {
+    border-radius: var(--ams-radius-input) !important;
+    border-color: var(--ams-border);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--ams-primary);
+    box-shadow: 0 0 0 0.2rem rgba(14, 116, 144, 0.12);
+}
+
+/* KPI grid helper */
+.ams-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+@media (max-width: 1199px) {
+    .ams-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 767px) {
+    .ams-kpi-grid { grid-template-columns: 1fr; }
+    .fixed-tab .nav { flex-wrap: nowrap; overflow-x: auto; }
+    .fixed-tab .nav-item { flex: 0 0 auto; }
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'core/config/app_routes.dart';
+import 'core/theme/app_design_system.dart';
 import 'features/auth/controllers/auth_controller.dart';
 import 'features/auth/pages/login_page.dart';
 import 'features/home/pages/home_page.dart';
@@ -47,58 +48,7 @@ class _StaffMobileAppState extends State<StaffMobileApp> {
         return MaterialApp(
           title: 'Staff Mobile App',
           debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: const Color(0xFF0B6B58),
-              primary: const Color(0xFF0B6B58),
-              secondary: const Color(0xFFE6A93A),
-              tertiary: const Color(0xFF246BFD),
-              surface: Colors.white,
-            ),
-            scaffoldBackgroundColor: const Color(0xFFF5F7FA),
-            appBarTheme: const AppBarTheme(
-              centerTitle: false,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              backgroundColor: Color(0xFFF5F7FA),
-              foregroundColor: Color(0xFF14211D),
-            ),
-            filledButtonTheme: FilledButtonThemeData(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF0B6B58),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-            inputDecorationTheme: InputDecorationTheme(
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFDCE5E1)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFFDCE5E1)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(
-                  color: Color(0xFF0B6B58),
-                  width: 1.4,
-                ),
-              ),
-            ),
-            snackBarTheme: SnackBarThemeData(
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            useMaterial3: true,
-          ),
+          theme: AppDesignSystem.lightTheme(),
           onGenerateRoute: (settings) {
             switch (settings.name) {
               case AppRoutes.login:

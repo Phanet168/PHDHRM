@@ -150,7 +150,7 @@
 
     <div class="row g-3 mb-4">
         <div class="col-md-3">
-            <div class="workflow-stat-card card h-100">
+            <div class="workflow-stat-card card att-card h-100">
                 <div class="card-body">
                     <span class="icon-pill navy mb-2"><i class="fas fa-users"></i></span>
                     <div class="text-muted small">{{ localize('employees_in_scope', 'បុគ្គលិកក្នុងសិទ្ធិ') }}</div>
@@ -159,7 +159,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="workflow-stat-card card h-100">
+            <div class="workflow-stat-card card att-card h-100">
                 <div class="card-body">
                     <span class="icon-pill green mb-2"><i class="fas fa-check-circle"></i></span>
                     <div class="text-muted small">{{ localize('today_present', 'វត្តមានថ្ងៃនេះ') }}</div>
@@ -168,7 +168,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="workflow-stat-card card h-100">
+            <div class="workflow-stat-card card att-card h-100">
                 <div class="card-body">
                     <span class="icon-pill orange mb-2"><i class="fas fa-user-clock"></i></span>
                     <div class="text-muted small">{{ localize('today_absent', 'អវត្តមានថ្ងៃនេះ') }}</div>
@@ -177,7 +177,7 @@
             </div>
         </div>
         <div class="col-md-3">
-            <div class="workflow-stat-card card h-100">
+            <div class="workflow-stat-card card att-card h-100">
                 <div class="card-body">
                     <span class="icon-pill red mb-2"><i class="fas fa-exclamation-triangle"></i></span>
                     <div class="text-muted small">{{ localize('pending_adjustments', 'សំណើកែប្រែរង់ចាំ') }}</div>
@@ -192,7 +192,7 @@
 
     <div class="row g-3 mb-4">
         <div class="col-lg-6">
-            <div class="workflow-pane card h-100">
+            <div class="workflow-pane card att-card h-100">
                 <div class="card-header fw-semibold">{{ localize('device_approval_flow', 'Device Approval Flow') }}</div>
                 <div class="card-body">
                     <div class="row g-3 mb-3">

@@ -3,19 +3,19 @@
 @section('content')
     @include('humanresource::attendance_header')
 
-    <div class="row g-3">
+    <div class="row g-3 ams-page">
         {{-- Left: Shift List --}}
         <div class="col-lg-8">
-            <div class="card mb-4">
+            <div class="card mb-4 ams-card att-card">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="fs-17 fw-semi-bold mb-0">
+                    <h6 class="fs-17 fw-semi-bold mb-0 ams-title">
                         <i class="fa fa-clock text-primary me-1"></i>
                         {{ localize('shifts', 'បញ្ជី Shift') }}
                     </h6>
                     <span class="badge badge-primary-soft">{{ $shifts->total() }}</span>
                 </div>
                 <div class="card-body p-0">
-                    <div class="table-responsive">
+                    <div class="table-responsive ams-table">
                         <table class="table table-bordered table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
@@ -88,9 +88,9 @@
         {{-- Right: Create Shift Form --}}
         @can('create_shift')
             <div class="col-lg-4">
-                <div class="card mb-4 border-primary">
+                <div class="card mb-4 border-primary ams-card att-card">
                     <div class="card-header bg-primary-soft">
-                        <h6 class="fs-15 fw-semi-bold mb-0 text-primary">
+                        <h6 class="fs-15 fw-semi-bold mb-0 text-primary ams-title">
                             <i class="fa fa-plus-circle me-1"></i>{{ localize('create_shift', 'បង្កើត Shift ថ្មី') }}
                         </h6>
                     </div>
@@ -160,7 +160,7 @@
                                 </div>
                             </div>
 
-                            <button type="submit" class="btn btn-primary w-100">
+                            <button type="submit" class="btn btn-primary w-100 ams-btn-primary">
                                 <i class="fa fa-save me-1"></i>{{ localize('save', 'រក្សាទុក') }}
                             </button>
                         </form>

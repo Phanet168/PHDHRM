@@ -1,7 +1,7 @@
-<div class="row dashboard_heading mb-3">
-    <div class="card fixed-tab col-12 col-md-12">
-        <div class="d-flex align-items-center justify-content-between px-1">
-            <ul class="nav nav-tabs flex-grow-1">
+<div class="attendance-ui mb-3">
+    <div class="card att-card fixed-tab col-12 col-md-12">
+        <div class="card-body py-2 px-2 d-flex align-items-center justify-content-between gap-2">
+            <ul class="nav att-tabs flex-wrap flex-grow-1">
                 {{-- ១. ទិដ្ឋភាពទូទៅ --}}
                 @can('read_attendance')
                     <li class="nav-item">
@@ -85,7 +85,7 @@
 
             {{-- Help icon (far right, not a tab) --}}
             @can('read_attendance')
-                <a href="{{ route('attendances.help') }}" class="btn btn-sm btn-outline-secondary ms-2 mb-1" title="{{ localize('help', 'ជំនួយ') }}" style="white-space:nowrap;">
+                <a href="{{ route('attendances.help') }}" class="btn btn-sm btn-outline-success ms-2" title="{{ localize('help', 'ជំនួយ') }}" style="white-space: nowrap;">
                     <i class="fa fa-question-circle"></i> {{ localize('help', 'ជំនួយ') }}
                 </a>
             @endcan

@@ -4,7 +4,7 @@
     @include('humanresource::attendance_header')
 
     {{-- Sub-tab bar: Exceptions / Missing / Adjustments --}}
-    <div class="card fixed-tab mb-2">
+    <div class="card fixed-tab att-card mb-2">
         <ul class="nav nav-pills px-3 py-2 gap-1">
             <li class="nav-item">
                 <a class="nav-link active py-1 px-3" href="{{ route('attendances.exceptions') }}">
@@ -28,7 +28,7 @@
         </ul>
     </div>
 
-    <div class="card mb-4 fixed-tab-body">
+    <div class="card mb-4 fixed-tab-body att-card">
         @include('backend.layouts.common.validation')
         @include('backend.layouts.common.message')
         <div class="card-header">
