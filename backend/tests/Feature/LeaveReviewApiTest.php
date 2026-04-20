@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Modules\HumanResource\Entities\ApplyLeave;
@@ -28,14 +27,6 @@ class LeaveReviewApiTest extends TestCase
      * @var array<int, array{user_id:int, permission:string}>
      */
     private array $grantedPermissions = [];
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        config()->set('app.url', 'http://localhost');
-        URL::forceRootUrl('http://localhost');
-    }
 
     protected function tearDown(): void
     {

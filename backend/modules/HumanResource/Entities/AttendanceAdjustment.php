@@ -2,7 +2,9 @@
 
 namespace Modules\HumanResource\Entities;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -42,5 +44,20 @@ class AttendanceAdjustment extends Model
                 $model->uuid = (string) Str::uuid();
             }
         });
+    }
+
+    public function employee(): BelongsTo
+    {
+        return $this->belongsTo(Employee::class, 'employee_id');
+    }
+
+    public function attendance(): BelongsTo
+    {
+        return $this->belongsTo(Attendance::class, 'attendance_id');
+    }
+
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requested_by');
     }
 }

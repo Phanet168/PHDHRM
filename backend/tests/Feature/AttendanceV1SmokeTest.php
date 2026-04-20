@@ -27,7 +27,7 @@ class AttendanceV1SmokeTest extends TestCase
         $today = Carbon::today()->toDateString();
         $suffix = now()->format('His');
 
-        $createShift = $this->postJson('/api/v1/shifts', [
+        $createShift = $this->postJson(route('api.v1.shifts.store'), [
             'code' => 'SMK-' . $suffix,
             'name' => 'Smoke Shift ' . $suffix,
             'start_time' => '08:00',
@@ -41,11 +41,11 @@ class AttendanceV1SmokeTest extends TestCase
         $shiftId = (int) data_get($createShift->json(), 'data.id');
         $this->assertGreaterThan(0, $shiftId, 'Shift ID should be returned after creation.');
 
-        $this->getJson('/api/v1/shifts')
+        $this->getJson(route('api.v1.shifts.index'))
             ->assertOk()
             ->assertJsonPath('status', 'ok');
 
-        $this->postJson('/api/v1/shift-rosters', [
+        $this->postJson(route('api.v1.shift_rosters.store'), [
             'employee_id' => (int) $employeeId,
             'roster_date' => $today,
             'shift_id' => $shiftId,
@@ -56,11 +56,14 @@ class AttendanceV1SmokeTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('status', 'ok');
 
-        $this->getJson('/api/v1/shift-rosters?employee_id=' . $employeeId . '&date=' . $today)
+        $this->getJson(route('api.v1.shift_rosters.index', [
+            'employee_id' => $employeeId,
+            'date' => $today,
+        ]))
             ->assertOk()
             ->assertJsonPath('status', 'ok');
 
-        $this->postJson('/api/v1/missions', [
+        $this->postJson(route('api.v1.missions.store'), [
             'title' => 'Smoke Mission ' . $suffix,
             'start_date' => $today,
             'end_date' => $today,
@@ -72,26 +75,30 @@ class AttendanceV1SmokeTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('status', 'ok');
 
-        $this->getJson('/api/v1/missions')
+        $this->getJson(route('api.v1.missions.index'))
             ->assertOk()
             ->assertJsonPath('status', 'ok');
 
-        $this->postJson('/api/v1/attendance-adjustments', [
+        $this->postJson(route('api.v1.attendance_adjustments.store'), [
             'employee_id' => (int) $employeeId,
             'reason' => 'Smoke test adjustment',
         ])
             ->assertCreated()
             ->assertJsonPath('result.status', 'ok');
 
-        $this->getJson('/api/v1/attendance-adjustments')
+        $this->getJson(route('api.v1.attendance_adjustments.index'))
             ->assertOk()
             ->assertJsonPath('status', 'ok');
 
-        $this->getJson('/api/v1/attendance-snapshots/daily?employee_id=' . $employeeId . '&date=' . $today . '&recompute=1')
+        $this->getJson(route('api.v1.attendance_snapshots.daily', [
+            'employee_id' => $employeeId,
+            'date' => $today,
+            'recompute' => 1,
+        ]))
             ->assertOk()
             ->assertJsonPath('status', 'ok');
 
-        $this->postJson('/api/v1/attendance-snapshots/regenerate', [
+        $this->postJson(route('api.v1.attendance_snapshots.regenerate'), [
             'start_date' => $today,
             'end_date' => $today,
             'employee_ids' => [(int) $employeeId],
