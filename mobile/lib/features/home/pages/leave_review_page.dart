@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/models/auth_user.dart';
 import '../models/leave_request_models.dart';
@@ -151,6 +152,19 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
     );
   }
 
+  Future<void> _openAttachment(String url) async {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) {
+      _showMessage(_tr('attachment', 'Invalid attachment link'), isError: true);
+      return;
+    }
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      _showMessage(_tr('attachment', 'Unable to open attachment'), isError: true);
+    }
+  }
+
   Color _statusColor(String status) {
     switch (status.trim().toLowerCase()) {
       case 'approved':
@@ -244,7 +258,16 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
                               ],
                               if (item.attachmentUrl?.trim().isNotEmpty == true) ...[
                                 const SizedBox(height: 6),
-                                SelectableText(item.attachmentUrl!),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: TextButton.icon(
+                                    onPressed: _submitting
+                                        ? null
+                                        : () => _openAttachment(item.attachmentUrl!),
+                                    icon: const Icon(Icons.attach_file_outlined),
+                                    label: Text(_tr('attachment', 'Open attachment')),
+                                  ),
+                                ),
                               ],
                               const SizedBox(height: 8),
                               Row(

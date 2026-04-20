@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../auth/models/auth_user.dart';
 import '../models/leave_request_models.dart';
@@ -226,6 +227,19 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
     }
   }
 
+  Future<void> _openAttachment(String url) async {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) {
+      _showMessage(_tr('attachment', 'Invalid attachment link'), isError: true);
+      return;
+    }
+
+    final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!launched && mounted) {
+      _showMessage(_tr('attachment', 'Unable to open attachment'), isError: true);
+    }
+  }
+
   Future<void> _cancelRequest(LeaveRequestItem request) async {
     setState(() {
       _submitting = true;
@@ -342,14 +356,15 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: _submitting ? null : _openReviewPage,
-                      icon: const Icon(Icons.assignment_turned_in_outlined),
-                      label: Text(_tr('approve_leave', 'Review requests')),
+                  if (widget.user.canReviewLeaveRequests)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: _submitting ? null : _openReviewPage,
+                        icon: const Icon(Icons.assignment_turned_in_outlined),
+                        label: Text(_tr('approve_leave', 'Review requests')),
+                      ),
                     ),
-                  ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
                     initialValue: _selectedTypeId,
@@ -509,6 +524,19 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
                       if (request.reason.trim().isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(request.reason),
+                      ],
+                      if (request.attachmentUrl?.trim().isNotEmpty == true) ...[
+                        const SizedBox(height: 8),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton.icon(
+                            onPressed: _submitting
+                                ? null
+                                : () => _openAttachment(request.attachmentUrl!),
+                            icon: const Icon(Icons.attach_file_outlined),
+                            label: Text(_tr('attachment', 'Open attachment')),
+                          ),
+                        ),
                       ],
                       if (request.canCancel) ...[
                         const SizedBox(height: 8),

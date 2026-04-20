@@ -83,6 +83,17 @@ class AuthUser {
   final String? employeeGradeKm;
   final String? skillName;
 
+  bool get canReviewLeaveRequests {
+    final normalized = (role ?? '').trim().toLowerCase();
+    if (normalized.isEmpty) {
+      return false;
+    }
+
+    return normalized.contains('admin') ||
+        normalized.contains('manager') ||
+        normalized.contains('hr');
+  }
+
   factory AuthUser.fromJson(Map<String, dynamic> json) {
     final roles = json['roles'];
     String? role;
