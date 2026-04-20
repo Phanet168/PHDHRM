@@ -40,6 +40,8 @@ class LoginRequest {
     return <String, dynamic>{
       'email': email,
       'password': password,
+      if (tokenId != null && tokenId!.isNotEmpty) 'device_id': tokenId,
+      if (tokenId != null && tokenId!.isNotEmpty) 'token_id': tokenId,
       if (deviceName != null && deviceName!.isNotEmpty)
         'device_name': deviceName,
     };

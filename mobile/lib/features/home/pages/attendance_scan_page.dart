@@ -25,7 +25,8 @@ class AttendanceScanPage extends StatefulWidget {
   State<AttendanceScanPage> createState() => _AttendanceScanPageState();
 }
 
-class _AttendanceScanPageState extends State<AttendanceScanPage> {
+class _AttendanceScanPageState extends State<AttendanceScanPage>
+    with WidgetsBindingObserver {
   late final MobileScannerController _scannerController;
   bool _isSubmitting = false;
   bool _isPreviewing = false;
@@ -36,17 +37,40 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _statusMessage = _tr('qr_scan', 'Scan QR attendance code');
     _scannerController = MobileScannerController(
-      detectionSpeed: DetectionSpeed.noDuplicates,
+      detectionSpeed: DetectionSpeed.unrestricted,
+      detectionTimeoutMs: 300,
       facing: CameraFacing.back,
-      formats: const <BarcodeFormat>[BarcodeFormat.qrCode],
       torchEnabled: false,
     );
+
+    // Some Android devices don't auto-start scanner stream reliably.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scannerController.start();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!mounted) {
+      return;
+    }
+
+    if (state == AppLifecycleState.resumed && !_isSubmitting) {
+      _scannerController.start();
+    }
+
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      _scannerController.stop();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _scannerController.dispose();
     super.dispose();
   }
@@ -77,6 +101,14 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
     if (rawValue == null) {
       return;
     }
+
+    setState(() {
+      _statusMessage = _tr(
+        'qr_detected',
+        'QR detected, preparing attendance submission...',
+      );
+      _statusColor = const Color(0xFF1D4F91);
+    });
 
     await _submitAttendance(rawValue);
   }
@@ -562,9 +594,9 @@ class _AttendanceScanPageState extends State<AttendanceScanPage> {
     });
 
     try {
-      final punchType = await widget.attendanceService.predictNextPunchType(
-        widget.user,
-      );
+      final punchType = await widget.attendanceService
+          .predictNextPunchType(widget.user)
+          .timeout(const Duration(seconds: 2), onTimeout: () => 'in');
       if (!mounted) {
         return false;
       }

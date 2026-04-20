@@ -4,6 +4,7 @@ import 'core/config/app_routes.dart';
 import 'features/auth/controllers/auth_controller.dart';
 import 'features/auth/pages/login_page.dart';
 import 'features/home/pages/home_page.dart';
+import 'features/system/pages/system_settings_page.dart';
 import 'shared/widgets/app_loading_screen.dart';
 
 class StaffMobileApp extends StatefulWidget {
@@ -108,6 +109,11 @@ class _StaffMobileAppState extends State<StaffMobileApp> {
               case AppRoutes.home:
                 return MaterialPageRoute<void>(
                   builder: (_) => HomePage(authController: _authController),
+                  settings: settings,
+                );
+              case AppRoutes.systemSettings:
+                return MaterialPageRoute<void>(
+                  builder: (_) => const SystemSettingsPage(),
                   settings: settings,
                 );
               default:

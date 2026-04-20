@@ -24,16 +24,21 @@ class LoginResponse {
       }
 
       final rawUser = json['user'] as Map<String, dynamic>;
+      final resolvedUserId =
+          (rawUser['user_id'] as num?)?.toInt() ??
+          (rawUser['auth_user_id'] as num?)?.toInt() ??
+          (rawUser['id'] as num?)?.toInt() ??
+          0;
       final normalizedUser = <String, dynamic>{
         ...rawUser,
-        'user_id': (rawUser['id'] as num?)?.toInt() ?? 0,
+        'user_id': resolvedUserId,
       };
 
       return LoginResponse(
         status: status,
         message: message,
         user: AuthUser.fromJson(normalizedUser),
-        userId: (rawUser['id'] as num?)?.toInt() ?? 0,
+        userId: resolvedUserId,
         tokenId: json['access_token'] as String?,
       );
     }

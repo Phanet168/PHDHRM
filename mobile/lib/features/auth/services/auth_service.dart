@@ -53,6 +53,29 @@ class AuthService {
   }
 
   Future<AuthUser?> getCurrentUser() {
-    return _userSessionStorageService.readUser();
+    return _fetchCurrentUserProfile();
+  }
+
+  Future<AuthUser?> _fetchCurrentUserProfile() async {
+    try {
+      final response = await _apiService.get('/auth/profile');
+
+      final status = (response['status'] ?? '').toString().toLowerCase();
+      if (status != 'ok') {
+        return _userSessionStorageService.readUser();
+      }
+
+      final rawUser = response['user'];
+      if (rawUser is! Map<String, dynamic>) {
+        return _userSessionStorageService.readUser();
+      }
+
+      final user = AuthUser.fromJson(rawUser);
+      await _userSessionStorageService.saveUser(user);
+      return user;
+    } catch (_) {
+      // Fallback to cached session if profile endpoint is unavailable.
+      return _userSessionStorageService.readUser();
+    }
   }
 }
