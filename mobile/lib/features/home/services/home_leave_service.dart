@@ -98,6 +98,59 @@ class HomeLeaveService {
     return requests;
   }
 
+  Future<List<LeaveRequestItem>> fetchPendingReviews(AuthUser user) async {
+    _ensureSession(user);
+
+    final response = _responseMap(
+      await _apiService.get('/v1/leave-requests/pending-review'),
+    );
+    final status = (response['status'] ?? '').toString().toLowerCase();
+    if (status != 'ok') {
+      return <LeaveRequestItem>[];
+    }
+
+    final payload = response['data'];
+    List<dynamic> rows = <dynamic>[];
+
+    if (payload is Map<String, dynamic> && payload['data'] is List) {
+      rows = (payload['data'] as List).cast<dynamic>();
+    } else if (payload is List<dynamic>) {
+      rows = payload;
+    }
+
+    final requests = <LeaveRequestItem>[];
+    for (final row in rows) {
+      if (row is Map<String, dynamic>) {
+        requests.add(LeaveRequestItem.fromMap(row));
+      } else if (row is Map) {
+        requests.add(
+          LeaveRequestItem.fromMap(
+            row.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        );
+      }
+    }
+
+    return requests;
+  }
+
+  Future<void> reviewRequest({
+    required AuthUser user,
+    required int requestId,
+    required String action,
+    String? note,
+  }) async {
+    _ensureSession(user);
+
+    await _apiService.post(
+      '/v1/leave-requests/$requestId/review',
+      body: <String, dynamic>{
+        'action': action,
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
+      },
+    );
+  }
+
   Future<void> submitRequest({
     required AuthUser user,
     required int leaveTypeId,

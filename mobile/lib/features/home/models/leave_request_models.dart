@@ -111,6 +111,9 @@ class LeaveRequestItem {
     required this.requestedDays,
     required this.reason,
     required this.status,
+    this.attachmentUrl,
+    this.employeeName,
+    this.employeeNo,
   });
 
   final int id;
@@ -121,6 +124,9 @@ class LeaveRequestItem {
   final int requestedDays;
   final String reason;
   final String status;
+  final String? attachmentUrl;
+  final String? employeeName;
+  final String? employeeNo;
 
   bool get canCancel {
     final normalized = status.trim().toLowerCase();
@@ -141,6 +147,17 @@ class LeaveRequestItem {
   }
 
   factory LeaveRequestItem.fromMap(Map<String, dynamic> map) {
+    final employee = map['employee'];
+    String? employeeName;
+    String? employeeNo;
+    if (employee is Map<String, dynamic>) {
+      employeeName = (employee['full_name'] ?? '').toString();
+      employeeNo = (employee['employee_no'] ?? '').toString();
+    } else if (employee is Map) {
+      employeeName = (employee['full_name'] ?? '').toString();
+      employeeNo = (employee['employee_no'] ?? '').toString();
+    }
+
     return LeaveRequestItem(
       id: (map['id'] as num?)?.toInt() ?? 0,
       leaveType: (map['leave_type'] ?? '').toString(),
@@ -150,6 +167,9 @@ class LeaveRequestItem {
       requestedDays: (map['requested_days'] as num?)?.toInt() ?? 0,
       reason: (map['reason'] ?? '').toString(),
       status: (map['status'] ?? '').toString(),
+      attachmentUrl: (map['attachment_url'] as String?)?.trim(),
+      employeeName: employeeName?.trim().isEmpty == true ? null : employeeName?.trim(),
+      employeeNo: employeeNo?.trim().isEmpty == true ? null : employeeNo?.trim(),
     );
   }
 }

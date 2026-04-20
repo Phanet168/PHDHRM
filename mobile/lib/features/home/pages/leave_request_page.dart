@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../auth/models/auth_user.dart';
 import '../models/leave_request_models.dart';
+import 'leave_review_page.dart';
 import '../services/home_leave_service.dart';
 
 class LeaveRequestPage extends StatefulWidget {
@@ -210,6 +211,21 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
     });
   }
 
+  Future<void> _openReviewPage() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => LeaveReviewPage(
+          user: widget.user,
+          language: widget.language,
+          leaveService: widget.leaveService,
+        ),
+      ),
+    );
+    if (mounted) {
+      await _loadAll();
+    }
+  }
+
   Future<void> _cancelRequest(LeaveRequestItem request) async {
     setState(() {
       _submitting = true;
@@ -324,6 +340,15 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
                   Text(
                     _tr('request_for_leave', 'ស្នើសុំច្បាប់'),
                     style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: _submitting ? null : _openReviewPage,
+                      icon: const Icon(Icons.assignment_turned_in_outlined),
+                      label: Text(_tr('approve_leave', 'Review requests')),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<int>(
