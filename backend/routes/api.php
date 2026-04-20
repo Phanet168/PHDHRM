@@ -109,6 +109,8 @@ Route::prefix('v1')
         Route::post('/leave-requests', [LeaveRequestApiController::class, 'store'])->name('api.v1.leave_requests.store');
         Route::get('/leave-requests/{leaveRequest}', [LeaveRequestApiController::class, 'show'])->name('api.v1.leave_requests.show');
         Route::post('/leave-requests/{leaveRequest}/cancel', [LeaveRequestApiController::class, 'cancel'])->name('api.v1.leave_requests.cancel');
+        Route::get('/leave-requests/pending-review', [LeaveRequestApiController::class, 'pendingReview'])->name('api.v1.leave_requests.pending_review');
+        Route::post('/leave-requests/{leaveRequest}/review', [LeaveRequestApiController::class, 'review'])->name('api.v1.leave_requests.review');
 
         Route::get('/attendance-adjustments', [AttendanceAdjustmentController::class, 'index'])->name('api.v1.attendance_adjustments.index');
         Route::post('/attendance-adjustments', [AttendanceAdjustmentController::class, 'store'])->name('api.v1.attendance_adjustments.store');

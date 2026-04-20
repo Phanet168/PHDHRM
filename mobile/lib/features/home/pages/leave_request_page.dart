@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../auth/models/auth_user.dart';
@@ -33,6 +34,7 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
   int? _selectedTypeId;
   DateTime? _startDate;
   DateTime? _endDate;
+  PlatformFile? _selectedAttachment;
   bool _loading = true;
   bool _submitting = false;
 
@@ -160,6 +162,9 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
         startDate: _startDate!,
         endDate: _endDate!,
         reason: reason,
+        attachmentPath: _selectedAttachment?.path,
+        attachmentBytes: _selectedAttachment?.bytes,
+        attachmentName: _selectedAttachment?.name,
       );
 
       if (!mounted) {
@@ -170,6 +175,7 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
       setState(() {
         _startDate = null;
         _endDate = null;
+        _selectedAttachment = null;
       });
 
       _showMessage(_tr('leave_request_success', 'សំណើច្បាប់ត្រូវបានបញ្ជូនរួចរាល់'));
@@ -185,6 +191,23 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
         });
       }
     }
+  }
+
+  Future<void> _pickAttachment() async {
+    final result = await FilePicker.platform.pickFiles(withData: true);
+    if (result == null || result.files.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      _selectedAttachment = result.files.first;
+    });
+  }
+
+  void _clearAttachment() {
+    setState(() {
+      _selectedAttachment = null;
+    });
   }
 
   Future<void> _cancelRequest(LeaveRequestItem request) async {
@@ -363,6 +386,34 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
                       border: const OutlineInputBorder(),
                     ),
                   ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: _submitting ? null : _pickAttachment,
+                          icon: const Icon(Icons.attach_file_outlined),
+                          label: Text(_tr('attachment', 'ឯកសារភ្ជាប់')),
+                        ),
+                      ),
+                      if (_selectedAttachment != null) ...[
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _submitting ? null : _clearAttachment,
+                          icon: const Icon(Icons.close),
+                          tooltip: _tr('remove', 'លុប'),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (_selectedAttachment != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        _selectedAttachment!.name,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,

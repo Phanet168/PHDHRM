@@ -4,6 +4,7 @@ namespace Modules\HumanResource\Http\Controllers;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -122,6 +123,140 @@ class LeaveRequestApiController extends Controller
         ]);
     }
 
+    public function pendingReview(Request $request): JsonResponse
+    {
+        try {
+            $this->assertCanReview($request);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'response' => [
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                ],
+            ], 403);
+        }
+
+        $query = ApplyLeave::query()
+            ->with([
+                'leaveType:id,leave_type,leave_type_km',
+                'employee:id,first_name,last_name,employee_id',
+            ])
+            ->where(function (Builder $builder): void {
+                $builder->where('is_approved', 0)
+                    ->where(function (Builder $inner): void {
+                        $inner->whereNull('workflow_status')
+                            ->orWhere('workflow_status', '')
+                            ->orWhere('workflow_status', 'pending');
+                    });
+            })
+            ->orderByDesc('id');
+
+        $rows = $query->paginate((int) $request->input('per_page', 20));
+
+        $items = [];
+        foreach ($rows->items() as $row) {
+            if ($row instanceof ApplyLeave) {
+                $payload = $this->transformLeave($row);
+                $payload['employee'] = [
+                    'id' => (int) optional($row->employee)->id,
+                    'employee_no' => (string) optional($row->employee)->employee_id,
+                    'full_name' => trim(((string) optional($row->employee)->first_name) . ' ' . ((string) optional($row->employee)->last_name)),
+                ];
+                $items[] = $payload;
+            }
+        }
+
+        return response()->json([
+            'response' => [
+                'status' => 'ok',
+                'data' => [
+                    'data' => $items,
+                    'current_page' => $rows->currentPage(),
+                    'per_page' => $rows->perPage(),
+                    'total' => $rows->total(),
+                    'last_page' => $rows->lastPage(),
+                ],
+            ],
+        ]);
+    }
+
+    public function review(Request $request, int $leaveRequest): JsonResponse
+    {
+        try {
+            $reviewer = $this->assertCanReview($request);
+        } catch (AuthorizationException $e) {
+            return response()->json([
+                'response' => [
+                    'status' => 'error',
+                    'message' => $e->getMessage(),
+                ],
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'action' => ['required', 'string', 'in:approve,reject'],
+            'note' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $leave = ApplyLeave::query()->with('leaveType:id,leave_type,leave_type_km')->find($leaveRequest);
+        if (!$leave) {
+            return response()->json([
+                'response' => [
+                    'status' => 'error',
+                    'message' => 'Leave request not found',
+                ],
+            ], 404);
+        }
+
+        $currentStatus = strtolower(trim((string) ($leave->workflow_status ?? '')));
+        if (in_array($currentStatus, ['approved', 'rejected', 'cancelled'], true)) {
+            return response()->json([
+                'response' => [
+                    'status' => 'error',
+                    'message' => 'This request is already finalized',
+                ],
+            ], 422);
+        }
+
+        $note = trim((string) ($validated['note'] ?? ''));
+
+        if ($validated['action'] === 'approve') {
+            $leave->is_approved_by_manager = 1;
+            $leave->approved_by_manager = (int) $reviewer->id;
+            $leave->manager_approved_date = now();
+            $leave->manager_approved_description = $note !== '' ? $note : 'Approved by reviewer';
+
+            $leave->is_approved = 1;
+            $leave->approved_by = (int) $reviewer->id;
+            $leave->leave_approved_date = now();
+            $leave->leave_approved_start_date = $leave->leave_apply_start_date;
+            $leave->leave_approved_end_date = $leave->leave_apply_end_date;
+            $leave->total_approved_day = (int) ($leave->total_apply_day ?? 0);
+            $leave->workflow_status = 'approved';
+            $leave->workflow_last_action_at = now();
+        } else {
+            $leave->is_approved_by_manager = 0;
+            $leave->approved_by_manager = (int) $reviewer->id;
+            $leave->manager_approved_date = now();
+            $leave->manager_approved_description = $note !== '' ? $note : 'Rejected by reviewer';
+            $leave->is_approved = 0;
+            $leave->workflow_status = 'rejected';
+            $leave->workflow_last_action_at = now();
+        }
+
+        $leave->save();
+
+        return response()->json([
+            'response' => [
+                'status' => 'ok',
+                'message' => $validated['action'] === 'approve'
+                    ? 'Leave request approved successfully'
+                    : 'Leave request rejected successfully',
+                'data' => $this->transformLeave($leave),
+            ],
+        ]);
+    }
+
     public function show(Request $request, int $leaveRequest): JsonResponse
     {
         $employeeId = $this->resolveEmployeeId($request);
@@ -163,7 +298,7 @@ class LeaveRequestApiController extends Controller
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'reason' => ['required', 'string', 'max:2000'],
-            'location' => ['nullable', 'string', 'max:1000'],
+            'attachment' => ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,txt,rtf,jpeg,jpg,png,gif,svg', 'max:51200'],
         ]);
 
         $start = Carbon::parse($validated['start_date'])->startOfDay();
@@ -192,6 +327,17 @@ class LeaveRequestApiController extends Controller
 
         $type = LeaveType::query()->findOrFail((int) $validated['leave_type_id']);
         $entitlement = (int) ($type->leave_days ?? 0);
+        $requiresAttachment = (bool) ($type->requires_attachment ?? false)
+            || (bool) ($type->requires_medical_certificate ?? false);
+
+        if ($requiresAttachment && !$request->hasFile('attachment')) {
+            return response()->json([
+                'response' => [
+                    'status' => 'error',
+                    'message' => 'Attachment is required for this leave type',
+                ],
+            ], 422);
+        }
 
         if ($entitlement > 0) {
             $used = (int) ApplyLeave::query()
@@ -215,6 +361,13 @@ class LeaveRequestApiController extends Controller
             }
         }
 
+        $attachmentPath = null;
+        if ($request->hasFile('attachment')) {
+            $file = $request->file('attachment');
+            $filename = time() . mt_rand(10, 9999) . '.' . $file->extension();
+            $attachmentPath = $file->storeAs('leave', $filename, 'public');
+        }
+
         $leave = ApplyLeave::query()->create([
             'employee_id' => $employeeId,
             'leave_type_id' => (int) $validated['leave_type_id'],
@@ -223,7 +376,7 @@ class LeaveRequestApiController extends Controller
             'leave_apply_date' => now()->toDateString(),
             'total_apply_day' => $requestedDays,
             'reason' => $validated['reason'],
-            'location' => $validated['location'] ?? null,
+            'location' => $attachmentPath,
             'is_approved_by_manager' => 0,
             'is_approved' => 0,
             'workflow_status' => 'pending',
@@ -320,6 +473,8 @@ class LeaveRequestApiController extends Controller
     private function transformLeave(ApplyLeave $row): array
     {
         $status = $this->resolveStatus($row);
+        $attachmentPath = trim((string) ($row->location ?? ''));
+        $attachmentUrl = $attachmentPath !== '' ? asset('storage/' . ltrim($attachmentPath, '/')) : null;
 
         return [
             'id' => (int) $row->id,
@@ -333,7 +488,8 @@ class LeaveRequestApiController extends Controller
             'requested_days' => (int) ($row->total_apply_day ?? 0),
             'approved_days' => (int) ($row->total_approved_day ?? 0),
             'reason' => (string) ($row->reason ?? ''),
-            'location' => (string) ($row->location ?? ''),
+            'location' => $attachmentPath,
+            'attachment_url' => $attachmentUrl,
             'status' => $status,
             'workflow_status' => (string) ($row->workflow_status ?? ''),
             'is_approved' => (int) ($row->is_approved ?? 0),
@@ -358,5 +514,19 @@ class LeaveRequestApiController extends Controller
         }
 
         return 'pending';
+    }
+
+    private function assertCanReview(Request $request)
+    {
+        $user = $request->user();
+        if (!$user) {
+            throw new AuthorizationException('Unauthorized');
+        }
+
+        if ($user->can('create_leave_approval') || $user->can('update_leave_application')) {
+            return $user;
+        }
+
+        throw new AuthorizationException('You do not have permission to review leave requests');
     }
 }

@@ -1,5 +1,12 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:http/http.dart' as http;
+
+import '../../../core/config/api_config.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/api_service.dart';
+import '../../../core/storage/token_storage_service.dart';
 import '../../auth/models/auth_user.dart';
 import '../models/leave_request_models.dart';
 
@@ -8,6 +15,7 @@ class HomeLeaveService {
     : _apiService = apiService ?? ApiService();
 
   final ApiService _apiService;
+  final TokenStorageService _tokenStorageService = TokenStorageService();
 
   Future<List<LeaveTypeOption>> fetchTypes(AuthUser user) async {
     _ensureSession(user);
@@ -96,18 +104,143 @@ class HomeLeaveService {
     required DateTime startDate,
     required DateTime endDate,
     required String reason,
+    String? attachmentPath,
+    Uint8List? attachmentBytes,
+    String? attachmentName,
   }) async {
     _ensureSession(user);
 
-    await _apiService.post(
-      '/v1/leave-requests',
-      body: <String, dynamic>{
-        'leave_type_id': leaveTypeId,
-        'start_date': _formatDateOnly(startDate),
-        'end_date': _formatDateOnly(endDate),
-        'reason': reason.trim(),
-      },
+    final hasAttachment =
+        (attachmentPath != null && attachmentPath.trim().isNotEmpty) ||
+        (attachmentBytes != null && attachmentBytes.isNotEmpty);
+
+    if (!hasAttachment) {
+      await _apiService.post(
+        '/v1/leave-requests',
+        body: <String, dynamic>{
+          'leave_type_id': leaveTypeId,
+          'start_date': _formatDateOnly(startDate),
+          'end_date': _formatDateOnly(endDate),
+          'reason': reason.trim(),
+        },
+      );
+      return;
+    }
+
+    await _submitMultipartRequest(
+      leaveTypeId: leaveTypeId,
+      startDate: startDate,
+      endDate: endDate,
+      reason: reason,
+      attachmentPath: attachmentPath,
+      attachmentBytes: attachmentBytes,
+      attachmentName: attachmentName,
     );
+  }
+
+  Future<void> _submitMultipartRequest({
+    required int leaveTypeId,
+    required DateTime startDate,
+    required DateTime endDate,
+    required String reason,
+    String? attachmentPath,
+    Uint8List? attachmentBytes,
+    String? attachmentName,
+  }) async {
+    final token = await _tokenStorageService.readToken();
+    ApiException? lastError;
+
+    for (final base in ApiConfig.baseUrls) {
+      final uri = ApiConfig.buildUriForBase(base, '/v1/leave-requests');
+      final request = http.MultipartRequest('POST', uri)
+        ..headers['Accept'] = 'application/json'
+        ..fields['leave_type_id'] = leaveTypeId.toString()
+        ..fields['start_date'] = _formatDateOnly(startDate)
+        ..fields['end_date'] = _formatDateOnly(endDate)
+        ..fields['reason'] = reason.trim();
+
+      if (token != null && token.isNotEmpty) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+
+      if (attachmentBytes != null && attachmentBytes.isNotEmpty) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'attachment',
+            attachmentBytes,
+            filename: (attachmentName == null || attachmentName.trim().isEmpty)
+                ? 'attachment.bin'
+                : attachmentName.trim(),
+          ),
+        );
+      } else if (attachmentPath != null && attachmentPath.trim().isNotEmpty) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'attachment',
+            attachmentPath.trim(),
+            filename: (attachmentName == null || attachmentName.trim().isEmpty)
+                ? null
+                : attachmentName.trim(),
+          ),
+        );
+      }
+
+      try {
+        final streamed = await request.send().timeout(ApiConfig.connectTimeout);
+        final response = await http.Response.fromStream(streamed);
+        final body = _tryDecodeMap(response.body);
+
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return;
+        }
+
+        lastError = ApiException(
+          message: _extractMessage(body, fallback: 'Request failed'),
+          statusCode: response.statusCode,
+        );
+      } catch (_) {
+        lastError = ApiException(message: 'Connection timeout. Please try again.');
+      }
+    }
+
+    throw lastError ?? ApiException(message: 'Unable to submit leave request');
+  }
+
+  Map<String, dynamic> _tryDecodeMap(String body) {
+    if (body.isEmpty) {
+      return <String, dynamic>{};
+    }
+
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    } catch (_) {
+      // Ignore parse errors and fallback to default message.
+    }
+
+    return <String, dynamic>{};
+  }
+
+  String _extractMessage(
+    Map<String, dynamic> body, {
+    String fallback = 'Request failed',
+  }) {
+    final response = body['response'];
+    if (response is Map<String, dynamic>) {
+      final nested = response['message'];
+      if (nested is String && nested.trim().isNotEmpty) {
+        return nested;
+      }
+    }
+
+    final direct = body['message'] ?? body['error'];
+    if (direct is String && direct.trim().isNotEmpty) {
+      return direct;
+    }
+
+    return fallback;
   }
 
   Future<void> cancelRequest({required AuthUser user, required int requestId}) async {
