@@ -306,42 +306,173 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
     }
   }
 
+  String _normalizeLabel(String value) {
+    return value.trim().toLowerCase();
+  }
+
+  LeaveBalanceItem? _pickByKeywords(
+    List<LeaveBalanceItem> items,
+    List<String> keywords,
+    Set<int> usedIndexes,
+  ) {
+    for (var i = 0; i < items.length; i++) {
+      if (usedIndexes.contains(i)) {
+        continue;
+      }
+
+      final label = _normalizeLabel(items[i].displayName(widget.language));
+      final eng = _normalizeLabel(items[i].leaveType);
+      final km = _normalizeLabel(items[i].leaveTypeKm);
+      final text = '$label $eng $km';
+      if (keywords.any((keyword) => text.contains(keyword))) {
+        usedIndexes.add(i);
+        return items[i];
+      }
+    }
+
+    return null;
+  }
+
+  List<_LeaveBalanceDisplay> _buildPriorityLeaveBalances() {
+    final source = _summary.types;
+    final usedIndexes = <int>{};
+
+    final annual = _pickByKeywords(
+      source,
+      <String>['annual', 'year', 'ប្រចាំឆ្នាំ'],
+      usedIndexes,
+    );
+    final shortTerm = _pickByKeywords(
+      source,
+      <String>['short', 'casual', 'special', 'រយៈពេលខ្លី'],
+      usedIndexes,
+    );
+    final maternity = _pickByKeywords(
+      source,
+      <String>['maternity', 'mater', 'លំហែមាតុភាព'],
+      usedIndexes,
+    );
+    final medical = _pickByKeywords(
+      source,
+      <String>['sick', 'medical', 'ព្យាបាល', 'ជំងឺ'],
+      usedIndexes,
+    );
+
+    LeaveBalanceItem? fallback() {
+      for (var i = 0; i < source.length; i++) {
+        if (!usedIndexes.contains(i)) {
+          usedIndexes.add(i);
+          return source[i];
+        }
+      }
+      return null;
+    }
+
+    _LeaveBalanceDisplay buildDisplay({
+      required String title,
+      required Color tint,
+      LeaveBalanceItem? item,
+    }) {
+      final row = item ?? fallback();
+      final entitlement = row?.entitlement ?? 0;
+      final used = row?.used ?? 0;
+      final remaining = row?.remaining ?? 0;
+      final ratio = entitlement <= 0 ? 0.0 : (used / entitlement).clamp(0.0, 1.0);
+      return _LeaveBalanceDisplay(
+        title: title,
+        used: used,
+        total: entitlement,
+        remaining: remaining,
+        percent: ratio,
+        tint: tint,
+      );
+    }
+
+    return <_LeaveBalanceDisplay>[
+      buildDisplay(
+        title: 'ឈប់ប្រចាំឆ្នាំ',
+        tint: const Color(0xFFEAF1FF),
+        item: annual,
+      ),
+      buildDisplay(
+        title: 'ឈប់រយៈពេលខ្លី',
+        tint: const Color(0xFFEAF7EE),
+        item: shortTerm,
+      ),
+      buildDisplay(
+        title: 'ឈប់សម្រាកលំហែមាតុភាព',
+        tint: const Color(0xFFF3EEFF),
+        item: maternity,
+      ),
+      buildDisplay(
+        title: 'ឈប់សម្រាកព្យាបាលជំងឺ',
+        tint: const Color(0xFFFFF4E5),
+        item: medical,
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
 
+    final leaveCards = _buildPriorityLeaveBalances();
+
     return RefreshIndicator(
       onRefresh: _loadAll,
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _tr('leave_remaining', 'ច្បាប់នៅសល់'),
-                    style: Theme.of(context).textTheme.titleMedium,
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2EAE7)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0A14211D),
+                  blurRadius: 12,
+                  offset: Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _tr('leave_remaining', 'សមតុល្យច្បាប់'),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    '${_summary.totalRemaining}',
-                    style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_summary.totalRemaining} ថ្ងៃ',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: const Color(0xFF0B6B58),
+                    fontWeight: FontWeight.w900,
                   ),
-                  const SizedBox(height: 12),
-                  for (final item in _summary.types)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Text(
-                        '${item.displayName(widget.language)}: ${item.remaining}/${item.entitlement}',
-                      ),
-                    ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 12),
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    mainAxisExtent: 148,
+                  ),
+                  itemCount: leaveCards.length,
+                  itemBuilder: (context, index) {
+                    final item = leaveCards[index];
+                    return _LeaveBalanceCard(item: item);
+                  },
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 12),
@@ -557,6 +688,87 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
                   ),
                 ),
               ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LeaveBalanceDisplay {
+  const _LeaveBalanceDisplay({
+    required this.title,
+    required this.used,
+    required this.total,
+    required this.remaining,
+    required this.percent,
+    required this.tint,
+  });
+
+  final String title;
+  final int used;
+  final int total;
+  final int remaining;
+  final double percent;
+  final Color tint;
+}
+
+class _LeaveBalanceCard extends StatelessWidget {
+  const _LeaveBalanceCard({required this.item});
+
+  final _LeaveBalanceDisplay item;
+
+  @override
+  Widget build(BuildContext context) {
+    final percentText = '${(item.percent * 100).round()}%';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      decoration: BoxDecoration(
+        color: item.tint,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFDCE6E2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            item.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF10211B),
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+              height: 1.35,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            percentText,
+            style: const TextStyle(
+              color: Color(0xFF0B6B58),
+              fontWeight: FontWeight.w900,
+              fontSize: 20,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${item.used} / ${item.total} ថ្ងៃ',
+            style: const TextStyle(
+              color: Color(0xFF334155),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'នៅសល់ ${item.remaining} ថ្ងៃ',
+            style: const TextStyle(
+              color: Color(0xFF475569),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

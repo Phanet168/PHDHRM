@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 
 class AppDesignSystem {
-  static const Color primary = Color(0xFF0E7490);
-  static const Color primaryHover = Color(0xFF0B5F75);
-  static const Color secondary = Color(0xFF1D4ED8);
+  static const Color primary = Color(0xFF0B6B58);
+  static const Color primaryHover = Color(0xFF085246);
+  static const Color secondary = Color(0xFF1D4F91);
   static const Color success = Color(0xFF15803D);
   static const Color warning = Color(0xFFB45309);
   static const Color danger = Color(0xFFB91C1C);
   static const Color info = Color(0xFF0369A1);
 
-  static const Color bg = Color(0xFFF4F7F9);
+  static const Color bg = Color(0xFFF5F7FA);
   static const Color surface = Color(0xFFFFFFFF);
   static const Color border = Color(0xFFD9E2E8);
   static const Color textPrimary = Color(0xFF0F172A);
   static const Color textSecondary = Color(0xFF475569);
 
-  static const double radiusCard = 14;
+  static const double radiusCard = 16;
   static const double radiusInput = 10;
-  static const double radiusButton = 12;
+  static const double radiusButton = 14;
   static const double spacing = 8;
 
   static ThemeData lightTheme() {
@@ -34,6 +34,41 @@ class AppDesignSystem {
       colorScheme: colorScheme,
       scaffoldBackgroundColor: bg,
       fontFamilyFallback: const ['Noto Sans Khmer', 'Public Sans'],
+      textTheme: const TextTheme(
+        headlineSmall: TextStyle(
+          fontSize: 22,
+          height: 1.3,
+          fontWeight: FontWeight.w700,
+          color: textPrimary,
+        ),
+        titleLarge: TextStyle(
+          fontSize: 18,
+          height: 1.35,
+          fontWeight: FontWeight.w700,
+          color: textPrimary,
+        ),
+        titleMedium: TextStyle(
+          fontSize: 16,
+          height: 1.4,
+          fontWeight: FontWeight.w700,
+          color: textPrimary,
+        ),
+        bodyLarge: TextStyle(
+          fontSize: 15,
+          height: 1.55,
+          color: textPrimary,
+        ),
+        bodyMedium: TextStyle(
+          fontSize: 14,
+          height: 1.55,
+          color: textPrimary,
+        ),
+        bodySmall: TextStyle(
+          fontSize: 13,
+          height: 1.45,
+          color: textSecondary,
+        ),
+      ),
       appBarTheme: const AppBarTheme(
         centerTitle: false,
         elevation: 0,
@@ -53,9 +88,14 @@ class AppDesignSystem {
         style: FilledButton.styleFrom(
           backgroundColor: primary,
           foregroundColor: Colors.white,
-          minimumSize: const Size.fromHeight(48),
+          minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusButton),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            height: 1.4,
           ),
         ),
       ),
@@ -66,6 +106,11 @@ class AppDesignSystem {
           side: const BorderSide(color: border),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusButton),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            height: 1.4,
           ),
         ),
       ),

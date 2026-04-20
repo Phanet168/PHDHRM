@@ -361,6 +361,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                         _tr('filter', 'តម្រង'),
                         style: const TextStyle(
                           color: Color(0xFF123C32),
+                          fontSize: 15,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -427,6 +428,37 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                               },
                             ),
                         ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FBFA),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFE2EAE7)),
+                  ),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _LegendChip(
+                        label: _tr('on_time', 'ទាន់ពេល'),
+                        color: const Color(0xFF15803D),
+                      ),
+                      _LegendChip(
+                        label: _tr('late', 'យឺត'),
+                        color: const Color(0xFFA85C00),
+                      ),
+                      _LegendChip(
+                        label: _tr('early_leave', 'ចេញមុន'),
+                        color: const Color(0xFFD98500),
+                      ),
+                      _LegendChip(
+                        label: _tr('incomplete', 'មិនពេញលេញ'),
+                        color: const Color(0xFFD34B5F),
                       ),
                     ],
                   ),
@@ -541,7 +573,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                                       style: const TextStyle(
                                         color: Color(0xFF18312A),
                                         fontWeight: FontWeight.w800,
-                                        fontSize: 14,
+                                        fontSize: 15,
                                       ),
                                     ),
                                   ),
@@ -748,7 +780,7 @@ class _HistoryPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
         color: const Color(0xFFF2F8F5),
         borderRadius: BorderRadius.circular(10),
@@ -763,6 +795,45 @@ class _HistoryPill extends StatelessWidget {
             text,
             style: const TextStyle(
               color: Color(0xFF1A3930),
+              fontSize: 12,
+              height: 1.45,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LegendChip extends StatelessWidget {
+  const _LegendChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withAlpha(40)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
