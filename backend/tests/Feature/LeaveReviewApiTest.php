@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Modules\HumanResource\Entities\ApplyLeave;
@@ -27,6 +28,14 @@ class LeaveReviewApiTest extends TestCase
      * @var array<int, array{user_id:int, permission:string}>
      */
     private array $grantedPermissions = [];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('app.url', 'http://localhost');
+        URL::forceRootUrl('http://localhost');
+    }
 
     protected function tearDown(): void
     {
@@ -65,7 +74,7 @@ class LeaveReviewApiTest extends TestCase
 
         Sanctum::actingAs($user);
 
-        $this->getJson('/api/auth/profile')
+        $this->getJson(route('api.auth.profile'))
             ->assertOk()
             ->assertJsonPath('status', 'ok')
             ->assertJsonPath('user.can_review_leave_requests', true);
@@ -112,11 +121,11 @@ class LeaveReviewApiTest extends TestCase
 
         Sanctum::actingAs($reviewer);
 
-        $this->getJson('/api/v1/leave-requests/pending-review')
+        $this->getJson(route('api.v1.leave_requests.pending_review'))
             ->assertOk()
             ->assertJsonPath('response.status', 'ok');
 
-        $this->postJson('/api/v1/leave-requests/' . $leave->id . '/review', [
+        $this->postJson(route('api.v1.leave_requests.review', ['leaveRequest' => $leave->id]), [
             'action' => 'approve',
             'note' => 'Approved from automated feature test',
         ])
