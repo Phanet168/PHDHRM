@@ -41,6 +41,20 @@ class LoginController extends Controller {
     }
 
     /**
+     * Accept either `login` or legacy `email` field for web login.
+     */
+    protected function validateLogin(Request $request): void
+    {
+        $login = trim((string) $request->input($this->username(), $request->input('email', '')));
+        $request->merge([$this->username() => $login]);
+
+        $request->validate([
+            $this->username() => ['required', 'string'],
+            'password' => ['required', 'string'],
+        ]);
+    }
+
+    /**
      * Use a single login field that accepts email or username.
      */
     public function username(): string

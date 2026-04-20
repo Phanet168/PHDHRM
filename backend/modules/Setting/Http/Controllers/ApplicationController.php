@@ -135,14 +135,14 @@ class ApplicationController extends Controller
             'otp_channel' => ['nullable', 'in:log,telegram,sms_http'],
         ]);
 
+        $currentSetting = Appsetting::query()->find(1);
         $validated['otp_required'] = (int) ($request->input('otp_required', 0) == 1);
 
-        if ($validated['otp_required'] === 0) {
-            // Keep channel nullable when OTP is disabled.
-            $validated['otp_channel'] = null;
-        } else {
-            $validated['otp_channel'] = $validated['otp_channel'] ?? 'telegram';
-        }
+        // Persist channel preference from System Settings even when OTP is disabled,
+        // so re-enabling OTP keeps the last selected channel.
+        $validated['otp_channel'] = $validated['otp_channel']
+            ?? $currentSetting?->otp_channel
+            ?? (string) config('security.otp.channel', 'telegram');
 
         Appsetting::updateOrCreate(
             ['id' => 1],
