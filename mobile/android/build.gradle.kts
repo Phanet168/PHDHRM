@@ -16,6 +16,27 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects {
+    configurations.all {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "androidx.core" && requested.name == "core") {
+                useVersion("1.16.0")
+                because("Keep AndroidX core compatible with the current Android Gradle Plugin")
+            }
+
+            if (requested.group == "androidx.core" && requested.name == "core-ktx") {
+                useVersion("1.16.0")
+                because("Keep AndroidX core-ktx compatible with the current Android Gradle Plugin")
+            }
+
+            if (requested.group == "androidx.browser" && requested.name == "browser") {
+                useVersion("1.8.0")
+                because("Keep AndroidX browser compatible with the current Android Gradle Plugin")
+            }
+        }
+    }
+}
+
 tasks.register<Delete>("clean") {
     delete(rootProject.layout.buildDirectory)
 }

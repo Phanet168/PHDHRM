@@ -200,6 +200,8 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
           maxChildSize: 0.82,
           expand: false,
           builder: (context, controller) {
+            final sheetBottomPadding = MediaQuery.of(context).padding.bottom + 24;
+
             return Container(
               decoration: const BoxDecoration(
                 color: Color(0xFFF8FBFA),
@@ -207,7 +209,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
               ),
               child: ListView(
                 controller: controller,
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+                padding: EdgeInsets.fromLTRB(16, 10, 16, sheetBottomPadding),
                 children: [
                   Center(
                     child: Container(
@@ -286,6 +288,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
   @override
   Widget build(BuildContext context) {
     final monthOptions = _monthOptions();
+    final listBottomPadding = MediaQuery.of(context).padding.bottom + 28;
     final filterItems = <_StatusFilterItem>[
       _StatusFilterItem(code: _filterAll, label: _tr('all', 'ទាំងអស់')),
       _StatusFilterItem(code: 'on_time', label: _tr('on_time', 'ទាន់ពេល')),
@@ -309,7 +312,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return ListView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding),
                 children: const [
                   SizedBox(height: 120),
                   Center(child: CircularProgressIndicator()),
@@ -319,7 +322,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
 
             if (snapshot.hasError) {
               return ListView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding),
                 children: [
                   _HistoryErrorCard(
                     title: _tr('attendance_history', 'ប្រវត្តិវត្តមាន'),
@@ -335,7 +338,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
             final summary = _summarize(allRecords);
 
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              padding: EdgeInsets.fromLTRB(16, 12, 16, listBottomPadding),
               children: [
                 Container(
                   padding: const EdgeInsets.all(14),

@@ -32,6 +32,11 @@ class _HomePageState extends State<HomePage> {
   Future<List<MissionSummary>>? _missionsFuture;
   _HomeMenuItem _selectedMenu = _HomeMenuItem.dashboard;
 
+  double _contentBottomPadding(BuildContext context, {double base = 24}) {
+    final inset = MediaQuery.of(context).padding.bottom;
+    return base + (inset < 12 ? 12 : inset);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -232,11 +237,18 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildAdditionalServicesGrid(Map<String, String> language) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final crossAxisCount = screenWidth >= 760 ? 3 : 2;
+    final childAspectRatio =
+        crossAxisCount == 3
+            ? 1.45
+            : (screenWidth < 380 ? 1.18 : 1.32);
+
     return GridView.count(
-      crossAxisCount: 2,
+      crossAxisCount: crossAxisCount,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
-      childAspectRatio: 1.45,
+      childAspectRatio: childAspectRatio,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
@@ -780,6 +792,12 @@ class _HomePageState extends State<HomePage> {
     ThemeData theme,
   ) {
     final attendanceFuture = _attendanceFuture ?? _loadAttendance();
+    final listPadding = EdgeInsets.fromLTRB(
+      16,
+      12,
+      16,
+      _contentBottomPadding(context),
+    );
 
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -825,7 +843,7 @@ class _HomePageState extends State<HomePage> {
                       : '${todayRecord.timeIn} - ${todayRecord.timeOut}';
 
               return ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                padding: listPadding,
                 children: [
                   _WelcomePanel(
                     greeting:
@@ -877,10 +895,14 @@ class _HomePageState extends State<HomePage> {
                   _buildAdditionalServicesGrid(language),
                   const SizedBox(height: 14),
                   GridView.count(
-                    crossAxisCount: MediaQuery.of(context).size.width >= 700 ? 3 : 2,
+                    crossAxisCount:
+                      MediaQuery.of(context).size.width >= 920
+                        ? 4
+                        : (MediaQuery.of(context).size.width >= 700 ? 3 : 2),
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 1.28,
+                    childAspectRatio:
+                      MediaQuery.of(context).size.width < 390 ? 1.12 : 1.26,
                     physics: const NeverScrollableScrollPhysics(),
                     shrinkWrap: true,
                     children: [
@@ -926,6 +948,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildAttendance(Map<String, String> language) {
+    final listPadding = EdgeInsets.fromLTRB(
+      16,
+      12,
+      16,
+      _contentBottomPadding(context),
+    );
+
     return RefreshIndicator(
       onRefresh: _refresh,
       child: FutureBuilder<List<AttendanceDayRecord>>(
@@ -933,7 +962,7 @@ class _HomePageState extends State<HomePage> {
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              padding: listPadding,
               children: [
                 _AttendanceSectionHeader(
                   title: _tr(language, 'today_status', 'ស្ថានភាពថ្ងៃនេះ'),
@@ -1007,7 +1036,7 @@ class _HomePageState extends State<HomePage> {
 
           if (records.isEmpty) {
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              padding: listPadding,
               children: [
                 _AttendanceSectionHeader(
                   title: _tr(language, 'today_status', 'ស្ថានភាពថ្ងៃនេះ'),
@@ -1074,7 +1103,7 @@ class _HomePageState extends State<HomePage> {
           }
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            padding: listPadding,
             children: [
               _AttendanceSectionHeader(
                 title: _tr(language, 'today_status', 'ស្ថានភាពថ្ងៃនេះ'),
@@ -1168,6 +1197,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildMissions(Map<String, String> language) {
+    final listPadding = EdgeInsets.fromLTRB(
+      16,
+      12,
+      16,
+      _contentBottomPadding(context),
+    );
+
     return RefreshIndicator(
       onRefresh: _refresh,
       child: FutureBuilder<List<MissionSummary>>(
@@ -1214,7 +1250,7 @@ class _HomePageState extends State<HomePage> {
           }
 
           return ListView(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            padding: listPadding,
             children: [
               for (final mission in missions) ...[
                 _MissionRecordCard(
@@ -2699,12 +2735,17 @@ class _InfoBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: const Color(0xFF0B6B58)),
           const SizedBox(width: 6),
-          Text(
-            text!,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF173C33),
-              fontWeight: FontWeight.w600,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 180),
+            child: Text(
+              text!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Color(0xFF173C33),
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -2887,63 +2928,71 @@ class _ProfileHeroCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(height: 18),
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: chips.length,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    childAspectRatio: 1.7,
-                  ),
-                  itemBuilder: (context, index) {
-                    final chip = chips[index];
-                    return Container(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(26),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withAlpha(34)),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isCompact = constraints.maxWidth < 380;
+                    final crossAxisCount = isCompact ? 1 : 2;
+                    final cardHeight = isCompact ? 92.0 : 102.0;
+
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: chips.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                        mainAxisExtent: cardHeight,
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withAlpha(34),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Icon(
-                              chip.icon,
-                              size: 16,
-                              color: Colors.white,
-                            ),
+                      itemBuilder: (context, index) {
+                        final chip = chips[index];
+                        return Container(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withAlpha(26),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withAlpha(34)),
                           ),
-                          Text(
-                            chip.label,
-                            style: const TextStyle(
-                              color: Color(0xFFD8E8EC),
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                width: 30,
+                                height: 30,
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withAlpha(34),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  chip.icon,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                chip.label,
+                                style: const TextStyle(
+                                  color: Color(0xFFD8E8EC),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Text(
+                                chip.value,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.2,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            chip.value,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              height: 1.2,
-                            ),
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     );
                   },
                 ),
