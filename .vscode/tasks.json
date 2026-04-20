@@ -43,6 +43,31 @@
       },
       "isBackground": true,
       "problemMatcher": []
+    },
+    {
+      "label": "mobile: emulator launch Pixel_6_VIC",
+      "type": "shell",
+      "command": "C:/Users/Admin/AppData/Local/Android/Sdk/emulator/emulator.exe",
+      "args": [
+        "-avd",
+        "Pixel_6_VIC",
+        "-gpu",
+        "swiftshader_indirect",
+        "-no-snapshot-load"
+      ],
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "mobile: flutter run android",
+      "type": "shell",
+      "command": "flutter",
+      "args": ["run", "-d", "android"],
+      "options": {
+        "cwd": "${workspaceFolder}/mobile"
+      },
+      "isBackground": true,
+      "problemMatcher": []
     }
   ]
 }
