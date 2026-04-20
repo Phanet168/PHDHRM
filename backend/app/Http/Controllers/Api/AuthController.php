@@ -455,6 +455,7 @@ class AuthController extends Controller
         }
 
         $roles = $user->getRoleNames()->values()->all();
+        $canReviewLeaveRequests = $user->can('create_leave_approval') || $user->can('update_leave_application');
 
         if (!$employee) {
             return [
@@ -468,6 +469,7 @@ class AuthController extends Controller
                 'profile_pic' => $this->normalizeProfileImagePath($user->profile_image),
                 'roles' => $roles,
                 'role' => $roles[0] ?? null,
+                'can_review_leave_requests' => $canReviewLeaveRequests,
             ];
         }
 
@@ -508,6 +510,7 @@ class AuthController extends Controller
             'token_id' => $this->normalizeText($user->token_id),
             'roles' => $roles,
             'role' => $roles[0] ?? null,
+            'can_review_leave_requests' => $canReviewLeaveRequests,
 
             // Organization
             'department_id' => $employee->department_id ? (int) $employee->department_id : null,

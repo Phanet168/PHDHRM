@@ -8,6 +8,7 @@ class AuthUser {
     this.profilePic,
     this.fcmToken,
     this.role,
+    this.canReviewLeaveRequestsFlag,
     // Personal
     this.phone,
     this.alternatePhone,
@@ -50,6 +51,7 @@ class AuthUser {
   final String? profilePic;
   final String? fcmToken;
   final String? role;
+  final bool? canReviewLeaveRequestsFlag;
   // Personal
   final String? phone;
   final String? alternatePhone;
@@ -84,6 +86,10 @@ class AuthUser {
   final String? skillName;
 
   bool get canReviewLeaveRequests {
+    if (canReviewLeaveRequestsFlag != null) {
+      return canReviewLeaveRequestsFlag!;
+    }
+
     final normalized = (role ?? '').trim().toLowerCase();
     if (normalized.isEmpty) {
       return false;
@@ -164,6 +170,9 @@ class AuthUser {
       profilePic: json['profile_pic'] as String?,
       fcmToken: json['token_id'] as String?,
       role: role,
+        canReviewLeaveRequestsFlag: json['can_review_leave_requests'] == true ||
+          json['can_review_leave_requests'] == 1 ||
+          json['can_review_leave_requests'] == '1',
       // Personal
       phone:
           (json['phone'] as String?)?.isNotEmpty == true
@@ -238,6 +247,8 @@ class AuthUser {
       if (profilePic != null) 'profile_pic': profilePic,
       if (fcmToken != null) 'token_id': fcmToken,
       if (role != null) 'role': role,
+      if (canReviewLeaveRequestsFlag != null)
+        'can_review_leave_requests': canReviewLeaveRequestsFlag! ? 1 : 0,
       if (phone != null) 'phone': phone,
       if (alternatePhone != null) 'alternate_phone': alternatePhone,
       if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
