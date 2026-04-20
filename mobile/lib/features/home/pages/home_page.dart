@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/config/app_routes.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/localization/laravel_language_service.dart';
 import '../../auth/controllers/auth_controller.dart';
@@ -62,7 +63,7 @@ class _HomePageState extends State<HomePage> {
   String _menuTitle(_HomeMenuItem item, Map<String, String> language) {
     switch (item) {
       case _HomeMenuItem.dashboard:
-        return _tr(language, 'dashboard', 'Dashboard');
+        return 'វត្តមានការងារ';
       case _HomeMenuItem.attendance:
         return _tr(language, 'attendance_history', 'ប្រវត្តិវត្តមាន');
       case _HomeMenuItem.leave:
@@ -74,9 +75,46 @@ class _HomePageState extends State<HomePage> {
       case _HomeMenuItem.notice:
         return _tr(language, 'notice_list', 'Notice');
       case _HomeMenuItem.profile:
-        return _tr(language, 'my_profile', 'Profile');
+        return _tr(language, 'my_profile', 'ព័ត៌មានផ្ទាល់ខ្លួន');
       case _HomeMenuItem.logout:
         return _tr(language, 'logout', 'Logout');
+    }
+  }
+
+  int _bottomNavIndex() {
+    switch (_selectedMenu) {
+      case _HomeMenuItem.dashboard:
+        return 0;
+      case _HomeMenuItem.attendance:
+        return 1;
+      case _HomeMenuItem.notice:
+        return 2;
+      default:
+        return 0;
+    }
+  }
+
+  Future<void> _onBottomNavTap(int index) async {
+    switch (index) {
+      case 0:
+        setState(() {
+          _selectedMenu = _HomeMenuItem.dashboard;
+        });
+        return;
+      case 1:
+        setState(() {
+          _selectedMenu = _HomeMenuItem.attendance;
+          _attendanceFuture ??= _loadAttendance();
+        });
+        return;
+      case 2:
+        setState(() {
+          _selectedMenu = _HomeMenuItem.notice;
+        });
+        return;
+      case 3:
+        await Navigator.of(context).pushNamed(AppRoutes.systemSettings);
+        return;
     }
   }
 
@@ -830,6 +868,7 @@ class _HomePageState extends State<HomePage> {
             future: attendanceFuture,
             builder: (context, attendanceSnapshot) {
               final records = attendanceSnapshot.data ?? const <AttendanceDayRecord>[];
+              final recentRecords = records.take(2).toList();
               final todayRecord = _findTodayRecord(records);
               final statusToday = _attendanceStatusLabel(
                 language,
@@ -846,8 +885,7 @@ class _HomePageState extends State<HomePage> {
                 padding: listPadding,
                 children: [
                   _WelcomePanel(
-                    greeting:
-                        '${_tr(language, 'welcome_msg', 'សូមស្វាគមន៍')} ${user?.name ?? ''}',
+                    greeting: _tr(language, 'welcome_msg', 'សូមស្វាគមន៍'),
                     name: user?.name ?? 'User',
                     email: user?.email ?? '-',
                     employeeId: '${user?.employeeId ?? '-'}',
@@ -855,13 +893,9 @@ class _HomePageState extends State<HomePage> {
                     position: user?.position,
                     initial: _userInitial(user),
                   ),
-                  const SizedBox(height: 16),
-                  _AttendanceSectionHeader(
+                  const SizedBox(height: 12),
+                  _DashboardTodayCard(
                     title: _tr(language, 'today_status', 'ស្ថានភាពថ្ងៃនេះ'),
-                    subtitle: _tr(language, 'today', 'ថ្ងៃនេះ'),
-                  ),
-                  const SizedBox(height: 10),
-                  _TodayAttendanceStatusCard(
                     shiftLabel: _tr(language, 'today_shift', 'វេនថ្ងៃនេះ'),
                     shiftValue: shiftToday,
                     statusLabel: _tr(language, 'status', 'ស្ថានភាព'),
@@ -870,73 +904,115 @@ class _HomePageState extends State<HomePage> {
                     inTime: todayRecord?.timeIn ?? '-',
                     outTimeLabel: _tr(language, 'last_out', 'ម៉ោងចេញចុងក្រោយ'),
                     outTime: todayRecord?.timeOut ?? '-',
-                  ),
-                  const SizedBox(height: 14),
-                  _ProminentScanCard(
-                    title: _tr(language, 'scan_now', 'ចុចស្កេនឥឡូវនេះ'),
-                    subtitle: _tr(
-                      language,
-                      'confirm_attendance',
-                      'ស្កេន QR អង្គភាព ដើម្បីកត់វត្តមានជាមួយ GPS បច្ចុប្បន្ន។',
-                    ),
+                    totalLabel: _tr(language, 'total_hours', 'ម៉ោងសរុប'),
+                    totalHours: todayRecord?.totalHours ?? '-',
+                    punchesLabel: _tr(language, 'punches', 'ចំនួនស្កេន'),
+                    punchCount: '${todayRecord?.punchCount ?? 0}',
+                    lateLabel: _tr(language, 'late', 'យឺត'),
+                    lateMinutes: todayRecord?.lateMinutes,
+                    earlyLeaveLabel: _tr(language, 'early_leave', 'ចេញមុន'),
+                    earlyLeaveMinutes: todayRecord?.earlyLeaveMinutes,
                     buttonText: _tr(language, 'qr_scan', 'ស្កេន QR'),
                     onPressed: () => _openAttendanceScanner(language),
                   ),
-                  const SizedBox(height: 14),
-                  _AttendanceSectionHeader(
-                    title: _tr(language, 'quick_access', 'ចូលប្រើរហ័ស'),
-                    subtitle: _tr(
-                      language,
-                      'additional_services',
-                      'សេវាកម្មបន្ថែម',
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _buildAdditionalServicesGrid(language),
-                  const SizedBox(height: 14),
-                  GridView.count(
-                    crossAxisCount:
-                      MediaQuery.of(context).size.width >= 920
-                        ? 4
-                        : (MediaQuery.of(context).size.width >= 700 ? 3 : 2),
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio:
-                      MediaQuery.of(context).size.width < 390 ? 1.12 : 1.26,
-                    physics: const NeverScrollableScrollPhysics(),
-                    shrinkWrap: true,
-                    children: [
-                      _MetricCard(
-                        title: 'Total Hours',
-                        value: summary.totalHours,
-                        icon: Icons.schedule_outlined,
-                        accent: const Color(0xFF0B6B58),
+                  const SizedBox(height: 12),
+                  _DashboardQuickActions(
+                    actions: [
+                      _QuickActionItem(
+                        icon: Icons.work_outline,
+                        title: _tr(language, 'mission', 'បេសកកម្ម'),
+                        tint: const Color(0xFFEAF1FF),
+                        iconColor: const Color(0xFF5771B8),
+                        onTap: () => _openAdditionalService(_HomeMenuItem.mission, language),
                       ),
-                      _MetricCard(
-                        title: _tr(language, 'leave_remaining', 'Leave Remaining'),
-                        value: summary.remainingLeave,
-                        icon: Icons.event_available_outlined,
-                        accent: const Color(0xFF246BFD),
+                      _QuickActionItem(
+                        icon: Icons.fact_check_outlined,
+                        title: _tr(language, 'attendance_adjustment', 'កែវត្តមាន'),
+                        tint: const Color(0xFFEAF7EE),
+                        iconColor: const Color(0xFF4F9C6F),
+                        onTap: () {
+                          setState(() {
+                            _selectedMenu = _HomeMenuItem.attendance;
+                            _attendanceFuture ??= _loadAttendance();
+                          });
+                          _showServiceMessage(
+                            _tr(
+                              language,
+                              'service_adjustment_hint',
+                              'បើកប្រវត្តិវត្តមាន រួចជ្រើសថ្ងៃដើម្បីស្នើកែប្រែវត្តមាន។',
+                            ),
+                          );
+                        },
                       ),
-                      _MetricCard(
-                        title: _tr(language, 'loan_amount', 'Loan Amount'),
-                        value: summary.loanAmount,
-                        icon: Icons.credit_card_outlined,
-                        accent: const Color(0xFFD48516),
+                      _QuickActionItem(
+                        icon: Icons.event_note_outlined,
+                        title: _tr(language, 'leave_type', 'សុំច្បាប់'),
+                        tint: const Color(0xFFFFF4E5),
+                        iconColor: const Color(0xFFD79C2E),
+                        onTap: () => _openAdditionalService(
+                          _HomeMenuItem.leave,
+                          language,
+                          message: _tr(
+                            language,
+                            'service_redirect_leave',
+                            'Please submit a leave request and wait for approval.',
+                          ),
+                        ),
                       ),
-                      _MetricCard(
-                        title: _tr(language, 'notice_list', 'Notice Count'),
-                        value: summary.noticeCount.toString(),
-                        icon: Icons.campaign_outlined,
-                        accent: const Color(0xFFD34B5F),
+                      _QuickActionItem(
+                        icon: Icons.history_outlined,
+                        title: _tr(language, 'attendance_history', 'ប្រវត្តិវត្តមាន'),
+                        tint: const Color(0xFFEAF1FF),
+                        iconColor: const Color(0xFF5D79C8),
+                        onTap: () => _openAttendanceHistory(language),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _NoticePanel(
-                    title: _tr(language, 'notice_list', 'Recent Notices'),
-                    emptyText: _tr(language, 'no_notice_to_show', 'មិនទាន់មាន notice'),
-                    notices: summary.notices,
+                  _DashboardSectionRow(
+                    title: _tr(language, 'attendance_history', 'ប្រវត្តិខ្លី'),
+                    onPressed: () => _openAttendanceHistory(language),
+                  ),
+                  const SizedBox(height: 8),
+                  if (recentRecords.isEmpty)
+                    _SectionCard(
+                      title: _tr(language, 'attendance_history', 'ប្រវត្តិវត្តមាន'),
+                      description: _tr(
+                        language,
+                        'no_record_found',
+                        'មិនទាន់មានទិន្នន័យវត្តមាន',
+                      ),
+                    )
+                  else
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        mainAxisExtent: 148,
+                      ),
+                      itemCount: recentRecords.length,
+                      itemBuilder: (context, index) {
+                        final record = recentRecords[index];
+                        return _CompactAttendanceRecordCard(
+                          date: record.date,
+                          inTime: record.timeIn,
+                          outTime: record.timeOut,
+                          status: _attendanceStatusLabel(language, record.attendanceStatus),
+                          statusCode: record.attendanceStatus,
+                        );
+                      },
+                    ),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: OutlinedButton(
+                      onPressed: () => _openAttendanceHistory(language),
+                      child: Text(
+                        _tr(language, 'view_full_history', 'មើលប្រវត្តិទាំងអស់'),
+                      ),
+                    ),
                   ),
                 ],
               );
@@ -1408,33 +1484,54 @@ class _HomePageState extends State<HomePage> {
 
         return Scaffold(
           appBar: AppBar(
+            automaticallyImplyLeading: false,
             title: Text(
               _menuTitle(_selectedMenu, language),
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             actions: [
-              if (_selectedMenu == _HomeMenuItem.dashboard ||
-                  _selectedMenu == _HomeMenuItem.attendance ||
-                  _selectedMenu == _HomeMenuItem.mission)
-                IconButton(
+              if (_selectedMenu == _HomeMenuItem.dashboard) ...[
+                _TopActionIcon(
+                  icon: Icons.refresh_rounded,
                   onPressed: _refresh,
-                  icon: const Icon(Icons.refresh),
                   tooltip: 'Refresh',
                 ),
-              IconButton(
-                onPressed:
-                    authController.isSubmitting
-                        ? null
-                        : () async {
-                          await authController.logout();
-                        },
-                icon: const Icon(Icons.logout),
-                tooltip: _tr(language, 'logout', 'Logout'),
-              ),
+                const SizedBox(width: 4),
+                Builder(
+                  builder: (context) => _TopActionIcon(
+                    icon: Icons.menu_rounded,
+                    onPressed: () => Scaffold.of(context).openDrawer(),
+                    tooltip: 'Menu',
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ] else ...[
+                if (_selectedMenu == _HomeMenuItem.attendance ||
+                    _selectedMenu == _HomeMenuItem.mission)
+                  IconButton(
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Refresh',
+                  ),
+                IconButton(
+                  onPressed:
+                      authController.isSubmitting
+                          ? null
+                          : () async {
+                            await authController.logout();
+                          },
+                  icon: const Icon(Icons.logout),
+                  tooltip: _tr(language, 'logout', 'Logout'),
+                ),
+              ],
             ],
           ),
           drawer: _buildDrawer(user, language),
           body: _buildBody(user, language, theme),
+          bottomNavigationBar: _HomeBottomNavigation(
+            currentIndex: _bottomNavIndex(),
+            onTap: _onBottomNavTap,
+          ),
         );
       },
     );
@@ -1498,6 +1595,114 @@ class _DrawerMenuTile extends StatelessWidget {
   }
 }
 
+class _HomeBottomNavigation extends StatelessWidget {
+  const _HomeBottomNavigation({
+    required this.currentIndex,
+    required this.onTap,
+  });
+
+  final int currentIndex;
+  final Future<void> Function(int index) onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    final items = <({IconData icon, String label})>[
+      (icon: Icons.home_outlined, label: 'គេហទំព័រ'),
+      (icon: Icons.calendar_today_outlined, label: 'ប្រតិទិន'),
+      (icon: Icons.notifications_none_rounded, label: 'ជូនដំណឹង'),
+      (icon: Icons.settings_outlined, label: 'ការកំណត់'),
+    ];
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, bottomInset > 0 ? 8 : 16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: const Color(0xFFE3EAF0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0D14211D),
+                blurRadius: 20,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                Expanded(
+                  child: _BottomNavItem(
+                    icon: items[i].icon,
+                    label: items[i].label,
+                    active: i == currentIndex,
+                    onTap: () => onTap(i),
+                  ),
+                ),
+                if (i != items.length - 1) const SizedBox(width: 4),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomNavItem extends StatelessWidget {
+  const _BottomNavItem({
+    required this.icon,
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: active ? const Color(0xFFEAF6EF) : Colors.transparent,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 22,
+                color: active ? const Color(0xFF2E7D61) : const Color(0xFF758695),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: active ? const Color(0xFF2E7D61) : const Color(0xFF758695),
+                  fontSize: 11.5,
+                  fontWeight: active ? FontWeight.w800 : FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.title, required this.description});
 
@@ -1552,77 +1757,579 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
+class _TopActionIcon extends StatelessWidget {
+  const _TopActionIcon({
+    required this.icon,
+    required this.onPressed,
+    required this.tooltip,
+  });
+
+  final IconData icon;
+  final VoidCallback onPressed;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      style: IconButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF53687A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      icon: Icon(icon),
+    );
+  }
+}
+
+class _DashboardSectionRow extends StatelessWidget {
+  const _DashboardSectionRow({required this.title, required this.onPressed});
+
+  final String title;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFF10211B),
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: onPressed,
+          icon: const Icon(Icons.chevron_right_rounded),
+          color: const Color(0xFF6B7E8C),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickActionItem {
+  const _QuickActionItem({
+    required this.icon,
     required this.title,
+    required this.tint,
+    required this.iconColor,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final Color tint;
+  final Color iconColor;
+  final VoidCallback onTap;
+}
+
+class _DashboardQuickActions extends StatelessWidget {
+  const _DashboardQuickActions({required this.actions});
+
+  final List<_QuickActionItem> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < actions.length; i++) ...[
+          Expanded(child: _QuickActionShortcut(item: actions[i])),
+          if (i != actions.length - 1) const SizedBox(width: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _QuickActionShortcut extends StatelessWidget {
+  const _QuickActionShortcut({required this.item});
+
+  final _QuickActionItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: item.onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE4EAEE)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A14211D),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: item.tint,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(item.icon, color: item.iconColor, size: 19),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                item.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF425566),
+                  fontSize: 11.5,
+                  height: 1.35,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardTodayCard extends StatelessWidget {
+  const _DashboardTodayCard({
+    required this.title,
+    required this.shiftLabel,
+    required this.shiftValue,
+    required this.statusLabel,
+    required this.statusValue,
+    required this.inTimeLabel,
+    required this.inTime,
+    required this.outTimeLabel,
+    required this.outTime,
+    required this.totalLabel,
+    required this.totalHours,
+    required this.punchesLabel,
+    required this.punchCount,
+    required this.lateLabel,
+    required this.lateMinutes,
+    required this.earlyLeaveLabel,
+    required this.earlyLeaveMinutes,
+    required this.buttonText,
+    required this.onPressed,
+  });
+
+  final String title;
+  final String shiftLabel;
+  final String shiftValue;
+  final String statusLabel;
+  final String statusValue;
+  final String inTimeLabel;
+  final String inTime;
+  final String outTimeLabel;
+  final String outTime;
+  final String totalLabel;
+  final String totalHours;
+  final String punchesLabel;
+  final String punchCount;
+  final String lateLabel;
+  final int? lateMinutes;
+  final String earlyLeaveLabel;
+  final int? earlyLeaveMinutes;
+  final String buttonText;
+  final VoidCallback onPressed;
+
+  Color _statusTone() {
+    final normalized = statusValue.trim().toLowerCase();
+    if (normalized.contains('late') || normalized.contains('យឺត')) {
+      return const Color(0xFFCC7A1B);
+    }
+    if (normalized.contains('absent') || normalized.contains('អវត្តមាន')) {
+      return const Color(0xFFB91C1C);
+    }
+    return const Color(0xFF2E7D61);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusTone();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE4EAEE)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A14211D),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.check_circle, color: Color(0xFF2E7D61), size: 22),
+                const SizedBox(width: 8),
+                Text(
+                  '$title :',
+                  style: const TextStyle(
+                    color: Color(0xFF173B33),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFF1F8F5), Color(0xFFF7FBFA)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _TodayPrimaryMetric(
+                          label: shiftLabel,
+                          value: inTime,
+                          icon: Icons.calendar_today_outlined,
+                          accent: const Color(0xFF2D7864),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _TodayPrimaryMetric(
+                          label: outTimeLabel,
+                          value: outTime,
+                          icon: Icons.logout_rounded,
+                          accent: const Color(0xFF7A8B98),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _TodaySecondaryLine(
+                          label: shiftLabel,
+                          value: shiftValue,
+                          valueColor: const Color(0xFF35576A),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _TodaySecondaryLine(
+                          label: totalLabel,
+                          value: totalHours,
+                          valueColor: const Color(0xFF35576A),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _TodaySecondaryLine(
+                          label: lateLabel,
+                          value: '${lateMinutes ?? 0} នាទី',
+                          valueColor: const Color(0xFFD16D61),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _TodaySecondaryLine(
+                          label: earlyLeaveLabel,
+                          value: '${earlyLeaveMinutes ?? 0} នាទី',
+                          valueColor: const Color(0xFFD16D61),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '$statusLabel: $statusValue',
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Text(
+                  '$punchesLabel: $punchCount',
+                  style: const TextStyle(
+                    color: Color(0xFF718392),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: onPressed,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF5FA47B),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+                icon: const Icon(Icons.qr_code_scanner_rounded),
+                label: Text(buttonText),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TodayPrimaryMetric extends StatelessWidget {
+  const _TodayPrimaryMetric({
+    required this.label,
     required this.value,
     required this.icon,
     required this.accent,
   });
 
-  final String title;
+  final String label;
   final String value;
   final IconData icon;
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [accent.withAlpha(22), Colors.white, const Color(0xFFF8FBFA)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: accent.withAlpha(40)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0D14211D),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: accent.withAlpha(30),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: accent, size: 22),
-            ),
-            const Spacer(),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: const Color(0xFF10211B),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: const Color(0xFF5C7068),
-                fontWeight: FontWeight.w700,
+            Icon(icon, size: 16, color: accent),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF49606A),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
               ),
             ),
           ],
         ),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Color(0xFF16362F),
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TodaySecondaryLine extends StatelessWidget {
+  const _TodaySecondaryLine({
+    required this.label,
+    required this.value,
+    required this.valueColor,
+  });
+
+  final String label;
+  final String value;
+  final Color valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(fontFamilyFallback: ['Noto Sans Khmer', 'Public Sans']),
+        children: [
+          TextSpan(
+            text: '$label: ',
+            style: const TextStyle(
+              color: Color(0xFF718392),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          TextSpan(
+            text: value,
+            style: TextStyle(
+              color: valueColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+class _CompactAttendanceRecordCard extends StatelessWidget {
+  const _CompactAttendanceRecordCard({
+    required this.date,
+    required this.inTime,
+    required this.outTime,
+    required this.status,
+    required this.statusCode,
+  });
+
+  final String date;
+  final String inTime;
+  final String outTime;
+  final String status;
+  final String? statusCode;
+
+  Color _badgeColor() {
+    final normalized = statusCode?.trim().toLowerCase() ?? '';
+    if (normalized == 'on_time' || normalized == 'present' || normalized == 'p') {
+      return const Color(0xFF2E7D61);
+    }
+    if (normalized.contains('late') || normalized == 'l') {
+      return const Color(0xFFCC7A1B);
+    }
+    if (normalized.contains('leave') || normalized == 'lv') {
+      return const Color(0xFF7252B8);
+    }
+    return const Color(0xFF5D79C8);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final badgeColor = _badgeColor();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE4EAEE)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A14211D),
+            blurRadius: 12,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            date,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF233744),
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _CompactHistoryLine(label: 'ចូល', value: inTime),
+          const SizedBox(height: 4),
+          _CompactHistoryLine(label: 'ចេញ', value: outTime),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: badgeColor.withAlpha(18),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              status,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: badgeColor,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactHistoryLine extends StatelessWidget {
+  const _CompactHistoryLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          '$label: ',
+          style: const TextStyle(
+            color: Color(0xFF7A8B98),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF233744),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1747,108 +2454,6 @@ class _WelcomePanel extends StatelessWidget {
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NoticePanel extends StatelessWidget {
-  const _NoticePanel({
-    required this.title,
-    required this.emptyText,
-    required this.notices,
-  });
-
-  final String title;
-  final String emptyText;
-  final List<String> notices;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE3ECE7)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A14211D),
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFEEF1),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(
-                    Icons.campaign_outlined,
-                    color: Color(0xFFD34B5F),
-                    size: 19,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      color: const Color(0xFF14211D),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (notices.isEmpty)
-              Text(
-                emptyText,
-                style: const TextStyle(
-                  color: Color(0xFF60736A),
-                  fontWeight: FontWeight.w600,
-                ),
-              )
-            else
-              ...notices.map(
-                (notice) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.fiber_manual_record,
-                        size: 8,
-                        color: Color(0xFFD34B5F),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          notice,
-                          style: const TextStyle(
-                            color: Color(0xFF24332E),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
           ],
         ),
       ),
