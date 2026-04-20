@@ -66,8 +66,7 @@ class ApiConfig {
   static Future<void> saveConfiguredBaseUrls(List<String> values) async {
     final normalized = _dedupe(
       values
-          .map(normalizeBaseUrl)
-          .whereType<String>()
+          .expand(_expandBaseUrlsFromInput)
           .toList(growable: false),
     );
 
@@ -114,8 +113,7 @@ class ApiConfig {
   static List<String> normalizeConfiguredBaseUrls(String raw) {
     final parts = raw
         .split(RegExp(r'[,;\n]'))
-        .map(normalizeBaseUrl)
-        .whereType<String>()
+        .expand(_expandBaseUrlsFromInput)
         .toList(growable: false);
 
     if (parts.isEmpty) {
@@ -126,9 +124,18 @@ class ApiConfig {
   }
 
   static String? normalizeBaseUrl(String raw) {
+    final expanded = _expandBaseUrlsFromInput(raw);
+    if (expanded.isEmpty) {
+      return null;
+    }
+
+    return expanded.first;
+  }
+
+  static List<String> _expandBaseUrlsFromInput(String raw) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) {
-      return null;
+      return const <String>[];
     }
 
     final withScheme = RegExp(r'^https?://', caseSensitive: false).hasMatch(trimmed)
@@ -137,35 +144,46 @@ class ApiConfig {
 
     final parsed = Uri.tryParse(withScheme);
     if (parsed == null || parsed.host.trim().isEmpty) {
-      return null;
+      return const <String>[];
     }
 
-    final segments = parsed.pathSegments
+    final scheme = parsed.scheme.isEmpty ? 'http' : parsed.scheme;
+    final authority = parsed.hasPort
+        ? '$scheme://${parsed.host}:${parsed.port}'
+        : '$scheme://${parsed.host}';
+    final pathSegments = parsed.pathSegments
         .where((segment) => segment.trim().isNotEmpty)
-        .toList(growable: true);
+        .toList(growable: false);
 
-    if (segments.isEmpty) {
-      segments.add('api');
+    final candidates = <String>[];
+
+    if (pathSegments.isEmpty) {
+      // Most operators enter only host/IP. Provide practical project defaults.
+      candidates.add('$authority/PHDHRM/backend/api');
+      candidates.add('$authority/api');
+      if (!parsed.hasPort) {
+        candidates.add('$scheme://${parsed.host}:8000/api');
+      }
     } else {
-      final lastSegment = segments.last.toLowerCase();
-      if (lastSegment != 'api') {
-        if (lastSegment == 'backend') {
-          segments.add('api');
-        } else {
-          segments.add('api');
-        }
+      final joinedPath = '/${pathSegments.join('/')}';
+      final normalizedPath = joinedPath.endsWith('/')
+          ? joinedPath.substring(0, joinedPath.length - 1)
+          : joinedPath;
+
+      if (pathSegments.last.toLowerCase() == 'api') {
+        candidates.add('$authority$normalizedPath');
+      } else {
+        candidates.add('$authority$normalizedPath/api');
+      }
+
+      if (!parsed.hasPort &&
+          pathSegments.length >= 2 &&
+          pathSegments[pathSegments.length - 2].toLowerCase() == 'backend') {
+        candidates.add('$scheme://${parsed.host}:8000/api');
       }
     }
 
-    final normalized = parsed.replace(
-      pathSegments: segments,
-      query: null,
-      fragment: null,
-    ).toString();
-
-    return normalized.endsWith('/')
-        ? normalized.substring(0, normalized.length - 1)
-        : normalized;
+    return _dedupe(candidates);
   }
 
   static List<String> _dedupe(List<String> values) {

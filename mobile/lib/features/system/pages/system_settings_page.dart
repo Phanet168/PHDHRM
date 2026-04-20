@@ -395,7 +395,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'កំណត់ URL Server និងអាចតេស្តការតភ្ជាប់បាន។',
+                  'កំណត់ URL Server និងអាចតេស្តការតភ្ជាប់បាន (វាយតែ IP/Domain ក៏បាន)។',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: const Color(0xFF5D6D65),
                   ),
@@ -413,7 +413,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                   decoration: const InputDecoration(
                     labelText: 'Server URL(s)',
                     hintText:
-                        'phdhrm.local/PHDHRM/backend\nphdhrm.local:8000\n192.168.1.9/PHDHRM/backend',
+                        '192.168.1.9\nphdhrm.local\n192.168.1.9/PHDHRM/backend\nphdhrm.local:8000',
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -515,13 +515,14 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                       children: [
                         TextButton.icon(
                           onPressed: () async {
+                            final messenger = ScaffoldMessenger.of(context);
                             await Clipboard.setData(
                               ClipboardData(text: machineNumber),
                             );
                             if (!mounted) {
                               return;
                             }
-                            ScaffoldMessenger.of(context)
+                            messenger
                               ..hideCurrentSnackBar()
                               ..showSnackBar(
                                 const SnackBar(
