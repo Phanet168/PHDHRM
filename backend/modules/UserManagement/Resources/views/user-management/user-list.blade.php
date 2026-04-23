@@ -11,8 +11,8 @@
                     </div>
                     <div class="text-end">
                         <div class="actions">
-                            <a href="{{ route('user-org-roles.index') }}" class="btn btn-info btn-sm">
-                                <i class="fa fa-sitemap"></i>&nbsp;{{ localize('org_role_management', 'គ្រប់គ្រងតួនាទីតាមអង្គភាព') }}
+                            <a href="{{ route('user-assignments.index') }}" class="btn btn-info btn-sm">
+                                <i class="fa fa-user-check"></i>&nbsp;{{ localize('user_assignments', 'User Assignments') }}
                             </a>
 
                             <a href="#" class="btn btn-success btn-sm" data-bs-toggle="modal"
@@ -53,3 +53,4 @@
     @endphp
     <script src="{{ module_asset('UserManagement/js/userList.js') }}&t={{ $userListScriptVersion }}"></script>
 @endpush
+

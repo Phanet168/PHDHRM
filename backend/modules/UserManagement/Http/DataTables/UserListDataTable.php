@@ -30,26 +30,87 @@ class UserListDataTable extends DataTable
                 return $role;
             })
             ->addColumn('user_org_roles', function ($data) {
-                $labels = [
-                    UserOrgRole::ROLE_HEAD => localize('head_of_unit', 'Head of Unit'),
-                    UserOrgRole::ROLE_DEPUTY_HEAD => localize('deputy_head', 'Deputy Head'),
-                    UserOrgRole::ROLE_MANAGER => localize('manager', 'Manager'),
-                ];
-
-                $html = '';
-                $roles = collect($data->orgRoles ?? [])
+                $assignment = $data->primaryActiveAssignment;
+                $legacyRoles = collect($data->orgRoles ?? [])
                     ->filter(function ($role) {
-                        return (bool) ($role->is_active ?? false);
-                    })
-                    ->sortBy(function ($role) {
-                        return (string) ($role->org_role ?? '');
+                        if (!(bool) ($role->is_active ?? false)) {
+                            return false;
+                        }
+
+                        $today = now()->toDateString();
+                        $from = !empty($role->effective_from) ? (string) $role->effective_from->toDateString() : null;
+                        $to = !empty($role->effective_to) ? (string) $role->effective_to->toDateString() : null;
+
+                        if ($from && $from > $today) {
+                            return false;
+                        }
+                        if ($to && $to < $today) {
+                            return false;
+                        }
+
+                        return true;
                     })
                     ->values();
 
-                foreach ($roles as $role) {
-                    $name = $labels[(string) ($role->org_role ?? '')] ?? (string) ($role->org_role ?? '-');
-                    $unit = (string) optional($role->department)->department_name;
-                    $html .= '<span class="badge bg-info rounded-pill me-1 mb-1">' . e(trim($name . ($unit !== '' ? ' - ' . $unit : ''))) . '</span>';
+                if (!$assignment) {
+                    $html = '<span class="text-muted">-</span>';
+                    if ($legacyRoles->isNotEmpty()) {
+                        $html .= '<div class="small text-warning mt-1">' . e(localize(
+                            'assignment_sync_notice_missing_primary',
+                            'Sync notice: canonical primary assignment is missing while legacy assignment exists.'
+                        )) . '</div>';
+                    }
+
+                    return $html;
+                }
+
+                $responsibilityLabel = '-';
+                $responsibilityCode = '';
+                if ($assignment->responsibility) {
+                    $responsibilityLabel = (string) ($assignment->responsibility->name_km ?: $assignment->responsibility->name);
+                    $responsibilityCode = (string) ($assignment->responsibility->code ?? '');
+                }
+
+                $departmentName = (string) optional($assignment->department)->department_name;
+                $scopeType = (string) ($assignment->scope_type ?? '');
+                $scopeLabel = match ($scopeType) {
+                    'self_only', 'self' => localize('scope_self_only', 'Self only'),
+                    'self_unit_only' => localize('scope_self_unit_only', 'Self unit only'),
+                    'self_and_children' => localize('scope_self_and_children', 'Self and children'),
+                    'all' => localize('scope_all', 'All'),
+                    default => $scopeType,
+                };
+
+                $html = '';
+                $html .= '<span class="badge bg-info rounded-pill me-1 mb-1">' . e($responsibilityLabel) . '</span>';
+                if ($departmentName !== '') {
+                    $html .= '<span class="badge bg-primary rounded-pill me-1 mb-1">' . e($departmentName) . '</span>';
+                }
+                if ($scopeLabel !== '') {
+                    $html .= '<span class="badge bg-secondary rounded-pill me-1 mb-1">' . e($scopeLabel) . '</span>';
+                }
+                if ((bool) ($assignment->is_primary ?? false)) {
+                    $html .= '<span class="badge bg-success rounded-pill me-1 mb-1">' . e(localize('primary', 'Primary')) . '</span>';
+                }
+
+                $matchedLegacy = $legacyRoles->contains(function ($role) use ($assignment, $responsibilityCode, $scopeType) {
+                    $legacyCode = (string) $role->getEffectiveRoleCode();
+                    $legacyScope = (string) ($role->scope_type ?? '');
+                    if ($legacyScope === 'self') {
+                        $legacyScope = 'self_only';
+                    }
+                    $targetScope = $scopeType === 'self' ? 'self_only' : $scopeType;
+
+                    return (int) ($role->department_id ?? 0) === (int) ($assignment->department_id ?? 0)
+                        && $legacyCode === $responsibilityCode
+                        && $legacyScope === $targetScope;
+                });
+
+                if (!$matchedLegacy) {
+                    $html .= '<div class="small text-warning mt-1">' . e(localize(
+                        'assignment_sync_notice_mismatch',
+                        'Sync notice: canonical assignment differs from legacy mapping.'
+                    )) . '</div>';
                 }
 
                 return $html !== '' ? $html : '<span class="text-muted">-</span>';
@@ -107,7 +168,12 @@ class UserListDataTable extends DataTable
 
             ->addColumn('action', function ($data) {
                 $button = '';
-                $button .= '<a href="' . route('user-org-roles.index', ['user_id' => $data->id]) . '" class="btn btn-info-soft btn-sm me-1" title="' . e(localize('org_role_management', 'Org Role Management')) . '"><i class="fa fa-sitemap"></i></a>';
+                $canViewOrgGovernance = auth()->check()
+                    && (auth()->user()->can('read_org_governance') || auth()->user()->can('read_department'));
+                if ($canViewOrgGovernance) {
+                    $button .= '<a href="' . route('user-assignments.index', ['user_id' => $data->id]) . '" class="btn btn-info-soft btn-sm me-1" title="' . e(localize('user_assignments', 'User Assignments')) . '"><i class="fa fa-user-check"></i></a>';
+                    $button .= '<a href="' . route('user-org-roles.index', ['user_id' => $data->id]) . '" class="btn btn-warning-soft btn-sm me-1" title="' . e(localize('legacy_org_roles', 'Legacy Org Roles')) . '"><i class="fa fa-history"></i></a>';
+                }
                 $button .= '<button onclick="detailsView(' . $data->id . ')" id="detailsView-' . $data->id . '" data-url="' . route('role.user.edit', $data->id) . '" class="btn btn-success-soft btn-sm me-1" ><i class="fa fa-edit"></i></button>';
 
                 $button .= '<button onclick="deleteUser(' . $data->id . ')" id="deleteUser' . $data->id . '"  data-user_delete_url="' . route('role.user.delete') . '" class="btn btn-danger-soft btn-sm me-1"><i class="fa fa-trash"></i></button>';
@@ -125,7 +191,14 @@ class UserListDataTable extends DataTable
     public function query(User $model): QueryBuilder
     {
         return $model->newQuery()
-            ->with(['userRole', 'orgRoles.department'])
+            ->with([
+                'userRole',
+                'orgRoles.department',
+                'orgRoles.systemRole',
+                'primaryActiveAssignment.department',
+                'primaryActiveAssignment.position',
+                'primaryActiveAssignment.responsibility',
+            ])
             ->withCount([
                 'mobileDeviceRegistrations as devices_total_count',
                 'mobileDeviceRegistrations as devices_pending_count' => function ($query) {
@@ -198,7 +271,7 @@ class UserListDataTable extends DataTable
                 ->title(localize('role'))
                 ->searchable(true),
             Column::make('user_org_roles')
-                ->title(localize('org_role_management', 'Org Role Management'))
+                ->title(localize('governance_assignment', 'Governance Assignment'))
                 ->searchable(false),
             Column::make('image')
                 ->addClass('text-center')
