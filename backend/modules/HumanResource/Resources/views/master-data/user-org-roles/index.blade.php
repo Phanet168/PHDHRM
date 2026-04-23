@@ -5,11 +5,12 @@
     @include('backend.layouts.common.validation')
 
     @php
-        $roleLabels = [
+        $defaultRoleLabels = [
             'head' => localize('head_of_unit', 'ប្រធានអង្គភាព'),
             'deputy_head' => localize('deputy_head', 'អនុប្រធានអង្គភាព'),
             'manager' => localize('manager', 'អ្នកគ្រប់គ្រង/ប្រធានការិយាល័យ'),
         ];
+        $roleLabels = array_merge($defaultRoleLabels, is_array($role_labels ?? null) ? $role_labels : []);
 
         $scopeLabels = [
             'self_only' => localize('self_unit_only', 'តែអង្គភាពខ្លួនឯង'),
@@ -28,19 +29,33 @@
                 </div>
                 <div class="text-end">
                     <div class="actions">
-                        @can('create_department')
+                        <a href="{{ $canonical_assignments_route }}" class="btn btn-info btn-sm me-1">
+                            <i class="fa fa-user-check"></i>&nbsp;{{ localize('open_user_assignments', 'Open User Assignments') }}
+                        </a>
+                        @canany(['create_org_governance', 'create_department'])
+                            @if (!($legacy_read_only ?? false))
                             <a href="#" id="open-create-org-role" class="btn btn-success btn-sm" data-bs-toggle="modal"
                                 data-bs-target="#create-user-org-role">
                                 <i class="fa fa-plus-circle"></i>&nbsp;{{ localize('add', 'បន្ថែម') }}
                             </a>
                             @include('humanresource::master-data.user-org-roles.modal.create')
-                        @endcan
+                            @endif
+                        @endcanany
                     </div>
                 </div>
             </div>
         </div>
 
         <div class="card-body">
+            @if ($legacy_read_only ?? false)
+                <div class="alert alert-warning mb-3">
+                    <div class="fw-semibold mb-1">{{ localize('legacy_screen_notice', 'Legacy screen notice') }}</div>
+                    <div>
+                        {{ localize('legacy_screen_notice_desc', 'This page is in transition mode. Please use User Assignments for create/update actions. Legacy rows remain visible for backward compatibility.') }}
+                    </div>
+                </div>
+            @endif
+
             <div class="alert alert-info mb-3">
                 <div class="fw-semibold mb-1">{{ localize('org_role_quick_guide', 'ការណែនាំខ្លី') }}</div>
                 <div>{{ localize('org_role_guide_1', '១) ជ្រើសអ្នកប្រើ និងអង្គភាព') }}</div>
@@ -108,7 +123,10 @@
                                     <small class="text-muted">{{ $item->user?->email ?? '-' }}</small>
                                 </td>
                                 <td>{{ $item->department?->department_name ?? '-' }}</td>
-                                <td>{{ $roleLabels[$item->org_role] ?? $item->org_role }}</td>
+                                @php
+                                    $effectiveRoleCode = $item->systemRole?->code ?: $item->org_role;
+                                @endphp
+                                <td>{{ $roleLabels[$effectiveRoleCode] ?? $effectiveRoleCode }}</td>
                                 <td>{{ $scopeLabels[$item->scope_type] ?? $item->scope_type }}</td>
                                 <td>
                                     {{ optional($item->effective_from)->format('d/m/Y') ?? '-' }}
@@ -125,20 +143,24 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @can('update_department')
-                                        <a href="#" class="btn btn-primary-soft btn-sm me-1" data-bs-toggle="modal"
-                                            data-bs-target="#update-user-org-role-{{ $item->id }}"
-                                            title="{{ localize('edit', 'កែប្រែ') }}"><i class="fa fa-edit"></i></a>
-                                        @include('humanresource::master-data.user-org-roles.modal.edit')
-                                    @endcan
-                                    @can('delete_department')
-                                        <a href="javascript:void(0)" class="btn btn-danger-soft btn-sm delete-confirm"
-                                            data-bs-toggle="tooltip" title="{{ localize('delete', 'លុប') }}"
-                                            data-route="{{ route('user-org-roles.destroy', $item->uuid) }}"
-                                            data-csrf="{{ csrf_token() }}">
-                                            <i class="fa fa-trash"></i>
-                                        </a>
-                                    @endcan
+                                    @if ($legacy_read_only ?? false)
+                                        <span class="text-muted">-</span>
+                                    @else
+                                        @canany(['update_org_governance', 'update_department'])
+                                            <a href="#" class="btn btn-primary-soft btn-sm me-1" data-bs-toggle="modal"
+                                                data-bs-target="#update-user-org-role-{{ $item->id }}"
+                                                title="{{ localize('edit', 'កែប្រែ') }}"><i class="fa fa-edit"></i></a>
+                                            @include('humanresource::master-data.user-org-roles.modal.edit')
+                                        @endcanany
+                                        @canany(['delete_org_governance', 'delete_department'])
+                                            <a href="javascript:void(0)" class="btn btn-danger-soft btn-sm delete-confirm"
+                                                data-bs-toggle="tooltip" title="{{ localize('delete', 'លុប') }}"
+                                                data-route="{{ route('user-org-roles.destroy', $item->uuid) }}"
+                                                data-csrf="{{ csrf_token() }}">
+                                                <i class="fa fa-trash"></i>
+                                            </a>
+                                        @endcanany
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

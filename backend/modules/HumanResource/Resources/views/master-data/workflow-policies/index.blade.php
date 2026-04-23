@@ -6,21 +6,6 @@
     @include('backend.layouts.common.message')
 
     @php
-        $defaultStep = [
-            'step_order' => 1,
-            'step_key' => '',
-            'step_name' => '',
-            'action_type' => 'approve',
-            'org_role' => 'manager',
-            'scope_type' => 'self_and_children',
-            'is_final_approval' => 1,
-            'is_required' => 1,
-            'can_return' => 1,
-            'can_reject' => 1,
-        ];
-        $actionTypeLabels = is_array($action_type_labels) ? $action_type_labels : $action_type_labels->toArray();
-        $orgRoleLabels = is_array($org_role_labels) ? $org_role_labels : $org_role_labels->toArray();
-        $scopeTypeLabels = is_array($scope_type_labels) ? $scope_type_labels : $scope_type_labels->toArray();
         $formatKey = function (?string $key): string {
             $key = (string) $key;
             if ($key === '') {
@@ -28,47 +13,60 @@
             }
             return ucwords(str_replace(['_', '-', '.'], ' ', $key));
         };
-        $conditionLabelMap = [
-            'days' => localize('days', 'Days'),
-            'min_days' => localize('min_days', 'Minimum days'),
-            'max_days' => localize('max_days', 'Maximum days'),
-            'employee_type_id' => localize('employee_type', 'Employee type'),
-            'employee_type_code' => localize('employee_type_code', 'Employee type code'),
-            'org_unit_type_id' => localize('org_unit_type', 'Org unit type'),
-            'org_unit_type_code' => localize('org_unit_type_code', 'Org unit type code'),
-            'is_full_right' => localize('full_right_status', 'Full-right status'),
-        ];
-        $formatConditionValue = function ($value): string {
-            if (is_bool($value)) {
-                return $value ? localize('yes', 'Yes') : localize('no', 'No');
-            }
-            if (is_array($value)) {
-                return json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-            }
-            return (string) $value;
-        };
+        $actorTypeLabels = is_array($actor_type_labels ?? null) ? $actor_type_labels : [];
+        $scopeTypeLabels = is_array($scope_type_labels ?? null) ? $scope_type_labels : [];
+        $actionTypeLabels = is_array($action_type_labels ?? null) ? $action_type_labels : [];
+        $moduleOptions = is_array($module_options ?? null) ? $module_options : [];
+        $requestTypeOptions = is_array($request_type_options ?? null) ? $request_type_options : [];
+        $requestTypeOptionsByModule = is_array($request_type_options_by_module ?? null) ? $request_type_options_by_module : [];
+        $moduleLabels = is_array($module_labels ?? null) ? $module_labels : [];
+        $requestTypeLabels = is_array($request_type_labels ?? null) ? $request_type_labels : [];
+        $policyTemplates = is_array($policy_templates ?? null) ? $policy_templates : [];
+
+        $responsibilities = collect($responsibilities ?? [])->map(function ($item) {
+            return [
+                'id' => (int) $item->id,
+                'code' => (string) $item->code,
+                'label' => (string) ($item->name_km ?: $item->name),
+            ];
+        })->values();
+        $positions = collect($positions ?? [])->map(function ($item) {
+            return [
+                'id' => (int) $item->id,
+                'label' => (string) ($item->position_name_km ?: $item->position_name),
+            ];
+        })->values();
+        $spatieRoles = collect($spatie_roles ?? [])->map(function ($item) {
+            return [
+                'id' => (int) $item->id,
+                'label' => (string) $item->name,
+            ];
+        })->values();
     @endphp
 
     <div class="card mb-4 fixed-tab-body">
         <div class="card-header d-flex justify-content-between align-items-center">
             <div>
                 <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('workflow_policy_matrix', 'Workflow Policy Matrix') }}</h6>
-                <small class="text-muted">{{ localize('workflow_policy_matrix_desc', 'Central approval rules by module + request type + condition.') }}</small>
+                <small class="text-muted">
+                    {{ localize('workflow_actor_based_desc', 'Actor-based approval steps: specific user > position > responsibility > spatie role (fallback).') }}
+                </small>
             </div>
-            @can('create_department')
+            @canany(['create_org_governance', 'create_department'])
                 <button type="button" class="btn btn-success btn-sm workflow-policy-create-btn" data-bs-toggle="modal"
                     data-bs-target="#workflow-policy-modal">
                     <i class="fa fa-plus-circle"></i>&nbsp;{{ localize('add', 'Add') }}
                 </button>
-            @endcan
+            @endcanany
         </div>
         <div class="card-body">
             <div class="alert alert-info py-2 mb-3">
                 <div class="small mb-0">
                     <strong>{{ localize('quick_guide', 'Quick guide') }}:</strong>
                     1) {{ localize('select_module_and_type', 'Select module + request type') }}
-                    &nbsp;→&nbsp;2) {{ localize('set_approval_steps', 'Set approval steps') }}
-                    &nbsp;→&nbsp;3) {{ localize('save_and_test', 'Save and test') }}
+                    &nbsp;->&nbsp;2) {{ localize('set_actor_steps', 'Set step actor type + target') }}
+                    &nbsp;->&nbsp;3) {{ localize('preview_resolution', 'Preview resolution') }}
+                    &nbsp;->&nbsp;4) {{ localize('save', 'Save') }}
                 </div>
             </div>
 
@@ -76,29 +74,33 @@
                 <div class="row g-2 align-items-end">
                     <div class="col-md-4">
                         <label class="form-label mb-1">{{ localize('module', 'Module') }}</label>
-                        <select name="module_key" class="form-control select-basic-single">
+                        <select name="module_key" id="wf-filter-module-key" class="form-control select-basic-single">
                             <option value="">{{ localize('all', 'All') }}</option>
-                            @foreach ($module_options as $moduleKey)
+                            @foreach ($moduleOptions as $moduleKey)
                                 <option value="{{ $moduleKey }}" @selected($selected_module_key === $moduleKey)>
-                                    {{ $formatKey($moduleKey) }} ({{ $moduleKey }})
+                                    {{ $moduleLabels[$moduleKey] ?? $formatKey($moduleKey) }} ({{ $moduleKey }})
                                 </option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label mb-1">{{ localize('request_type', 'Request Type') }}</label>
-                        <select name="request_type_key" class="form-control select-basic-single">
+                        <select name="request_type_key" id="wf-filter-request-type-key" class="form-control select-basic-single">
                             <option value="">{{ localize('all', 'All') }}</option>
-                            @foreach ($request_type_options as $requestTypeKey)
+                            @foreach (($selected_module_key !== '' ? ($requestTypeOptionsByModule[$selected_module_key] ?? $requestTypeOptions) : $requestTypeOptions) as $requestTypeKey)
                                 <option value="{{ $requestTypeKey }}" @selected($selected_request_type_key === $requestTypeKey)>
-                                    {{ $formatKey($requestTypeKey) }} ({{ $requestTypeKey }})
+                                    {{ $requestTypeLabels[$requestTypeKey] ?? $formatKey($requestTypeKey) }} ({{ $requestTypeKey }})
                                 </option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-md-4 text-md-end">
-                        <button type="submit" class="btn btn-primary btn-sm"><i class="fa fa-search"></i>&nbsp;{{ localize('filter', 'Filter') }}</button>
-                        <a href="{{ route('workflow-policies.index') }}" class="btn btn-secondary btn-sm">{{ localize('reset', 'Reset') }}</a>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="fa fa-search"></i>&nbsp;{{ localize('filter', 'Filter') }}
+                        </button>
+                        <a href="{{ route('workflow-policies.index') }}" class="btn btn-secondary btn-sm">
+                            {{ localize('reset', 'Reset') }}
+                        </a>
                     </div>
                 </div>
             </form>
@@ -108,34 +110,38 @@
                     <thead>
                         <tr>
                             <th width="4%">SL</th>
-                            <th width="9%">{{ localize('module', 'Module') }}</th>
+                            <th width="10%">{{ localize('module', 'Module') }}</th>
                             <th width="10%">{{ localize('request_type', 'Request Type') }}</th>
-                            <th width="11%">{{ localize('policy_name', 'Policy name') }}</th>
+                            <th width="12%">{{ localize('policy_name', 'Policy name') }}</th>
                             <th width="6%">{{ localize('priority', 'Priority') }}</th>
-                            <th width="18%">{{ localize('condition', 'Condition') }}</th>
-                            <th width="24%">{{ localize('approval_steps', 'Approval steps') }}</th>
-                            <th width="6%">{{ localize('status', 'Status') }}</th>
-                            <th width="12%">{{ localize('action', 'Action') }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                            <th width="30%">{{ localize('approval_steps', 'Approval steps') }}</th>
+                            <th width="8%">{{ localize('status', 'Status') }}</th>
+                            <th width="10%">{{ localize('action', 'Action') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
                         @forelse ($definitions as $item)
                             @php
-                                $stepsPayload = $item->steps
-                                    ->map(fn($s) => [
+                                $stepsPayload = $item->steps->map(function ($s) {
+                                    return [
                                         'step_order' => (int) $s->step_order,
                                         'step_key' => (string) ($s->step_key ?? ''),
                                         'step_name' => (string) $s->step_name,
                                         'action_type' => (string) $s->action_type,
-                                        'org_role' => (string) $s->org_role,
+                                        'actor_type' => method_exists($s, 'getEffectiveActorType') ? (string) $s->getEffectiveActorType() : (string) ($s->actor_type ?? 'responsibility'),
+                                        'actor_user_id' => !empty($s->actor_user_id) ? (int) $s->actor_user_id : null,
+                                        'actor_position_id' => !empty($s->actor_position_id) ? (int) $s->actor_position_id : null,
+                                        'actor_responsibility_id' => !empty($s->actor_responsibility_id) ? (int) $s->actor_responsibility_id : null,
+                                        'actor_role_id' => !empty($s->actor_role_id) ? (int) $s->actor_role_id : null,
+                                        'org_role' => (string) ($s->org_role ?? ''),
+                                        'system_role_id' => !empty($s->system_role_id) ? (int) $s->system_role_id : null,
                                         'scope_type' => (string) $s->scope_type,
                                         'is_final_approval' => (int) $s->is_final_approval,
                                         'is_required' => (int) $s->is_required,
                                         'can_return' => (int) $s->can_return,
                                         'can_reject' => (int) $s->can_reject,
-                                    ])
-                                    ->values()
-                                    ->all();
+                                    ];
+                                })->values()->all();
                             @endphp
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
@@ -150,33 +156,33 @@
                                 <td>{{ $item->name }}</td>
                                 <td>{{ $item->priority }}</td>
                                 <td>
-                                    @if (!empty($item->condition_json))
-                                        <ul class="list-unstyled small mb-0">
-                                            @foreach ($item->condition_json as $conditionKey => $conditionValue)
-                                                <li>
-                                                    <span class="text-muted">
-                                                        {{ $conditionLabelMap[$conditionKey] ?? $formatKey($conditionKey) }}:
-                                                    </span>
-                                                    <span class="fw-semibold">{{ $formatConditionValue($conditionValue) }}</span>
-                                                </li>
-                                            @endforeach
-                                        </ul>
-                                    @else
-                                        <span class="text-muted">-</span>
-                                    @endif
-                                </td>
-                                <td>
                                     @if ($item->steps->isEmpty())
                                         <span class="text-danger">{{ localize('no_steps_defined', 'No steps defined') }}</span>
                                     @else
                                         <ol class="mb-0 ps-3">
                                             @foreach ($item->steps as $step)
+                                                @php
+                                                    $actorType = method_exists($step, 'getEffectiveActorType') ? $step->getEffectiveActorType() : ($step->actor_type ?? 'responsibility');
+                                                    $actorLabel = $actorTypeLabels[$actorType] ?? $actorType;
+                                                    $targetText = '-';
+                                                    if ($actorType === 'specific_user' && $step->actorUser) {
+                                                        $targetText = $step->actorUser->full_name . ' (' . $step->actorUser->email . ')';
+                                                    } elseif ($actorType === 'position' && $step->actorPosition) {
+                                                        $targetText = $step->actorPosition->position_name_km ?: $step->actorPosition->position_name;
+                                                    } elseif ($actorType === 'responsibility' && $step->actorResponsibility) {
+                                                        $targetText = ($step->actorResponsibility->name_km ?: $step->actorResponsibility->name) . ' (' . $step->actorResponsibility->code . ')';
+                                                    } elseif ($actorType === 'spatie_role' && $step->actorRole) {
+                                                        $targetText = $step->actorRole->name;
+                                                    } elseif (!empty($step->org_role)) {
+                                                        $targetText = $step->org_role;
+                                                    }
+                                                @endphp
                                                 <li class="mb-1">
                                                     <div class="fw-semibold">{{ $step->step_order }}. {{ $step->step_name }}</div>
                                                     <small class="text-muted d-block">
                                                         {{ $actionTypeLabels[$step->action_type] ?? $step->action_type }}
                                                         &middot;
-                                                        {{ $orgRoleLabels[$step->org_role] ?? $step->org_role }}
+                                                        {{ $actorLabel }}: {{ $targetText }}
                                                         &middot;
                                                         {{ $scopeTypeLabels[$step->scope_type] ?? $step->scope_type }}
                                                     </small>
@@ -193,7 +199,7 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @can('update_department')
+                                    @canany(['update_org_governance', 'update_department'])
                                         <button type="button" class="btn btn-primary-soft btn-sm me-1 workflow-policy-edit-btn"
                                             data-bs-toggle="modal" data-bs-target="#workflow-policy-modal"
                                             data-action="{{ route('workflow-policies.update', $item->id) }}"
@@ -207,19 +213,19 @@
                                             data-steps='@json($stepsPayload)'>
                                             <i class="fa fa-edit"></i>
                                         </button>
-                                    @endcan
-                                    @can('delete_department')
+                                    @endcanany
+                                    @canany(['delete_org_governance', 'delete_department'])
                                         <a href="javascript:void(0)" class="btn btn-danger-soft btn-sm delete-confirm"
                                             data-route="{{ route('workflow-policies.destroy', $item->id) }}"
                                             data-csrf="{{ csrf_token() }}">
                                             <i class="fa fa-trash"></i>
                                         </a>
-                                    @endcan
+                                    @endcanany
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center text-muted py-4">{{ localize('no_data_found', 'No data found') }}</td>
+                                <td colspan="8" class="text-center text-muted py-4">{{ localize('no_data_found', 'No data found') }}</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -228,14 +234,15 @@
         </div>
     </div>
 
-    @canany(['create_department', 'update_department'])
+    @canany(['create_org_governance', 'create_department', 'update_org_governance', 'update_department'])
         <div class="modal fade" id="workflow-policy-modal" data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1"
             aria-hidden="true">
             <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="workflow-policy-modal-title">{{ localize('add', 'Add') }}</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ localize('close', 'Close') }}"></button>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="{{ localize('close', 'Close') }}"></button>
                     </div>
                     <form id="workflow-policy-form" action="{{ route('workflow-policies.store') }}" method="POST">
                         @csrf
@@ -244,38 +251,79 @@
                             <div class="row g-3">
                                 <div class="col-md-3">
                                     <label class="form-label">{{ localize('module', 'Module') }} *</label>
-                                    <input type="text" name="module_key" id="wf-module-key" class="form-control" list="wf-module-key-list" required>
-                                    <small class="text-muted">{{ localize('module_key_help', 'Example: correspondence') }}</small>
-                                    <datalist id="wf-module-key-list">
-                                        @foreach ($module_options as $moduleKey)
+                                    <select name="module_key" id="wf-module-key" class="form-control select-basic-single" required>
+                                        <option value="">{{ localize('select_module', 'Select module') }}</option>
+                                        @foreach ($moduleOptions as $moduleKey)
                                             <option value="{{ $moduleKey }}">
+                                                {{ $moduleLabels[$moduleKey] ?? $formatKey($moduleKey) }} ({{ $moduleKey }})
+                                            </option>
                                         @endforeach
-                                    </datalist>
+                                    </select>
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">{{ localize('request_type', 'Request type') }} *</label>
-                                    <input type="text" name="request_type_key" id="wf-request-type-key" class="form-control" list="wf-request-type-key-list" required>
-                                    <small class="text-muted">{{ localize('request_type_key_help', 'Example: incoming_letter') }}</small>
-                                    <datalist id="wf-request-type-key-list">
-                                        @foreach ($request_type_options as $requestTypeKey)
-                                            <option value="{{ $requestTypeKey }}">
-                                        @endforeach
-                                    </datalist>
+                                    <select name="request_type_key" id="wf-request-type-key" class="form-control select-basic-single" required>
+                                        <option value="">{{ localize('select_request_type', 'Select request type') }}</option>
+                                    </select>
                                 </div>
-                                <div class="col-md-3"><label class="form-label">{{ localize('policy_name', 'Policy name') }} *</label><input type="text" name="name" id="wf-name" class="form-control" required></div>
-                                <div class="col-md-2"><label class="form-label">{{ localize('priority', 'Priority') }} *</label><input type="number" min="1" name="priority" id="wf-priority" class="form-control" required></div>
-                                <div class="col-md-1"><label class="form-label">{{ localize('status', 'Status') }}</label><select name="is_active" id="wf-active" class="form-control"><option value="1">{{ localize('active', 'Active') }}</option><option value="0">{{ localize('inactive', 'Inactive') }}</option></select></div>
-                                <div class="col-md-6"><label class="form-label">{{ localize('description', 'Description') }}</label><textarea name="description" id="wf-description" class="form-control" rows="2"></textarea></div>
+                                <div class="col-md-3">
+                                    <label class="form-label">{{ localize('policy_name', 'Policy name') }} *</label>
+                                    <input type="text" name="name" id="wf-name" class="form-control" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">{{ localize('priority', 'Priority') }} *</label>
+                                    <input type="number" min="1" name="priority" id="wf-priority" class="form-control" required>
+                                </div>
+                                <div class="col-md-1">
+                                    <label class="form-label">{{ localize('status', 'Status') }}</label>
+                                    <select name="is_active" id="wf-active" class="form-control">
+                                        <option value="1">{{ localize('active', 'Active') }}</option>
+                                        <option value="0">{{ localize('inactive', 'Inactive') }}</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">{{ localize('description', 'Description') }}</label>
+                                    <textarea name="description" id="wf-description" class="form-control" rows="2"></textarea>
+                                </div>
                                 <div class="col-md-6">
                                     <label class="form-label">{{ localize('condition_json', 'Condition (JSON, optional)') }}</label>
-                                    <textarea name="condition_json" id="wf-condition-json" class="form-control" rows="2" placeholder='{"min_days":2,"max_days":3}'></textarea>
-                                    <small class="text-muted">{{ localize('condition_json_help', 'Leave empty if no condition is required.') }}</small>
+                                    <textarea name="condition_json" id="wf-condition-json" class="form-control" rows="2"
+                                        placeholder='{"min_days":2,"max_days":3}'></textarea>
+                                </div>
+                                <div class="col-md-12 d-flex justify-content-between align-items-center">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" id="wf-apply-template">
+                                        <i class="fa fa-magic"></i>&nbsp;{{ localize('apply_template', 'Apply template') }}
+                                    </button>
+                                    <div>
+                                        <button type="button" class="btn btn-outline-info btn-sm" id="wf-preview-resolution">
+                                            <i class="fa fa-search"></i>&nbsp;{{ localize('preview_resolution', 'Preview Resolution') }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">{{ localize('preview_days', 'Preview days') }}</label>
+                                    <input type="number" min="0" id="wf-preview-days" class="form-control" value="1">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">{{ localize('preview_employee_id', 'Preview employee ID') }}</label>
+                                    <input type="number" min="1" id="wf-preview-employee-id" class="form-control"
+                                        placeholder="optional">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">{{ localize('preview_department_id', 'Preview department ID') }}</label>
+                                    <input type="number" min="1" id="wf-preview-department-id" class="form-control"
+                                        placeholder="optional">
+                                </div>
+                                <div class="col-md-12">
+                                    <div id="wf-preview-result" class="small"></div>
                                 </div>
                             </div>
                             <hr class="my-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <h6 class="mb-0">{{ localize('approval_steps', 'Approval steps') }}</h6>
-                                <button type="button" class="btn btn-success-soft btn-sm" id="wf-add-step-row"><i class="fa fa-plus"></i>&nbsp;{{ localize('add', 'Add') }}</button>
+                                <button type="button" class="btn btn-success-soft btn-sm" id="wf-add-step-row">
+                                    <i class="fa fa-plus"></i>&nbsp;{{ localize('add', 'Add') }}
+                                </button>
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-bordered align-middle mb-0">
@@ -285,7 +333,8 @@
                                             <th>{{ localize('step_key', 'Step key') }}</th>
                                             <th>{{ localize('step_name', 'Step name') }}</th>
                                             <th>{{ localize('action', 'Action') }}</th>
-                                            <th>{{ localize('org_role', 'Org role') }}</th>
+                                            <th>{{ localize('actor_type', 'Actor type') }}</th>
+                                            <th>{{ localize('actor_target', 'Actor target') }}</th>
                                             <th>{{ localize('scope', 'Scope') }}</th>
                                             <th>{{ localize('final', 'Final') }}</th>
                                             <th>{{ localize('required', 'Required') }}</th>
@@ -299,7 +348,8 @@
                             </div>
                         </div>
                         <div class="modal-footer">
-                            <button type="button" class="btn btn-danger" data-bs-dismiss="modal">{{ localize('close', 'Close') }}</button>
+                            <button type="button" class="btn btn-danger"
+                                data-bs-dismiss="modal">{{ localize('close', 'Close') }}</button>
                             <button type="submit" class="btn btn-primary">{{ localize('save', 'Save') }}</button>
                         </div>
                     </form>
@@ -313,106 +363,401 @@
     <script>
         (function($) {
             "use strict";
+
             var storeAction = @json(route('workflow-policies.store'));
-            var defaultStep = @json($defaultStep);
+            var previewUrl = @json(route('workflow-policies.preview'));
             var actionTypeLabels = @json($actionTypeLabels);
-            var orgRoleLabels = @json($orgRoleLabels);
+            var actorTypeLabels = @json($actorTypeLabels);
             var scopeTypeLabels = @json($scopeTypeLabels);
+            var responsibilities = @json($responsibilities);
+            var positions = @json($positions);
+            var spatieRoles = @json($spatieRoles);
+            var moduleLabels = @json($moduleLabels);
+            var requestTypeLabels = @json($requestTypeLabels);
+            var allRequestTypeOptions = @json(array_values($requestTypeOptions));
+            var requestTypeOptionsByModule = @json($requestTypeOptionsByModule);
+            var policyTemplates = @json($policyTemplates);
+
             var yesText = @json(localize('yes', 'Yes'));
             var noText = @json(localize('no', 'No'));
             var addText = @json(localize('add', 'Add'));
             var editText = @json(localize('edit', 'Edit'));
+            var selectRequestTypeText = @json(localize('select_request_type', 'Select request type'));
+            var allText = @json(localize('all', 'All'));
+            var noTemplateText = @json(localize('workflow_template_not_found', 'No template found for selected module and request type.'));
+            var previewNoResultText = @json(localize('preview_no_result', 'No matching workflow for the preview context.'));
+
+            function escapeHtml(value) {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function fallbackLabel(key) {
+                return String(key || '').replace(/[_\-.]+/g, ' ').replace(/\b\w/g, function(ch) {
+                    return ch.toUpperCase();
+                });
+            }
+
+            function requestTypeLabel(key) {
+                return requestTypeLabels[key] || fallbackLabel(key);
+            }
+
+            function mapToOptions(map) {
+                var html = '';
+                Object.keys(map || {}).forEach(function(key) {
+                    html += '<option value="' + escapeHtml(key) + '">' + escapeHtml(map[key] || key) + '</option>';
+                });
+                return html;
+            }
+
+            function optionListFromObjects(items, valueKey, labelKey, selectedValue) {
+                var html = '<option value=""></option>';
+                (items || []).forEach(function(item) {
+                    var value = String(item[valueKey] || '');
+                    var label = String(item[labelKey] || value);
+                    var selected = String(selectedValue || '') === value ? ' selected' : '';
+                    html += '<option value="' + escapeHtml(value) + '"' + selected + '>' + escapeHtml(label) + '</option>';
+                });
+                return html;
+            }
+
+            function roleCodeToResponsibilityId(code) {
+                var found = (responsibilities || []).find(function(item) {
+                    return String(item.code || '') === String(code || '');
+                });
+                return found ? String(found.id) : '';
+            }
 
             function yesNoSelect(name, value) {
-                return '<select name="'+name+'" class="form-control form-control-sm">'
-                    + '<option value="1"'+(String(value)==='1'?' selected':'')+'>'+yesText+'</option>'
-                    + '<option value="0"'+(String(value)==='0'?' selected':'')+'>'+noText+'</option>'
-                    + '</select>';
+                return '<select name="' + name + '" class="form-control form-control-sm">' +
+                    '<option value="1"' + (String(value) === '1' ? ' selected' : '') + '>' + yesText + '</option>' +
+                    '<option value="0"' + (String(value) === '0' ? ' selected' : '') + '>' + noText + '</option>' +
+                    '</select>';
             }
-            function listSelect(name, value, map) {
-                var html = '<select name="'+name+'" class="form-control form-control-sm">';
-                Object.keys(map || {}).forEach(function(code) {
-                    var label = map[code] || code;
-                    html += '<option value="'+code+'"'+(String(code)===String(value)?' selected':'')+'>'+label+'</option>';
-                });
-                return html + '</select>';
-            }
-            function text(name, value, req) { return '<input type="text" name="'+name+'" class="form-control form-control-sm" value="'+(value||'').replace(/"/g,'&quot;')+'" '+(req?'required':'')+'>'; }
-            function number(name, value) { return '<input type="number" min="1" name="'+name+'" class="form-control form-control-sm" value="'+(value||'')+'" required>'; }
-            function rowHtml(i, s) {
-                return '<tr class="wf-step-row">'
-                    + '<td>' + number('steps['+i+'][step_order]', s.step_order) + '</td>'
-                    + '<td>' + text('steps['+i+'][step_key]', s.step_key, false) + '</td>'
-                    + '<td>' + text('steps['+i+'][step_name]', s.step_name, true) + '</td>'
-                    + '<td>' + listSelect('steps['+i+'][action_type]', s.action_type, actionTypeLabels) + '</td>'
-                    + '<td>' + listSelect('steps['+i+'][org_role]', s.org_role, orgRoleLabels) + '</td>'
-                    + '<td>' + listSelect('steps['+i+'][scope_type]', s.scope_type, scopeTypeLabels) + '</td>'
-                    + '<td>' + yesNoSelect('steps['+i+'][is_final_approval]', String(s.is_final_approval)) + '</td>'
-                    + '<td>' + yesNoSelect('steps['+i+'][is_required]', String(s.is_required)) + '</td>'
-                    + '<td>' + yesNoSelect('steps['+i+'][can_return]', String(s.can_return)) + '</td>'
-                    + '<td>' + yesNoSelect('steps['+i+'][can_reject]', String(s.can_reject)) + '</td>'
-                    + '<td><button type="button" class="btn btn-danger-soft btn-sm wf-remove-row"><i class="fa fa-trash"></i></button></td>'
-                    + '</tr>';
-            }
-            function renderRows(steps) {
-                var rows = (steps && steps.length) ? steps : [defaultStep];
+
+            function stepRowHtml(index, step) {
+                step = step || {};
+                var actorType = String(step.actor_type || 'responsibility');
+                var responsibilityId = step.actor_responsibility_id || step.system_role_id || roleCodeToResponsibilityId(step.org_role);
+
                 var html = '';
-                rows.forEach(function(s, i) { html += rowHtml(i, s); });
-                $('#wf-steps-body').html(html);
+                html += '<tr class="wf-step-row">';
+                html += '<td><input type="number" min="1" name="steps[' + index + '][step_order]" class="form-control form-control-sm" value="' + escapeHtml(step.step_order || (index + 1)) + '" required></td>';
+                html += '<td><input type="text" name="steps[' + index + '][step_key]" class="form-control form-control-sm" value="' + escapeHtml(step.step_key || '') + '"></td>';
+                html += '<td><input type="text" name="steps[' + index + '][step_name]" class="form-control form-control-sm" value="' + escapeHtml(step.step_name || '') + '" required></td>';
+                html += '<td><select name="steps[' + index + '][action_type]" class="form-control form-control-sm">' + mapToOptions(actionTypeLabels) + '</select></td>';
+                html += '<td><select name="steps[' + index + '][actor_type]" class="form-control form-control-sm wf-actor-type">' + mapToOptions(actorTypeLabels) + '</select></td>';
+                html += '<td>';
+                html += '<input type="number" min="1" name="steps[' + index + '][actor_user_id]" class="form-control form-control-sm wf-actor-input wf-actor-user mb-1" placeholder="User ID" value="' + escapeHtml(step.actor_user_id || '') + '">';
+                html += '<select name="steps[' + index + '][actor_position_id]" class="form-control form-control-sm wf-actor-input wf-actor-position mb-1">' +
+                    optionListFromObjects(positions, 'id', 'label', step.actor_position_id) + '</select>';
+                html += '<select name="steps[' + index + '][actor_responsibility_id]" class="form-control form-control-sm wf-actor-input wf-actor-responsibility mb-1">' +
+                    optionListFromObjects(responsibilities, 'id', 'label', responsibilityId) + '</select>';
+                html += '<select name="steps[' + index + '][actor_role_id]" class="form-control form-control-sm wf-actor-input wf-actor-role mb-1">' +
+                    optionListFromObjects(spatieRoles, 'id', 'label', step.actor_role_id) + '</select>';
+                html += '<input type="hidden" name="steps[' + index + '][org_role]" class="wf-org-role-legacy" value="' + escapeHtml(step.org_role || '') + '">';
+                html += '<input type="hidden" name="steps[' + index + '][system_role_id]" class="wf-system-role-legacy" value="' + escapeHtml(step.system_role_id || '') + '">';
+                html += '</td>';
+                html += '<td><select name="steps[' + index + '][scope_type]" class="form-control form-control-sm">' + mapToOptions(scopeTypeLabels) + '</select></td>';
+                html += '<td>' + yesNoSelect('steps[' + index + '][is_final_approval]', String(step.is_final_approval || 0)) + '</td>';
+                html += '<td>' + yesNoSelect('steps[' + index + '][is_required]', String(step.is_required || 1)) + '</td>';
+                html += '<td>' + yesNoSelect('steps[' + index + '][can_return]', String(step.can_return || 1)) + '</td>';
+                html += '<td>' + yesNoSelect('steps[' + index + '][can_reject]', String(step.can_reject || 1)) + '</td>';
+                html += '<td><button type="button" class="btn btn-danger-soft btn-sm wf-remove-row"><i class="fa fa-trash"></i></button></td>';
+                html += '</tr>';
+
+                return html;
             }
+
+            function syncLegacyRoleFields($row) {
+                var actorType = String($row.find('.wf-actor-type').val() || '');
+                var roleCode = '';
+                var roleId = '';
+
+                if (actorType === 'responsibility') {
+                    roleId = String($row.find('.wf-actor-responsibility').val() || '');
+                    var roleMatch = (responsibilities || []).find(function(item) {
+                        return String(item.id) === roleId;
+                    });
+                    roleCode = roleMatch ? String(roleMatch.code || '') : '';
+                }
+
+                $row.find('.wf-org-role-legacy').val(roleCode);
+                $row.find('.wf-system-role-legacy').val(roleId);
+            }
+
+            function toggleActorInputs($row) {
+                var actorType = String($row.find('.wf-actor-type').val() || '');
+                $row.find('.wf-actor-input').hide();
+                $row.find('.wf-actor-input').prop('required', false);
+
+                if (actorType === 'specific_user') {
+                    $row.find('.wf-actor-user').show().prop('required', true);
+                } else if (actorType === 'position') {
+                    $row.find('.wf-actor-position').show().prop('required', true);
+                } else if (actorType === 'responsibility') {
+                    $row.find('.wf-actor-responsibility').show().prop('required', true);
+                } else if (actorType === 'spatie_role') {
+                    $row.find('.wf-actor-role').show().prop('required', true);
+                }
+
+                syncLegacyRoleFields($row);
+            }
+
+            function applyStepDefaults($row, step) {
+                $row.find('select[name*="[action_type]"]').val(step.action_type || 'approve');
+                $row.find('select[name*="[actor_type]"]').val(step.actor_type || 'responsibility');
+                $row.find('select[name*="[scope_type]"]').val(step.scope_type || 'self_and_children');
+                toggleActorInputs($row);
+            }
+
+            function renderRows(steps) {
+                steps = Array.isArray(steps) && steps.length ? steps : [{
+                    step_order: 1,
+                    step_key: '',
+                    step_name: '',
+                    action_type: 'approve',
+                    actor_type: 'responsibility',
+                    scope_type: 'self_and_children',
+                    is_final_approval: 1,
+                    is_required: 1,
+                    can_return: 1,
+                    can_reject: 1
+                }];
+
+                var html = '';
+                steps.forEach(function(step, idx) {
+                    html += stepRowHtml(idx, step || {});
+                });
+                $('#wf-steps-body').html(html);
+
+                $('#wf-steps-body .wf-step-row').each(function(i) {
+                    applyStepDefaults($(this), steps[i] || {});
+                });
+            }
+
+            function requestTypeOptionsForModule(moduleKey) {
+                var key = String(moduleKey || '').trim();
+                if (key !== '' && Array.isArray(requestTypeOptionsByModule[key])) {
+                    return requestTypeOptionsByModule[key];
+                }
+                return Array.isArray(allRequestTypeOptions) ? allRequestTypeOptions : [];
+            }
+
+            function renderRequestTypeSelect($select, options, selectedValue, firstOptionText) {
+                var html = '<option value="">' + escapeHtml(firstOptionText) + '</option>';
+                (options || []).forEach(function(requestTypeKey) {
+                    html += '<option value="' + escapeHtml(requestTypeKey) + '">'
+                        + escapeHtml(requestTypeLabel(requestTypeKey)) + ' (' + escapeHtml(requestTypeKey) + ')'
+                        + '</option>';
+                });
+                $select.html(html);
+                var nextValue = String(selectedValue || '');
+                if (nextValue !== '' && options.indexOf(nextValue) !== -1) {
+                    $select.val(nextValue);
+                } else {
+                    $select.val('');
+                }
+            }
+
+            function syncModalRequestTypes(selectedValue) {
+                var moduleKey = String($('#wf-module-key').val() || '').trim();
+                var options = requestTypeOptionsForModule(moduleKey);
+                renderRequestTypeSelect($('#wf-request-type-key'), options, selectedValue, selectRequestTypeText);
+            }
+
+            function syncFilterRequestTypes(selectedValue) {
+                var moduleKey = String($('#wf-filter-module-key').val() || '').trim();
+                var options = requestTypeOptionsForModule(moduleKey);
+                renderRequestTypeSelect($('#wf-filter-request-type-key'), options, selectedValue, allText);
+            }
+
+            function templateKey(moduleKey, requestTypeKey) {
+                return String(moduleKey || '') + '::' + String(requestTypeKey || '');
+            }
+
+            function applyTemplate() {
+                var moduleKey = String($('#wf-module-key').val() || '').trim();
+                var requestTypeKey = String($('#wf-request-type-key').val() || '').trim();
+                var template = policyTemplates[templateKey(moduleKey, requestTypeKey)];
+                if (!template) {
+                    if (window.toastr && typeof window.toastr.warning === 'function') {
+                        window.toastr.warning(noTemplateText);
+                    }
+                    return;
+                }
+
+                $('#wf-name').val(template.name || '');
+                $('#wf-description').val(template.description || '');
+                $('#wf-priority').val(template.priority || 100);
+                var conditionPayload = template.condition_json || [];
+                $('#wf-condition-json').val(Array.isArray(conditionPayload) && !conditionPayload.length ? '' : JSON.stringify(conditionPayload));
+                renderRows(template.steps || []);
+            }
+
             function resetCreateMode() {
                 $('#workflow-policy-modal-title').text(addText);
                 $('#workflow-policy-form').attr('action', storeAction);
                 $('#workflow-policy-form-method').val('POST');
                 $('#wf-module-key,#wf-request-type-key,#wf-name,#wf-description,#wf-condition-json').val('');
-                $('#wf-priority').val(100); $('#wf-active').val('1');
-                renderRows([defaultStep]);
+                $('#wf-priority').val(100);
+                $('#wf-active').val('1');
+                $('#wf-preview-result').empty();
+                renderRows([]);
+                syncModalRequestTypes('');
+            }
+
+            function previewResolution() {
+                var payload = {
+                    module_key: String($('#wf-module-key').val() || ''),
+                    request_type_key: String($('#wf-request-type-key').val() || ''),
+                    days: $('#wf-preview-days').val() || null,
+                    employee_id: $('#wf-preview-employee-id').val() || null,
+                    department_id: $('#wf-preview-department-id').val() || null
+                };
+
+                if (!payload.module_key || !payload.request_type_key) {
+                    return;
+                }
+
+                $.ajax({
+                    url: previewUrl,
+                    type: 'GET',
+                    data: payload,
+                    success: function(res) {
+                        var data = res && res.data ? res.data : null;
+                        if (!data || !Array.isArray(data.steps)) {
+                            $('#wf-preview-result').html('<div class="text-warning">' + escapeHtml(previewNoResultText) + '</div>');
+                            return;
+                        }
+
+                        var html = '<div class="alert alert-light border mt-2 mb-0">';
+                        html += '<div class="fw-semibold mb-1">' + escapeHtml(data.name || '') + '</div>';
+                        html += '<ul class="mb-0 ps-3">';
+                        data.steps.forEach(function(step) {
+                            var actorType = String(step.resolved_actor_type || step.actor_type || '');
+                            var count = Number(step.resolved_candidate_count || 0);
+                            html += '<li><strong>' + escapeHtml(String(step.step_order || '')) + '. ' + escapeHtml(String(step.step_name || '')) + '</strong> - '
+                                + escapeHtml(actorType) + ' - ' + count + ' candidate(s)</li>';
+                        });
+                        html += '</ul></div>';
+                        $('#wf-preview-result').html(html);
+                    },
+                    error: function(xhr) {
+                        var msg = (xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : previewNoResultText;
+                        $('#wf-preview-result').html('<div class="text-danger">' + escapeHtml(msg) + '</div>');
+                    }
+                });
             }
 
             $(document).on('click', '.workflow-policy-create-btn', resetCreateMode);
+
             $(document).on('click', '.workflow-policy-edit-btn', function() {
-                var $b = $(this);
+                var $button = $(this);
                 $('#workflow-policy-modal-title').text(editText);
-                $('#workflow-policy-form').attr('action', $b.data('action'));
+                $('#workflow-policy-form').attr('action', $button.data('action'));
                 $('#workflow-policy-form-method').val('PATCH');
-                $('#wf-module-key').val($b.data('module'));
-                $('#wf-request-type-key').val($b.data('request-type'));
-                $('#wf-name').val($b.data('name'));
-                $('#wf-priority').val($b.data('priority'));
-                $('#wf-active').val(String($b.data('active')));
+                $('#wf-module-key').val($button.data('module'));
+                syncModalRequestTypes(String($button.data('request-type') || ''));
+                $('#wf-name').val($button.data('name'));
+                $('#wf-priority').val($button.data('priority'));
+                $('#wf-active').val(String($button.data('active')));
+
                 var desc = '';
-                try { desc = JSON.parse($b.attr('data-description') || '""'); } catch (e) { desc = $b.data('description') || ''; }
+                try {
+                    desc = JSON.parse($button.attr('data-description') || '""');
+                } catch (e) {
+                    desc = $button.data('description') || '';
+                }
                 $('#wf-description').val(desc || '');
-                var condition = $b.attr('data-condition') || '[]';
-                try { $('#wf-condition-json').val(JSON.stringify(JSON.parse(condition))); } catch (e) { $('#wf-condition-json').val(''); }
+
+                var condition = $button.attr('data-condition') || '[]';
+                try {
+                    $('#wf-condition-json').val(JSON.stringify(JSON.parse(condition)));
+                } catch (e) {
+                    $('#wf-condition-json').val('');
+                }
+
                 var steps = [];
-                try { steps = JSON.parse($b.attr('data-steps') || '[]'); } catch (e) { steps = []; }
+                try {
+                    steps = JSON.parse($button.attr('data-steps') || '[]');
+                } catch (e) {
+                    steps = [];
+                }
+                $('#wf-preview-result').empty();
                 renderRows(steps);
             });
-            $(document).on('click', '#wf-add-step-row', function() {
-                var idx = $('#wf-steps-body .wf-step-row').length;
-                $('#wf-steps-body').append(rowHtml(idx, defaultStep));
+
+            $(document).on('change', '#wf-module-key', function() {
+                syncModalRequestTypes('');
             });
+
+            $(document).on('change', '#wf-filter-module-key', function() {
+                syncFilterRequestTypes('');
+            });
+
+            $(document).on('click', '#wf-add-step-row', function() {
+                var index = $('#wf-steps-body .wf-step-row').length;
+                $('#wf-steps-body').append(stepRowHtml(index, {
+                    step_order: index + 1,
+                    action_type: 'approve',
+                    actor_type: 'responsibility',
+                    scope_type: 'self_and_children',
+                    is_final_approval: 0,
+                    is_required: 1,
+                    can_return: 1,
+                    can_reject: 1
+                }));
+                var $newRow = $('#wf-steps-body .wf-step-row').last();
+                applyStepDefaults($newRow, {});
+            });
+
             $(document).on('click', '.wf-remove-row', function() {
-                if ($('#wf-steps-body .wf-step-row').length <= 1) return;
+                if ($('#wf-steps-body .wf-step-row').length <= 1) {
+                    return;
+                }
                 $(this).closest('tr').remove();
+
                 var rows = [];
-                $('#wf-steps-body .wf-step-row').each(function(){
+                $('#wf-steps-body .wf-step-row').each(function(idx) {
+                    var $row = $(this);
                     rows.push({
-                        step_order: $(this).find('input[name*="[step_order]"]').val() || 1,
-                        step_key: $(this).find('input[name*="[step_key]"]').val() || '',
-                        step_name: $(this).find('input[name*="[step_name]"]').val() || '',
-                        action_type: $(this).find('select[name*="[action_type]"]').val() || 'approve',
-                        org_role: $(this).find('select[name*="[org_role]"]').val() || 'manager',
-                        scope_type: $(this).find('select[name*="[scope_type]"]').val() || 'self_and_children',
-                        is_final_approval: $(this).find('select[name*="[is_final_approval]"]').val() || '1',
-                        is_required: $(this).find('select[name*="[is_required]"]').val() || '1',
-                        can_return: $(this).find('select[name*="[can_return]"]').val() || '1',
-                        can_reject: $(this).find('select[name*="[can_reject]"]').val() || '1'
+                        step_order: $row.find('input[name*="[step_order]"]').val() || idx + 1,
+                        step_key: $row.find('input[name*="[step_key]"]').val() || '',
+                        step_name: $row.find('input[name*="[step_name]"]').val() || '',
+                        action_type: $row.find('select[name*="[action_type]"]').val() || 'approve',
+                        actor_type: $row.find('select[name*="[actor_type]"]').val() || 'responsibility',
+                        actor_user_id: $row.find('.wf-actor-user').val() || null,
+                        actor_position_id: $row.find('.wf-actor-position').val() || null,
+                        actor_responsibility_id: $row.find('.wf-actor-responsibility').val() || null,
+                        actor_role_id: $row.find('.wf-actor-role').val() || null,
+                        org_role: $row.find('.wf-org-role-legacy').val() || '',
+                        system_role_id: $row.find('.wf-system-role-legacy').val() || null,
+                        scope_type: $row.find('select[name*="[scope_type]"]').val() || 'self_and_children',
+                        is_final_approval: $row.find('select[name*="[is_final_approval]"]').val() || '0',
+                        is_required: $row.find('select[name*="[is_required]"]').val() || '1',
+                        can_return: $row.find('select[name*="[can_return]"]').val() || '1',
+                        can_reject: $row.find('select[name*="[can_reject]"]').val() || '1'
                     });
                 });
                 renderRows(rows);
             });
-        })(jQuery);
+
+            $(document).on('change', '.wf-actor-type, .wf-actor-responsibility', function() {
+                var $row = $(this).closest('.wf-step-row');
+                toggleActorInputs($row);
+            });
+
+            $(document).on('click', '#wf-apply-template', applyTemplate);
+            $(document).on('click', '#wf-preview-resolution', previewResolution);
+
+            syncModalRequestTypes($('#wf-request-type-key').val() || '');
+            syncFilterRequestTypes($('#wf-filter-request-type-key').val() || '');
+            renderRows([]);
+        })(window.jQuery);
     </script>
 @endpush

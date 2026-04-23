@@ -1,5 +1,5 @@
 @extends('backend.layouts.app')
-@section('title', localize('system_roles', 'System Roles'))
+@section('title', localize('responsibilities', 'Responsibilities'))
 @section('content')
     @include('humanresource::master-data.org-structure.header')
     @include('backend.layouts.common.validation')
@@ -8,23 +8,23 @@
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('system_role_management', 'System Role Management') }}</h6>
+                    <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('responsibility_management', 'Responsibility Management') }}</h6>
                 </div>
                 <div class="text-end">
-                    @can('create_department')
+                    @canany(['create_org_governance', 'create_department'])
                         <a href="#" class="btn btn-success btn-sm" data-bs-toggle="modal"
                             data-bs-target="#create-system-role">
-                            <i class="fa fa-plus-circle"></i>&nbsp;{{ localize('add_role', 'Add Role') }}
+                            <i class="fa fa-plus-circle"></i>&nbsp;{{ localize('add_responsibility', 'Add Responsibility') }}
                         </a>
                         @include('humanresource::master-data.system-roles.modal.create')
-                    @endcan
+                    @endcanany
                 </div>
             </div>
         </div>
 
         <div class="card-body">
             <div class="alert alert-info mb-3">
-                <strong>System Roles</strong> define functional authority levels used across modules
+                <strong>{{ localize('responsibilities', 'Responsibilities') }}</strong> define business authority lookup used across modules
                 (Org Role Assignment, Permission Matrix, Workflow Steps).
                 <code>is_system = true</code> roles cannot be deleted.
             </div>
@@ -74,22 +74,22 @@
                                     @endif
                                 </td>
                                 <td>
-                                    @can('update_department')
+                                    @canany(['update_org_governance', 'update_department'])
                                         <a href="#" class="btn btn-primary-soft btn-sm me-1" data-bs-toggle="modal"
                                             data-bs-target="#edit-system-role-{{ $item->id }}">
                                             <i class="fa fa-edit"></i>
                                         </a>
                                         @include('humanresource::master-data.system-roles.modal.edit', ['role' => $item])
-                                    @endcan
+                                    @endcanany
 
-                                    @can('delete_department')
+                                    @canany(['delete_org_governance', 'delete_department'])
                                         @if (!$item->is_system)
                                             <a href="#" class="btn btn-danger-soft btn-sm delete-system-role"
                                                 data-url="{{ route('system-roles.destroy', $item->uuid) }}">
                                                 <i class="fa fa-trash"></i>
                                             </a>
                                         @endif
-                                    @endcan
+                                    @endcanany
                                 </td>
                             </tr>
                         @endforeach

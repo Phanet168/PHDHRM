@@ -5,7 +5,7 @@
                 @csrf
                 @method('PUT')
                 <div class="modal-header">
-                    <h5 class="modal-title">{{ localize('edit_system_role', 'Edit System Role') }}: {{ $role->code }}</h5>
+                    <h5 class="modal-title">{{ localize('edit_responsibility', 'Edit Responsibility') }}: {{ $role->code }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -16,7 +16,7 @@
                             value="{{ old('code', $role->code) }}"
                             {{ $role->is_system ? 'readonly' : '' }}>
                         @if ($role->is_system)
-                            <small class="text-warning">System role code cannot be changed.</small>
+                            <small class="text-warning">{{ localize('system_responsibility_code_locked', 'System responsibility code cannot be changed.') }}</small>
                         @endif
                     </div>
                     <div class="mb-3">

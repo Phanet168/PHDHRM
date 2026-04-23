@@ -4,7 +4,7 @@
             <form action="{{ route('system-roles.store') }}" method="POST">
                 @csrf
                 <div class="modal-header">
-                    <h5 class="modal-title">{{ localize('add_system_role', 'Add System Role') }}</h5>
+                    <h5 class="modal-title">{{ localize('add_responsibility', 'Add Responsibility') }}</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">

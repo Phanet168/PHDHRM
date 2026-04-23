@@ -43,7 +43,7 @@
     <div class="card org-card">
         <div class="card-body py-2">
             <ul class="nav org-tabs flex-wrap">
-                @can('read_department')
+                @canany(['read_org_governance', 'read_department'])
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('org-unit-type-positions.*') ? 'active' : '' }}"
                            href="{{ route('org-unit-type-positions.index') }}">
@@ -51,9 +51,15 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('user-assignments.*') ? 'active' : '' }}"
+                           href="{{ route('user-assignments.index') }}">
+                            <i class="fa fa-user-check me-1"></i>{{ localize('user_assignments', 'User Assignments') }}
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('user-org-roles.*') ? 'active' : '' }}"
                            href="{{ route('user-org-roles.index') }}">
-                            <i class="fa fa-user-tag me-1"></i>{{ localize('org_role_management', 'Org Role Management') }}
+                            <i class="fa fa-history me-1"></i>{{ localize('legacy_org_roles', 'Legacy Org Roles') }}
                         </a>
                     </li>
                     <li class="nav-item">
@@ -71,10 +77,16 @@
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('system-roles.*') ? 'active' : '' }}"
                            href="{{ route('system-roles.index') }}">
-                            <i class="fa fa-id-badge me-1"></i>{{ localize('system_roles', 'System Roles') }}
+                            <i class="fa fa-id-badge me-1"></i>{{ localize('responsibilities', 'Responsibilities') }}
                         </a>
                     </li>
-                @endcan
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('org-structure.help') ? 'active' : '' }}"
+                           href="{{ route('org-structure.help', ['article' => 'org-governance-rbac']) }}">
+                            <i class="fa fa-life-ring me-1"></i>{{ localize('help', 'ជំនួយ') }}
+                        </a>
+                    </li>
+                @endcanany
             </ul>
         </div>
     </div>
