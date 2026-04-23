@@ -11,9 +11,11 @@
                     </div>
                     <div class="text-end">
                         <div class="actions">
-                            <a href="{{ route('user-assignments.index') }}" class="btn btn-info btn-sm">
-                                <i class="fa fa-user-check"></i>&nbsp;{{ localize('user_assignments', 'User Assignments') }}
-                            </a>
+                            @if (\Illuminate\Support\Facades\Route::has('user-assignments.index'))
+                                <a href="{{ route('user-assignments.index') }}" class="btn btn-info btn-sm">
+                                    <i class="fa fa-user-check"></i>&nbsp;{{ localize('user_assignments', 'User Assignments') }}
+                                </a>
+                            @endif
 
                             <a href="#" class="btn btn-success btn-sm" data-bs-toggle="modal"
                                 data-bs-target="#addUser"><i

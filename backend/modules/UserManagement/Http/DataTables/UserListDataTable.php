@@ -4,6 +4,9 @@ namespace Modules\UserManagement\Http\DataTables;
 
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder as QueryBuilder;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Modules\HumanResource\Entities\UserOrgRole;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Html\Builder as HtmlBuilder;
@@ -30,30 +33,37 @@ class UserListDataTable extends DataTable
                 return $role;
             })
             ->addColumn('user_org_roles', function ($data) {
-                $assignment = $data->primaryActiveAssignment;
-                $legacyRoles = collect($data->orgRoles ?? [])
-                    ->filter(function ($role) {
-                        if (!(bool) ($role->is_active ?? false)) {
-                            return false;
-                        }
-
-                        $today = now()->toDateString();
-                        $from = !empty($role->effective_from) ? (string) $role->effective_from->toDateString() : null;
-                        $to = !empty($role->effective_to) ? (string) $role->effective_to->toDateString() : null;
-
-                        if ($from && $from > $today) {
-                            return false;
-                        }
-                        if ($to && $to < $today) {
-                            return false;
-                        }
-
-                        return true;
-                    })
-                    ->values();
+                $assignment = $this->resolveCanonicalAssignment($data);
+                $legacyRoles = $this->resolveActiveLegacyRoles($data);
+                $placement = $this->resolveEmployeePlacementSummary($data);
 
                 if (!$assignment) {
-                    $html = '<span class="text-muted">-</span>';
+                    if ($legacyRoles->isEmpty()) {
+                        $html = '<span class="text-muted">-</span>';
+                    } else {
+                        $legacyPrimary = $legacyRoles->first();
+                        $legacyRoleLabel = $this->legacyRoleLabel($legacyPrimary);
+                        $legacyDepartment = (string) optional($legacyPrimary->department)->department_name;
+                        $legacyScope = $this->normalizeScope((string) ($legacyPrimary->scope_type ?? ''));
+                        $legacyScopeLabel = $this->scopeLabel($legacyScope);
+
+                        $html = '<span class="badge bg-warning text-dark rounded-pill me-1 mb-1">' . e($legacyRoleLabel) . '</span>';
+                        if ($legacyDepartment !== '') {
+                            $html .= '<span class="badge bg-primary rounded-pill me-1 mb-1">' . e($legacyDepartment) . '</span>';
+                        }
+                        if ($legacyScopeLabel !== '') {
+                            $html .= '<span class="badge bg-secondary rounded-pill me-1 mb-1">' . e($legacyScopeLabel) . '</span>';
+                        }
+                        $html .= '<div class="small text-muted mt-1">' . e(localize(
+                            'legacy_fallback_assignment',
+                            'Showing legacy assignment fallback.'
+                        )) . '</div>';
+                    }
+
+                    if (!empty($placement['department_name'])) {
+                        $html .= '<div class="small text-muted mt-1">' . e(localize('placement', 'Placement')) . ': ' . e($placement['department_name']) . '</div>';
+                    }
+
                     if ($legacyRoles->isNotEmpty()) {
                         $html .= '<div class="small text-warning mt-1">' . e(localize(
                             'assignment_sync_notice_missing_primary',
@@ -72,14 +82,8 @@ class UserListDataTable extends DataTable
                 }
 
                 $departmentName = (string) optional($assignment->department)->department_name;
-                $scopeType = (string) ($assignment->scope_type ?? '');
-                $scopeLabel = match ($scopeType) {
-                    'self_only', 'self' => localize('scope_self_only', 'Self only'),
-                    'self_unit_only' => localize('scope_self_unit_only', 'Self unit only'),
-                    'self_and_children' => localize('scope_self_and_children', 'Self and children'),
-                    'all' => localize('scope_all', 'All'),
-                    default => $scopeType,
-                };
+                $scopeType = $this->normalizeScope((string) ($assignment->scope_type ?? ''));
+                $scopeLabel = $this->scopeLabel($scopeType);
 
                 $html = '';
                 $html .= '<span class="badge bg-info rounded-pill me-1 mb-1">' . e($responsibilityLabel) . '</span>';
@@ -93,24 +97,26 @@ class UserListDataTable extends DataTable
                     $html .= '<span class="badge bg-success rounded-pill me-1 mb-1">' . e(localize('primary', 'Primary')) . '</span>';
                 }
 
-                $matchedLegacy = $legacyRoles->contains(function ($role) use ($assignment, $responsibilityCode, $scopeType) {
-                    $legacyCode = (string) $role->getEffectiveRoleCode();
-                    $legacyScope = (string) ($role->scope_type ?? '');
-                    if ($legacyScope === 'self') {
-                        $legacyScope = 'self_only';
+                if (!empty($placement['department_name'])) {
+                    $html .= '<div class="small text-muted mt-1">' . e(localize('placement', 'Placement')) . ': ' . e($placement['department_name']) . '</div>';
+                }
+
+                if ($legacyRoles->isNotEmpty()) {
+                    $matchedLegacy = $legacyRoles->contains(function ($role) use ($assignment, $responsibilityCode, $scopeType) {
+                        $legacyCode = (string) $role->getEffectiveRoleCode();
+                        $legacyScope = $this->normalizeScope((string) ($role->scope_type ?? ''));
+
+                        return (int) ($role->department_id ?? 0) === (int) ($assignment->department_id ?? 0)
+                            && $legacyCode === $responsibilityCode
+                            && $legacyScope === $scopeType;
+                    });
+
+                    if (!$matchedLegacy) {
+                        $html .= '<div class="small text-warning mt-1">' . e(localize(
+                            'assignment_sync_notice_mismatch',
+                            'Sync notice: canonical assignment differs from legacy mapping.'
+                        )) . '</div>';
                     }
-                    $targetScope = $scopeType === 'self' ? 'self_only' : $scopeType;
-
-                    return (int) ($role->department_id ?? 0) === (int) ($assignment->department_id ?? 0)
-                        && $legacyCode === $responsibilityCode
-                        && $legacyScope === $targetScope;
-                });
-
-                if (!$matchedLegacy) {
-                    $html .= '<div class="small text-warning mt-1">' . e(localize(
-                        'assignment_sync_notice_mismatch',
-                        'Sync notice: canonical assignment differs from legacy mapping.'
-                    )) . '</div>';
                 }
 
                 return $html !== '' ? $html : '<span class="text-muted">-</span>';
@@ -171,8 +177,12 @@ class UserListDataTable extends DataTable
                 $canViewOrgGovernance = auth()->check()
                     && (auth()->user()->can('read_org_governance') || auth()->user()->can('read_department'));
                 if ($canViewOrgGovernance) {
-                    $button .= '<a href="' . route('user-assignments.index', ['user_id' => $data->id]) . '" class="btn btn-info-soft btn-sm me-1" title="' . e(localize('user_assignments', 'User Assignments')) . '"><i class="fa fa-user-check"></i></a>';
-                    $button .= '<a href="' . route('user-org-roles.index', ['user_id' => $data->id]) . '" class="btn btn-warning-soft btn-sm me-1" title="' . e(localize('legacy_org_roles', 'Legacy Org Roles')) . '"><i class="fa fa-history"></i></a>';
+                    if (Route::has('user-assignments.index')) {
+                        $button .= '<a href="' . route('user-assignments.index', ['user_id' => $data->id]) . '" class="btn btn-info-soft btn-sm me-1" title="' . e(localize('user_assignments', 'User Assignments')) . '"><i class="fa fa-user-check"></i></a>';
+                    }
+                    if (Route::has('user-org-roles.index')) {
+                        $button .= '<a href="' . route('user-org-roles.index', ['user_id' => $data->id]) . '" class="btn btn-warning-soft btn-sm me-1" title="' . e(localize('legacy_org_roles', 'Legacy Org Roles')) . '"><i class="fa fa-history"></i></a>';
+                    }
                 }
                 $button .= '<button onclick="detailsView(' . $data->id . ')" id="detailsView-' . $data->id . '" data-url="' . route('role.user.edit', $data->id) . '" class="btn btn-success-soft btn-sm me-1" ><i class="fa fa-edit"></i></button>';
 
@@ -190,15 +200,25 @@ class UserListDataTable extends DataTable
      */
     public function query(User $model): QueryBuilder
     {
+        $relations = ['userRole', 'employee.department', 'employee.sub_department'];
+
+        if ($this->hasLegacyOrgRoleTable()) {
+            $relations[] = 'orgRoles.department';
+            $relations[] = 'orgRoles.systemRole';
+        }
+
+        if ($this->hasCanonicalAssignmentTable()) {
+            $relations[] = 'primaryActiveAssignment.department';
+            $relations[] = 'primaryActiveAssignment.position';
+            $relations[] = 'primaryActiveAssignment.responsibility';
+        }
+
+        if ($this->hasEmployeeUnitPostingTable()) {
+            $relations[] = 'employee.primaryUnitPosting.department';
+        }
+
         return $model->newQuery()
-            ->with([
-                'userRole',
-                'orgRoles.department',
-                'orgRoles.systemRole',
-                'primaryActiveAssignment.department',
-                'primaryActiveAssignment.position',
-                'primaryActiveAssignment.responsibility',
-            ])
+            ->with($relations)
             ->withCount([
                 'mobileDeviceRegistrations as devices_total_count',
                 'mobileDeviceRegistrations as devices_pending_count' => function ($query) {
@@ -300,5 +320,166 @@ class UserListDataTable extends DataTable
     protected function filename(): string
     {
         return 'Users-' . date('YmdHis');
+    }
+
+    protected function resolveCanonicalAssignment(User $user)
+    {
+        if (!$this->hasCanonicalAssignmentTable()) {
+            return null;
+        }
+
+        if ($user->relationLoaded('primaryActiveAssignment')) {
+            return $user->primaryActiveAssignment;
+        }
+
+        return null;
+    }
+
+    protected function resolveActiveLegacyRoles(User $user)
+    {
+        if (!$this->hasLegacyOrgRoleTable()) {
+            return collect();
+        }
+
+        $roles = $user->relationLoaded('orgRoles')
+            ? collect($user->orgRoles)
+            : collect();
+
+        $today = now()->toDateString();
+
+        return $roles
+            ->filter(function ($role) use ($today) {
+                if (!(bool) ($role->is_active ?? false)) {
+                    return false;
+                }
+
+                $from = $this->normalizeDateValue($role->effective_from ?? null);
+                $to = $this->normalizeDateValue($role->effective_to ?? null);
+
+                if ($from && $from > $today) {
+                    return false;
+                }
+                if ($to && $to < $today) {
+                    return false;
+                }
+
+                return true;
+            })
+            ->values();
+    }
+
+    protected function resolveEmployeePlacementSummary(User $user): array
+    {
+        $result = [
+            'department_id' => 0,
+            'department_name' => '',
+            'source' => '',
+        ];
+
+        $employee = $user->relationLoaded('employee') ? $user->employee : null;
+        if (!$employee) {
+            return $result;
+        }
+
+        if ($this->hasEmployeeUnitPostingTable()) {
+            $posting = $employee->relationLoaded('primaryUnitPosting') ? $employee->primaryUnitPosting : null;
+            $postingDepartmentId = (int) ($posting->department_id ?? 0);
+            if ($postingDepartmentId > 0) {
+                $result['department_id'] = $postingDepartmentId;
+                $result['department_name'] = (string) optional($posting->department)->department_name;
+                $result['source'] = 'employee_unit_postings';
+                return $result;
+            }
+        }
+
+        $subDepartmentId = (int) ($employee->sub_department_id ?? 0);
+        if ($subDepartmentId > 0) {
+            $result['department_id'] = $subDepartmentId;
+            $result['department_name'] = (string) optional($employee->sub_department)->department_name;
+            $result['source'] = 'employees.sub_department_id';
+            return $result;
+        }
+
+        $departmentId = (int) ($employee->department_id ?? 0);
+        if ($departmentId > 0) {
+            $result['department_id'] = $departmentId;
+            $result['department_name'] = (string) optional($employee->department)->department_name;
+            $result['source'] = 'employees.department_id';
+        }
+
+        return $result;
+    }
+
+    protected function legacyRoleLabel($legacyRole): string
+    {
+        if (!$legacyRole) {
+            return '-';
+        }
+
+        if (!empty($legacyRole->systemRole)) {
+            return (string) ($legacyRole->systemRole->name_km ?: $legacyRole->systemRole->name);
+        }
+
+        $code = trim((string) $legacyRole->getEffectiveRoleCode());
+        return $code !== '' ? $code : '-';
+    }
+
+    protected function scopeLabel(string $scope): string
+    {
+        return match ($this->normalizeScope($scope)) {
+            'self_only' => localize('scope_self_only', 'Self only'),
+            'self_unit_only' => localize('scope_self_unit_only', 'Self unit only'),
+            'self_and_children' => localize('scope_self_and_children', 'Self and children'),
+            'all' => localize('scope_all', 'All'),
+            default => $scope,
+        };
+    }
+
+    protected function normalizeScope(string $scope): string
+    {
+        $scope = trim((string) $scope);
+        return $scope === 'self' ? 'self_only' : $scope;
+    }
+
+    protected function normalizeDateValue($value): ?string
+    {
+        if (empty($value)) {
+            return null;
+        }
+
+        if ($value instanceof Carbon) {
+            return $value->toDateString();
+        }
+
+        try {
+            return Carbon::parse((string) $value)->toDateString();
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    protected function hasCanonicalAssignmentTable(): bool
+    {
+        return $this->tableExists('user_assignments');
+    }
+
+    protected function hasLegacyOrgRoleTable(): bool
+    {
+        return $this->tableExists('user_org_roles');
+    }
+
+    protected function hasEmployeeUnitPostingTable(): bool
+    {
+        return $this->tableExists('employee_unit_postings');
+    }
+
+    protected function tableExists(string $table): bool
+    {
+        static $cache = [];
+        if (!array_key_exists($table, $cache)) {
+            $cache[$table] = Schema::hasTable($table);
+        }
+
+        return (bool) $cache[$table];
     }
 }
