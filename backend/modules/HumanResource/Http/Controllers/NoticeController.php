@@ -18,6 +18,7 @@ use Modules\HumanResource\Entities\WorkflowDefinitionStep;
 use Modules\HumanResource\Support\NoticeDispatchService;
 use Modules\HumanResource\Support\OrgHierarchyAccessService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
+use Modules\HumanResource\Support\WorkflowActorResolverService;
 use Modules\HumanResource\Support\WorkflowPolicyService;
 use Spatie\Permission\Models\Role;
 
@@ -38,7 +39,7 @@ class NoticeController extends Controller
     public function index()
     {
         $dbData = Notice::query()
-            ->with(['workflowInstance.definition.steps'])
+            ->with(['workflowInstance.definition.steps.systemRole'])
             ->withoutGlobalScope('sortByLatest')
             ->orderByDesc('notice_date')
             ->orderByDesc('id')
@@ -153,7 +154,7 @@ class NoticeController extends Controller
         return redirect()->route('notice.index');
     }
 
-    public function approve(Notice $notice)
+    public function approve(Notice $notice, NoticeDispatchService $dispatchService)
     {
         if ((string) $notice->status !== Notice::STATUS_PENDING_APPROVAL) {
             Toastr::warning(localize('notice_not_pending_for_approval', 'This notice is not pending for approval.'));
@@ -164,6 +165,17 @@ class NoticeController extends Controller
         if (!($result['ok'] ?? false)) {
             Toastr::warning((string) ($result['message'] ?? localize('permission_denied', 'Permission denied.')));
             return redirect()->route('notice.index');
+        }
+
+        $notice = $notice->fresh();
+        $isFinalApproval = (bool) ($result['final'] ?? false);
+        if ($isFinalApproval && $notice && (string) $notice->status === Notice::STATUS_APPROVED && $notice->sent_at === null) {
+            $summary = $this->dispatchNotice($notice, $dispatchService);
+            if (($summary['failed'] ?? 0) > 0) {
+                Toastr::warning(localize('notice_sent_partial', 'Notice sent with some failures.'));
+            } else {
+                Toastr::success(localize('notice_sent_successfully', 'Notice sent successfully.'));
+            }
         }
 
         Toastr::success(
@@ -209,6 +221,19 @@ class NoticeController extends Controller
             return redirect()->route('notice.index');
         }
 
+        $summary = $this->dispatchNotice($notice, $dispatchService);
+
+        if (($summary['failed'] ?? 0) > 0) {
+            Toastr::warning(localize('notice_sent_partial', 'Notice sent with some failures.'));
+        } else {
+            Toastr::success(localize('notice_sent_successfully', 'Notice sent successfully.'));
+        }
+
+        return redirect()->route('notice.index');
+    }
+
+    private function dispatchNotice(Notice $notice, NoticeDispatchService $dispatchService): array
+    {
         $summary = $dispatchService->deliver($notice);
 
         $status = Notice::STATUS_SENT;
@@ -226,13 +251,7 @@ class NoticeController extends Controller
             'delivery_last_error' => $summary['last_error'] ?? null,
         ]);
 
-        if (($summary['failed'] ?? 0) > 0) {
-            Toastr::warning(localize('notice_sent_partial', 'Notice sent with some failures.'));
-        } else {
-            Toastr::success(localize('notice_sent_successfully', 'Notice sent successfully.'));
-        }
-
-        return redirect()->route('notice.index');
+        return $summary;
     }
 
     /**
@@ -403,40 +422,13 @@ class NoticeController extends Controller
             return true;
         }
 
-        $roles = $this->orgHierarchyAccessService()
-            ->effectiveOrgRoles($user)
-            ->filter(fn ($role) => (string) $role->org_role === (string) $step->org_role);
-
-        if ($roles->isEmpty()) {
-            return false;
-        }
-
         $context = (array) ($notice->workflowInstance?->context_json ?? []);
         $sourceDepartmentId = (int) ($context['department_id'] ?? 0);
         if ($sourceDepartmentId <= 0) {
-            return true;
+            $sourceDepartmentId = $this->inferNoticeDepartmentId($notice);
         }
 
-        foreach ($roles as $role) {
-            $roleDepartmentId = (int) ($role->department_id ?? 0);
-            if ($roleDepartmentId <= 0) {
-                continue;
-            }
-
-            $scopeType = (string) ($role->scope_type ?? 'self_and_children');
-            if ($scopeType === 'self' && $sourceDepartmentId === $roleDepartmentId) {
-                return true;
-            }
-
-            if ($scopeType !== 'self') {
-                $branchIds = $this->orgUnitRuleService()->branchIdsIncludingSelf($roleDepartmentId);
-                if (in_array($sourceDepartmentId, $branchIds, true)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return $this->workflowActorResolverService()->canUserActOnStep($user, $step, $sourceDepartmentId);
     }
 
     private function applyNoticeWorkflowDecision(
@@ -608,9 +600,16 @@ class NoticeController extends Controller
             }
         }
 
-        $creator = User::query()->find((int) $notice->created_by);
+        $creator = User::query()
+            ->with(['primaryActiveAssignment:id,user_id,department_id'])
+            ->find((int) $notice->created_by);
         if (!$creator) {
             return 0;
+        }
+
+        $canonicalDepartmentId = (int) ($creator->primaryActiveAssignment?->department_id ?? 0);
+        if ($canonicalDepartmentId > 0) {
+            return $canonicalDepartmentId;
         }
 
         $role = $this->orgHierarchyAccessService()->effectiveOrgRoles($creator)->first();
@@ -620,6 +619,11 @@ class NoticeController extends Controller
     private function workflowPolicyService(): WorkflowPolicyService
     {
         return app(WorkflowPolicyService::class);
+    }
+
+    private function workflowActorResolverService(): WorkflowActorResolverService
+    {
+        return app(WorkflowActorResolverService::class);
     }
 
     private function orgHierarchyAccessService(): OrgHierarchyAccessService

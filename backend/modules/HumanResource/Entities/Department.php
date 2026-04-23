@@ -10,6 +10,7 @@ use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\EmployeeUnitPosting;
 use Modules\HumanResource\Entities\GovSalaryScale;
 use Modules\HumanResource\Entities\OrgUnitType;
+use Modules\HumanResource\Entities\UserAssignment;
 use Modules\HumanResource\Entities\UserOrgRole;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -91,6 +92,11 @@ class Department extends Model
     public function userOrgRoles()
     {
         return $this->hasMany(UserOrgRole::class, 'department_id', 'id');
+    }
+
+    public function userAssignments()
+    {
+        return $this->hasMany(UserAssignment::class, 'department_id', 'id');
     }
 
     public function hasAncestor(int $ancestorId): bool

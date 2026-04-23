@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Modules\HumanResource\Entities\Employee;
+use Modules\HumanResource\Entities\UserAssignment;
 use Modules\HumanResource\Entities\UserOrgRole;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
@@ -77,11 +78,11 @@ class User extends Authenticatable
 
 
     public function admin(){
-        if($this->user_type_id == 1){
-         return true;
-        } else {
-         return false;
+        if ((int) $this->user_type_id === 1) {
+            return true;
         }
+
+        return method_exists($this, 'hasRole') && $this->hasRole('Super Admin');
     }
     
     //user all role
@@ -124,6 +125,27 @@ class User extends Authenticatable
     public function orgRoles()
     {
         return $this->hasMany(UserOrgRole::class, 'user_id', 'id');
+    }
+
+    public function userAssignments()
+    {
+        return $this->hasMany(UserAssignment::class, 'user_id', 'id');
+    }
+
+    public function primaryActiveAssignment()
+    {
+        return $this->hasOne(UserAssignment::class, 'user_id', 'id')
+            ->where('is_primary', true)
+            ->where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('effective_from')
+                    ->orWhereDate('effective_from', '<=', now()->toDateString());
+            })
+            ->where(function ($query) {
+                $query->whereNull('effective_to')
+                    ->orWhereDate('effective_to', '>=', now()->toDateString());
+            })
+            ->latestOfMany();
     }
 
     public function mobileDeviceRegistrations()

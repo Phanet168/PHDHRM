@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class UserOrgRole extends Model
 {
@@ -28,6 +29,7 @@ class UserOrgRole extends Model
     protected $fillable = [
         'uuid',
         'user_id',
+        'user_assignment_id',
         'department_id',
         'org_role',
         'system_role_id',
@@ -64,11 +66,78 @@ class UserOrgRole extends Model
 
     public static function roleOptions(): array
     {
+        if (!Schema::hasTable('system_roles')) {
+            return self::approverRoleOptions();
+        }
+
+        $codes = SystemRole::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->pluck('code')
+            ->map(fn ($code) => trim((string) $code))
+            ->filter()
+            ->values()
+            ->all();
+
+        if (!empty($codes)) {
+            return $codes;
+        }
+
+        return self::approverRoleOptions();
+    }
+
+    public static function approverRoleOptions(): array
+    {
         return [
             self::ROLE_HEAD,
             self::ROLE_DEPUTY_HEAD,
             self::ROLE_MANAGER,
         ];
+    }
+
+    public static function roleLabels(): array
+    {
+        $labels = [
+            self::ROLE_HEAD => localize('org_role_head', 'Head'),
+            self::ROLE_DEPUTY_HEAD => localize('org_role_deputy_head', 'Deputy Head'),
+            self::ROLE_MANAGER => localize('org_role_manager', 'Office Head / Manager'),
+        ];
+
+        if (!Schema::hasTable('system_roles')) {
+            return $labels;
+        }
+
+        $dynamic = SystemRole::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get(['code', 'name', 'name_km'])
+            ->mapWithKeys(function (SystemRole $role) {
+                $label = trim((string) ($role->name_km ?: $role->name));
+                return [(string) $role->code => ($label !== '' ? $label : (string) $role->code)];
+            })
+            ->all();
+
+        return array_merge($labels, $dynamic);
+    }
+
+    public static function resolveSystemRoleIdByCode(?string $code): ?int
+    {
+        $normalized = trim((string) $code);
+        if ($normalized === '') {
+            return null;
+        }
+
+        if (!Schema::hasTable('system_roles')) {
+            return null;
+        }
+
+        $id = SystemRole::query()
+            ->where('code', $normalized)
+            ->value('id');
+
+        return $id ? (int) $id : null;
     }
 
     public static function scopeOptions(): array
@@ -110,6 +179,11 @@ class UserOrgRole extends Model
         return $this->belongsTo(Department::class, 'department_id');
     }
 
+    public function userAssignment()
+    {
+        return $this->belongsTo(UserAssignment::class, 'user_assignment_id');
+    }
+
     public function systemRole()
     {
         return $this->belongsTo(SystemRole::class, 'system_role_id');
@@ -120,8 +194,17 @@ class UserOrgRole extends Model
      */
     public function getEffectiveRoleCode(): string
     {
-        if ($this->system_role_id && $this->relationLoaded('systemRole') && $this->systemRole) {
-            return (string) $this->systemRole->code;
+        if ($this->system_role_id) {
+            if ($this->relationLoaded('systemRole') && $this->systemRole) {
+                return (string) $this->systemRole->code;
+            }
+
+            $code = $this->systemRole()
+                ->withoutGlobalScopes()
+                ->value('code');
+            if (!empty($code)) {
+                return (string) $code;
+            }
         }
 
         return (string) ($this->org_role ?? '');

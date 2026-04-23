@@ -32,6 +32,7 @@ use Modules\HumanResource\Http\Controllers\OrgUnitTypePositionController;
 use Modules\HumanResource\Http\Controllers\OrgRoleModulePermissionController;
 use Modules\HumanResource\Http\Controllers\SystemRoleController;
 use Modules\HumanResource\Http\Controllers\UserOrgRoleController;
+use Modules\HumanResource\Http\Controllers\UserAssignmentController;
 use Modules\HumanResource\Http\Controllers\WorkflowPolicyController;
 use Modules\HumanResource\Http\Controllers\LeaveTypeController;
 use Modules\HumanResource\Http\Controllers\SetupRuleController;
@@ -128,6 +129,12 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
         'update',
         'destroy',
     ]);
+    Route::resource('user-assignments', UserAssignmentController::class)->only([
+        'index',
+        'store',
+        'update',
+        'destroy',
+    ]);
     Route::resource('org-role-module-permissions', OrgRoleModulePermissionController::class)->only([
         'index',
         'store',
@@ -142,6 +149,8 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
     ]);
     Route::get('user-org-roles-user-options', [UserOrgRoleController::class, 'userOptions'])
         ->name('user-org-roles.user-options');
+    Route::get('user-assignments-user-options', [UserAssignmentController::class, 'userOptions'])
+        ->name('user-assignments.user-options');
     Route::get('workflow-policies', [WorkflowPolicyController::class, 'index'])
         ->name('workflow-policies.index');
     Route::post('workflow-policies', [WorkflowPolicyController::class, 'store'])
@@ -152,6 +161,9 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
         ->name('workflow-policies.update');
     Route::delete('workflow-policies/{workflow_policy}', [WorkflowPolicyController::class, 'destroy'])
         ->name('workflow-policies.destroy');
+    Route::get('org-structure/help/{article?}', [EmployeeHelpController::class, 'orgGovernanceHelp'])
+        ->middleware('permission:read_org_governance|read_department')
+        ->name('org-structure.help');
     Route::resource('pay-levels', GovPayLevelController::class)->only([
         'index',
         'store',

@@ -9,16 +9,17 @@ use Illuminate\Validation\Rule;
 use App\Models\User;
 use Modules\HumanResource\Entities\SystemRole;
 use Modules\HumanResource\Entities\UserOrgRole;
+use Modules\HumanResource\Services\GovernanceAssignmentService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
 
 class UserOrgRoleController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:read_department', ['only' => ['index', 'userOptions']]);
-        $this->middleware('permission:create_department', ['only' => ['store']]);
-        $this->middleware('permission:update_department', ['only' => ['update']]);
-        $this->middleware('permission:delete_department', ['only' => ['destroy']]);
+        $this->middleware('permission:read_org_governance|read_department', ['only' => ['index', 'userOptions']]);
+        $this->middleware('permission:create_org_governance|create_department', ['only' => ['store']]);
+        $this->middleware('permission:update_org_governance|update_department', ['only' => ['update']]);
+        $this->middleware('permission:delete_org_governance|delete_department', ['only' => ['destroy']]);
     }
 
     public function index(Request $request, OrgUnitRuleService $orgUnitRuleService)
@@ -78,12 +79,17 @@ class UserOrgRoleController extends Controller
             'departments' => $departments,
             'system_roles' => $systemRoles,
             'org_role_options' => UserOrgRole::roleOptions(),
+            'role_labels' => UserOrgRole::roleLabels(),
             'scope_options' => UserOrgRole::scopeOptions(),
             'selected_user_id' => $selectedUserId,
             'selected_status' => $selectedStatus,
             'selected_user_text' => $selectedUser ? $this->buildUserLabel($selectedUser) : '',
             'old_user_id' => $oldUserId,
             'old_user_text' => $oldUser ? $this->buildUserLabel($oldUser) : '',
+            'canonical_assignments_route' => route('user-assignments.index', array_filter([
+                'user_id' => $selectedUserId > 0 ? $selectedUserId : null,
+            ])),
+            'legacy_read_only' => true,
         ]);
     }
 
@@ -131,15 +137,22 @@ class UserOrgRoleController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, GovernanceAssignmentService $assignmentService)
     {
         $validated = $request->validate($this->rules());
+        $roleCode = trim((string) ($validated['org_role'] ?? ''));
+        $systemRoleId = UserOrgRole::resolveSystemRoleIdByCode($roleCode);
 
         $exists = UserOrgRole::query()
             ->withoutGlobalScope('sortByLatest')
             ->where('user_id', (int) $validated['user_id'])
             ->where('department_id', (int) $validated['department_id'])
-            ->where('org_role', (string) $validated['org_role'])
+            ->where(function ($query) use ($roleCode, $systemRoleId) {
+                $query->where('org_role', $roleCode);
+                if ($systemRoleId) {
+                    $query->orWhere('system_role_id', $systemRoleId);
+                }
+            })
             ->whereNull('deleted_at')
             ->exists();
 
@@ -151,32 +164,44 @@ class UserOrgRoleController extends Controller
                 ->withInput();
         }
 
-        UserOrgRole::create([
+        $assignmentService->upsertFromLegacyPayload([
             'user_id' => (int) $validated['user_id'],
             'department_id' => (int) $validated['department_id'],
-            'org_role' => (string) $validated['org_role'],
-            'system_role_id' => SystemRole::where('code', $validated['org_role'])->value('id'),
+            'org_role' => $roleCode,
+            'system_role_id' => $systemRoleId,
             'scope_type' => (string) $validated['scope_type'],
             'effective_from' => !empty($validated['effective_from']) ? $validated['effective_from'] : null,
             'effective_to' => !empty($validated['effective_to']) ? $validated['effective_to'] : null,
             'is_active' => (bool) $validated['is_active'],
             'note' => !empty($validated['note']) ? trim((string) $validated['note']) : null,
-        ]);
+            'is_primary' => false,
+        ], null, auth()->id());
 
         Toastr::success(localize('data_save', 'Data saved'));
         return redirect()->route('user-org-roles.index');
     }
 
-    public function update(Request $request, UserOrgRole $user_org_role)
+    public function update(
+        Request $request,
+        UserOrgRole $user_org_role,
+        GovernanceAssignmentService $assignmentService
+    )
     {
         $validated = $request->validate($this->rules());
+        $roleCode = trim((string) $validated['org_role']);
+        $systemRoleId = UserOrgRole::resolveSystemRoleIdByCode($roleCode);
 
         $exists = UserOrgRole::query()
             ->withoutGlobalScope('sortByLatest')
             ->where('id', '!=', (int) $user_org_role->id)
             ->where('user_id', (int) $validated['user_id'])
             ->where('department_id', (int) $validated['department_id'])
-            ->where('org_role', (string) $validated['org_role'])
+            ->where(function ($query) use ($roleCode, $systemRoleId) {
+                $query->where('org_role', $roleCode);
+                if ($systemRoleId) {
+                    $query->orWhere('system_role_id', $systemRoleId);
+                }
+            })
             ->whereNull('deleted_at')
             ->exists();
 
@@ -188,25 +213,26 @@ class UserOrgRoleController extends Controller
                 ->withInput();
         }
 
-        $user_org_role->update([
+        $assignmentService->upsertFromLegacyPayload([
             'user_id' => (int) $validated['user_id'],
             'department_id' => (int) $validated['department_id'],
-            'org_role' => (string) $validated['org_role'],
-            'system_role_id' => SystemRole::where('code', $validated['org_role'])->value('id'),
+            'org_role' => $roleCode,
+            'system_role_id' => $systemRoleId,
             'scope_type' => (string) $validated['scope_type'],
             'effective_from' => !empty($validated['effective_from']) ? $validated['effective_from'] : null,
             'effective_to' => !empty($validated['effective_to']) ? $validated['effective_to'] : null,
             'is_active' => (bool) $validated['is_active'],
             'note' => !empty($validated['note']) ? trim((string) $validated['note']) : null,
-        ]);
+            'is_primary' => false,
+        ], $user_org_role, auth()->id());
 
         Toastr::success(localize('data_update', 'Data updated'));
         return redirect()->route('user-org-roles.index');
     }
 
-    public function destroy(UserOrgRole $user_org_role)
+    public function destroy(UserOrgRole $user_org_role, GovernanceAssignmentService $assignmentService)
     {
-        $user_org_role->delete();
+        $assignmentService->deleteByLegacyRecord($user_org_role, auth()->id());
 
         return response()->json([
             'success' => true,

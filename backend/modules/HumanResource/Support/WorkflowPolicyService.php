@@ -50,7 +50,18 @@ class WorkflowPolicyService
                     'step_key' => (string) ($step->step_key ?? ''),
                     'step_name' => (string) $step->step_name,
                     'action_type' => (string) $step->action_type,
+                    'actor_type' => method_exists($step, 'getEffectiveActorType')
+                        ? (string) $step->getEffectiveActorType()
+                        : (string) ($step->actor_type ?? 'responsibility'),
+                    'actor_user_id' => !empty($step->actor_user_id) ? (int) $step->actor_user_id : null,
+                    'actor_position_id' => !empty($step->actor_position_id) ? (int) $step->actor_position_id : null,
+                    'actor_responsibility_id' => !empty($step->actor_responsibility_id) ? (int) $step->actor_responsibility_id : null,
+                    'actor_role_id' => !empty($step->actor_role_id) ? (int) $step->actor_role_id : null,
                     'org_role' => (string) $step->org_role,
+                    'system_role_id' => !empty($step->system_role_id) ? (int) $step->system_role_id : null,
+                    'effective_role_code' => method_exists($step, 'getEffectiveRoleCode')
+                        ? (string) $step->getEffectiveRoleCode()
+                        : (string) $step->org_role,
                     'scope_type' => (string) $step->scope_type,
                     'is_final_approval' => (bool) $step->is_final_approval,
                     'is_required' => (bool) $step->is_required,

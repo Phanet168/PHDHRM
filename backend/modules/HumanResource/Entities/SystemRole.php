@@ -66,6 +66,11 @@ class SystemRole extends Model
         return $this->hasMany(WorkflowDefinitionStep::class, 'system_role_id');
     }
 
+    public function userAssignments(): HasMany
+    {
+        return $this->hasMany(UserAssignment::class, 'responsibility_id');
+    }
+
     /* ── Scopes ────────────────────────────── */
 
     public function scopeActive(Builder $query): Builder

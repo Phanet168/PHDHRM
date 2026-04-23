@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Modules\HumanResource\Entities\CandidateSelection;
 use Modules\HumanResource\Entities\OrgUnitTypePosition;
+use Modules\HumanResource\Entities\UserAssignment;
 
 class Position extends Model
 {
@@ -59,5 +60,10 @@ class Position extends Model
     public function unitTypeMappings()
     {
         return $this->hasMany(OrgUnitTypePosition::class, 'position_id', 'id');
+    }
+
+    public function userAssignments()
+    {
+        return $this->hasMany(UserAssignment::class, 'position_id', 'id');
     }
 }

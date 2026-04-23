@@ -12,10 +12,10 @@ class SystemRoleController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:read_department', ['only' => ['index']]);
-        $this->middleware('permission:create_department', ['only' => ['store']]);
-        $this->middleware('permission:update_department', ['only' => ['update']]);
-        $this->middleware('permission:delete_department', ['only' => ['destroy']]);
+        $this->middleware('permission:read_org_governance|read_department', ['only' => ['index']]);
+        $this->middleware('permission:create_org_governance|create_department', ['only' => ['store']]);
+        $this->middleware('permission:update_org_governance|update_department', ['only' => ['update']]);
+        $this->middleware('permission:delete_org_governance|delete_department', ['only' => ['destroy']]);
     }
 
     public function index()
@@ -32,9 +32,15 @@ class SystemRoleController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge([
+            'code' => trim(mb_strtolower((string) $request->input('code', ''))),
+            'name' => trim((string) $request->input('name', '')),
+            'name_km' => trim((string) $request->input('name_km', '')),
+        ]);
+
         $validated = $request->validate([
-            'code'     => ['required', 'string', 'max:32', 'regex:/^[a-z_]+$/', Rule::unique('system_roles', 'code')],
-            'name'     => ['required', 'string', 'max:120'],
+            'code'     => ['required', 'string', 'max:32', 'regex:/^[a-z][a-z0-9_]*$/', Rule::unique('system_roles', 'code')],
+            'name'     => ['required', 'string', 'max:120', 'regex:/^(?=.*\S).+$/u'],
             'name_km'  => ['nullable', 'string', 'max:120'],
             'level'    => ['required', 'integer', 'min:0', 'max:255'],
             'can_approve' => ['required', 'boolean'],
@@ -43,8 +49,8 @@ class SystemRoleController extends Controller
         ]);
 
         SystemRole::create([
-            'code'        => trim($validated['code']),
-            'name'        => trim($validated['name']),
+            'code'        => trim(mb_strtolower((string) $validated['code'])),
+            'name'        => trim((string) $validated['name']),
             'name_km'     => !empty($validated['name_km']) ? trim($validated['name_km']) : null,
             'level'       => (int) $validated['level'],
             'can_approve' => (bool) $validated['can_approve'],
@@ -60,9 +66,15 @@ class SystemRoleController extends Controller
 
     public function update(Request $request, SystemRole $system_role)
     {
+        $request->merge([
+            'code' => trim(mb_strtolower((string) $request->input('code', ''))),
+            'name' => trim((string) $request->input('name', '')),
+            'name_km' => trim((string) $request->input('name_km', '')),
+        ]);
+
         $validated = $request->validate([
-            'code'     => ['required', 'string', 'max:32', 'regex:/^[a-z_]+$/', Rule::unique('system_roles', 'code')->ignore($system_role->id)],
-            'name'     => ['required', 'string', 'max:120'],
+            'code'     => ['required', 'string', 'max:32', 'regex:/^[a-z][a-z0-9_]*$/', Rule::unique('system_roles', 'code')->ignore($system_role->id)],
+            'name'     => ['required', 'string', 'max:120', 'regex:/^(?=.*\S).+$/u'],
             'name_km'  => ['nullable', 'string', 'max:120'],
             'level'    => ['required', 'integer', 'min:0', 'max:255'],
             'can_approve' => ['required', 'boolean'],
@@ -71,8 +83,8 @@ class SystemRoleController extends Controller
         ]);
 
         $system_role->update([
-            'code'        => trim($validated['code']),
-            'name'        => trim($validated['name']),
+            'code'        => trim(mb_strtolower((string) $validated['code'])),
+            'name'        => trim((string) $validated['name']),
             'name_km'     => !empty($validated['name_km']) ? trim($validated['name_km']) : null,
             'level'       => (int) $validated['level'],
             'can_approve' => (bool) $validated['can_approve'],

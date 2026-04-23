@@ -17,12 +17,14 @@ use Modules\HumanResource\Entities\ApplyLeave;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\LeaveType;
 use Modules\HumanResource\Entities\LeaveTypeYear;
+use Modules\HumanResource\Entities\UserOrgRole;
 use Modules\HumanResource\Entities\WeekHoliday;
 use Modules\HumanResource\Entities\WorkflowInstance;
 use Modules\HumanResource\Entities\WorkflowInstanceAction;
 use Modules\HumanResource\Support\EmployeeServiceHistoryService;
 use Modules\HumanResource\Support\OrgHierarchyAccessService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
+use Modules\HumanResource\Support\WorkflowActorResolverService;
 use Modules\HumanResource\Support\WorkflowPolicyService;
 
 class LeaveController extends Controller
@@ -604,7 +606,7 @@ class LeaveController extends Controller
     public function leaveApproval()
     {
         $query = ApplyLeave::query()
-            ->with(['employee.department', 'leaveType', 'workflowInstance.definition.steps'])
+            ->with(['employee.department', 'leaveType', 'workflowInstance.definition.steps.systemRole'])
             ->where('is_approved', false)
             ->where(function ($query) {
                 $query->where('workflow_status', 'pending')
@@ -869,7 +871,7 @@ class LeaveController extends Controller
         }
 
         $instance = $leave->workflowInstance()
-            ->with(['definition.steps'])
+            ->with(['definition.steps.systemRole'])
             ->first();
 
         if (!$instance || !$instance->definition) {
@@ -1054,7 +1056,7 @@ class LeaveController extends Controller
                 'workflow_last_action_at' => now(),
             ];
 
-            $isManagerStep = (string) $currentStep->org_role === 'manager';
+            $isManagerStep = $this->resolveWorkflowStepRoleCode($currentStep) === UserOrgRole::ROLE_MANAGER;
             if ($isManagerStep) {
                 $update['is_approved_by_manager'] = 1;
                 $update['manager_approved_description'] = !empty($decisionNote)
@@ -1237,53 +1239,74 @@ class LeaveController extends Controller
             return true;
         }
 
-        $employeeDepartmentId = (int) ($leave->employee?->department_id ?? 0);
-        if ($employeeDepartmentId <= 0) {
-            return false;
+        $sourceDepartmentId = $this->resolveLeaveSourceDepartmentId($leave);
+
+        return $this->workflowActorResolverService()->canUserActOnStep($user, $step, $sourceDepartmentId);
+    }
+
+    protected function resolveWorkflowStepRoleCode(\Modules\HumanResource\Entities\WorkflowDefinitionStep $step): string
+    {
+        if (method_exists($step, 'getEffectiveRoleCode')) {
+            return (string) $step->getEffectiveRoleCode();
         }
 
-        $roles = $this->orgHierarchyAccessService()
-            ->effectiveOrgRoles($user)
-            ->filter(function ($role) use ($step) {
-                return (string) $role->org_role === (string) $step->org_role;
-            });
-
-        foreach ($roles as $role) {
-            $roleDepartmentId = (int) ($role->department_id ?? 0);
-            if ($roleDepartmentId <= 0) {
-                continue;
-            }
-
-            $scopeType = (string) ($role->scope_type ?? 'self_and_children');
-            if ($scopeType === 'self' && $roleDepartmentId === $employeeDepartmentId) {
-                return true;
-            }
-
-            if ($scopeType !== 'self') {
-                $scopeIds = $this->orgUnitRuleService()->branchIdsIncludingSelf($roleDepartmentId);
-                if (in_array($employeeDepartmentId, $scopeIds, true)) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        return (string) ($step->org_role ?? '');
     }
 
     protected function buildLeaveWorkflowContext(ApplyLeave $leave): array
     {
         $employee = $leave->employee()
-            ->with(['department.unitType', 'employee_type'])
+            ->with([
+                'department.unitType',
+                'employee_type',
+                'primaryUnitPosting.department.unitType',
+                'primaryUnitPosting.position',
+            ])
             ->first();
+
+        $currentDepartment = $employee?->primaryUnitPosting?->department ?: $employee?->department;
+        $currentDepartmentId = (int) ($employee?->primaryUnitPosting?->department_id
+            ?: $employee?->sub_department_id
+            ?: $employee?->department_id
+            ?: 0);
+        $currentPositionId = (int) ($employee?->primaryUnitPosting?->position_id
+            ?: $employee?->position_id
+            ?: 0);
 
         return [
             'days' => (float) ($leave->total_apply_day ?? 0),
+            'employee_id' => (int) ($leave->employee_id ?? 0),
+            'department_id' => $currentDepartmentId > 0 ? $currentDepartmentId : null,
+            'position_id' => $currentPositionId > 0 ? $currentPositionId : null,
             'employee_type_id' => (int) ($employee?->employee_type_id ?? 0),
             'employee_type_code' => '',
-            'org_unit_type_id' => (int) ($employee?->department?->unit_type_id ?? 0),
-            'org_unit_type_code' => (string) ($employee?->department?->unitType?->code ?? ''),
+            'org_unit_type_id' => (int) ($currentDepartment?->unit_type_id ?? 0),
+            'org_unit_type_code' => (string) ($currentDepartment?->unitType?->code ?? ''),
             'is_full_right' => (bool) ($employee?->is_full_right_officer ?? false),
         ];
+    }
+
+    protected function resolveLeaveSourceDepartmentId(ApplyLeave $leave): int
+    {
+        $employee = $leave->employee()
+            ->with('primaryUnitPosting:id,employee_id,department_id')
+            ->first();
+
+        if (!$employee) {
+            return 0;
+        }
+
+        $postingDepartmentId = (int) ($employee->primaryUnitPosting?->department_id ?? 0);
+        if ($postingDepartmentId > 0) {
+            return $postingDepartmentId;
+        }
+
+        $subDepartmentId = (int) ($employee->sub_department_id ?? 0);
+        if ($subDepartmentId > 0) {
+            return $subDepartmentId;
+        }
+
+        return (int) ($employee->department_id ?? 0);
     }
 
     protected function calculateInclusiveDays(string $startDate, string $endDate): int
@@ -1612,6 +1635,11 @@ class LeaveController extends Controller
     protected function historyService(): EmployeeServiceHistoryService
     {
         return app(EmployeeServiceHistoryService::class);
+    }
+
+    protected function workflowActorResolverService(): WorkflowActorResolverService
+    {
+        return app(WorkflowActorResolverService::class);
     }
 
     protected function isLeaveWithoutPay(?LeaveType $leaveType): bool
