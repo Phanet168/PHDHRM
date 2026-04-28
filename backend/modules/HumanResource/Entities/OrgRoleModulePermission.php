@@ -13,6 +13,7 @@ class OrgRoleModulePermission extends Model
     public const MODULE_CORRESPONDENCE = 'correspondence';
     public const MODULE_LEAVE = 'leave';
     public const MODULE_NOTICE = 'notice';
+    public const MODULE_ATTENDANCE = 'attendance';
     public const MODULE_PROMOTION = 'promotion';
     public const MODULE_PHARMACEUTICAL = 'pharmaceutical';
 
@@ -61,6 +62,15 @@ class OrgRoleModulePermission extends Model
 
     public static function moduleActionMap(): array
     {
+        $configured = collect((array) config('hr_governance.modules', []))
+            ->map(fn ($definition) => array_keys((array) ($definition['actions'] ?? [])))
+            ->filter()
+            ->all();
+
+        if (!empty($configured)) {
+            return $configured;
+        }
+
         return [
             self::MODULE_CORRESPONDENCE => [
                 'create_incoming',
@@ -87,6 +97,13 @@ class OrgRoleModulePermission extends Model
                 'review',
                 'approve',
                 'publish',
+            ],
+            self::MODULE_ATTENDANCE => [
+                'create_adjustment',
+                'review_adjustment',
+                'approve_adjustment',
+                'finalize_adjustment',
+                'manage_exceptions',
             ],
             self::MODULE_PROMOTION => [
                 'create',

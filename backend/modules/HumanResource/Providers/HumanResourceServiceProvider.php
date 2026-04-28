@@ -53,6 +53,9 @@ class HumanResourceServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(
             module_path($this->moduleName, 'Config/config.php'), $this->moduleNameLower
         );
+        $this->mergeConfigFrom(
+            module_path($this->moduleName, 'Config/attendance_governance.php'), 'attendance_governance'
+        );
     }
 
     /**

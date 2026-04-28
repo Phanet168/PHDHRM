@@ -76,6 +76,41 @@
             </div>
             <div class="col-md-12 mt-3">
                 <div class="row">
+                    <label for="employee_id"
+                        class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('employee', 'Employee') }}</label>
+                    <div class="col-sm-9 col-md-12 col-xl-9">
+                        <select name="employee_id" id="employee_id" class="form-control select-basic-single">
+                            <option value="">{{ localize('not_linked', 'Not linked') }}</option>
+                            @foreach ($employeeOptions as $employee)
+                                @php
+                                    $displayName = trim((string) ($employee->full_name ?? ''))
+                                        ?: trim((string) ($employee->first_name ?? '') . ' ' . (string) ($employee->last_name ?? ''))
+                                        ?: trim((string) ($employee->maiden_name ?? ''))
+                                        ?: trim((string) ($employee->first_name_latin ?? '') . ' ' . (string) ($employee->last_name_latin ?? ''))
+                                        ?: (trim((string) $employee->email) ?: ('Employee #' . $employee->id));
+                                    $employeeNumber = trim((string) ($employee->employee_id ?? ''));
+                                    $employeeEmail = trim((string) ($employee->email ?? ''));
+                                    $employeePhone = trim((string) ($employee->phone ?? ''))
+                                        ?: trim((string) ($employee->cell_phone ?? ''));
+                                    $isLinkedElsewhere = !empty($employee->user_id) && (int) $employee->user_id !== (int) $user->id;
+                                @endphp
+                                <option value="{{ $employee->id }}"
+                                    data-full-name="{{ $displayName }}"
+                                    data-email="{{ $employeeEmail }}"
+                                    data-phone="{{ $employeePhone }}"
+                                    @disabled($isLinkedElsewhere)
+                                    @selected((int) ($linkedEmployee->id ?? 0) === (int) $employee->id)>
+                                    {{ $employeeNumber !== '' ? $employeeNumber . ' - ' : '' }}{{ $displayName }}{{ $isLinkedElsewhere ? ' (Linked)' : '' }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <small class="text-muted">{{ localize('optional', 'Optional') }}</small>
+                        <span class="text-danger error_employee_id"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12 mt-3">
+                <div class="row">
                     <label for="password"
                         class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('password') }}</label>
                     <div class="col-sm-9 col-md-12 col-xl-9">

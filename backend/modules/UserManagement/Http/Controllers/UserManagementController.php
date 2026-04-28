@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Intervention\Image\Facades\Image;
+use Modules\HumanResource\Entities\Employee;
 use Modules\UserManagement\Entities\UserType;
 use Modules\UserManagement\Http\DataTables\UserListDataTable;
 use Modules\UserManagement\Http\Requests\PasswordChangeRequest;
@@ -343,8 +344,9 @@ class UserManagementController extends Controller
     {
         $roleList = Role::all();
         $userTypes = UserType::where('is_active', true)->get();
+        $employeeOptions = $this->employeeOptionsForUser();
 
-        return $dataTable->render('usermanagement::user-management.user-list', compact('roleList', 'userTypes'));
+        return $dataTable->render('usermanagement::user-management.user-list', compact('roleList', 'userTypes', 'employeeOptions'));
     }
 
     //store user
@@ -357,6 +359,7 @@ class UserManagementController extends Controller
             'password' => 'required|min:6',
             'role_id' => 'required',
             'user_type_id' => 'required',
+            'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
             'profile_image' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
         ],
             [
@@ -369,6 +372,7 @@ class UserManagementController extends Controller
                 'password.required' => 'The password field is required.',
                 'password.min' => 'The password must be at least 6 characters.',
                 'role_id.required' => 'The role field is required.',
+                'employee_id.exists' => 'The selected employee does not exist.',
                 'profile_image.image' => 'The profile image must be an image.',
                 'profile_image.mimes' => 'The profile image must be a file of type: jpeg, png, jpg, gif, svg.',
                 'profile_image.max' => 'The profile image may not be greater than 2048 kilobytes.',
@@ -383,28 +387,70 @@ class UserManagementController extends Controller
             ]);
         }
 
-        $user = new User();
-        $user->user_type_id = $request->user_type_id;
-        $user->is_active = $request->status;
-        $user->full_name = $request->full_name;
-        $user->email = $request->email;
-        $user->contact_no = $request->contact_no;
+        DB::beginTransaction();
+        try {
+            $selectedEmployeeId = $request->filled('employee_id') ? (int) $request->employee_id : null;
+            $selectedEmployee = null;
+            if ($selectedEmployeeId) {
+                $selectedEmployee = Employee::query()->lockForUpdate()->find($selectedEmployeeId);
+                if (!$selectedEmployee) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Validation Error',
+                        'errors' => [
+                            'employee_id' => ['The selected employee does not exist.'],
+                        ],
+                    ]);
+                }
 
-        if ($request->hasFile('profile_image')) {
-            $request_file = $request->file('profile_image');
-            $name = time() . '.' . $request_file->getClientOriginalExtension();
-            if (!file_exists(public_path('storage/users'))) {
-                mkdir(public_path('storage/users'), 0777, true);
+                if ($selectedEmployee->user_id !== null) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Validation Error',
+                        'errors' => [
+                            'employee_id' => ['This employee is already linked to another user.'],
+                        ],
+                    ]);
+                }
             }
-            $path = Storage::disk('public')->putFileAs('users', $request_file, $name);
-            Image::make($request_file)->save(public_path('storage/' . $path));
-            $user->profile_image = $path;
-        }
-        $user->password = Hash::make($request->password);
-        $user->save();
-        $user->assignRole($request->role_id);
 
-        return response()->json(['status' => 'success', 'message' => 'User Created Successfully']);
+            $user = new User();
+            $user->user_type_id = $request->user_type_id;
+            $user->is_active = $request->status;
+            $user->full_name = $request->full_name;
+            $user->email = $request->email;
+            $user->contact_no = $request->contact_no;
+
+            if ($request->hasFile('profile_image')) {
+                $request_file = $request->file('profile_image');
+                $name = time() . '.' . $request_file->getClientOriginalExtension();
+                if (!file_exists(public_path('storage/users'))) {
+                    mkdir(public_path('storage/users'), 0777, true);
+                }
+                $path = Storage::disk('public')->putFileAs('users', $request_file, $name);
+                Image::make($request_file)->save(public_path('storage/' . $path));
+                $user->profile_image = $path;
+            }
+            $user->password = Hash::make($request->password);
+            $user->save();
+            $user->assignRole($request->role_id);
+
+            if ($selectedEmployee) {
+                $selectedEmployee->user_id = (int) $user->id;
+                $selectedEmployee->save();
+            }
+
+            DB::commit();
+            return response()->json(['status' => 'success', 'message' => 'User Created Successfully']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Something went wrong',
+            ], 500);
+        }
     }
 
     //edit user
@@ -412,6 +458,7 @@ class UserManagementController extends Controller
     {
         $user = User::with([
             'userRole',
+            'employee',
             'mobileDeviceRegistrations' => function ($query) {
                 $query->latest('created_at');
             },
@@ -420,16 +467,17 @@ class UserManagementController extends Controller
             'mobileDeviceRegistrations.rejecter',
         ])->findOrFail($user->id);
 
+        $linkedEmployee = $this->resolveLinkedEmployeeForUser((int) $user->id);
+        $employeeOptions = $this->employeeOptionsForUser((int) $user->id);
         $mobileDevices = $user->mobileDeviceRegistrations;
         $roleList = Role::all();
         $userTypes = UserType::where('is_active', true)->get();
-        return response()->view('usermanagement::user-management.user-edit', compact('user', 'roleList', 'userTypes', 'mobileDevices'));
+        return response()->view('usermanagement::user-management.user-edit', compact('user', 'roleList', 'userTypes', 'mobileDevices', 'employeeOptions', 'linkedEmployee'));
     }
 
     //update user
     public function userUpdate(Request $request)
     {
-        DB::beginTransaction();
         try {
             $validator = Validator::make($request->all(), [
                 'full_name' => 'required',
@@ -438,6 +486,7 @@ class UserManagementController extends Controller
                 'user_type_id' => 'required',
                 'role_id' => 'required',
                 'password' => 'nullable|min:6',
+                'employee_id' => ['nullable', 'integer', 'exists:employees,id'],
                 'profile_image' => 'image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             ], [
                 'role_id.required' => 'The Role field is required.',
@@ -448,6 +497,7 @@ class UserManagementController extends Controller
                 'contact_no.required' => 'The mobile field is required.',
                 'user_type_id.required' => 'The User Type field is required.',
                 'password.min' => 'The password must be at least 6 characters.',
+                'employee_id.exists' => 'The selected employee does not exist.',
                 'profile_image.image' => 'The profile image must be an image.',
                 'profile_image.mimes' => 'The profile image must be a file of type: jpeg, png, jpg, gif, svg.',
                 'profile_image.max' => 'The profile image may not be greater than 2048 kilobytes.',
@@ -460,7 +510,37 @@ class UserManagementController extends Controller
                     'errors' => $validator->errors(),
                 ]);
             }
+            DB::beginTransaction();
             $user = User::with(['userRole', 'employee'])->findOrFail($request->id);
+            $selectedEmployeeId = $request->filled('employee_id') ? (int) $request->employee_id : null;
+            $currentLinkedEmployee = $this->resolveLinkedEmployeeForUser((int) $user->id);
+            $selectedEmployee = null;
+
+            if ($selectedEmployeeId) {
+                $selectedEmployee = Employee::query()->lockForUpdate()->find($selectedEmployeeId);
+                if (!$selectedEmployee) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Validation Error',
+                        'errors' => [
+                            'employee_id' => ['The selected employee does not exist.'],
+                        ],
+                    ]);
+                }
+
+                if ($selectedEmployee->user_id !== null && (int) $selectedEmployee->user_id !== (int) $user->id) {
+                    DB::rollBack();
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Validation Error',
+                        'errors' => [
+                            'employee_id' => ['This employee is already linked to another user.'],
+                        ],
+                    ]);
+                }
+            }
+
             $user->full_name = $request->full_name;
             $user->user_type_id = $request->user_type_id;
             $user->is_active = $request->status;
@@ -492,11 +572,41 @@ class UserManagementController extends Controller
 
             $user->save();
 
-            $updateEmployee = $user->employee;
+            // Handle employee link changes:
+            // Case 1: Unlink — admin cleared the employee field
+            if ($selectedEmployeeId === null && $currentLinkedEmployee) {
+                $currentLinkedEmployee->user_id = null;
+                $currentLinkedEmployee->save();
+                $currentLinkedEmployee = null;
+            }
+
+            // Case 2: Change to a different employee — unlink old, link new
+            if ($selectedEmployee && $currentLinkedEmployee && (int) $currentLinkedEmployee->id !== (int) $selectedEmployee->id) {
+                $currentLinkedEmployee->user_id = null;
+                $currentLinkedEmployee->save();
+                $selectedEmployee->user_id = (int) $user->id;
+                $selectedEmployee->save();
+                $currentLinkedEmployee = $selectedEmployee;
+            }
+
+            // Case 3: Link new employee (no existing link)
+            if ($selectedEmployee && $selectedEmployee->user_id === null) {
+                $selectedEmployee->user_id = (int) $user->id;
+                $selectedEmployee->save();
+                $currentLinkedEmployee = $selectedEmployee;
+            }
+
+            $updateEmployee = $currentLinkedEmployee;
             if ($updateEmployee != null) {
-                $fullName = explode(' ', $request->full_name);
-                $updateEmployee->first_name = $fullName[0];
-                $updateEmployee->last_name = $fullName[1] ?? '';
+                $normalizedFullName = trim((string) $request->full_name);
+                $nameParts = preg_split('/\s+/u', $normalizedFullName, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+                // Employee full_name is computed from "last_name first_name", so persist
+                // the parts in that order to keep UI/mobile display aligned with the user form.
+                $updateEmployee->last_name = $nameParts[0] ?? '';
+                $updateEmployee->first_name = count($nameParts) > 1
+                    ? implode(' ', array_slice($nameParts, 1))
+                    : ($nameParts[0] ?? '');
                 $updateEmployee->email = $request->email;
                 $updateEmployee->phone = $request->contact_no;
 
@@ -525,7 +635,9 @@ class UserManagementController extends Controller
             return response()->json(['status' => 'success', 'message' => 'User Updated Successfully']);
 
         } catch (\Exception $e) {
-            DB::rollback();
+            if (DB::transactionLevel() > 0) {
+                DB::rollBack();
+            }
             activity()
                 ->causedBy(auth()->user()) // The user causing the activity
                 ->log('An error occurred: ' . $e->getMessage());
@@ -748,6 +860,28 @@ class UserManagementController extends Controller
 
         $data->prepend(['id' => 0, 'text' => 'All']);
         return ['results' => $data];
+    }
+
+    private function resolveLinkedEmployeeForUser(int $userId): ?Employee
+    {
+        if ($userId <= 0) {
+            return null;
+        }
+
+        return Employee::query()
+            ->where('user_id', $userId)
+            ->orderBy('id')
+            ->first();
+    }
+
+    private function employeeOptionsForUser(?int $userId = null)
+    {
+        return Employee::query()
+            ->orderByRaw('CASE WHEN user_id IS NULL THEN 0 ELSE 1 END')
+            ->orderBy('employee_id')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
     }
 
     private function revokeUserDeviceTokens(MobileDeviceRegistration $device): void

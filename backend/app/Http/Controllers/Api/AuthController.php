@@ -459,13 +459,14 @@ class AuthController extends Controller
 
         if (!$employee) {
             return [
-                'id' => (int) $user->id,
+                'id' => 0,                               // employee id = 0 → no employee record
                 'user_id' => (int) $user->id,
                 'auth_user_id' => (int) $user->id,
                 'full_name' => (string) ($user->full_name ?? ''),
                 'name' => (string) ($user->full_name ?? ''),
                 'email' => (string) ($user->email ?? ''),
                 'user_type_id' => (int) ($user->user_type_id ?? 0),
+                'has_employee_profile' => false,
                 'profile_pic' => $this->normalizeProfileImagePath($user->profile_image),
                 'roles' => $roles,
                 'role' => $roles[0] ?? null,
@@ -511,6 +512,7 @@ class AuthController extends Controller
             'roles' => $roles,
             'role' => $roles[0] ?? null,
             'can_review_leave_requests' => $canReviewLeaveRequests,
+            'has_employee_profile' => true,
 
             // Organization
             'department_id' => $employee->department_id ? (int) $employee->department_id : null,

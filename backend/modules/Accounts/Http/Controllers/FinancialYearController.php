@@ -487,7 +487,7 @@ class FinancialYearController extends Controller
 
         $stockValuation = $this->stockValuation();
         $add_one_array_data_to_level_two = [
-            "id" => 100000000000000000000000000,
+            "id" => "virtual_stock_valuation",
             "uuid" => "af684dd7-1c7c-4013-8c8a-4a1e1694fe27",
             "account_code" => "0001",
             "account_name" => "Stock Valuation",

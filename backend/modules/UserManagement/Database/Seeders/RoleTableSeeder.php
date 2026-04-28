@@ -42,6 +42,12 @@ class RoleTableSeeder extends Seeder
                 'update_department',
                 'delete_department',
             ],
+            'Org Governance' => [
+                'create_org_governance',
+                'read_org_governance',
+                'update_org_governance',
+                'delete_org_governance',
+            ],
             'Employee' => [
                 'create_employee',
                 'read_employee',
@@ -653,6 +659,7 @@ class RoleTableSeeder extends Seeder
                 'read_correspondence_management',
                 'update_correspondence_management',
                 'delete_correspondence_management',
+                'setting_correspondence_management',
             ],
             'Supplier Wise Sale Profit' => [
                 'create_supplier_wise_sale_profit',

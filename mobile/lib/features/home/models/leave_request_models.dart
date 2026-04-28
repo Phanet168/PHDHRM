@@ -1,3 +1,17 @@
+int _toInt(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  if (value is String) {
+    final text = value.trim();
+    if (text.isEmpty) return 0;
+    final asInt = int.tryParse(text);
+    if (asInt != null) return asInt;
+    final asDouble = double.tryParse(text);
+    if (asDouble != null) return asDouble.toInt();
+  }
+  return 0;
+}
+
 class LeaveTypeOption {
   const LeaveTypeOption({
     required this.id,
@@ -23,10 +37,10 @@ class LeaveTypeOption {
 
   factory LeaveTypeOption.fromMap(Map<String, dynamic> map) {
     return LeaveTypeOption(
-      id: (map['id'] as num?)?.toInt() ?? 0,
+      id: _toInt(map['id']),
       name: (map['leave_type'] ?? '').toString(),
       nameKm: (map['leave_type_km'] ?? '').toString(),
-      days: (map['leave_days'] as num?)?.toInt() ?? 0,
+      days: _toInt(map['leave_days']),
     );
   }
 }
@@ -60,12 +74,12 @@ class LeaveBalanceItem {
 
   factory LeaveBalanceItem.fromMap(Map<String, dynamic> map) {
     return LeaveBalanceItem(
-      leaveTypeId: (map['leave_type_id'] as num?)?.toInt() ?? 0,
+      leaveTypeId: _toInt(map['leave_type_id']),
       leaveType: (map['leave_type'] ?? '').toString(),
       leaveTypeKm: (map['leave_type_km'] ?? '').toString(),
-      entitlement: (map['entitlement'] as num?)?.toInt() ?? 0,
-      used: (map['used'] as num?)?.toInt() ?? 0,
-      remaining: (map['remaining'] as num?)?.toInt() ?? 0,
+      entitlement: _toInt(map['entitlement']),
+      used: _toInt(map['used']),
+      remaining: _toInt(map['remaining']),
     );
   }
 }
@@ -95,7 +109,7 @@ class LeaveSummary {
     }
 
     return LeaveSummary(
-      totalRemaining: (map['total_remaining'] as num?)?.toInt() ?? 0,
+      totalRemaining: _toInt(map['total_remaining']),
       types: rows,
     );
   }
@@ -159,17 +173,19 @@ class LeaveRequestItem {
     }
 
     return LeaveRequestItem(
-      id: (map['id'] as num?)?.toInt() ?? 0,
+      id: _toInt(map['id']),
       leaveType: (map['leave_type'] ?? '').toString(),
       leaveTypeKm: (map['leave_type_km'] ?? '').toString(),
       startDate: (map['start_date'] ?? '').toString(),
       endDate: (map['end_date'] ?? '').toString(),
-      requestedDays: (map['requested_days'] as num?)?.toInt() ?? 0,
+      requestedDays: _toInt(map['requested_days']),
       reason: (map['reason'] ?? '').toString(),
       status: (map['status'] ?? '').toString(),
       attachmentUrl: (map['attachment_url'] as String?)?.trim(),
-      employeeName: employeeName?.trim().isEmpty == true ? null : employeeName?.trim(),
-      employeeNo: employeeNo?.trim().isEmpty == true ? null : employeeNo?.trim(),
+      employeeName:
+          employeeName?.trim().isEmpty == true ? null : employeeName?.trim(),
+      employeeNo:
+          employeeNo?.trim().isEmpty == true ? null : employeeNo?.trim(),
     );
   }
 }

@@ -2,6 +2,7 @@
 
 namespace Modules\HumanResource\Http\Controllers;
 
+use App\Models\User;
 use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ use Modules\HumanResource\Entities\UserOrgRole;
 use Modules\HumanResource\Entities\WorkflowDefinition;
 use Modules\HumanResource\Entities\WorkflowDefinitionStep;
 use Modules\HumanResource\Support\WorkflowActorResolverService;
+use Modules\HumanResource\Support\ModuleGovernancePolicyRegistry;
 use Modules\HumanResource\Support\WorkflowPolicyService;
 use Spatie\Permission\Models\Role;
 
@@ -60,6 +62,15 @@ class WorkflowPolicyController extends Controller
         }
 
         $definitions = $query->get();
+        $actorUserIds = $definitions
+            ->flatMap(function (WorkflowDefinition $definition) {
+                return $definition->steps->pluck('actor_user_id');
+            })
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
 
         $dbPairs = WorkflowDefinition::query()
             ->select('module_key', 'request_type_key')
@@ -136,11 +147,23 @@ class WorkflowPolicyController extends Controller
         $spatieRoles = Role::query()
             ->orderBy('name')
             ->get(['id', 'name']);
+        $users = User::query()
+            ->withoutGlobalScope('sortByLatest')
+            ->where(function ($builder) use ($actorUserIds) {
+                $builder->where('is_active', 1);
+                if (!empty($actorUserIds)) {
+                    $builder->orWhereIn('id', $actorUserIds);
+                }
+            })
+            ->orderBy('full_name')
+            ->orderBy('id')
+            ->get(['id', 'full_name', 'email']);
 
         return view('humanresource::master-data.workflow-policies.index', [
             'definitions' => $definitions,
-            'module_options' => $moduleOptions,
-            'request_type_options' => $requestTypeOptions,
+            // Blade normalizes these with is_array(), so pass plain arrays.
+            'module_options' => $moduleOptions->all(),
+            'request_type_options' => $requestTypeOptions->all(),
             'request_type_options_by_module' => $requestTypeOptionsByModule,
             'selected_module_key' => $moduleKey,
             'selected_request_type_key' => $requestTypeKey,
@@ -159,6 +182,7 @@ class WorkflowPolicyController extends Controller
             'responsibilities' => $responsibilities,
             'positions' => $positions,
             'spatie_roles' => $spatieRoles,
+            'users' => $users,
         ]);
     }
 
@@ -433,6 +457,9 @@ class WorkflowPolicyController extends Controller
             $step['org_role'] = $this->resolveRoleCodeByResponsibilityId($resolvedResponsibilityId);
         } else {
             $step['actor_responsibility_id'] = null;
+            $step['system_role_id'] = null;
+            // Keep legacy column non-null-safe for older schemas while actor-based fields are primary.
+            $step['org_role'] = '';
         }
 
         if ($actorType === WorkflowDefinitionStep::ACTOR_TYPE_SPECIFIC_USER && empty($step['actor_user_id'])) {
@@ -529,7 +556,9 @@ class WorkflowPolicyController extends Controller
 
     protected function workflowCatalog(): array
     {
-        return [
+        $moduleCatalog = app(ModuleGovernancePolicyRegistry::class)->workflowCatalog();
+
+        return array_replace_recursive($moduleCatalog, [
             'correspondence' => [
                 'label' => localize('correspondence_management', 'Correspondence Management'),
                 'request_types' => [
@@ -538,6 +567,17 @@ class WorkflowPolicyController extends Controller
                     ],
                     'outgoing_letter' => [
                         'label' => localize('outgoing_letters', 'Outgoing letters'),
+                    ],
+                ],
+            ],
+            'attendance' => [
+                'label' => localize('attendance', 'Attendance'),
+                'request_types' => [
+                    'attendance_adjustment' => [
+                        'label' => localize('attendance_adjustment', 'Attendance adjustment'),
+                    ],
+                    'attendance_exception' => [
+                        'label' => localize('attendance_exception', 'Attendance exception'),
                     ],
                 ],
             ],
@@ -557,7 +597,7 @@ class WorkflowPolicyController extends Controller
                     ],
                 ],
             ],
-        ];
+        ]);
     }
 
     protected function policyTemplates(): array
@@ -633,6 +673,40 @@ class WorkflowPolicyController extends Controller
                         'step_order' => 2,
                         'step_key' => 'outgoing_approval',
                         'step_name' => localize('outgoing_director_approval', 'Outgoing director approval'),
+                        'action_type' => 'approve',
+                        'actor_type' => WorkflowDefinitionStep::ACTOR_TYPE_RESPONSIBILITY,
+                        'org_role' => UserOrgRole::ROLE_HEAD,
+                        'scope_type' => UserOrgRole::SCOPE_SELF_AND_CHILDREN,
+                        'is_final_approval' => 1,
+                        'is_required' => 1,
+                        'can_return' => 1,
+                        'can_reject' => 1,
+                    ],
+                ],
+            ],
+            'attendance::attendance_adjustment' => [
+                'name' => localize('attendance_adjustment_workflow', 'Attendance adjustment workflow'),
+                'description' => localize('attendance_adjustment_workflow_desc', 'Manager review -> head approval for attendance adjustment.'),
+                'priority' => 40,
+                'condition_json' => [],
+                'steps' => [
+                    [
+                        'step_order' => 1,
+                        'step_key' => 'manager_review',
+                        'step_name' => localize('manager_review', 'Manager review'),
+                        'action_type' => 'review',
+                        'actor_type' => WorkflowDefinitionStep::ACTOR_TYPE_RESPONSIBILITY,
+                        'org_role' => UserOrgRole::ROLE_MANAGER,
+                        'scope_type' => UserOrgRole::SCOPE_SELF_AND_CHILDREN,
+                        'is_final_approval' => 0,
+                        'is_required' => 1,
+                        'can_return' => 1,
+                        'can_reject' => 1,
+                    ],
+                    [
+                        'step_order' => 2,
+                        'step_key' => 'head_approval',
+                        'step_name' => localize('head_final_approval', 'Head final approval'),
                         'action_type' => 'approve',
                         'actor_type' => WorkflowDefinitionStep::ACTOR_TYPE_RESPONSIBILITY,
                         'org_role' => UserOrgRole::ROLE_HEAD,

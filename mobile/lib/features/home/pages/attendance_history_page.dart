@@ -1,8 +1,34 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
+import '../../../core/config/app_routes.dart';
 import '../../auth/models/auth_user.dart';
 import '../models/attendance_day_record.dart';
 import '../services/home_attendance_service.dart';
+
+// ─── Design tokens ────────────────────────────────────────────────────────────
+const _kBg = Color(0xFFF6F7FB);
+const _kCardBg = Colors.white;
+const _kNavy = Color(0xFF0F1D2E);
+const _kGray = Color(0xFF8A9BB5);
+const _kDivider = Color(0xFFEAEFF6);
+
+// Status colours
+const _kHolidayBg = Color(0xFFFFEBEB);
+const _kHolidayFill = Color(0xFFEF5350);
+const _kLeaveBg = Color(0xFFFFF0E6);
+const _kLeaveText = Color(0xFFBF4802);
+const _kMissionBg = Color(0xFFE8F0FE);
+const _kMissionText = Color(0xFF1A56DB);
+const _kDayOffBg = Color(0xFFF0F0F5);
+const _kDayOffText = Color(0xFF616E8A);
+const _kOnTimeDot = Color(0xFF2E7D32);
+const _kLateDot = Color(0xFFE65100);
+const _kIncompleteDot = Color(0xFFD32F2F);
+const _kAbsentDot = Color(0xFFD32F2F);
+const _kEarlyLeaveDot = Color(0xFFD07A00);
+const _kSelectedFill = Color(0xFF1565C0);
+const _kTodayDot = Color(0xFF1565C0);
+// ─────────────────────────────────────────────────────────────────────────────
 
 class AttendanceHistoryPage extends StatefulWidget {
   const AttendanceHistoryPage({
@@ -21,42 +47,27 @@ class AttendanceHistoryPage extends StatefulWidget {
 }
 
 class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
-  static const String _filterAll = 'all';
-
   late DateTime _selectedMonth;
-  String _statusFilter = _filterAll;
   late Future<List<AttendanceDayRecord>> _recordsFuture;
-  late final TextEditingController _dateSearchController;
-  bool _showSearchField = false;
+  DateTime? _selectedDay;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _selectedMonth = DateTime(now.year, now.month, 1);
-    _dateSearchController = TextEditingController();
+    _selectedDay = DateTime(now.year, now.month, now.day);
     _recordsFuture = _loadRecords();
   }
 
   @override
   void dispose() {
-    _dateSearchController.dispose();
     super.dispose();
-  }
-
-  String _tr(String key, String fallback) {
-    final value = widget.language[key]?.trim();
-    if (value == null || value.isEmpty) {
-      return fallback;
-    }
-
-    return value;
   }
 
   Future<List<AttendanceDayRecord>> _loadRecords() {
     final fromDate = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
     final toDate = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
-
     return widget.attendanceService.fetchAttendanceHistory(
       widget.user,
       fromDate: fromDate,
@@ -64,308 +75,311 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
     );
   }
 
-  List<DateTime> _monthOptions() {
+  // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  static const _kMonthNames = [
+    'មករា',
+    'កុម្ភៈ',
+    'មីនា',
+    'មេសា',
+    'ឧសភា',
+    'មិថុនា',
+    'កក្កដា',
+    'សីហា',
+    'កញ្ញា',
+    'តុលា',
+    'វិច្ឆិកា',
+    'ធ្នូ',
+  ];
+
+  static const _kWeekdayNames = [
+    'ចន្ទ',
+    'អង្គារ',
+    'ពុធ',
+    'ព្រហស្បតិ៍',
+    'សុក្រ',
+    'សៅរ៍',
+    'អាទិត្យ',
+  ];
+
+  String _monthName(int m) => _kMonthNames[m - 1];
+
+  bool _isToday(int day) {
     final now = DateTime.now();
-    return List<DateTime>.generate(12, (index) {
-      return DateTime(now.year, now.month - index, 1);
-    });
+    return now.year == _selectedMonth.year &&
+        now.month == _selectedMonth.month &&
+        now.day == day;
   }
 
-  String _monthLabel(DateTime month) {
-    const monthNames = <String>[
-      'មករា',
-      'កុម្ភៈ',
-      'មីនា',
-      'មេសា',
-      'ឧសភា',
-      'មិថុនា',
-      'កក្កដា',
-      'សីហា',
-      'កញ្ញា',
-      'តុលា',
-      'វិច្ឆិកា',
-      'ធ្នូ',
-    ];
-
-    return monthNames[month.month - 1];
+  bool _isSelected(int day) {
+    final sel = _selectedDay;
+    if (sel == null) return false;
+    return sel.year == _selectedMonth.year &&
+        sel.month == _selectedMonth.month &&
+        sel.day == day;
   }
 
-  List<int> _yearOptions() {
-    final now = DateTime.now();
-    return List<int>.generate(4, (index) => now.year - index);
-  }
-
-  String _weekdayLabel(String raw) {
-    try {
-      final date = DateTime.parse(raw);
-      const names = <String>[
-        'ចន្ទ',
-        'អង្គារ',
-        'ពុធ',
-        'ព្រហស្បតិ៍',
-        'សុក្រ',
-        'សៅរ៍',
-        'អាទិត្យ',
-      ];
-      return names[date.weekday - 1];
-    } catch (_) {
-      return '-';
-    }
-  }
-
-  String _statusLabel(String? statusCode) {
-    final code = statusCode?.trim().toLowerCase();
-    if (code == null || code.isEmpty) {
-      return '-';
-    }
-
+  _CellStyle _cellStyle(AttendanceDayRecord? record, int day) {
+    if (record == null) return const _CellStyle();
+    final code = record.attendanceStatus?.trim().toLowerCase() ?? '';
     switch (code) {
-      case 'on_time':
-        return _tr('on_time', 'ទាន់ពេល');
-      case 'late':
-        return _tr('late', 'យឺត');
-      case 'early_leave':
-        return _tr('early_leave', 'ចេញមុន');
-      case 'late_and_early_leave':
-        return _tr('late_and_early_leave', 'យឺត និងចេញមុន');
-      case 'incomplete':
-        return _tr('incomplete', 'មិនពេញលេញ');
-      case 'mission':
-      case 'm':
-        return _tr('mission', 'បេសកកម្ម');
+      case 'holiday':
+      case 'h':
+        return const _CellStyle(bgColor: _kHolidayBg, textColor: _kHolidayFill);
       case 'leave':
       case 'lv':
-        return _tr('leave_type', 'សុំច្បាប់');
-      case 'absent':
-      case 'a':
-        return _tr('absent', 'អវត្តមាន');
-      case 'present':
-      case 'p':
-        return _tr('checked_in', 'បានចេញហើយ');
-      default:
-        return statusCode!.replaceAll('_', ' ').trim();
-    }
-  }
-
-  Color _statusColor(String? statusCode) {
-    final code = statusCode?.trim().toLowerCase();
-    switch (code) {
+        return const _CellStyle(bgColor: _kLeaveBg, textColor: _kLeaveText);
+      case 'mission':
+      case 'm':
+        return const _CellStyle(bgColor: _kMissionBg, textColor: _kMissionText);
+      case 'day_off':
+      case 'd':
+        return const _CellStyle(bgColor: _kDayOffBg, textColor: _kDayOffText);
       case 'on_time':
       case 'present':
       case 'p':
-        return const Color(0xFF0B6B58);
+        return const _CellStyle(dotColor: _kOnTimeDot);
       case 'late':
-        return const Color(0xFFA85C00);
-      case 'early_leave':
       case 'late_and_early_leave':
-        return const Color(0xFFD98500);
-      case 'mission':
-      case 'm':
-        return const Color(0xFF5B79B7);
-      case 'leave':
-      case 'lv':
-        return const Color(0xFF9B7AD6);
+        return const _CellStyle(dotColor: _kLateDot);
+      case 'early_leave':
+        return const _CellStyle(dotColor: _kEarlyLeaveDot);
+      case 'incomplete':
+        return const _CellStyle(dotColor: _kIncompleteDot);
       case 'absent':
       case 'a':
-        return const Color(0xFFD36B61);
-      case 'incomplete':
-        return const Color(0xFFD34B5F);
+        return const _CellStyle(dotColor: _kAbsentDot);
       default:
-        return const Color(0xFF66746E);
+        return const _CellStyle();
     }
   }
 
-  Color _statusBackground(String? statusCode) {
-    return _statusColor(statusCode).withAlpha(22);
-  }
-
-  String _resolvedShift(AttendanceDayRecord record) {
-    if (record.timeIn != '-' && record.timeOut != '-') {
-      return 'ព្រឹក-រសៀល';
-    }
-    if (record.timeIn != '-') {
-      return 'ព្រឹក';
-    }
-    if (record.timeOut != '-') {
-      return 'រសៀល';
-    }
-    return '-';
-  }
-
-  String _scanWindowText(AttendanceDayRecord record) {
-    if (record.timeIn != '-' || record.timeOut != '-') {
-      return 'អាស្រ័យតាមវេណការងារ';
-    }
-    return '-';
-  }
-
-  bool _matchesSearch(AttendanceDayRecord record) {
-    final query = _dateSearchController.text.trim().toLowerCase();
-    if (query.isEmpty) {
-      return true;
-    }
-
-    final formattedDate = _formatDate(record.date).toLowerCase();
-    final weekday = _weekdayLabel(record.date).toLowerCase();
-    return formattedDate.contains(query) ||
-        record.date.toLowerCase().contains(query) ||
-        weekday.contains(query);
-  }
-
-  List<AttendanceDayRecord> _applyFilter(List<AttendanceDayRecord> records) {
-    return records.where((record) {
-      if (!_matchesSearch(record)) {
-        return false;
-      }
-      if (_statusFilter == _filterAll) {
-        return true;
-      }
-      final normalized = record.attendanceStatus?.trim().toLowerCase();
-      return normalized == _statusFilter;
-    }).toList();
-  }
-
-  _AttendanceMonthSummary _summarize(List<AttendanceDayRecord> records) {
-    var onTime = 0;
-    var late = 0;
-    var incomplete = 0;
-    var earlyLeave = 0;
-    var leaveDays = 0;
-    var missionDays = 0;
-    var absentDays = 0;
-    var lateMinutes = 0;
-    var earlyLeaveMinutes = 0;
-
-    for (final record in records) {
-      final status = record.attendanceStatus?.trim().toLowerCase();
-      if (status == 'on_time') {
-        onTime += 1;
-      }
-      if (status == 'late' || status == 'late_and_early_leave') {
-        late += 1;
-      }
-      if (status == 'incomplete' || record.hasException == true) {
-        incomplete += 1;
-      }
-      if (status == 'early_leave' || status == 'late_and_early_leave') {
-        earlyLeave += 1;
-      }
-      if (status == 'leave' || status == 'lv') {
-        leaveDays += 1;
-      }
-      if (status == 'mission' || status == 'm') {
-        missionDays += 1;
-      }
-      if (status == 'absent' || status == 'a') {
-        absentDays += 1;
-      }
-      lateMinutes += record.lateMinutes ?? 0;
-      earlyLeaveMinutes += record.earlyLeaveMinutes ?? 0;
-    }
-
-    return _AttendanceMonthSummary(
-      totalDays: records.length,
-      onTimeDays: onTime,
-      lateDays: late,
-      earlyLeaveDays: earlyLeave,
-      incompleteDays: incomplete,
-      leaveDays: leaveDays,
-      missionDays: missionDays,
-      absentDays: absentDays,
-      lateMinutes: lateMinutes,
-      earlyLeaveMinutes: earlyLeaveMinutes,
-    );
-  }
-
-  Future<void> _refresh() async {
-    setState(() {
-      _recordsFuture = _loadRecords();
-    });
-    await _recordsFuture;
-  }
-
-  String _formatDate(String raw) {
-    try {
-      final date = DateTime.parse(raw);
-      final dd = date.day.toString().padLeft(2, '0');
-      final mm = date.month.toString().padLeft(2, '0');
-      return '$dd/$mm/${date.year}';
-    } catch (_) {
-      return raw;
+  String _statusLabel(String? code) {
+    switch (code?.trim().toLowerCase()) {
+      case 'on_time':
+        return 'ទាន់ពេល';
+      case 'late':
+        return 'មកយឺត';
+      case 'early_leave':
+        return 'ចេញមុន';
+      case 'late_and_early_leave':
+        return 'យឺត & ចេញមុន';
+      case 'incomplete':
+        return 'មិនគ្រប់';
+      case 'mission':
+      case 'm':
+        return 'បេសកកម្ម';
+      case 'leave':
+      case 'lv':
+        return 'សុំច្បាប់';
+      case 'absent':
+      case 'a':
+        return 'អវត្តមាន';
+      case 'holiday':
+      case 'h':
+        return 'ថ្ងៃឈប់';
+      case 'day_off':
+      case 'd':
+        return 'ថ្ងៃឈប់';
+      default:
+        return '-';
     }
   }
 
-  void _requestAttendanceAdjustment(AttendanceDayRecord record) {
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '${_tr('attendance_adjustment', 'កែវត្តមាន')}: ${_formatDate(record.date)}',
-        ),
-      ),
-    );
+  Color _statusColor(String? code) {
+    switch (code?.trim().toLowerCase()) {
+      case 'on_time':
+      case 'present':
+      case 'p':
+        return _kOnTimeDot;
+      case 'late':
+      case 'late_and_early_leave':
+        return _kLateDot;
+      case 'early_leave':
+        return _kEarlyLeaveDot;
+      case 'incomplete':
+        return _kIncompleteDot;
+      case 'mission':
+      case 'm':
+        return _kMissionText;
+      case 'leave':
+      case 'lv':
+        return _kLeaveText;
+      case 'absent':
+      case 'a':
+        return _kAbsentDot;
+      case 'holiday':
+      case 'h':
+        return _kHolidayFill;
+      case 'day_off':
+      case 'd':
+        return _kDayOffText;
+      default:
+        return _kGray;
+    }
   }
 
-  void _showRecordDetails(AttendanceDayRecord record) {
+  String _weekdayLabel(DateTime d) => _kWeekdayNames[d.weekday - 1];
+
+  String _formatDate(DateTime d) {
+    final dd = d.day.toString().padLeft(2, '0');
+    final mm = d.month.toString().padLeft(2, '0');
+    return '$dd/$mm/${d.year}';
+  }
+
+  String _dateKey(int y, int m, int d) =>
+      '$y-${m.toString().padLeft(2, '0')}-${d.toString().padLeft(2, '0')}';
+
+  String _normalizedStatus(String? code) {
+    return code?.trim().toLowerCase() ?? '';
+  }
+
+  bool _isHolidayOrDayOff(String? code) {
+    final normalized = _normalizedStatus(code);
+    return normalized == 'holiday' ||
+        normalized == 'h' ||
+        normalized == 'day_off' ||
+        normalized == 'd';
+  }
+
+  bool _isMissionStatus(String? code) {
+    final normalized = _normalizedStatus(code);
+    return normalized == 'mission' || normalized == 'm';
+  }
+
+  bool _isLeaveStatus(String? code) {
+    final normalized = _normalizedStatus(code);
+    return normalized == 'leave' || normalized == 'lv';
+  }
+
+  bool _isWorkingStatus(String? code) {
+    final normalized = _normalizedStatus(code);
+    return normalized == 'on_time' ||
+        normalized == 'present' ||
+        normalized == 'p' ||
+        normalized == 'late' ||
+        normalized == 'early_leave' ||
+        normalized == 'late_and_early_leave' ||
+        normalized == 'incomplete';
+  }
+
+  double _parseWorkedHours(String raw) {
+    final text = raw.trim();
+    if (text.isEmpty || text == '-') {
+      return 0;
+    }
+
+    if (text.contains(':')) {
+      final parts = text.split(':');
+      if (parts.length >= 2) {
+        final hour = int.tryParse(parts[0].trim()) ?? 0;
+        final minute = int.tryParse(parts[1].trim()) ?? 0;
+        final second =
+            parts.length >= 3 ? (int.tryParse(parts[2].trim()) ?? 0) : 0;
+        return hour + (minute / 60) + (second / 3600);
+      }
+    }
+
+    return double.tryParse(text) ?? 0;
+  }
+
+  String _formatDecimalHours(double value) {
+    final rounded = value.toStringAsFixed(1);
+    if (rounded.endsWith('.0')) {
+      return rounded.substring(0, rounded.length - 2);
+    }
+    return rounded;
+  }
+
+  String _activityTypeLabel(String? code) {
+    if (_isHolidayOrDayOff(code)) {
+      return 'ថ្ងៃសម្រាក';
+    }
+    if (_isMissionStatus(code)) {
+      return 'បេសកកម្ម';
+    }
+    if (_isLeaveStatus(code)) {
+      return 'សុំច្បាប់';
+    }
+    if (_isWorkingStatus(code)) {
+      return 'ថ្ងៃធ្វើការ';
+    }
+
+    final normalized = _normalizedStatus(code);
+    if (normalized == 'absent' || normalized == 'a') {
+      return 'អវត្តមាន';
+    }
+
+    return 'សកម្មភាព';
+  }
+
+  void _showDayDetail(AttendanceDayRecord record) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        final statusColor = _statusColor(record.attendanceStatus);
-        final statusBackground = _statusBackground(record.attendanceStatus);
-        final shiftLabel = _resolvedShift(record);
-        final weekday = _weekdayLabel(record.date);
+        final code = record.attendanceStatus;
+        final color = _statusColor(code);
+        final label = _statusLabel(code);
+        DateTime date;
+        try {
+          date = DateTime.parse(record.date);
+        } catch (_) {
+          date = DateTime.now();
+        }
 
         return DraggableScrollableSheet(
-          initialChildSize: 0.64,
-          minChildSize: 0.42,
-          maxChildSize: 0.86,
+          initialChildSize: 0.6,
+          minChildSize: 0.4,
+          maxChildSize: 0.85,
           expand: false,
           builder: (context, controller) {
-            final sheetBottomPadding =
-                MediaQuery.of(context).padding.bottom + 24;
-
             return Container(
               decoration: const BoxDecoration(
-                color: Color(0xFFF8FBFA),
+                color: _kBg,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               child: ListView(
                 controller: controller,
-                padding: EdgeInsets.fromLTRB(16, 10, 16, sheetBottomPadding),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  10,
+                  16,
+                  MediaQuery.of(context).padding.bottom + 24,
+                ),
                 children: [
                   Center(
                     child: Container(
                       width: 40,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFC9D8D1),
-                        borderRadius: BorderRadius.circular(999),
+                        color: const Color(0xFFCDD5E0),
+                        borderRadius: BorderRadius.circular(99),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              _tr('attendance_detail', 'ព័ត៌មានលម្អិតវត្តមាន'),
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF112A23),
+                            const Text(
+                              'ព័ត៌មានលម្អិតវត្តមាន',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
+                                color: _kNavy,
                               ),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              '${_formatDate(record.date)} · $weekday',
+                              '${_formatDate(date)} \u00b7 ${_weekdayLabel(date)}',
                               style: const TextStyle(
-                                color: Color(0xFF60707C),
                                 fontSize: 13,
+                                color: _kGray,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -374,130 +388,34 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
+                          horizontal: 12,
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: statusBackground,
-                          borderRadius: BorderRadius.circular(999),
+                          color: color.withAlpha(24),
+                          borderRadius: BorderRadius.circular(99),
                         ),
                         child: Text(
-                          _statusLabel(record.attendanceStatus),
+                          label,
                           style: TextStyle(
-                            color: statusColor,
-                            fontWeight: FontWeight.w800,
+                            color: color,
                             fontSize: 12,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _HistoryPill(
-                          icon: Icons.calendar_today_outlined,
-                          text: '${_tr('shift', 'វេណ')}: $shiftLabel',
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _HistoryPill(
-                          icon: Icons.qr_code_scanner_outlined,
-                          text:
-                              '${_tr('scan', 'ស្កេន')}: ${_scanWindowText(record)}',
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE2EAE7)),
-                    ),
-                    child: Column(
-                      children: [
-                        _DetailRow(
-                          label: _tr('in_time', 'ម៉ោងចូល'),
-                          value: record.timeIn,
-                        ),
-                        _DetailRow(
-                          label: _tr('out_time', 'ម៉ោងចេញ'),
-                          value: record.timeOut,
-                        ),
-                        _DetailRow(
-                          label: _tr('shift', 'វេណការងារ'),
-                          value: shiftLabel,
-                        ),
-                        _DetailRow(
-                          label: _tr('allowed_scan_window', 'ពេលអនុញ្ញាតស្កេន'),
-                          value: _scanWindowText(record),
-                        ),
-                        _DetailRow(
-                          label: _tr('late', 'ពេលយឺត'),
-                          value: '${record.lateMinutes ?? 0} នាទី',
-                          valueColor:
-                              (record.lateMinutes ?? 0) > 0
-                                  ? const Color(0xFFA85C00)
-                                  : const Color(0xFF132D25),
-                        ),
-                        _DetailRow(
-                          label: _tr('status', 'ស្ថានភាព'),
-                          value: _statusLabel(record.attendanceStatus),
-                          valueColor: statusColor,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if ((record.exceptionReason ?? '').trim().isNotEmpty ||
-                      record.hasException == true) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF7F7),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFF2D6D6)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'កំណត់សម្គាល់',
-                            style: TextStyle(
-                              color: Color(0xFF8A3D3D),
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            (record.exceptionReason ?? '').trim().isEmpty
-                                ? _tr('incomplete', 'មិនគ្រប់ទិន្នន័យ')
-                                : record.exceptionReason!.trim(),
-                            style: const TextStyle(
-                              color: Color(0xFF6D4C4C),
-                              height: 1.45,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () => _requestAttendanceAdjustment(record),
-                      icon: const Icon(Icons.edit_calendar_outlined),
-                      label: Text(
-                        _tr('attendance_adjustment', 'ស្នើកែវត្តមាន'),
-                      ),
-                    ),
+                  _DetailSheet(
+                    timeIn: record.timeIn,
+                    timeOut: record.timeOut,
+                    lateMinutes: record.lateMinutes ?? 0,
+                    earlyLeaveMinutes: record.earlyLeaveMinutes ?? 0,
+                    punchCount: record.punchCount,
+                    totalHours: record.totalHours,
+                    exceptionReason: record.exceptionReason,
+                    hasException: record.hasException == true,
                   ),
                 ],
               ),
@@ -508,92 +426,64 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
     );
   }
 
+  Future<void> _refresh() async {
+    setState(() {
+      _recordsFuture = _loadRecords();
+    });
+    await _recordsFuture;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final monthOptions = _monthOptions();
-    final yearOptions = _yearOptions();
-    final listBottomPadding = MediaQuery.of(context).padding.bottom + 28;
-    final filterItems = <_StatusFilterItem>[
-      _StatusFilterItem(code: _filterAll, label: _tr('all', 'ទាំងអស់')),
-      _StatusFilterItem(code: 'on_time', label: _tr('on_time', 'ទាន់ពេល')),
-      _StatusFilterItem(code: 'late', label: _tr('late', 'យឺត')),
-      _StatusFilterItem(
-        code: 'early_leave',
-        label: _tr('early_leave', 'ចេញមុន'),
-      ),
-      _StatusFilterItem(
-        code: 'incomplete',
-        label: _tr('incomplete', 'មិនពេញលេញ'),
-      ),
-      _StatusFilterItem(code: 'leave', label: _tr('leave_type', 'សុំច្បាប់')),
-      _StatusFilterItem(code: 'mission', label: _tr('mission', 'បេសកកម្ម')),
-      _StatusFilterItem(code: 'absent', label: _tr('absent', 'អវត្តមាន')),
-    ];
+    final bottomPad = MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F7FB),
+      backgroundColor: _kBg,
       appBar: AppBar(
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: true,
-        backgroundColor: const Color(0xFFF4F7FB),
+        backgroundColor: _kCardBg,
         surfaceTintColor: Colors.transparent,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFFF7FAFF), Color(0xFFEFF5FF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
         leading: Padding(
-          padding: const EdgeInsets.only(left: 10),
+          padding: const EdgeInsets.only(left: 12),
           child: IconButton(
             onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.arrow_back_ios_rounded, size: 20),
             style: IconButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: _kBg,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
             ),
-            icon: const Icon(Icons.arrow_back_rounded),
           ),
         ),
-        title: Text(
-          _tr('attendance_history', 'ប្រវត្តិវត្តមាន'),
-          style: const TextStyle(
+        title: const Text(
+          'ប្រតិទិនវត្តមាន',
+          style: TextStyle(
+            fontSize: 17,
             fontWeight: FontWeight.w900,
-            color: Color(0xFF143545),
-            letterSpacing: 0.2,
+            color: _kNavy,
           ),
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 12),
             child: IconButton(
-              onPressed: () {
-                setState(() {
-                  _showSearchField = !_showSearchField;
-                  if (!_showSearchField) {
-                    _dateSearchController.clear();
-                  }
-                });
-              },
+              onPressed: _refresh,
+              icon: const Icon(Icons.refresh_rounded, size: 20),
               style: IconButton.styleFrom(
-                backgroundColor: Colors.white,
+                backgroundColor: _kBg,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ),
-              icon: Icon(
-                _showSearchField ? Icons.close_rounded : Icons.tune_rounded,
               ),
             ),
           ),
         ],
         bottom: const PreferredSize(
           preferredSize: Size.fromHeight(1),
-          child: Divider(height: 1, thickness: 1, color: Color(0xFFE4ECF6)),
+          child: Divider(height: 1, thickness: 1, color: _kDivider),
         ),
       ),
       body: RefreshIndicator(
@@ -601,555 +491,352 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
         child: FutureBuilder<List<AttendanceDayRecord>>(
           future: _recordsFuture,
           builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return ListView(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding),
-                children: const [
-                  SizedBox(height: 120),
-                  Center(child: CircularProgressIndicator()),
-                ],
-              );
-            }
+            final isLoading =
+                snapshot.connectionState == ConnectionState.waiting;
+            final records = snapshot.data ?? const <AttendanceDayRecord>[];
+            final recordMap = <String, AttendanceDayRecord>{
+              for (final r in records)
+                (r.date.length >= 10 ? r.date.substring(0, 10) : r.date): r,
+            };
 
-            if (snapshot.hasError) {
-              return ListView(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, listBottomPadding),
-                children: [
-                  _HistoryErrorCard(
-                    title: _tr('attendance_history', 'ប្រវត្តិវត្តមាន'),
-                    message: '${snapshot.error}',
-                    onRetry: _refresh,
-                  ),
-                ],
-              );
-            }
+            final activities = List<AttendanceDayRecord>.from(records)
+              ..sort((a, b) => b.date.compareTo(a.date));
 
-            final allRecords = snapshot.data ?? const <AttendanceDayRecord>[];
-            final records = _applyFilter(allRecords);
-            final summary = _summarize(allRecords);
+            final workingDays = activities
+                .where((r) => _isWorkingStatus(r.attendanceStatus))
+                .toList(growable: false);
+            final holidayDays =
+                activities
+                    .where((r) => _isHolidayOrDayOff(r.attendanceStatus))
+                    .length;
+            final missionDays =
+                activities
+                    .where((r) => _isMissionStatus(r.attendanceStatus))
+                    .length;
+            final totalWorkedHours = workingDays.fold<double>(
+              0,
+              (sum, record) => sum + _parseWorkedHours(record.totalHours),
+            );
+            final averageDailyHours =
+                workingDays.isEmpty
+                    ? 0.0
+                    : totalWorkedHours / workingDays.length;
 
             return ListView(
-              padding: EdgeInsets.fromLTRB(16, 12, 16, listBottomPadding),
+              padding: EdgeInsets.fromLTRB(14, 12, 14, bottomPad + 24),
               children: [
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFFFFF), Color(0xFFF8FBFF)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFE1EAF5)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x1014202B),
-                        blurRadius: 18,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 30,
-                            height: 30,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEAF1FF),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(
-                              Icons.calendar_month_rounded,
-                              size: 18,
-                              color: Color(0xFF355A8A),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _tr('filter', 'តម្រង'),
-                            style: const TextStyle(
-                              color: Color(0xFF1F3953),
-                              fontWeight: FontWeight.w900,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _CompactDropdownField<DateTime>(
-                              value: _selectedMonth,
-                              items:
-                                  monthOptions
-                                      .map(
-                                        (month) => DropdownMenuItem<DateTime>(
-                                          value: month,
-                                          child: Text(_monthLabel(month)),
-                                        ),
-                                      )
-                                      .toList(),
-                              onChanged: (value) {
-                                if (value == null) {
-                                  return;
-                                }
-                                setState(() {
-                                  _selectedMonth = DateTime(
-                                    _selectedMonth.year,
-                                    value.month,
-                                    1,
-                                  );
-                                  _recordsFuture = _loadRecords();
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _CompactDropdownField<int>(
-                              value: _selectedMonth.year,
-                              items:
-                                  yearOptions
-                                      .map(
-                                        (year) => DropdownMenuItem<int>(
-                                          value: year,
-                                          child: Text('$year'),
-                                        ),
-                                      )
-                                      .toList(),
-                              onChanged: (value) {
-                                if (value == null) {
-                                  return;
-                                }
-                                setState(() {
-                                  _selectedMonth = DateTime(
-                                    value,
-                                    _selectedMonth.month,
-                                    1,
-                                  );
-                                  _recordsFuture = _loadRecords();
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _CompactDropdownField<String>(
-                              value: _statusFilter,
-                              items:
-                                  filterItems
-                                      .map(
-                                        (item) => DropdownMenuItem<String>(
-                                          value: item.code,
-                                          child: Text(item.label),
-                                        ),
-                                      )
-                                      .toList(),
-                              onChanged: (value) {
-                                if (value == null) {
-                                  return;
-                                }
-                                setState(() {
-                                  _statusFilter = value;
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          _FilterSearchButton(
-                            active: _showSearchField,
-                            onTap: () {
-                              setState(() {
-                                _showSearchField = !_showSearchField;
-                                if (!_showSearchField) {
-                                  _dateSearchController.clear();
-                                }
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      if (_showSearchField) ...[
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: _dateSearchController,
-                          onChanged: (_) => setState(() {}),
-                          decoration: InputDecoration(
-                            hintText: _tr(
-                              'search_by_date',
-                              'ស្វែងរកតាមកាលបរិច្ឆេទ ឬថ្ងៃ',
-                            ),
-                            prefixIcon: const Icon(Icons.search_rounded),
-                            suffixIcon:
-                                _dateSearchController.text.trim().isEmpty
-                                    ? null
-                                    : IconButton(
-                                      onPressed: () {
-                                        _dateSearchController.clear();
-                                        setState(() {});
-                                      },
-                                      icon: const Icon(Icons.close_rounded),
-                                    ),
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _SummaryCard(
-                        title: _tr('days_present', 'ថ្ងៃមកធ្វើការ'),
-                        value: '${summary.totalDays}',
-                        icon: Icons.calendar_month_outlined,
-                        color: const Color(0xFF2E7D61),
-                      ),
-                      const SizedBox(width: 10),
-                      _SummaryCard(
-                        title: _tr('late', 'ថ្ងៃមកយឺត'),
-                        value: '${summary.lateDays}',
-                        icon: Icons.schedule_outlined,
-                        color: const Color(0xFFD08A2E),
-                      ),
-                      const SizedBox(width: 10),
-                      _SummaryCard(
-                        title: _tr('leave_type', 'ថ្ងៃសុំច្បាប់'),
-                        value: '${summary.leaveDays}',
-                        icon: Icons.assignment_outlined,
-                        color: const Color(0xFF9B7AD6),
-                      ),
-                      const SizedBox(width: 10),
-                      _SummaryCard(
-                        title: _tr('mission', 'ថ្ងៃបេសកកម្ម'),
-                        value: '${summary.missionDays}',
-                        icon: Icons.work_history_outlined,
-                        color: const Color(0xFF5B79B7),
-                      ),
-                      const SizedBox(width: 10),
-                      _SummaryCard(
-                        title: _tr('absent', 'ថ្ងៃអវត្តមាន'),
-                        value: '${summary.absentDays}',
-                        icon: Icons.event_busy_outlined,
-                        color: const Color(0xFFD36B61),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFF),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFE1EAF5)),
-                  ),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _LegendChip(
-                        label: _tr('on_time', 'ទាន់ពេល'),
-                        color: const Color(0xFF2E7D61),
-                      ),
-                      _LegendChip(
-                        label: _tr('late', 'មកយឺត'),
-                        color: const Color(0xFFD08A2E),
-                      ),
-                      _LegendChip(
-                        label: _tr('leave_type', 'សុំច្បាប់'),
-                        color: const Color(0xFF9B7AD6),
-                      ),
-                      _LegendChip(
-                        label: _tr('mission', 'បេសកកម្ម'),
-                        color: const Color(0xFF5B79B7),
-                      ),
-                      _LegendChip(
-                        label: _tr('absent', 'អវត្តមាន'),
-                        color: const Color(0xFFD36B61),
-                      ),
-                      _LegendChip(
-                        label: _tr('incomplete', 'មិនគ្រប់ទិន្នន័យ'),
-                        color: const Color(0xFF7A8087),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _tr('attendance_list', 'បញ្ជីវត្តមាន'),
-                        style: const TextStyle(
-                          color: Color(0xFF123B32),
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '${records.length} ${_tr('results', 'លទ្ធផល')}',
-                      style: const TextStyle(
-                        color: Color(0xFF6B7D88),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
+                // ── Month selector ─────────────────────────────────────────
+                _MonthSelectorCard(
+                  monthName: _monthName(_selectedMonth.month),
+                  year: _selectedMonth.year,
+                  onPrev:
+                      () => setState(() {
+                        _selectedMonth = DateTime(
+                          _selectedMonth.year,
+                          _selectedMonth.month - 1,
+                          1,
+                        );
+                        _selectedDay = null;
+                        _recordsFuture = _loadRecords();
+                      }),
+                  onNext: () {
+                    final now = DateTime.now();
+                    final next = DateTime(
+                      _selectedMonth.year,
+                      _selectedMonth.month + 1,
+                      1,
+                    );
+                    if (next.isBefore(DateTime(now.year, now.month + 1, 1))) {
+                      setState(() {
+                        _selectedMonth = next;
+                        _selectedDay = null;
+                        _recordsFuture = _loadRecords();
+                      });
+                    }
+                  },
                 ),
                 const SizedBox(height: 10),
-                if (records.isEmpty)
-                  _HistoryEmptyCard(
-                    message: _tr(
-                      'no_record_found',
-                      'មិនទាន់មានប្រវត្តិវត្តមាន',
-                    ),
-                  )
-                else
-                  ...records.map((record) {
-                    final statusColor = _statusColor(record.attendanceStatus);
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: _AttendanceHistoryCard(
-                        date: _formatDate(record.date),
-                        weekday: _weekdayLabel(record.date),
-                        timeIn: record.timeIn,
-                        timeOut: record.timeOut,
-                        shift: _resolvedShift(record),
-                        statusLabel: _statusLabel(record.attendanceStatus),
-                        statusColor: statusColor,
-                        statusBackground: _statusBackground(
-                          record.attendanceStatus,
-                        ),
-                        onTap: () => _showRecordDetails(record),
+
+                // ── Legend ─────────────────────────────────────────────────
+                const _LegendRow(),
+                const SizedBox(height: 10),
+
+                // ── Calendar card ──────────────────────────────────────────
+                Container(
+                  decoration: BoxDecoration(
+                    color: _kCardBg,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x0D14202B),
+                        blurRadius: 18,
+                        offset: Offset(0, 6),
                       ),
-                    );
-                  }),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 12, 8, 14),
+                    child: Column(
+                      children: [
+                        const _WeekdayHeader(),
+                        const SizedBox(height: 6),
+                        if (isLoading)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 40),
+                            child: Center(child: CircularProgressIndicator()),
+                          )
+                        else
+                          _CalendarGrid(
+                            year: _selectedMonth.year,
+                            month: _selectedMonth.month,
+                            recordMap: recordMap,
+                            cellStyleFn: _cellStyle,
+                            isToday: _isToday,
+                            isSelected: _isSelected,
+                            onDayTap: (day) {
+                              setState(() {
+                                _selectedDay = DateTime(
+                                  _selectedMonth.year,
+                                  _selectedMonth.month,
+                                  day,
+                                );
+                              });
+                              final key = _dateKey(
+                                _selectedMonth.year,
+                                _selectedMonth.month,
+                                day,
+                              );
+                              final rec = recordMap[key];
+                              if (rec != null) _showDayDetail(rec);
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // ── Selected day summary ───────────────────────────────────
+                if (_selectedDay != null)
+                  Builder(
+                    builder: (context) {
+                      final key = _dateKey(
+                        _selectedDay!.year,
+                        _selectedDay!.month,
+                        _selectedDay!.day,
+                      );
+                      final rec = recordMap[key];
+                      return _SelectedDayCard(
+                        date: _selectedDay!,
+                        record: rec,
+                        statusLabel: _statusLabel(rec?.attendanceStatus),
+                        statusColor: _statusColor(rec?.attendanceStatus),
+                        weekdayLabel: _weekdayLabel(_selectedDay!),
+                      );
+                    },
+                  ),
+                const SizedBox(height: 12),
+
+                // Daily activity summary & list
+                if (snapshot.hasError)
+                  _ErrorCard(message: '${snapshot.error}', onRetry: _refresh)
+                else if (!isLoading) ...[
+                  Row(
+                    children: [
+                      const Text(
+                        'ព័ត៌មានសកម្មភាពប្រចាំថ្ងៃ',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          color: _kNavy,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${activities.length} ថ្ងៃ',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: _kGray,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _ActivityOverviewCard(
+                    holidayDays: holidayDays,
+                    missionDays: missionDays,
+                    workingDays: workingDays.length,
+                    totalWorkedHoursLabel: _formatDecimalHours(
+                      totalWorkedHours,
+                    ),
+                    averageDailyHoursLabel: _formatDecimalHours(
+                      averageDailyHours,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  if (activities.isEmpty)
+                    const _EmptyEventsCard(
+                      message: 'មិនទាន់មានទិន្នន័យសកម្មភាពប្រចាំថ្ងៃក្នុងខែនេះ',
+                    )
+                  else
+                    ...activities.map(
+                      (r) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _EventCard(
+                          record: r,
+                          activityTypeLabel: _activityTypeLabel(
+                            r.attendanceStatus,
+                          ),
+                          statusLabel: _statusLabel(r.attendanceStatus),
+                          statusColor: _statusColor(r.attendanceStatus),
+                          onView: () => _showDayDetail(r),
+                        ),
+                      ),
+                    ),
+                ],
               ],
             );
           },
         ),
       ),
-    );
-  }
-}
-
-class _StatusFilterItem {
-  const _StatusFilterItem({required this.code, required this.label});
-
-  final String code;
-  final String label;
-}
-
-class _AttendanceMonthSummary {
-  const _AttendanceMonthSummary({
-    required this.totalDays,
-    required this.onTimeDays,
-    required this.lateDays,
-    required this.earlyLeaveDays,
-    required this.incompleteDays,
-    required this.leaveDays,
-    required this.missionDays,
-    required this.absentDays,
-    required this.lateMinutes,
-    required this.earlyLeaveMinutes,
-  });
-
-  final int totalDays;
-  final int onTimeDays;
-  final int lateDays;
-  final int earlyLeaveDays;
-  final int incompleteDays;
-  final int leaveDays;
-  final int missionDays;
-  final int absentDays;
-  final int lateMinutes;
-  final int earlyLeaveMinutes;
-}
-
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 100,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFFFFFF), Color(0xFFF8FBFF)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE1EAF5)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0D14211D),
-              blurRadius: 14,
-              offset: Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: color.withAlpha(28),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, color: color, size: 18),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Color(0xFF516778),
-                fontWeight: FontWeight.w700,
-                fontSize: 11,
-                height: 1.3,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                color: color,
-                fontSize: 19,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
+      bottomNavigationBar: _CalendarBottomNav(
+        onHomeTap: () => Navigator.of(context).maybePop(),
+        onSettingsTap:
+            () => Navigator.of(context).pushNamed(AppRoutes.systemSettings),
       ),
     );
   }
 }
 
-class _CompactDropdownField<T> extends StatelessWidget {
-  const _CompactDropdownField({
-    required this.value,
-    required this.items,
-    required this.onChanged,
+// ─── Cell style ───────────────────────────────────────────────────────────────
+class _CellStyle {
+  const _CellStyle({this.bgColor, this.textColor, this.dotColor});
+
+  final Color? bgColor;
+  final Color? textColor;
+  final Color? dotColor;
+}
+
+// ─── Month selector ───────────────────────────────────────────────────────────
+class _MonthSelectorCard extends StatelessWidget {
+  const _MonthSelectorCard({
+    required this.monthName,
+    required this.year,
+    required this.onPrev,
+    required this.onNext,
   });
 
-  final T value;
-  final List<DropdownMenuItem<T>> items;
-  final ValueChanged<T?> onChanged;
+  final String monthName;
+  final int year;
+  final VoidCallback onPrev;
+  final VoidCallback onNext;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 46,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFF),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFDCE6F3)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<T>(
-          value: value,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-          style: const TextStyle(
-            color: Color(0xFF2A3B45),
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0814202B),
+            blurRadius: 14,
+            offset: Offset(0, 4),
           ),
-          items: items,
-          onChanged: onChanged,
-        ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _NavArrow(icon: Icons.chevron_left_rounded, onTap: onPrev),
+          Expanded(
+            child: RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'ខែ $monthName ',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1A56DB),
+                    ),
+                  ),
+                  TextSpan(
+                    text: 'ឆ្នាំ$year',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF3D5088),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          _NavArrow(icon: Icons.chevron_right_rounded, onTap: onNext),
+        ],
       ),
     );
   }
 }
 
-class _FilterSearchButton extends StatelessWidget {
-  const _FilterSearchButton({required this.active, required this.onTap});
+class _NavArrow extends StatelessWidget {
+  const _NavArrow({required this.icon, required this.onTap});
 
-  final bool active;
+  final IconData icon;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: active ? const Color(0xFFEAF1FF) : const Color(0xFFF7FAFF),
-      borderRadius: BorderRadius.circular(14),
+      color: const Color(0xFFF0F3FA),
+      borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          width: 46,
-          height: 46,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: active ? const Color(0xFFC8D8F5) : const Color(0xFFDCE6F3),
-            ),
-          ),
-          child: Icon(
-            Icons.search_rounded,
-            color: active ? const Color(0xFF1D4F91) : const Color(0xFF5E7180),
-          ),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Icon(icon, size: 22, color: const Color(0xFF3D5088)),
         ),
       ),
     );
   }
 }
 
-class _HistoryPill extends StatelessWidget {
-  const _HistoryPill({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
+// ─── Legend row ───────────────────────────────────────────────────────────────
+class _LegendRow extends StatelessWidget {
+  const _LegendRow();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2F8F5),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFDCEAE3)),
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0814202B),
+            blurRadius: 8,
+            offset: Offset(0, 3),
+          ),
+        ],
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: const Wrap(
+        spacing: 14,
+        runSpacing: 6,
         children: [
-          Icon(icon, size: 14, color: const Color(0xFF0B6B58)),
-          const SizedBox(width: 5),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Color(0xFF1A3930),
-              fontSize: 12,
-              height: 1.45,
-              fontWeight: FontWeight.w700,
-            ),
+          _LegendDot(color: _kHolidayFill, label: 'ថ្ងៃឈប់'),
+          _LegendDot(color: _kLeaveText, label: 'សុំច្បាប់'),
+          _LegendDot(color: _kMissionText, label: 'បេសកកម្ម'),
+          _LegendDot(color: _kOnTimeDot, label: 'ទាន់ពេល'),
+          _LegendDot(color: _kLateDot, label: 'យឺត'),
+          _LegendDot(
+            color: _kTodayDot,
+            label: 'ថ្ងៃនេះ',
+            outlined: true,
           ),
         ],
       ),
@@ -1157,232 +844,881 @@ class _HistoryPill extends StatelessWidget {
   }
 }
 
-class _AttendanceHistoryCard extends StatelessWidget {
-  const _AttendanceHistoryCard({
-    required this.date,
-    required this.weekday,
-    required this.timeIn,
-    required this.timeOut,
-    required this.shift,
-    required this.statusLabel,
-    required this.statusColor,
-    required this.statusBackground,
+class _LegendDot extends StatelessWidget {
+  const _LegendDot({
+    required this.color,
+    required this.label,
+    this.outlined = false,
+  });
+
+  final Color color;
+  final String label;
+  final bool outlined;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: outlined ? Colors.transparent : color,
+            border: outlined ? Border.all(color: color, width: 2) : null,
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF4A5568),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Weekday header ───────────────────────────────────────────────────────────
+class _WeekdayHeader extends StatelessWidget {
+  const _WeekdayHeader();
+
+  // Sun … Sat display labels
+  static const _labels = [
+    'អា',
+    'ចន្ទ',
+    'អង្',
+    'ពុ',
+    'ព្រ',
+    'សុ',
+    'សៅ',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(7, (i) {
+        final isWeekend = i == 0 || i == 6;
+        return Expanded(
+          child: Center(
+            child: Text(
+              _labels[i],
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color:
+                    isWeekend
+                        ? const Color(0xFFD32F2F)
+                        : const Color(0xFF64748B),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+// ─── Calendar grid ────────────────────────────────────────────────────────────
+class _CalendarGrid extends StatelessWidget {
+  const _CalendarGrid({
+    required this.year,
+    required this.month,
+    required this.recordMap,
+    required this.cellStyleFn,
+    required this.isToday,
+    required this.isSelected,
+    required this.onDayTap,
+  });
+
+  final int year;
+  final int month;
+  final Map<String, AttendanceDayRecord> recordMap;
+  final _CellStyle Function(AttendanceDayRecord? record, int day) cellStyleFn;
+  final bool Function(int day) isToday;
+  final bool Function(int day) isSelected;
+  final void Function(int day) onDayTap;
+
+  @override
+  Widget build(BuildContext context) {
+    // weekday % 7 → Sun=0, Mon=1 … Sat=6
+    final firstOffset = DateTime(year, month, 1).weekday % 7;
+    final daysInMonth = DateTime(year, month + 1, 0).day;
+    final totalSlots = ((firstOffset + daysInMonth) / 7).ceil() * 7;
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 7,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 2,
+        childAspectRatio: 0.82,
+      ),
+      itemCount: totalSlots,
+      itemBuilder: (context, index) {
+        final day = index - firstOffset + 1;
+        if (day < 1 || day > daysInMonth) return const SizedBox.shrink();
+        final key =
+            '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+        final record = recordMap[key];
+        final style = cellStyleFn(record, day);
+        final col = index % 7;
+        return _CalendarCell(
+          day: day,
+          style: style,
+          isToday: isToday(day),
+          isSelected: isSelected(day),
+          isWeekend: col == 0 || col == 6,
+          onTap: () => onDayTap(day),
+        );
+      },
+    );
+  }
+}
+
+// ─── Calendar cell ────────────────────────────────────────────────────────────
+class _CalendarCell extends StatelessWidget {
+  const _CalendarCell({
+    required this.day,
+    required this.style,
+    required this.isToday,
+    required this.isSelected,
+    required this.isWeekend,
     required this.onTap,
   });
 
-  final String date;
-  final String weekday;
-  final String timeIn;
-  final String timeOut;
-  final String shift;
-  final String statusLabel;
-  final Color statusColor;
-  final Color statusBackground;
+  final int day;
+  final _CellStyle style;
+  final bool isToday;
+  final bool isSelected;
+  final bool isWeekend;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Ink(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: const Color(0xFFE5EBF0)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0A14211D),
-                blurRadius: 14,
-                offset: Offset(0, 6),
+    final textColor =
+        isSelected
+            ? Colors.white
+            : (style.textColor ??
+                (isWeekend
+                    ? const Color(0xFFD32F2F)
+                    : const Color(0xFF1E2D3D)));
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.all(1.5),
+        decoration: BoxDecoration(
+          color:
+              isSelected
+                  ? _kSelectedFill
+                  : (style.bgColor ?? Colors.transparent),
+          borderRadius: BorderRadius.circular(10),
+          border:
+              isToday && !isSelected
+                  ? Border.all(color: _kTodayDot, width: 1.8)
+                  : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '$day',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+                height: 1.1,
               ),
+            ),
+            if (isToday && !isSelected)
+              Container(
+                width: 5,
+                height: 5,
+                margin: const EdgeInsets.only(top: 2),
+                decoration: const BoxDecoration(
+                  color: _kTodayDot,
+                  shape: BoxShape.circle,
+                ),
+              )
+            else if (style.dotColor != null && !isSelected)
+              Container(
+                width: 5,
+                height: 5,
+                margin: const EdgeInsets.only(top: 2),
+                decoration: BoxDecoration(
+                  color: style.dotColor,
+                  shape: BoxShape.circle,
+                ),
+              )
+            else
+              const SizedBox(height: 7),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Selected day card ────────────────────────────────────────────────────────
+class _SelectedDayCard extends StatelessWidget {
+  const _SelectedDayCard({
+    required this.date,
+    required this.record,
+    required this.statusLabel,
+    required this.statusColor,
+    required this.weekdayLabel,
+  });
+
+  final DateTime date;
+  final AttendanceDayRecord? record;
+  final String statusLabel;
+  final Color statusColor;
+  final String weekdayLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final rec = record;
+    final dd = date.day.toString().padLeft(2, '0');
+    final mm = date.month.toString().padLeft(2, '0');
+    final dateStr = '$dd/$mm/${date.year}';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D14202B),
+            blurRadius: 14,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.event_note_outlined, size: 16, color: _kGray),
+              const SizedBox(width: 6),
+              const Text(
+                'ថ្ងៃដែលបានជ្រើស',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: _kGray,
+                ),
+              ),
+              const Spacer(),
+              if (statusLabel != '-')
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withAlpha(22),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
             ],
           ),
-          child: Column(
+          const SizedBox(height: 8),
+          Text(
+            '$weekdayLabel ទី $dateStr',
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: _kNavy,
+            ),
+          ),
+          if (rec != null) ...[
+            const SizedBox(height: 10),
+            const Divider(height: 1, color: _kDivider),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _MiniInfoTile(
+                    icon: Icons.login_rounded,
+                    label: 'ចូល',
+                    value: rec.timeIn,
+                  ),
+                ),
+                Container(width: 1, height: 36, color: _kDivider),
+                Expanded(
+                  child: _MiniInfoTile(
+                    icon: Icons.logout_rounded,
+                    label: 'ចេញ',
+                    value: rec.timeOut,
+                  ),
+                ),
+                Container(width: 1, height: 36, color: _kDivider),
+                Expanded(
+                  child: _MiniInfoTile(
+                    icon: Icons.schedule_outlined,
+                    label: 'ម៉ោង',
+                    value: rec.totalHours,
+                  ),
+                ),
+              ],
+            ),
+            if ((rec.lateMinutes ?? 0) > 0) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    size: 14,
+                    color: _kLateDot,
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    'មកយឺត ${rec.lateMinutes} នាទី',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _kLateDot,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ] else ...[
+            const SizedBox(height: 8),
+            const Text(
+              'មិនទាន់មានទិន្នន័យសម្រាប់ថ្ងៃនេះ',
+              style: TextStyle(
+                fontSize: 13,
+                color: _kGray,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniInfoTile extends StatelessWidget {
+  const _MiniInfoTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(icon, size: 15, color: _kGray),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 10,
+            color: _kGray,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          (value.isEmpty || value == '-') ? '-' : value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: _kNavy,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActivityOverviewCard extends StatelessWidget {
+  const _ActivityOverviewCard({
+    required this.holidayDays,
+    required this.missionDays,
+    required this.workingDays,
+    required this.totalWorkedHoursLabel,
+    required this.averageDailyHoursLabel,
+  });
+
+  final int holidayDays;
+  final int missionDays;
+  final int workingDays;
+  final String totalWorkedHoursLabel;
+  final String averageDailyHoursLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A14202B),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _ActivityStatChip(
+            icon: Icons.beach_access_outlined,
+            label: 'ថ្ងៃសម្រាក',
+            value: '$holidayDays ថ្ងៃ',
+            color: _kHolidayFill,
+          ),
+          _ActivityStatChip(
+            icon: Icons.work_history_outlined,
+            label: 'បេសកកម្ម',
+            value: '$missionDays ថ្ងៃ',
+            color: _kMissionText,
+          ),
+          _ActivityStatChip(
+            icon: Icons.work_outline_rounded,
+            label: 'ថ្ងៃធ្វើការ',
+            value: '$workingDays ថ្ងៃ',
+            color: _kOnTimeDot,
+          ),
+          _ActivityStatChip(
+            icon: Icons.schedule_rounded,
+            label: 'ម៉ោងសរុប',
+            value: '$totalWorkedHoursLabel ម៉.',
+            color: const Color(0xFF355AA8),
+          ),
+          _ActivityStatChip(
+            icon: Icons.timelapse_outlined,
+            label: 'មធ្យម/ថ្ងៃ',
+            value: '$averageDailyHoursLabel ម៉.',
+            color: const Color(0xFF7C3AED),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityStatChip extends StatelessWidget {
+  const _ActivityStatChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 138),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withAlpha(18),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '$date · $weekday',
-                      style: const TextStyle(
-                        color: Color(0xFF1E3441),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: statusBackground,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      statusLabel,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _HistoryInfoCell(label: 'ចូល', value: timeIn),
-                  ),
-                  Container(
-                    width: 1,
-                    height: 36,
-                    color: const Color(0xFFEDF1F4),
-                  ),
-                  Expanded(
-                    child: _HistoryInfoCell(label: 'ចេញ', value: timeOut),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
               Text(
-                'វេណ: $shift',
+                label,
                 style: const TextStyle(
-                  color: Color(0xFF70808C),
-                  fontSize: 12.5,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w600,
+                  color: _kGray,
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: color,
                 ),
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Event card ───────────────────────────────────────────────────────────────
+class _EventCard extends StatelessWidget {
+  const _EventCard({
+    required this.record,
+    required this.activityTypeLabel,
+    required this.statusLabel,
+    required this.statusColor,
+    required this.onView,
+  });
+
+  final AttendanceDayRecord record;
+  final String activityTypeLabel;
+  final String statusLabel;
+  final Color statusColor;
+  final VoidCallback onView;
+
+  static const _monthKhmer = [
+    'មករា',
+    'កុម្ភៈ',
+    'មីនា',
+    'មេសា',
+    'ឧសភា',
+    'មិថុនា',
+    'កក្កដា',
+    'សីហា',
+    'កញ្ញា',
+    'តុលា',
+    'វិច្ឆិកា',
+    'ធ្នូ',
+  ];
+
+  static const _weekdayKhmer = [
+    'ចន្ទ',
+    'អង្គារ',
+    'ពុធ',
+    'ព្រហស្បតិ៍',
+    'សុក្រ',
+    'សៅរ៍',
+    'អាទិត្យ',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    DateTime? date;
+    try {
+      date = DateTime.parse(record.date);
+    } catch (_) {}
+    final dayNum = date?.day ?? 0;
+    final monthName = date != null ? _monthKhmer[date.month - 1] : '';
+    final weekday = date != null ? _weekdayKhmer[date.weekday - 1] : '';
+    final year = date?.year ?? 0;
+    final totalHours =
+        (record.totalHours.trim().isEmpty || record.totalHours == '-')
+            ? '0:00:00'
+            : record.totalHours;
+    final hasTimeRange = record.timeIn != '-' || record.timeOut != '-';
+    final hasLate = (record.lateMinutes ?? 0) > 0;
+    final hasEarlyLeave = (record.earlyLeaveMinutes ?? 0) > 0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A14202B),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Left date block
+          Container(
+            width: 62,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              color: statusColor.withAlpha(230),
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(18),
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  weekday,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$dayNum',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
+                  ),
+                ),
+                Text(
+                  monthName,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  '$year',
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Content
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: statusColor.withAlpha(20),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.calendar_today_rounded,
+                              size: 10,
+                              color: _kGray,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              statusLabel,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: statusColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5FF),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          activityTypeLabel,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF355AA8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    record.date.length >= 10
+                        ? record.date.substring(0, 10)
+                        : record.date,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: _kNavy,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.schedule_outlined,
+                        size: 13,
+                        color: _kGray,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'ម៉ោងបំពេញ: $totalHours',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: _kGray,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (hasTimeRange) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      '${record.timeIn} \u2192 ${record.timeOut}',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: _kGray,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  if (hasLate || hasEarlyLeave) ...[
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: [
+                        if (hasLate)
+                          Text(
+                            'មកយឺត ${record.lateMinutes} នាទី',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _kLateDot,
+                            ),
+                          ),
+                        if (hasEarlyLeave)
+                          Text(
+                            'ចេញមុន ${record.earlyLeaveMinutes} នាទី',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _kEarlyLeaveDot,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          // Action icon
+          Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: IconButton(
+              onPressed: onView,
+              icon: const Icon(Icons.arrow_forward_ios_rounded, size: 16),
+              color: statusColor,
+              style: IconButton.styleFrom(
+                backgroundColor: statusColor.withAlpha(18),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                minimumSize: const Size(36, 36),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Empty events ─────────────────────────────────────────────────────────────
+class _EmptyEventsCard extends StatelessWidget {
+  const _EmptyEventsCard({
+    this.message = 'មិនទាន់មានទិន្នន័យសកម្មភាពប្រចាំថ្ងៃក្នុងខែនេះ',
+  });
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Center(
+        child: Text(
+          message,
+          style: const TextStyle(
+            color: _kGray,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
   }
 }
 
-class _HistoryInfoCell extends StatelessWidget {
-  const _HistoryInfoCell({required this.label, required this.value});
+// ─── Error card ───────────────────────────────────────────────────────────────
+class _ErrorCard extends StatelessWidget {
+  const _ErrorCard({required this.message, required this.onRetry});
 
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF8A98A3),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color(0xFF1E3441),
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LegendChip extends StatelessWidget {
-  const _LegendChip({required this.label, required this.color});
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withAlpha(20),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withAlpha(40)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HistoryErrorCard extends StatelessWidget {
-  const _HistoryErrorCard({
-    required this.title,
-    required this.message,
-    required this.onRetry,
-  });
-
-  final String title;
   final String message;
-  final Future<void> Function() onRetry;
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFF0CED5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline, color: Color(0xFFD34B5F)),
+          const Icon(Icons.error_outline, color: Color(0xFFD34B5F), size: 20),
           const SizedBox(height: 8),
           Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFF153029),
-              fontWeight: FontWeight.w800,
-            ),
+            message,
+            style: const TextStyle(color: Color(0xFF5D726A), fontSize: 13),
           ),
-          const SizedBox(height: 6),
-          Text(message, style: const TextStyle(color: Color(0xFF5D726A))),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           FilledButton.icon(
             onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('ព្យាយាមម្ដងទៀត'),
           ),
         ],
       ),
@@ -1390,62 +1726,95 @@ class _HistoryErrorCard extends StatelessWidget {
   }
 }
 
-class _HistoryEmptyCard extends StatelessWidget {
-  const _HistoryEmptyCard({required this.message});
+// ─── Detail bottom sheet ──────────────────────────────────────────────────────
+class _DetailSheet extends StatelessWidget {
+  const _DetailSheet({
+    required this.timeIn,
+    required this.timeOut,
+    required this.lateMinutes,
+    required this.earlyLeaveMinutes,
+    required this.punchCount,
+    required this.totalHours,
+    required this.exceptionReason,
+    required this.hasException,
+  });
 
-  final String message;
+  final String timeIn;
+  final String timeOut;
+  final int lateMinutes;
+  final int earlyLeaveMinutes;
+  final int punchCount;
+  final String totalHours;
+  final String? exceptionReason;
+  final bool hasException;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2EAE7)),
-      ),
-      child: Column(
-        children: [
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: _kCardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: _kDivider),
+          ),
+          child: Column(
+            children: [
+              _SheetRow(label: 'ម៉ោងចូល', value: timeIn),
+              _SheetRow(label: 'ម៉ោងចេញ', value: timeOut),
+              _SheetRow(
+                label: 'ម៉ោងធ្វើការ',
+                value: totalHours,
+              ),
+              _SheetRow(
+                label: 'ចំនួនស្កេន',
+                value: '$punchCount ដង',
+              ),
+              if (lateMinutes > 0)
+                _SheetRow(
+                  label: 'ពន្យារ',
+                  value: '$lateMinutes នាទី',
+                  valueColor: _kLateDot,
+                ),
+              if (earlyLeaveMinutes > 0)
+                _SheetRow(
+                  label: 'ចេញមុន',
+                  value: '$earlyLeaveMinutes នាទី',
+                  valueColor: _kEarlyLeaveDot,
+                ),
+            ],
+          ),
+        ),
+        if (hasException || (exceptionReason?.trim().isNotEmpty == true)) ...[
+          const SizedBox(height: 10),
           Container(
-            width: 52,
-            height: 52,
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6F3),
+              color: const Color(0xFFFFF7F7),
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFF2D6D6)),
             ),
-            child: const Icon(
-              Icons.history_toggle_off_rounded,
-              color: Color(0xFF0B6B58),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF3E554D),
-              fontWeight: FontWeight.w700,
-              fontSize: 14,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'សូមសាកល្បងប្តូរតម្រង ឬជ្រើសខែផ្សេង',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFF72818C),
-              height: 1.45,
-              fontWeight: FontWeight.w600,
+            child: Text(
+              exceptionReason?.trim().isNotEmpty == true
+                  ? exceptionReason!.trim()
+                  : 'ព័ត៌មានស្កេនមិនគ្រប់',
+              style: const TextStyle(
+                color: Color(0xFF6D4C4C),
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
-      ),
+      ],
     );
   }
 }
 
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value, this.valueColor});
+class _SheetRow extends StatelessWidget {
+  const _SheetRow({required this.label, required this.value, this.valueColor});
 
   final String label;
   final String value;
@@ -1454,18 +1823,17 @@ class _DetailRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 115,
+            width: 110,
             child: Text(
               label,
               style: const TextStyle(
-                color: Color(0xFF5B6E67),
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+                color: _kGray,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -1473,12 +1841,123 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               value.isEmpty ? '-' : value,
               style: TextStyle(
-                color: valueColor ?? const Color(0xFF132D25),
+                color: valueColor ?? _kNavy,
                 fontWeight: FontWeight.w800,
+                fontSize: 13,
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Bottom navigation ────────────────────────────────────────────────────────
+class _CalendarBottomNav extends StatelessWidget {
+  const _CalendarBottomNav({
+    required this.onHomeTap,
+    required this.onSettingsTap,
+  });
+
+  final VoidCallback onHomeTap;
+  final VoidCallback onSettingsTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomPad = MediaQuery.of(context).padding.bottom;
+
+    return Container(
+      height: 62 + bottomPad,
+      decoration: const BoxDecoration(
+        color: _kCardBg,
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 18,
+            offset: Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: EdgeInsets.only(bottom: bottomPad),
+        child: Row(
+          children: [
+            _BottomNavItem(
+              icon: Icons.home_outlined,
+              label: 'គេហទំព័រ',
+              active: false,
+              onTap: onHomeTap,
+            ),
+            const _BottomNavItem(
+              icon: Icons.calendar_month_rounded,
+              label: 'ប្រតិទិន',
+              active: true,
+            ),
+            const _BottomNavItem(
+              icon: Icons.notifications_outlined,
+              label: 'ជូនដំណឹង',
+              active: false,
+            ),
+            _BottomNavItem(
+              icon: Icons.settings_outlined,
+              label: 'ការកំណត់',
+              active: false,
+              onTap: onSettingsTap,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomNavItem extends StatelessWidget {
+  const _BottomNavItem({
+    required this.icon,
+    required this.label,
+    required this.active,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool active;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    const activeColor = Color(0xFF1565C0);
+    const inactiveColor = Color(0xFF94A3B8);
+
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 24, color: active ? activeColor : inactiveColor),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+                color: active ? activeColor : inactiveColor,
+              ),
+            ),
+            if (active)
+              Container(
+                width: 24,
+                height: 3,
+                margin: const EdgeInsets.only(top: 3),
+                decoration: BoxDecoration(
+                  color: activeColor,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

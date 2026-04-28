@@ -16,6 +16,19 @@
         $highlightDistributionId = max(0, (int) ($highlightDistributionId ?? request()->query('highlight_distribution', 0)));
         $focusAction = trim((string) request()->query('focus_action', ''));
         $workflowAssignments = is_array($workflowAssignments ?? null) ? $workflowAssignments : [];
+        $assignedDepartmentIds = collect($workflowAssignments['assigned_department_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+        if ($assignedDepartmentIds->isEmpty() && (int) ($letter->assigned_department_id ?? 0) > 0) {
+            $assignedDepartmentIds = collect([(int) $letter->assigned_department_id]);
+        }
+        $officeCommentRelatedUserIds = collect($workflowAssignments['office_comment_related_user_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
         $outgoingToOrgText = (string) ($letter->to_org ?: '-');
         if (!$isIncoming) {
             $outgoingToDepartments = $letter->distributions
@@ -96,6 +109,7 @@
             'created' => localize('action_created', 'បង្កើតលិខិត'),
             'delegate' => localize('action_delegate', 'ចាត់តាំង'),
             'office_comment' => localize('action_office_comment_related_units', 'មតិអង្គភាពពាក់ព័ន្ធ'),
+            'office_comment_related' => localize('action_office_comment_related_actor', 'មតិយោបល់អ្នកពាក់ព័ន្ធ (ជំហានទី 3)'),
             'deputy_review' => localize('action_deputy_review', 'ពិនិត្យដោយអនុប្រធាន'),
             'director_approved' => localize('action_director_approved', 'អនុម័តដោយប្រធានមន្ទីរ'),
             'director_rejected' => localize('action_director_rejected', 'មិនអនុម័តដោយប្រធានមន្ទីរ'),
@@ -122,6 +136,35 @@
                 return (string) ($row->feedback_at ?? '');
             })
             ->take(6)
+            ->values();
+
+        $latestDelegateActionId = (int) optional(
+            $letter->actions
+                ->where('action_type', 'delegate')
+                ->sortByDesc('id')
+                ->first()
+        )->id;
+        $step3RelatedCompletedUserIds = $letter->actions
+            ->filter(function ($row) use ($latestDelegateActionId, $officeCommentRelatedUserIds) {
+                $actedBy = (int) ($row->acted_by ?? 0);
+                if ($actedBy <= 0 || !$officeCommentRelatedUserIds->contains($actedBy)) {
+                    return false;
+                }
+                if ($latestDelegateActionId > 0 && (int) ($row->id ?? 0) <= $latestDelegateActionId) {
+                    return false;
+                }
+                return in_array((string) ($row->action_type ?? ''), ['office_comment_related', 'office_comment'], true);
+            })
+            ->pluck('acted_by')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+        $step3RelatedPendingUserIds = $officeCommentRelatedUserIds
+            ->reject(fn ($id) => $step3RelatedCompletedUserIds->contains((int) $id))
+            ->values();
+        $step3RelatedPendingNames = $step3RelatedPendingUserIds
+            ->map(fn ($id) => $userMap[(int) $id] ?? ('#' . (int) $id))
             ->values();
     @endphp
 
@@ -260,16 +303,18 @@
                                 @foreach ($attachments as $path)
                                     @if (!empty($path))
                                         @php
-                                            $attachmentUrl = asset('storage/' . ltrim($path, '/'));
+                                            $storedPath = ltrim((string) $path, '/');
+                                            $normalizedPath = preg_replace('#^(storage/|public/)#', '', $storedPath) ?: $storedPath;
                                             $previewUrl = route('correspondence.attachments.preview', [$letter->id, $loop->index]);
-                                            $attachmentExt = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+                                            $downloadUrl = route('correspondence.attachments.file', [$letter->id, $loop->index]) . '?download=1';
+                                            $attachmentExt = strtolower(pathinfo($normalizedPath, PATHINFO_EXTENSION));
                                             $previewableExts = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
                                             $isPreviewable = in_array($attachmentExt, $previewableExts, true);
                                         @endphp
                                         <a href="{{ $previewUrl }}" target="_blank" class="btn btn-sm btn-outline-primary">
                                             {{ localize('view', 'មើល') }}: {{ basename($path) }}
                                         </a>
-                                        <a href="{{ $attachmentUrl }}" download class="btn btn-sm btn-outline-secondary">
+                                        <a href="{{ $downloadUrl }}" class="btn btn-sm btn-outline-secondary">
                                             {{ localize('download', 'ទាញយក') }}
                                         </a>
                                     @endif
@@ -375,10 +420,16 @@
                                 && in_array($step, [\Modules\Correspondence\Entities\CorrespondenceLetter::STEP_INCOMING_RECEIVED, \Modules\Correspondence\Entities\CorrespondenceLetter::STEP_INCOMING_DELEGATED], true)
                                 && !empty($isRecipientActor)
                                 && $canDelegate;
+                            $canDoLateRelatedOfficeComment = $isIncoming
+                                && !$incomingFinalized
+                                && $step === \Modules\Correspondence\Entities\CorrespondenceLetter::STEP_INCOMING_DEPUTY_REVIEW
+                                && $step3RelatedPendingUserIds->contains($currentUserId);
                             $canDoOfficeComment = $isIncoming
                                 && !$incomingFinalized
-                                && $step === \Modules\Correspondence\Entities\CorrespondenceLetter::STEP_INCOMING_OFFICE_COMMENT
-                                && $canOfficeComment;
+                                && (
+                                    ($step === \Modules\Correspondence\Entities\CorrespondenceLetter::STEP_INCOMING_OFFICE_COMMENT && $canOfficeComment)
+                                    || $canDoLateRelatedOfficeComment
+                                );
                             $canDoDeputyReview = $isIncoming
                                 && !$incomingFinalized
                                 && $step === \Modules\Correspondence\Entities\CorrespondenceLetter::STEP_INCOMING_DEPUTY_REVIEW
@@ -417,9 +468,8 @@
                                     <div class="fw-semibold mb-2">{{ localize('delegate_assign', 'ជំហានទី 2: ប្រធាន/អនុប្រធានការិយាល័យរដ្ឋបាល បែងចែកទៅអង្គភាពពាក់ព័ន្ធ') }}</div>
                                     <div class="small text-muted mb-2">{{ localize('delegate_step_hint_chain', 'រដ្ឋបាលកំណត់អ្នកអនុវត្តតាមលំដាប់ជំហាន 3, 4, 5 ម្តងតែមួយ ហើយប្រព័ន្ធនឹងបន្តទៅអ្នកបន្ទាប់ដោយស្វ័យប្រវត្តិ។') }}</div>
                                     <div class="mb-2">
-                                        <label class="form-label">{{ localize('assigned_org_unit', 'អង្គភាពដែលបានចាត់តាំង') }}</label>
-                                        <select class="form-select form-select-sm" name="assigned_department_id">
-                                            <option value="">-- {{ localize('select_org_unit', 'ជ្រើសរើសអង្គភាព') }} --</option>
+                                        <label class="form-label">{{ localize('assigned_org_units', 'អង្គភាពដែលបានចាត់តាំង (អាចជ្រើសច្រើន)') }}</label>
+                                        <select id="delegate_assigned_departments" class="form-select form-select-sm js-org-multi" name="assigned_department_ids[]" multiple data-placeholder="{{ localize('select_org_unit', 'ជ្រើសរើសអង្គភាព') }}">
                                             @foreach (($orgUnitOptions ?? collect()) as $unit)
                                                 @php
                                                     $displayName = $unit->path ?? '';
@@ -430,17 +480,30 @@
                                                         $displayName = $unit->label ?? ('#' . $unit->id);
                                                     }
                                                 @endphp
-                                                <option value="{{ $unit->id }}" @selected((int) $unit->id === (int) ($letter->assigned_department_id ?? 0))>{{ $displayName }}</option>
+                                                <option value="{{ $unit->id }}" @selected($assignedDepartmentIds->contains((int) $unit->id))>{{ $displayName }}</option>
                                             @endforeach
                                         </select>
+                                        <small class="text-muted">{{ localize('assigned_org_units_hint', 'ជ្រើសអង្គភាពពាក់ព័ន្ធច្រើនបាន។ ប្រព័ន្ធនឹងប្រើអង្គភាពដំបូងជាអង្គភាពចម្បងសម្រាប់លំហូរ។') }}</small>
                                     </div>
                                     <div class="mb-2">
                                         <label class="form-label">{{ localize('office_comment_user', 'អ្នកអនុវត្តជំហានទី 3') }}</label>
-                                        <select class="form-select form-select-sm js-user-search" name="office_comment_user_id" data-placeholder="{{ localize('select_user', 'ជ្រើសរើសអ្នកប្រើ') }}">
+                                        <select class="form-select form-select-sm js-user-search" name="office_comment_user_id" data-placeholder="{{ localize('select_user', 'ជ្រើសរើសអ្នកប្រើ') }}" data-department-source="#delegate_assigned_departments">
                                             @if (!empty($workflowAssignments['office_comment_user_id']) && !empty($userMap[(int) $workflowAssignments['office_comment_user_id']]))
                                                 <option value="{{ (int) $workflowAssignments['office_comment_user_id'] }}" selected>{{ $userMap[(int) $workflowAssignments['office_comment_user_id']] }}</option>
                                             @endif
                                         </select>
+                                        <small class="text-muted">{{ localize('step3_responsible_user_hint', 'ជ្រើសអ្នកទទួលខុសត្រូវចម្បងសម្រាប់ជំហានទី 3 (ត្រូវស្ថិតក្នុងអង្គភាពដែលបានជ្រើស)') }}</small>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">{{ localize('office_comment_related_users', 'អ្នកចូលរួមជំហានទី 3 (ពាក់ព័ន្ធ)') }}</label>
+                                        <select class="form-select form-select-sm js-user-multi" name="office_comment_related_user_ids[]" multiple data-placeholder="{{ localize('select_user', 'ជ្រើសរើសអ្នកប្រើ') }}" data-department-source="#delegate_assigned_departments">
+                                            @foreach ($officeCommentRelatedUserIds as $relatedUserId)
+                                                @if (!empty($userMap[(int) $relatedUserId]))
+                                                    <option value="{{ (int) $relatedUserId }}" selected>{{ $userMap[(int) $relatedUserId] }}</option>
+                                                @endif
+                                            @endforeach
+                                        </select>
+                                        <small class="text-muted">{{ localize('step3_related_users_hint', 'អ្នកពាក់ព័ន្ធអាចផ្ញើមតិយោបល់បានច្រើននាក់ក្នុងជំហានទី 3') }}</small>
                                     </div>
                                     <div class="mb-2">
                                         <label class="form-label">{{ localize('deputy_review_user', 'អ្នកអនុវត្តជំហានទី 4') }}</label>
@@ -449,6 +512,7 @@
                                                 <option value="{{ (int) $workflowAssignments['deputy_review_user_id'] }}" selected>{{ $userMap[(int) $workflowAssignments['deputy_review_user_id']] }}</option>
                                             @endif
                                         </select>
+                                        <small class="text-muted">{{ localize('search_user_hint', 'ចុចវាលនេះ ហើយវាយឈ្មោះដើម្បីស្វែងរក') }}</small>
                                     </div>
                                     <div class="mb-2">
                                         <label class="form-label">{{ localize('director_user', 'អ្នកអនុវត្តជំហានទី 5') }}</label>
@@ -457,6 +521,7 @@
                                                 <option value="{{ (int) $workflowAssignments['director_user_id'] }}" selected>{{ $userMap[(int) $workflowAssignments['director_user_id']] }}</option>
                                             @endif
                                         </select>
+                                        <small class="text-muted">{{ localize('search_user_hint', 'ចុចវាលនេះ ហើយវាយឈ្មោះដើម្បីស្វែងរក') }}</small>
                                     </div>
                                     <div class="mb-2">
                                         <label class="form-label">{{ localize('note', 'ចំណារ') }}</label>
@@ -471,12 +536,27 @@
                                     @csrf
                                     <input type="hidden" name="action" value="office_comment">
                                     <div class="fw-semibold mb-2">{{ localize('office_comment_km_multi', 'ជំហានទី 3: អង្គភាពពាក់ព័ន្ធ (អាចលើសពី 2) ពិនិត្យ និងផ្តល់យោបល់') }}</div>
+                                    @if (!$isRecipientActor)
+                                        <div class="small text-muted mb-2">{{ localize('related_actor_comment_hint', 'អ្នកជាអ្នកពាក់ព័ន្ធ។ អ្នកអាចផ្ញើមតិយោបល់បាន ប៉ុន្តែការបញ្ជូនទៅជំហានបន្ទាប់នឹងធ្វើដោយអ្នកទទួលខុសត្រូវចម្បងជំហានទី 3។') }}</div>
+                                    @endif
+                                    @if ($officeCommentRelatedUserIds->isNotEmpty())
+                                        <div class="small text-muted mb-2">
+                                            {{ localize('step3_related_progress', 'វឌ្ឍនភាពអ្នកពាក់ព័ន្ធជំហានទី 3') }}:
+                                            {{ $step3RelatedCompletedUserIds->count() }} / {{ $officeCommentRelatedUserIds->count() }}
+                                        </div>
+                                        @if ($step3RelatedPendingNames->isNotEmpty())
+                                            <div class="small text-warning mb-2">
+                                                {{ localize('step3_waiting_related_users', 'កំពុងរង់ចាំមតិយោបល់ពី') }}:
+                                                {{ $step3RelatedPendingNames->implode(', ') }}
+                                            </div>
+                                        @endif
+                                    @endif
                                     @if (!empty($workflowAssignments['deputy_review_user_id']) && !empty($userMap[(int) $workflowAssignments['deputy_review_user_id']]))
                                         <div class="small text-muted mb-2">{{ localize('next_actor_deputy', 'អ្នកបន្ទាប់') }}: {{ $userMap[(int) $workflowAssignments['deputy_review_user_id']] }}</div>
                                     @endif
                                     <label class="form-label">{{ localize('note_required', 'មតិយោបល់') }} <span class="text-danger">*</span></label>
                                     <textarea class="form-control form-control-sm mb-2" name="note" rows="3" required placeholder="{{ localize('enter_comment_placeholder', 'សូមបញ្ចូលមតិយោបល់របស់អ្នក...') }}"></textarea>
-                                    <button type="submit" class="btn btn-sm btn-primary">{{ localize('submit', 'បញ្ជូន') }}</button>
+                                    <button type="submit" class="btn btn-sm btn-primary">{{ $isRecipientActor ? localize('submit', 'បញ្ជូន') : localize('send_related_comment', 'ផ្ញើមតិយោបល់') }}</button>
                                 </form>
                             @endif
 
@@ -584,6 +664,7 @@
                                         <div class="mb-2">
                                             <label class="form-label">{{ localize('target_user', 'អ្នកប្រើគោលដៅ') }}</label>
                                             <select class="form-select form-select-sm js-user-search" name="target_user_id" data-placeholder="{{ localize('select_user', 'ជ្រើសរើសអ្នកប្រើ') }}"></select>
+                                            <small class="text-muted">{{ localize('search_user_hint', 'ចុចវាលនេះ ហើយវាយឈ្មោះដើម្បីស្វែងរក') }}</small>
                                         </div>
                                     @endif
                                     <div class="mb-2">
@@ -621,16 +702,22 @@
 
                         @if ($isIncoming && !$hasWorkflowAction)
                             @php
+                                $relatedOfficeStep3Ids = collect($workflowAssignments['office_comment_related_user_ids'] ?? [])
+                                    ->map(fn ($id) => (int) $id)
+                                    ->filter(fn ($id) => $id > 0)
+                                    ->unique()
+                                    ->values();
                                 $userInChain = in_array($currentUserId, [
                                     (int) ($workflowAssignments['office_comment_user_id'] ?? 0),
                                     (int) ($workflowAssignments['deputy_review_user_id'] ?? 0),
                                     (int) ($workflowAssignments['director_user_id'] ?? 0),
-                                ], true);
+                                ], true) || $relatedOfficeStep3Ids->contains($currentUserId);
                                 $userCompletedOwnAction = $letter->actions
                                     ->where('acted_by', $currentUserId)
                                     ->contains(function ($row) {
                                         return in_array((string) ($row->action_type ?? ''), [
                                             'office_comment',
+                                            'office_comment_related',
                                             'deputy_review',
                                             'director_approved',
                                             'director_rejected',
@@ -1380,65 +1467,200 @@
         (function($) {
             "use strict";
 
-            if (!$ || !$.fn || !$.fn.select2) {
-                return;
+            var userSearchUrl = @json(route('correspondence.users.search'));
+
+            function resolveResults(data) {
+                if (data && Array.isArray(data.results)) {
+                    return data.results;
+                }
+                if (data && data.response && Array.isArray(data.response.data)) {
+                    return data.response.data;
+                }
+                return [];
             }
 
-            $('.js-user-search').select2({
-                width: '100%',
-                allowClear: true,
-                placeholder: function() {
-                    return $(this).data('placeholder') || 'ជ្រើសរើសអ្នកប្រើ';
-                },
-                ajax: {
-                    url: @json(route('correspondence.users.search')),
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return {
-                            q: params.term || ''
-                        };
-                    },
-                    processResults: function(data) {
-                        return {
-                            results: (data && data.results) ? data.results : []
-                        };
-                    }
+            function resolveDepartmentIds($field) {
+                var sourceSelector = String($field.data('department-source') || '').trim();
+                if (!sourceSelector) {
+                    return [];
                 }
-            });
 
-            $('.js-user-multi').select2({
-                width: '100%',
-                allowClear: true,
-                closeOnSelect: false,
-                placeholder: function() {
-                    return $(this).data('placeholder') || 'ជ្រើសរើសអ្នកប្រើ';
-                },
-                ajax: {
-                    url: @json(route('correspondence.users.search')),
-                    dataType: 'json',
-                    delay: 250,
-                    data: function(params) {
-                        return {
-                            q: params.term || ''
-                        };
-                    },
-                    processResults: function(data) {
-                        return {
-                            results: (data && data.results) ? data.results : []
-                        };
-                    }
+                var $departmentField = $(sourceSelector);
+                if (!$departmentField.length) {
+                    return [];
                 }
-            });
 
-            $('.js-org-multi').select2({
-                width: '100%',
-                allowClear: true,
-                closeOnSelect: false,
-                placeholder: function() {
-                    return $(this).data('placeholder') || 'ជ្រើសរើសអង្គភាព';
+                var rawValue = $departmentField.val();
+                var list = Array.isArray(rawValue) ? rawValue : [rawValue];
+                return list
+                    .map(function(value) {
+                        return parseInt(value, 10) || 0;
+                    })
+                    .filter(function(value) {
+                        return value > 0;
+                    });
+            }
+
+            function userSearchPayload($field, params) {
+                var payload = {
+                    q: params.term || ''
+                };
+                var departmentIds = resolveDepartmentIds($field);
+                if (departmentIds.length) {
+                    payload.department_ids = departmentIds;
                 }
-            });
+                return payload;
+            }
+
+            function initSelect2() {
+                if (!$ || !$.fn || !$.fn.select2) {
+                    return false;
+                }
+
+                $('.js-user-search').each(function() {
+                    var $field = $(this);
+                    $field.select2({
+                        width: '100%',
+                        allowClear: true,
+                        minimumInputLength: 0,
+                        dropdownParent: $field.closest('form').length ? $field.closest('form') : $(document.body),
+                        placeholder: function() {
+                            return $field.data('placeholder') || 'ជ្រើសរើសអ្នកប្រើ';
+                        },
+                        ajax: {
+                            url: userSearchUrl,
+                            dataType: 'json',
+                            delay: 250,
+                            data: function(params) {
+                                return userSearchPayload($field, params);
+                            },
+                            processResults: function(data) {
+                                return {
+                                    results: resolveResults(data)
+                                };
+                            }
+                        }
+                    });
+                });
+
+                $('.js-user-multi').each(function() {
+                    var $field = $(this);
+                    $field.select2({
+                        width: '100%',
+                        allowClear: true,
+                        closeOnSelect: false,
+                        minimumInputLength: 0,
+                        dropdownParent: $field.closest('form').length ? $field.closest('form') : $(document.body),
+                        placeholder: function() {
+                            return $field.data('placeholder') || 'ជ្រើសរើសអ្នកប្រើ';
+                        },
+                        ajax: {
+                            url: userSearchUrl,
+                            dataType: 'json',
+                            delay: 250,
+                            data: function(params) {
+                                return userSearchPayload($field, params);
+                            },
+                            processResults: function(data) {
+                                return {
+                                    results: resolveResults(data)
+                                };
+                            }
+                        }
+                    });
+                });
+
+                $('.js-org-multi').each(function() {
+                    var $field = $(this);
+                    $field.select2({
+                        width: '100%',
+                        allowClear: true,
+                        closeOnSelect: false,
+                        dropdownParent: $field.closest('form').length ? $field.closest('form') : $(document.body),
+                        placeholder: function() {
+                            return $field.data('placeholder') || 'ជ្រើសរើសអង្គភាព';
+                        }
+                    });
+                });
+
+                return true;
+            }
+
+            function hydrateNativeUserSelects() {
+                var userSelects = document.querySelectorAll('.js-user-search, .js-user-multi');
+                if (!userSelects.length || !window.fetch) {
+                    return;
+                }
+
+                fetch(userSearchUrl + '?limit=50', {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                }).then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('User search request failed.');
+                    }
+                    return response.json();
+                }).then(function(payload) {
+                    var results = resolveResults(payload);
+                    if (!results.length) {
+                        return;
+                    }
+
+                    Array.prototype.forEach.call(userSelects, function(selectEl) {
+                        var existing = {};
+                        Array.prototype.forEach.call(selectEl.options, function(optionEl) {
+                            existing[String(optionEl.value)] = true;
+                        });
+
+                        if (!selectEl.multiple && !existing['']) {
+                            var emptyOption = document.createElement('option');
+                            emptyOption.value = '';
+                            emptyOption.text = '';
+                            selectEl.appendChild(emptyOption);
+                            existing[''] = true;
+                        }
+
+                        results.forEach(function(item) {
+                            var optionId = item && item.id != null ? String(item.id) : '';
+                            if (!optionId || existing[optionId]) {
+                                return;
+                            }
+
+                            var optionLabel = item && item.text ? String(item.text) : optionId;
+                            var option = document.createElement('option');
+                            option.value = optionId;
+                            option.text = optionLabel;
+                            selectEl.appendChild(option);
+                            existing[optionId] = true;
+                        });
+                    });
+                }).catch(function() {
+                    // Keep native selects usable even if async user preload fails.
+                });
+            }
+
+            if (!initSelect2()) {
+                hydrateNativeUserSelects();
+            }
+
+            var $delegateDepartments = $('#delegate_assigned_departments');
+            if ($delegateDepartments.length) {
+                $delegateDepartments.on('change', function() {
+                    $('[data-department-source="#delegate_assigned_departments"]').each(function() {
+                        var $field = $(this);
+                        if ($field.hasClass('select2-hidden-accessible')) {
+                            $field.val(null).trigger('change');
+                        } else if (this.multiple) {
+                            this.selectedIndex = -1;
+                        } else {
+                            $field.val('');
+                        }
+                    });
+                });
+            }
 
         })(window.jQuery);
     </script>

@@ -11,6 +11,8 @@ use Modules\HumanResource\Http\Controllers\MissionController;
 use Modules\HumanResource\Http\Controllers\AttendanceAdjustmentController;
 use Modules\HumanResource\Http\Controllers\AttendanceSnapshotController;
 use Modules\HumanResource\Http\Controllers\LeaveRequestApiController;
+use Modules\HumanResource\Http\Controllers\NoticeNotificationApiController;
+use Modules\Correspondence\Http\Controllers\CorrespondenceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -117,4 +119,23 @@ Route::prefix('v1')
 
         Route::get('/attendance-snapshots/daily', [AttendanceSnapshotController::class, 'daily'])->name('api.v1.attendance_snapshots.daily');
         Route::post('/attendance-snapshots/regenerate', [AttendanceSnapshotController::class, 'regenerate'])->name('api.v1.attendance_snapshots.regenerate');
+
+        Route::get('/notifications', [NoticeNotificationApiController::class, 'index'])->name('api.v1.notifications.index');
+        Route::get('/notifications/unread-count', [NoticeNotificationApiController::class, 'unreadCount'])->name('api.v1.notifications.unread_count');
+        Route::post('/notifications/read-all', [NoticeNotificationApiController::class, 'readAll'])->name('api.v1.notifications.read_all');
+        Route::post('/notifications/{notificationDelivery}/read', [NoticeNotificationApiController::class, 'read'])->whereNumber('notificationDelivery')->name('api.v1.notifications.read');
+
+        // Correspondence API routes (mobile)
+        Route::get('/correspondence/incoming', [CorrespondenceController::class, 'incoming'])->middleware('permission:read_correspondence_management')->name('api.v1.correspondence.incoming');
+        Route::get('/correspondence/outgoing', [CorrespondenceController::class, 'outgoing'])->middleware('permission:read_correspondence_management')->name('api.v1.correspondence.outgoing');
+        Route::get('/correspondence/org-units', [CorrespondenceController::class, 'orgUnits'])->middleware('permission:create_correspondence_management')->name('api.v1.correspondence.org_units');
+        Route::get('/correspondence/{letter}', [CorrespondenceController::class, 'show'])->whereNumber('letter')->middleware('permission:read_correspondence_management')->name('api.v1.correspondence.show');
+        Route::post('/correspondence/store', [CorrespondenceController::class, 'store'])->middleware('permission:create_correspondence_management')->name('api.v1.correspondence.store');
+        Route::post('/correspondence/{letter}/progress', [CorrespondenceController::class, 'progress'])->whereNumber('letter')->middleware('permission:update_correspondence_management')->name('api.v1.correspondence.progress');
+        Route::post('/correspondence/{letter}/distribute', [CorrespondenceController::class, 'distribute'])->whereNumber('letter')->middleware('permission:update_correspondence_management')->name('api.v1.correspondence.distribute');
+        Route::post('/correspondence/distribution/{distribution}/acknowledge', [CorrespondenceController::class, 'acknowledge'])->name('api.v1.correspondence.acknowledge');
+        Route::post('/correspondence/distribution/{distribution}/feedback', [CorrespondenceController::class, 'feedback'])->name('api.v1.correspondence.feedback');
+        Route::post('/correspondence/{letter}/feedback-parent', [CorrespondenceController::class, 'feedbackParent'])->whereNumber('letter')->name('api.v1.correspondence.feedback_parent');
+        Route::get('/correspondence/users/search', [CorrespondenceController::class, 'searchUsers'])->name('api.v1.correspondence.search_users');
+        Route::get('/correspondence', [CorrespondenceController::class, 'index'])->middleware('permission:read_correspondence_management')->name('api.v1.correspondence.dashboard');
     });

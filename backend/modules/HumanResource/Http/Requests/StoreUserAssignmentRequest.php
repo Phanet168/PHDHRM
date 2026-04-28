@@ -22,7 +22,13 @@ class StoreUserAssignmentRequest extends FormRequest
             'user_id' => ['required', 'integer', Rule::exists('users', 'id')],
             'department_id' => ['required', 'integer', Rule::exists('departments', 'id')],
             'position_id' => ['nullable', 'integer', Rule::exists('positions', 'id')],
-            'responsibility_id' => ['required', 'integer', Rule::exists('system_roles', 'id')->where('is_active', 1)],
+            'responsibility_template_id' => ['nullable', 'integer', Rule::exists('responsibility_templates', 'id')->where('is_active', 1)],
+            'responsibility_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('system_roles', 'id')->where('is_active', 1),
+                'required_without:responsibility_template_id',
+            ],
             'scope_type' => ['required', Rule::in(UserAssignment::scopeOptions())],
             'is_primary' => ['required', 'boolean'],
             'effective_from' => ['nullable', 'date'],
@@ -41,6 +47,9 @@ class StoreUserAssignmentRequest extends FormRequest
 
         $this->merge([
             'scope_type' => $scope,
+            'responsibility_template_id' => !empty($this->input('responsibility_template_id'))
+                ? (int) $this->input('responsibility_template_id')
+                : null,
             'is_primary' => filter_var($this->input('is_primary'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
             'is_active' => filter_var($this->input('is_active'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? false,
         ]);

@@ -165,7 +165,7 @@ class BackfillUserAssignments extends Command
 
         $employee = Employee::query()
             ->withoutGlobalScopes()
-            ->with(['primaryUnitPosting:id,employee_id,department_id'])
+            ->with(['primaryUnitPosting'])
             ->where('user_id', $userId)
             ->first(['id', 'user_id', 'department_id', 'sub_department_id']);
 

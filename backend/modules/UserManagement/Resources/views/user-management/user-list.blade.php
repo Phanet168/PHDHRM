@@ -11,7 +11,7 @@
                     </div>
                     <div class="text-end">
                         <div class="actions">
-                            @if (\Illuminate\Support\Facades\Route::has('user-assignments.index'))
+                            @if ((bool) config('hr_governance.ui.show_advanced_central_governance', false) && \Illuminate\Support\Facades\Route::has('user-assignments.index'))
                                 <a href="{{ route('user-assignments.index') }}" class="btn btn-info btn-sm">
                                     <i class="fa fa-user-check"></i>&nbsp;{{ localize('user_assignments', 'User Assignments') }}
                                 </a>

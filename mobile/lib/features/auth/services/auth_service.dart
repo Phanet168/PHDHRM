@@ -53,7 +53,15 @@ class AuthService {
   }
 
   Future<AuthUser?> getCurrentUser() {
-    return _fetchCurrentUserProfile();
+    return _getCurrentUserFromCacheOrProfile();
+  }
+
+  Future<AuthUser?> _getCurrentUserFromCacheOrProfile() async {
+    final cachedUser = await _userSessionStorageService.readUser();
+
+    // Always prefer the latest server profile when a session token exists.
+    // The cached user is only a fallback for offline/unavailable profile calls.
+    return await _fetchCurrentUserProfile() ?? cachedUser;
   }
 
   Future<AuthUser?> _fetchCurrentUserProfile() async {

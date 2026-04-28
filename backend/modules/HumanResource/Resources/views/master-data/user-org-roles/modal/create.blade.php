@@ -57,12 +57,7 @@
                                 <select name="org_role" id="org_role" class="form-control select-basic-single" required>
                                     @foreach ($org_role_options as $option)
                                         <option value="{{ $option }}" {{ old('org_role') === $option ? 'selected' : '' }}>
-                                            {{ localize('org_role_' . $option, match ($option) {
-                                                'head' => 'ប្រធានអង្គភាព',
-                                                'deputy_head' => 'អនុប្រធានអង្គភាព',
-                                                'manager' => 'អ្នកគ្រប់គ្រង/ប្រធានការិយាល័យ',
-                                                default => ucwords(str_replace('_', ' ', $option)),
-                                            }) }}
+                                            {{ ($role_labels[$option] ?? localize('org_role_' . $option, ucwords(str_replace('_', ' ', $option)))) }}
                                         </option>
                                     @endforeach
                                 </select>

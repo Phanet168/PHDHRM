@@ -50,7 +50,9 @@ class HomeLeaveService {
   Future<LeaveSummary> fetchSummary(AuthUser user) async {
     _ensureSession(user);
 
-    final response = _responseMap(await _apiService.get('/v1/leave-requests/summary'));
+    final response = _responseMap(
+      await _apiService.get('/v1/leave-requests/summary'),
+    );
     final status = (response['status'] ?? '').toString().toLowerCase();
     if (status != 'ok') {
       return const LeaveSummary(totalRemaining: 0, types: <LeaveBalanceItem>[]);
@@ -157,6 +159,7 @@ class HomeLeaveService {
     required DateTime startDate,
     required DateTime endDate,
     required String reason,
+    String? note,
     String? attachmentPath,
     Uint8List? attachmentBytes,
     String? attachmentName,
@@ -175,6 +178,7 @@ class HomeLeaveService {
           'start_date': _formatDateOnly(startDate),
           'end_date': _formatDateOnly(endDate),
           'reason': reason.trim(),
+          if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
         },
       );
       return;
@@ -185,6 +189,7 @@ class HomeLeaveService {
       startDate: startDate,
       endDate: endDate,
       reason: reason,
+      note: note,
       attachmentPath: attachmentPath,
       attachmentBytes: attachmentBytes,
       attachmentName: attachmentName,
@@ -196,6 +201,7 @@ class HomeLeaveService {
     required DateTime startDate,
     required DateTime endDate,
     required String reason,
+    String? note,
     String? attachmentPath,
     Uint8List? attachmentBytes,
     String? attachmentName,
@@ -205,12 +211,16 @@ class HomeLeaveService {
 
     for (final base in ApiConfig.baseUrls) {
       final uri = ApiConfig.buildUriForBase(base, '/v1/leave-requests');
-      final request = http.MultipartRequest('POST', uri)
-        ..headers['Accept'] = 'application/json'
-        ..fields['leave_type_id'] = leaveTypeId.toString()
-        ..fields['start_date'] = _formatDateOnly(startDate)
-        ..fields['end_date'] = _formatDateOnly(endDate)
-        ..fields['reason'] = reason.trim();
+      final request =
+          http.MultipartRequest('POST', uri)
+            ..headers['Accept'] = 'application/json'
+            ..fields['leave_type_id'] = leaveTypeId.toString()
+            ..fields['start_date'] = _formatDateOnly(startDate)
+            ..fields['end_date'] = _formatDateOnly(endDate)
+            ..fields['reason'] = reason.trim();
+      if (note != null && note.trim().isNotEmpty) {
+        request.fields['note'] = note.trim();
+      }
 
       if (token != null && token.isNotEmpty) {
         request.headers['Authorization'] = 'Bearer $token';
@@ -221,9 +231,10 @@ class HomeLeaveService {
           http.MultipartFile.fromBytes(
             'attachment',
             attachmentBytes,
-            filename: (attachmentName == null || attachmentName.trim().isEmpty)
-                ? 'attachment.bin'
-                : attachmentName.trim(),
+            filename:
+                (attachmentName == null || attachmentName.trim().isEmpty)
+                    ? 'attachment.bin'
+                    : attachmentName.trim(),
           ),
         );
       } else if (attachmentPath != null && attachmentPath.trim().isNotEmpty) {
@@ -231,9 +242,10 @@ class HomeLeaveService {
           await http.MultipartFile.fromPath(
             'attachment',
             attachmentPath.trim(),
-            filename: (attachmentName == null || attachmentName.trim().isEmpty)
-                ? null
-                : attachmentName.trim(),
+            filename:
+                (attachmentName == null || attachmentName.trim().isEmpty)
+                    ? null
+                    : attachmentName.trim(),
           ),
         );
       }
@@ -252,7 +264,9 @@ class HomeLeaveService {
           statusCode: response.statusCode,
         );
       } catch (_) {
-        lastError = ApiException(message: 'Connection timeout. Please try again.');
+        lastError = ApiException(
+          message: 'Connection timeout. Please try again.',
+        );
       }
     }
 
@@ -264,8 +278,13 @@ class HomeLeaveService {
       return <String, dynamic>{};
     }
 
+    final trimmed = body.trimLeft();
+    if (!trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+      return <String, dynamic>{};
+    }
+
     try {
-      final decoded = jsonDecode(body);
+      final decoded = jsonDecode(trimmed);
       if (decoded is Map<String, dynamic>) {
         return decoded;
       }
@@ -296,7 +315,10 @@ class HomeLeaveService {
     return fallback;
   }
 
-  Future<void> cancelRequest({required AuthUser user, required int requestId}) async {
+  Future<void> cancelRequest({
+    required AuthUser user,
+    required int requestId,
+  }) async {
     _ensureSession(user);
     await _apiService.post('/v1/leave-requests/$requestId/cancel');
   }

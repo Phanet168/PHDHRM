@@ -16,6 +16,7 @@
         html, body {
             width: 210mm;
             height: 297mm;
+            overflow: visible;
         }
 
         body {
@@ -24,6 +25,7 @@
             line-height: 1.55;
             color: #1f2b5b;
             direction: ltr;
+            position: relative;
         }
 
         .font-title {
@@ -136,6 +138,7 @@
             border: 1px solid #3b4a73;
             min-height: 110px;
             padding: 6px;
+            page-break-inside: avoid;
         }
 
         .box-title {
@@ -153,10 +156,59 @@
             grid-template-columns: 1fr 1fr;
             gap: 12px;
             margin-top: 8px;
+            page-break-inside: avoid;
         }
 
         .comment-section {
             margin-top: 54px;
+            page-break-inside: avoid;
+        }
+
+        .office-comment-split {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            min-height: 140px;
+        }
+
+        .office-comment-main {
+            border-right: 1px dashed #9aa5c7;
+            padding-right: 8px;
+        }
+
+        .office-comment-related {
+            padding-left: 2px;
+        }
+
+        .office-related-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            align-content: start;
+        }
+
+        .office-related-item {
+            padding: 0;
+            min-height: 48px;
+        }
+
+        .office-related-item .comment-meta {
+            margin-top: 8px;
+            padding-top: 6px;
+            border-top: 1px dashed #9aa5c7;
+            font-size: 11.5px;
+            color: #3f4b72;
+        }
+
+        .office-related-item .signature-space {
+            margin-top: 10px;
+            min-height: 38px;
+        }
+
+        .office-related-item .signature-line {
+            margin-top: 18px;
+            border-bottom: 1px solid #3b4a73;
+            width: 78%;
         }
 
         .right-note {
@@ -179,18 +231,18 @@
         }
 
         .attachment-qr-bottom-right {
-            position: fixed;
-            left: 12mm;
-            bottom: 8mm;
-            width: 92mm;
+            margin-top: 12px;
+            width: 100%;
             display: flex;
             justify-content: flex-start;
             z-index: 10;
+            page-break-inside: avoid;
         }
 
         .attachment-qr-wrap {
             width: 100%;
             text-align: left;
+            page-break-inside: avoid;
         }
 
         .attachment-qr-grid {
@@ -206,6 +258,18 @@
             min-width: 145px;
             max-width: 180px;
             text-align: center;
+            page-break-inside: avoid;
+        }
+
+        .attachment-qr-item svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .attachment-qr-item img {
+            max-width: 100%;
+            height: auto;
+            display: block;
         }
 
         .attachment-qr-name {
@@ -276,6 +340,53 @@
             padding: 8px 10px;
             margin-top: 8px;
             min-height: 80px;
+        }
+
+        .outgoing-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .feedback-list {
+            margin: 0;
+            padding-left: 16px;
+        }
+
+        .feedback-list li {
+            margin-bottom: 6px;
+        }
+
+        .feedback-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .feedback-card {
+            border: 1px solid #3b4a73;
+            min-height: 68px;
+            padding: 6px;
+            page-break-inside: avoid;
+        }
+
+        .feedback-card-target {
+            font-weight: 600;
+            margin-bottom: 3px;
+            color: #2f3d67;
+        }
+
+        .feedback-card-note {
+            margin-bottom: 4px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .feedback-meta {
+            font-size: 11px;
+            color: #4f5b7d;
         }
     </style>
 </head>
@@ -435,6 +546,65 @@
         $officeCommentDateText = $formatKhmerDate($latestOfficeComment?->acted_at);
         $deputyReviewDateText = $formatKhmerDate($latestDeputyReview?->acted_at);
         $directorDecisionDateText = $formatKhmerDate($latestDirectorDecision?->acted_at ?: $letter->decision_at);
+
+        $distributionFeedbacks = collect($letter->distributions ?? [])
+            ->filter(function ($dist) {
+                return trim((string) ($dist->feedback_note ?? '')) !== '';
+            })
+            ->map(function ($dist) use ($userMap, $userRoleMap, $formatKhmerDate) {
+                $actorId = (int) ($dist->target_user_id ?? 0);
+                $targetLabel = $dist->targetDepartment?->department_name;
+                if (!$targetLabel && $dist->targetUser) {
+                    $targetLabel = trim((string) ($dist->targetUser->full_name ?? ''));
+                }
+
+                $actorName = $actorId > 0
+                    ? ($userMap[$actorId] ?? ('#' . $actorId))
+                    : ($targetLabel ?: '-');
+                $actorRole = $actorId > 0 ? ($userRoleMap[$actorId] ?? '-') : '-';
+
+                $rawAt = $dist->feedback_at ?: $dist->updated_at;
+
+                return [
+                    'target' => $targetLabel ?: '-',
+                    'name' => $actorName,
+                    'role' => $actorRole,
+                    'note' => trim((string) ($dist->feedback_note ?? '')),
+                    'at' => optional($rawAt)->format('d/m/Y H:i') ?: '-',
+                    'date_text' => $formatKhmerDate($rawAt),
+                    'raw_at' => $rawAt,
+                ];
+            });
+
+        $relatedActorFeedbacks = collect($letter->actions ?? [])
+            ->filter(function ($action) {
+                return (string) ($action->action_type ?? '') === 'office_comment_related'
+                    && trim((string) ($action->note ?? '')) !== '';
+            })
+            ->map(function ($action) use ($userMap, $userRoleMap, $formatKhmerDate) {
+                $actorId = (int) ($action->acted_by ?? 0);
+                $targetLabel = $actorId > 0 ? ($userMap[$actorId] ?? ('#' . $actorId)) : '-';
+                $actorRole = $actorId > 0 ? ($userRoleMap[$actorId] ?? '-') : '-';
+                $rawAt = $action->acted_at ?: $action->updated_at;
+
+                return [
+                    'target' => $targetLabel,
+                    'name' => $targetLabel,
+                    'role' => $actorRole,
+                    'note' => trim((string) ($action->note ?? '')),
+                    'at' => optional($rawAt)->format('d/m/Y H:i') ?: '-',
+                    'date_text' => $formatKhmerDate($rawAt),
+                    'raw_at' => $rawAt,
+                ];
+            });
+
+        $relatedFeedbacks = $distributionFeedbacks
+            ->concat($relatedActorFeedbacks)
+            ->sortByDesc(function ($row) {
+                return optional($row['raw_at'] ?? null)->timestamp ?? 0;
+            })
+            ->values()
+            ->all();
     @endphp
 
     <div class="header">
@@ -474,15 +644,39 @@
         <div class="comment-section">
             <div class="box-title font-title">យោបល់ការិយាល័យជំនាញ</div>
             <div class="box" style="min-height: 140px;">
-                <div>{!! $officeCommentText !== '' ? nl2br(e($officeCommentText)) : '-' !!}</div>
-                <div class="comment-meta">
-                    <div>{{ $officeCommentDateText !== '' ? $officeCommentDateText : '-' }}</div>
-                    <div>{{ localize('name', 'ឈ្មោះ') }}: {{ $officeCommentActorName }}</div>
-                    <div>{{ localize('role', 'តួនាទី') }}: {{ $officeCommentActorRole }}</div>
-                </div>
-                <div class="signature-space">
-                    <div class="text-muted">{{ localize('signature', 'ហត្ថលេខា') }}</div>
-                    <div class="signature-line"></div>
+                <div class="office-comment-split">
+                    <div class="office-comment-main">
+                        <div>{!! $officeCommentText !== '' ? nl2br(e($officeCommentText)) : '-' !!}</div>
+                        <div class="comment-meta">
+                            <div>{{ $officeCommentDateText !== '' ? $officeCommentDateText : '-' }}</div>
+                            <div>{{ localize('name', 'ឈ្មោះ') }}: {{ $officeCommentActorName }}</div>
+                            <div>{{ localize('role', 'តួនាទី') }}: {{ $officeCommentActorRole }}</div>
+                        </div>
+                        <div class="signature-space">
+                            <div class="text-muted">{{ localize('signature', 'ហត្ថលេខា') }}</div>
+                            <div class="signature-line"></div>
+                        </div>
+                    </div>
+                    <div class="office-comment-related">
+                        <div class="office-related-list">
+                            @forelse ($relatedFeedbacks as $feedback)
+                                <div class="office-related-item">
+                                    <div class="feedback-card-note">{!! nl2br(e($feedback['note'])) !!}</div>
+                                    <div class="comment-meta">
+                                        <div>{{ !empty($feedback['date_text']) ? $feedback['date_text'] : $feedback['at'] }}</div>
+                                        <div>{{ localize('name', 'ឈ្មោះ') }}: {{ $feedback['name'] ?? $feedback['target'] }}</div>
+                                        <div>{{ localize('role', 'តួនាទី') }}: {{ $feedback['role'] ?? '-' }}</div>
+                                    </div>
+                                    <div class="signature-space">
+                                        <div class="text-muted">{{ localize('signature', 'ហត្ថលេខា') }}</div>
+                                        <div class="signature-line"></div>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="office-related-item">-</div>
+                            @endforelse
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -522,6 +716,7 @@
                 </div>
             </div>
         </div>
+
     @else
         <div class="info-card">
             <div class="info-grid">
@@ -592,9 +787,27 @@
             </div>
         </div>
 
-        <div class="outgoing-summary">
-            <div class="box-title font-title" style="text-align: left; margin-bottom: 6px;">{{ localize('summary', 'ខ្លឹមសារលិខិត') }}</div>
-            <div>{!! ($letter->summary ?: $letter->subject) ? nl2br(e($letter->summary ?: $letter->subject)) : '-' !!}</div>
+        <div class="outgoing-grid">
+            <div class="outgoing-summary" style="margin-top: 0;">
+                <div class="box-title font-title" style="text-align: left; margin-bottom: 6px;">{{ localize('summary', 'ខ្លឹមសារលិខិត') }}</div>
+                <div>{!! ($letter->summary ?: $letter->subject) ? nl2br(e($letter->summary ?: $letter->subject)) : '-' !!}</div>
+            </div>
+
+            <div class="outgoing-summary" style="margin-top: 0;">
+                <div class="box-title font-title" style="text-align: left; margin-bottom: 6px;">{{ localize('related_feedback', 'មតិយោបល់អ្នកពាក់ព័ន្ធ') }}</div>
+                @if (!empty($relatedFeedbacks))
+                    <ul class="feedback-list">
+                        @foreach ($relatedFeedbacks as $feedback)
+                            <li>
+                                <div><strong>{{ $feedback['target'] }}</strong>: {!! nl2br(e($feedback['note'])) !!}</div>
+                                <div class="feedback-meta">{{ localize('date', 'កាលបរិច្ឆេទ') }}: {{ $feedback['at'] }}</div>
+                            </li>
+                        @endforeach
+                    </ul>
+                @else
+                    <div>-</div>
+                @endif
+            </div>
         </div>
 
         <div class="right-note right-column-block" style="margin-top: 14px;">
@@ -611,11 +824,17 @@
                 <div class="attachment-qr-grid">
                     @foreach ($attachments as $path)
                         @php
-                            $fileUrl = asset('storage/' . ltrim((string) $path, '/'));
+                            $storedPath = ltrim((string) $path, '/');
+                            $normalizedPath = preg_replace('#^(storage/|public/)#', '', $storedPath) ?: $storedPath;
+                            $fileUrl = asset('storage/' . ltrim($normalizedPath, '/'));
+                            // Generate QR code as base64 PNG image for better print compatibility
+                            $qrCode = app('DNS2D')->getBarcodePNG($fileUrl, 'QRCODE', 2.8, 2.8);
                         @endphp
                         <div class="attachment-qr-item">
                             <div class="attachment-qr-name">{{ localize('attachment_km', 'ឯកសារភ្ជាប់') }}</div>
-                            {!! app('DNS2D')->getBarcodeHTML($fileUrl, 'QRCODE', 2.8, 2.8) !!}
+                            @if (!empty($qrCode))
+                                <img src="data:image/png;base64,{{ $qrCode }}" alt="QR Code" style="width: 140px; height: 140px; display: block; margin: 0 auto;">
+                            @endif
                         </div>
                     @endforeach
                 </div>

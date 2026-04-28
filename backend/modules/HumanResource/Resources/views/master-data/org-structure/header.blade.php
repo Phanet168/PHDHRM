@@ -40,6 +40,9 @@
 @endonce
 
 <div class="org-structure-ui mb-3">
+    @php
+        $showAdvancedGovernance = (bool) config('hr_governance.ui.show_advanced_central_governance', false);
+    @endphp
     <div class="card org-card">
         <div class="card-body py-2">
             <ul class="nav org-tabs flex-wrap">
@@ -50,39 +53,49 @@
                             <i class="fa fa-th-list me-1"></i>{{ localize('org_position_matrix', 'Org Position Matrix') }}
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('user-assignments.*') ? 'active' : '' }}"
-                           href="{{ route('user-assignments.index') }}">
-                            <i class="fa fa-user-check me-1"></i>{{ localize('user_assignments', 'User Assignments') }}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('user-org-roles.*') ? 'active' : '' }}"
-                           href="{{ route('user-org-roles.index') }}">
-                            <i class="fa fa-history me-1"></i>{{ localize('legacy_org_roles', 'Legacy Org Roles') }}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('workflow-policies.*') ? 'active' : '' }}"
-                           href="{{ route('workflow-policies.index') }}">
-                            <i class="fa fa-project-diagram me-1"></i>{{ localize('workflow_policy_matrix', 'Workflow Policy Matrix') }}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('org-role-module-permissions.*') ? 'active' : '' }}"
-                           href="{{ route('org-role-module-permissions.index') }}">
-                            <i class="fa fa-shield-alt me-1"></i>{{ localize('org_role_permission_matrix', 'Org Role Permission Matrix') }}
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('system-roles.*') ? 'active' : '' }}"
-                           href="{{ route('system-roles.index') }}">
-                            <i class="fa fa-id-badge me-1"></i>{{ localize('responsibilities', 'Responsibilities') }}
-                        </a>
-                    </li>
+                    @if ($showAdvancedGovernance)
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('user-assignments.*') ? 'active' : '' }}"
+                               href="{{ route('user-assignments.index') }}">
+                                <i class="fa fa-user-check me-1"></i>{{ localize('user_assignments', 'User Assignments') }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('responsibility-templates.*') ? 'active' : '' }}"
+                               href="{{ route('responsibility-templates.index') }}">
+                                <i class="fa fa-layer-group me-1"></i>{{ localize('responsibility_templates', 'Responsibility Templates') }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('user-org-roles.*') ? 'active' : '' }}"
+                               href="{{ route('user-org-roles.index') }}">
+                                <i class="fa fa-history me-1"></i>{{ localize('legacy_org_roles', 'Legacy Org Roles') }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('workflow-policies.*') ? 'active' : '' }}"
+                               href="{{ route('workflow-policies.index') }}">
+                                <i class="fa fa-project-diagram me-1"></i>{{ localize('workflow_policy_matrix', 'Workflow Policy Matrix') }}
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('org-role-module-permissions.*') ? 'active' : '' }}"
+                               href="{{ route('org-role-module-permissions.index') }}">
+                                <i class="fa fa-shield-alt me-1"></i>{{ localize('org_role_permission_matrix_advanced', 'Module Action Matrix (Advanced)') }}
+                            </a>
+                        </li>
+                    @endif
+                    @if (\Illuminate\Support\Facades\Route::has('system-roles.index'))
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('system-roles.*') ? 'active' : '' }}"
+                               href="{{ route('system-roles.index') }}">
+                                <i class="fa fa-id-badge me-1"></i>{{ localize('responsibilities', 'Responsibilities') }}
+                            </a>
+                        </li>
+                    @endif
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('org-structure.help') ? 'active' : '' }}"
-                           href="{{ route('org-structure.help', ['article' => 'org-governance-rbac']) }}">
+                           href="{{ route('org-structure.help', ['article' => 'org-structure-overview']) }}">
                             <i class="fa fa-life-ring me-1"></i>{{ localize('help', 'ជំនួយ') }}
                         </a>
                     </li>

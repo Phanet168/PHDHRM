@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:staff_mobile_app/app.dart';
@@ -12,8 +13,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Login'), findsOneWidget);
-    expect(find.text('Sign In'), findsOneWidget);
+    expect(find.text('PHD HRM'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNWidgets(2));
   });
 }
 

@@ -148,6 +148,21 @@ class User extends Authenticatable
             ->latestOfMany();
     }
 
+    public function latestActiveAssignment()
+    {
+        return $this->hasOne(UserAssignment::class, 'user_id', 'id')
+            ->where('is_active', true)
+            ->where(function ($query) {
+                $query->whereNull('effective_from')
+                    ->orWhereDate('effective_from', '<=', now()->toDateString());
+            })
+            ->where(function ($query) {
+                $query->whereNull('effective_to')
+                    ->orWhereDate('effective_to', '>=', now()->toDateString());
+            })
+            ->latestOfMany();
+    }
+
     public function mobileDeviceRegistrations()
     {
         return $this->hasMany(MobileDeviceRegistration::class, 'user_id', 'id');

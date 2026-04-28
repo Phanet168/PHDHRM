@@ -13,7 +13,9 @@ Route::get('/', [HomeController::class, 'rootRedirect'])->name('root.redirect');
 
 Route::get('dev/artisan-http/storage-link', [HomeController::class, 'storageLinkTools'])->name('dev.storage-link');
 
-Auth::routes();
+Auth::routes([
+    'register' => false,
+]);
 Route::post('/password/telegram', [TelegramPasswordResetController::class, 'send'])->name('password.telegram');
 
 Route::get('get-localization-strings', [LocalizationController::class, 'index'])->name('get-localization-strings');

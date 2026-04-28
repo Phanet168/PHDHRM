@@ -144,7 +144,33 @@
     @endpush
 @endonce
 
-@canany(['read_correspondence_management'])
+@php
+    $canUseCorrespondenceModule = auth()->user()?->can('read_correspondence_management')
+        || auth()->user()?->can('setting_correspondence_management')
+        || app(\Modules\HumanResource\Support\OrgRolePermissionService::class)->canUserPerform(
+            auth()->user(),
+            'correspondence',
+            'print',
+            null,
+            []
+        )
+        || app(\Modules\HumanResource\Support\OrgRolePermissionService::class)->canUserPerform(
+            auth()->user(),
+            'correspondence',
+            'create_incoming',
+            null,
+            []
+        )
+        || app(\Modules\HumanResource\Support\OrgRolePermissionService::class)->canUserPerform(
+            auth()->user(),
+            'correspondence',
+            'create_outgoing',
+            null,
+            []
+        );
+@endphp
+
+@if ($canUseCorrespondenceModule)
 <div class="correspondence-ui mb-3">
     <div class="card corr-card fixed-tab">
         <div class="card-body py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -167,6 +193,14 @@
                             <i class="fa fa-paper-plane me-1"></i>{{ localize('outgoing_letters', 'លិខិតចេញ') }}
                         </a>
                     </li>
+                    @if ($canManageSettings ?? false)
+                        <li class="nav-item">
+                            <a class="nav-link {{ request()->routeIs('correspondence.settings') ? 'active' : '' }}"
+                                href="{{ route('correspondence.settings') }}">
+                                <i class="fa fa-cogs me-1"></i>{{ localize('settings', 'ការកំណត់') }}
+                            </a>
+                        </li>
+                    @endif
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('correspondence.help') ? 'active' : '' }}"
                             href="{{ route('correspondence.help') }}">
@@ -189,23 +223,20 @@
                             </span>
                         @endif
 
-                        @can('create_correspondence_management')
-                        @if (($canCreateIncoming ?? false) || auth()->user()?->admin())
+                        @if ($canCreateIncoming ?? false)
                             <a href="{{ route('correspondence.create', 'incoming') }}" class="btn btn-sm btn-success">
                                 <i class="fa fa-plus-circle"></i> {{ localize('add_incoming_letter', 'បន្ថែមលិខិតចូល') }}
                             </a>
                         @endif
-                        @if (($canCreateOutgoing ?? false) || auth()->user()?->admin())
+                        @if ($canCreateOutgoing ?? false)
                             <a href="{{ route('correspondence.create', 'outgoing') }}" class="btn btn-sm btn-primary">
                                 <i class="fa fa-plus-circle"></i> {{ localize('add_outgoing_letter', 'បន្ថែមលិខិតចេញ') }}
                             </a>
                         @endif
-                        @endcan
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-@endcanany
-
+@endif

@@ -1,3 +1,50 @@
 {
-    "java.configuration.updateBuildConfiguration": "interactive"
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "cmake.sourceDirectory": "C:/xampp/htdocs/PHDHRM/mobile/linux",
+    "files.watcherExclude": {
+        "**/mobile/build/**": true,
+        "**/mobile/.dart_tool/**": true,
+        "**/mobile/android/.gradle/**": true,
+        "**/mobile/ios/Pods/**": true,
+        "**/mobile/macos/Pods/**": true,
+        "**/mobile/**/flutter/ephemeral/**": true,
+        "**/backend/node_modules/**": true,
+        "**/backend/bootstrap/cache/**": true,
+        "**/backend/storage/framework/**": true,
+        "**/backend/storage/logs/**": true,
+        "**/backend/public/build/**": true,
+        "**/backend/vendor/**": true,
+        "**/.git/objects/**": true
+    },
+    "search.exclude": {
+        "**/mobile/build": true,
+        "**/mobile/.dart_tool": true,
+        "**/mobile/android/.gradle": true,
+        "**/mobile/ios/Pods": true,
+        "**/mobile/macos/Pods": true,
+        "**/mobile/**/flutter/ephemeral": true,
+        "**/backend/node_modules": true,
+        "**/backend/bootstrap/cache": true,
+        "**/backend/storage/framework": true,
+        "**/backend/storage/logs": true,
+        "**/backend/public/build": true,
+        "**/backend/vendor": true
+    },
+        "files.exclude": {
+            "**/mobile/build": true,
+            "**/mobile/.dart_tool": true,
+            "**/mobile/android/.gradle": true,
+            "**/mobile/ios/Pods": true,
+            "**/mobile/macos/Pods": true,
+            "**/mobile/**/flutter/ephemeral": true,
+            "**/backend/vendor": true
+        },
+        "git.autorefresh": false,
+    "dart.analysisExcludedFolders": [
+        "mobile/build",
+        "mobile/.dart_tool",
+        "mobile/android/.gradle"
+    ],
+    "terminal.integrated.enablePersistentSessions": false,
+    "terminal.integrated.persistentSessionReviveProcess": "never"
 }

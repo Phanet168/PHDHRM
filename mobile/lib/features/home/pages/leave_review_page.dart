@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../auth/models/auth_user.dart';
 import '../models/leave_request_models.dart';
 import '../services/home_leave_service.dart';
@@ -140,9 +141,7 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
   }
 
   void _showMessage(String message, {bool isError = false}) {
-    final normalized = message
-        .replaceAll('ApiException(statusCode: null, message: ', '')
-        .replaceAll(')', '');
+    final normalized = extractApiErrorMessage(message);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

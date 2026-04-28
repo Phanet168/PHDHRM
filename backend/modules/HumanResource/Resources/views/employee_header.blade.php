@@ -97,7 +97,7 @@
                             <li class="nav-item">
                                 <a class="nav-link {{ request()->routeIs('employee-pay-promotions.*') && !request()->routeIs('employee-pay-promotions.help') ? 'active' : '' }}"
                                     href="{{ route('employee-pay-promotions.index') }}">
-                                    <i class="fa fa-layer-group me-1"></i>{{ app()->getLocale() === 'en' ? 'Grade and rank management' : 'គ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ' }}
+                                    <i class="fa fa-layer-group me-1"></i>{{ localize('grade_rank_management', localize('grade_and_rank_management')) }}
                                 </a>
                             </li>
                         @endcan
@@ -133,7 +133,7 @@
                     @can('read_employee')
                         <a class="btn btn-outline-success employee-help-shortcut {{ request()->routeIs('employees.help') || request()->routeIs('employee-pay-promotions.help') ? 'active' : '' }}"
                             href="{{ route('employees.help') }}">
-                            <i class="fa fa-life-ring me-1"></i>{{ app()->getLocale() === 'en' ? 'Help' : 'ជំនួយ' }}
+                            <i class="fa fa-life-ring me-1"></i>{{ localize('help') }}
                         </a>
                     @endcan
                 </div>

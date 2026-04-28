@@ -30,6 +30,7 @@ use Modules\HumanResource\Http\Controllers\ProfessionalSkillController;
 use Modules\HumanResource\Http\Controllers\OrgUnitTypeController;
 use Modules\HumanResource\Http\Controllers\OrgUnitTypePositionController;
 use Modules\HumanResource\Http\Controllers\OrgRoleModulePermissionController;
+use Modules\HumanResource\Http\Controllers\ResponsibilityTemplateController;
 use Modules\HumanResource\Http\Controllers\SystemRoleController;
 use Modules\HumanResource\Http\Controllers\UserOrgRoleController;
 use Modules\HumanResource\Http\Controllers\UserAssignmentController;
@@ -123,44 +124,54 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
         'update',
         'destroy',
     ]);
-    Route::resource('user-org-roles', UserOrgRoleController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy',
-    ]);
-    Route::resource('user-assignments', UserAssignmentController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy',
-    ]);
-    Route::resource('org-role-module-permissions', OrgRoleModulePermissionController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy',
-    ]);
-    Route::resource('system-roles', SystemRoleController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy',
-    ]);
-    Route::get('user-org-roles-user-options', [UserOrgRoleController::class, 'userOptions'])
-        ->name('user-org-roles.user-options');
-    Route::get('user-assignments-user-options', [UserAssignmentController::class, 'userOptions'])
-        ->name('user-assignments.user-options');
-    Route::get('workflow-policies', [WorkflowPolicyController::class, 'index'])
-        ->name('workflow-policies.index');
-    Route::post('workflow-policies', [WorkflowPolicyController::class, 'store'])
-        ->name('workflow-policies.store');
-    Route::get('workflow-policies/preview', [WorkflowPolicyController::class, 'preview'])
-        ->name('workflow-policies.preview');
-    Route::patch('workflow-policies/{workflow_policy}', [WorkflowPolicyController::class, 'update'])
-        ->name('workflow-policies.update');
-    Route::delete('workflow-policies/{workflow_policy}', [WorkflowPolicyController::class, 'destroy'])
-        ->name('workflow-policies.destroy');
+    if ((bool) config('hr_governance.ui.show_advanced_central_governance', false)) {
+        Route::resource('user-org-roles', UserOrgRoleController::class)->only([
+            'index',
+            'store',
+            'update',
+            'destroy',
+        ]);
+        Route::resource('user-assignments', UserAssignmentController::class)->only([
+            'index',
+            'store',
+            'update',
+            'destroy',
+        ]);
+        Route::resource('responsibility-templates', ResponsibilityTemplateController::class)->only([
+            'index',
+            'store',
+            'update',
+            'destroy',
+        ]);
+        Route::resource('org-role-module-permissions', OrgRoleModulePermissionController::class)->only([
+            'index',
+            'store',
+            'update',
+            'destroy',
+        ]);
+        Route::resource('system-roles', SystemRoleController::class)->only([
+            'index',
+            'store',
+            'update',
+            'destroy',
+        ]);
+        Route::get('user-org-roles-user-options', [UserOrgRoleController::class, 'userOptions'])
+            ->name('user-org-roles.user-options');
+        Route::get('user-assignments-user-options', [UserAssignmentController::class, 'userOptions'])
+            ->name('user-assignments.user-options');
+        Route::get('user-assignments-user-placement/{user}', [UserAssignmentController::class, 'userPlacement'])
+            ->name('user-assignments.user-placement');
+        Route::get('workflow-policies', [WorkflowPolicyController::class, 'index'])
+            ->name('workflow-policies.index');
+        Route::post('workflow-policies', [WorkflowPolicyController::class, 'store'])
+            ->name('workflow-policies.store');
+        Route::get('workflow-policies/preview', [WorkflowPolicyController::class, 'preview'])
+            ->name('workflow-policies.preview');
+        Route::patch('workflow-policies/{workflow_policy}', [WorkflowPolicyController::class, 'update'])
+            ->name('workflow-policies.update');
+        Route::delete('workflow-policies/{workflow_policy}', [WorkflowPolicyController::class, 'destroy'])
+            ->name('workflow-policies.destroy');
+    }
     Route::get('org-structure/help/{article?}', [EmployeeHelpController::class, 'orgGovernanceHelp'])
         ->middleware('permission:read_org_governance|read_department')
         ->name('org-structure.help');
@@ -438,10 +449,8 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
 
     Route::name('attendance-adjustments.')->controller(AttendanceAdjustmentController::class)->group(function () {
         Route::get('/attendance-adjustments', 'index')
-            ->middleware('permission:read_attendance_adjustment')
             ->name('index');
         Route::post('/attendance-adjustments', 'store')
-            ->middleware('permission:create_attendance_adjustment')
             ->name('store');
     });
 

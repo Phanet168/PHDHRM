@@ -18,7 +18,7 @@ class HomeAttendanceService {
   }) async {
     final employeeId = user.employeeId;
     if (employeeId <= 0) {
-      throw ApiException(message: 'Invalid employee ID');
+      return <AttendanceDayRecord>[];
     }
 
     final now = DateTime.now();
@@ -70,7 +70,9 @@ class HomeAttendanceService {
   }) async {
     final employeeId = user.employeeId;
     if (employeeId <= 0) {
-      throw ApiException(message: 'Invalid employee ID');
+      throw ApiException(
+        message: 'This account does not have an employee profile.',
+      );
     }
 
     if (qrToken.trim().isEmpty) {

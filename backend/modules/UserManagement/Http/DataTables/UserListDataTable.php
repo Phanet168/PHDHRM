@@ -176,7 +176,8 @@ class UserListDataTable extends DataTable
                 $button = '';
                 $canViewOrgGovernance = auth()->check()
                     && (auth()->user()->can('read_org_governance') || auth()->user()->can('read_department'));
-                if ($canViewOrgGovernance) {
+                $legacyGovernanceRoutesEnabled = (bool) config('hr_governance.ui.show_advanced_central_governance', false);
+                if ($canViewOrgGovernance && $legacyGovernanceRoutesEnabled) {
                     if (Route::has('user-assignments.index')) {
                         $button .= '<a href="' . route('user-assignments.index', ['user_id' => $data->id]) . '" class="btn btn-info-soft btn-sm me-1" title="' . e(localize('user_assignments', 'User Assignments')) . '"><i class="fa fa-user-check"></i></a>';
                     }
@@ -211,6 +212,9 @@ class UserListDataTable extends DataTable
             $relations[] = 'primaryActiveAssignment.department';
             $relations[] = 'primaryActiveAssignment.position';
             $relations[] = 'primaryActiveAssignment.responsibility';
+            $relations[] = 'latestActiveAssignment.department';
+            $relations[] = 'latestActiveAssignment.position';
+            $relations[] = 'latestActiveAssignment.responsibility';
         }
 
         if ($this->hasEmployeeUnitPostingTable()) {
@@ -329,7 +333,13 @@ class UserListDataTable extends DataTable
         }
 
         if ($user->relationLoaded('primaryActiveAssignment')) {
-            return $user->primaryActiveAssignment;
+            if ($user->primaryActiveAssignment) {
+                return $user->primaryActiveAssignment;
+            }
+        }
+
+        if ($user->relationLoaded('latestActiveAssignment')) {
+            return $user->latestActiveAssignment;
         }
 
         return null;

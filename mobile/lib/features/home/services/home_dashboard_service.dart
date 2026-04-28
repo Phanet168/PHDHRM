@@ -19,7 +19,7 @@ class HomeDashboardService {
   }) async {
     final employeeId = user.employeeId;
     if (employeeId <= 0) {
-      throw ApiException(message: 'Employee ID មិនត្រឹមត្រូវ');
+      return _emptySummary();
     }
 
     if (!forceRefresh && _cachedSummary != null && _cachedAt != null) {
@@ -93,10 +93,21 @@ class HomeDashboardService {
           }).toList(),
     );
 
-            _cachedSummary = summary;
-            _cachedAt = DateTime.now();
+    _cachedSummary = summary;
+    _cachedAt = DateTime.now();
 
-            return summary;
+    return summary;
+  }
+
+  DashboardSummary _emptySummary() {
+    return DashboardSummary(
+      totalHours: '0',
+      remainingLeave: '0',
+      loanAmount: '0',
+      salaryCount: 0,
+      noticeCount: 0,
+      notices: const <String>[],
+    );
   }
 
   Map<String, dynamic> _asResponse(
@@ -105,7 +116,7 @@ class HomeDashboardService {
   }) {
     final response = raw['response'];
     if (response is! Map<String, dynamic>) {
-      throw ApiException(message: 'Response format មិនត្រឹមត្រូវ');
+      throw ApiException(message: 'Response format invalid');
     }
 
     final status = (response['status'] ?? '').toString().toLowerCase();
@@ -114,8 +125,7 @@ class HomeDashboardService {
         return <String, dynamic>{};
       }
 
-      final message =
-          (response['message'] ?? 'មិនអាចទាញទិន្នន័យបាន').toString();
+      final message = (response['message'] ?? 'Unable to load data').toString();
       throw ApiException(message: message);
     }
 

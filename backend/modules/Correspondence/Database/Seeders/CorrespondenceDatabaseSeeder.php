@@ -16,6 +16,8 @@ class CorrespondenceDatabaseSeeder extends Seeder
     {
         Model::unguard();
 
-        // $this->call("OthersTableSeeder");
+        $this->call([
+            CorrespondenceGovernanceSeeder::class,
+        ]);
     }
 }

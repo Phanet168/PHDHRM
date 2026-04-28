@@ -71,6 +71,11 @@ class SystemRole extends Model
         return $this->hasMany(UserAssignment::class, 'responsibility_id');
     }
 
+    public function responsibilityTemplates(): HasMany
+    {
+        return $this->hasMany(ResponsibilityTemplate::class, 'responsibility_id');
+    }
+
     /* ── Scopes ────────────────────────────── */
 
     public function scopeActive(Builder $query): Builder

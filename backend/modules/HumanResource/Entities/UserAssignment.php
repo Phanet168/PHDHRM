@@ -26,6 +26,7 @@ class UserAssignment extends Model
         'user_id',
         'department_id',
         'position_id',
+        'responsibility_template_id',
         'responsibility_id',
         'scope_type',
         'is_primary',
@@ -109,6 +110,11 @@ class UserAssignment extends Model
     public function responsibility(): BelongsTo
     {
         return $this->belongsTo(SystemRole::class, 'responsibility_id');
+    }
+
+    public function responsibilityTemplate(): BelongsTo
+    {
+        return $this->belongsTo(ResponsibilityTemplate::class, 'responsibility_template_id');
     }
 
     public function legacyOrgRole(): HasOne

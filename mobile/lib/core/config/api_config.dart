@@ -6,13 +6,27 @@ class ApiConfig {
   static const String _primaryServerBaseUrl =
       'http://phdhrm.local/PHDHRM/backend/api';
   static const String _primaryServerArtisanUrl = 'http://phdhrm.local:8000/api';
+  static const List<String> _androidEmulatorBaseUrls = <String>[
+    'http://10.0.2.2/PHDHRM/backend/api',
+    'http://10.0.2.2:8000/api',
+  ];
   static final ApiBaseUrlStorageService _storageService =
       ApiBaseUrlStorageService();
   static List<String>? _storedBaseUrls;
 
   static Future<void> initialize() async {
     final storedBaseUrls = await _storageService.readConfiguredBaseUrls();
-    _storedBaseUrls = storedBaseUrls.isEmpty ? null : _dedupe(storedBaseUrls);
+    if (storedBaseUrls.isEmpty) {
+      _storedBaseUrls = null;
+      return;
+    }
+
+    final normalizedStored = _normalizePersistedBaseUrls(storedBaseUrls);
+    _storedBaseUrls = normalizedStored.isEmpty ? null : normalizedStored;
+
+    if (!listEquals(storedBaseUrls, normalizedStored)) {
+      await _storageService.saveConfiguredBaseUrls(normalizedStored);
+    }
   }
 
   static bool get hasStoredBaseUrls {
@@ -23,15 +37,52 @@ class ApiConfig {
     return baseUrls.first;
   }
 
-  static List<String> get baseUrls {
+  static List<String> get configuredBaseUrls {
     final stored = _storedBaseUrls;
     if (stored != null && stored.isNotEmpty) {
-      return stored;
+      return List<String>.unmodifiable(stored);
     }
 
     const configured = String.fromEnvironment('API_BASE_URL');
     if (configured.trim().isNotEmpty) {
-      return normalizeConfiguredBaseUrls(configured);
+      return _dedupe(normalizeConfiguredBaseUrls(configured));
+    }
+
+    return const <String>[];
+  }
+
+  static List<String> get baseUrls {
+    final stored = _storedBaseUrls;
+    if (stored != null && stored.isNotEmpty) {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        return _androidCompatibleBaseUrls(<String>[
+          ...stored,
+          ..._androidEmulatorBaseUrls,
+        ]);
+      }
+
+      return _dedupe(<String>[
+        ...stored,
+        _primaryServerBaseUrl,
+        _primaryServerArtisanUrl,
+      ]);
+    }
+
+    const configured = String.fromEnvironment('API_BASE_URL');
+    if (configured.trim().isNotEmpty) {
+      final configuredBaseUrls = normalizeConfiguredBaseUrls(configured);
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        return _androidCompatibleBaseUrls(<String>[
+          ...configuredBaseUrls,
+          ..._androidEmulatorBaseUrls,
+        ]);
+      }
+
+      return _dedupe(<String>[
+        ...configuredBaseUrls,
+        _primaryServerBaseUrl,
+        _primaryServerArtisanUrl,
+      ]);
     }
 
     if (kIsWeb) {
@@ -48,8 +99,6 @@ class ApiConfig {
 
     if (defaultTargetPlatform == TargetPlatform.android) {
       return _dedupe(const <String>[
-        _primaryServerBaseUrl,
-        _primaryServerArtisanUrl,
         'http://10.0.2.2/PHDHRM/backend/api',
         'http://10.0.2.2:8000/api',
       ]);
@@ -65,9 +114,7 @@ class ApiConfig {
 
   static Future<void> saveConfiguredBaseUrls(List<String> values) async {
     final normalized = _dedupe(
-      values
-          .expand(_expandBaseUrlsFromInput)
-          .toList(growable: false),
+      values.expand(_expandBaseUrlsFromInput).toList(growable: false),
     );
 
     _storedBaseUrls = normalized.isEmpty ? null : normalized;
@@ -79,7 +126,9 @@ class ApiConfig {
     await _storageService.clearConfiguredBaseUrls();
   }
 
-  static const Duration connectTimeout = Duration(seconds: 12);
+  static const Duration connectTimeout = Duration(seconds: 6);
+  static const Duration fallbackConnectTimeout = Duration(seconds: 3);
+  static const Duration warmupProbeTimeout = Duration(seconds: 2);
 
   static Uri buildUri(String path, [Map<String, dynamic>? queryParameters]) {
     return buildUriForBase(baseUrl, path, queryParameters);
@@ -120,7 +169,7 @@ class ApiConfig {
       return const <String>[_primaryServerBaseUrl, _primaryServerArtisanUrl];
     }
 
-    return _dedupe(parts);
+    return _androidCompatibleBaseUrls(parts);
   }
 
   static String? normalizeBaseUrl(String raw) {
@@ -138,26 +187,29 @@ class ApiConfig {
       return const <String>[];
     }
 
-    final withScheme = RegExp(r'^https?://', caseSensitive: false).hasMatch(trimmed)
-        ? trimmed
-        : 'http://$trimmed';
+    final withScheme =
+        RegExp(r'^https?://', caseSensitive: false).hasMatch(trimmed)
+            ? trimmed
+            : 'http://$trimmed';
 
     final parsed = Uri.tryParse(withScheme);
     if (parsed == null || parsed.host.trim().isEmpty) {
       return const <String>[];
     }
 
+    final authority = _buildAuthority(parsed);
+    if (authority == null) {
+      return const <String>[];
+    }
     final scheme = parsed.scheme.isEmpty ? 'http' : parsed.scheme;
-    final authority = parsed.hasPort
-        ? '$scheme://${parsed.host}:${parsed.port}'
-        : '$scheme://${parsed.host}';
     final pathSegments = parsed.pathSegments
         .where((segment) => segment.trim().isNotEmpty)
         .toList(growable: false);
+    final normalizedPathSegments = _normalizePathSegments(pathSegments);
 
     final candidates = <String>[];
 
-    if (pathSegments.isEmpty) {
+    if (normalizedPathSegments.isEmpty) {
       // Most operators enter only host/IP. Provide practical project defaults.
       candidates.add('$authority/PHDHRM/backend/api');
       candidates.add('$authority/api');
@@ -165,25 +217,84 @@ class ApiConfig {
         candidates.add('$scheme://${parsed.host}:8000/api');
       }
     } else {
-      final joinedPath = '/${pathSegments.join('/')}';
-      final normalizedPath = joinedPath.endsWith('/')
-          ? joinedPath.substring(0, joinedPath.length - 1)
-          : joinedPath;
+      final joinedPath = '/${normalizedPathSegments.join('/')}';
+      final normalizedPath =
+          joinedPath.endsWith('/')
+              ? joinedPath.substring(0, joinedPath.length - 1)
+              : joinedPath;
 
-      if (pathSegments.last.toLowerCase() == 'api') {
+      if (normalizedPathSegments.last.toLowerCase() == 'api') {
+        // If operator entered host/api, also prioritize this project's
+        // common Laravel base path before the generic /api endpoint.
+        if (normalizedPathSegments.length == 1) {
+          candidates.add('$authority/PHDHRM/backend/api');
+          if (!parsed.hasPort) {
+            candidates.add('$scheme://${parsed.host}:8000/api');
+          }
+        }
         candidates.add('$authority$normalizedPath');
       } else {
         candidates.add('$authority$normalizedPath/api');
       }
 
-      if (!parsed.hasPort &&
-          pathSegments.length >= 2 &&
-          pathSegments[pathSegments.length - 2].toLowerCase() == 'backend') {
-        candidates.add('$scheme://${parsed.host}:8000/api');
+      final backendIndex = normalizedPathSegments.lastIndexWhere(
+        (segment) => segment.toLowerCase() == 'backend',
+      );
+      if (backendIndex >= 0) {
+        final backendPath =
+            '/${normalizedPathSegments.sublist(0, backendIndex + 1).join('/')}';
+        candidates.add('$authority$backendPath/api');
+        if (!parsed.hasPort) {
+          candidates.add('$scheme://${parsed.host}:8000/api');
+        }
       }
     }
 
     return _dedupe(candidates);
+  }
+
+  static String? _buildAuthority(Uri parsed) {
+    final host = parsed.host.trim();
+    if (host.isEmpty) {
+      return null;
+    }
+
+    final scheme = parsed.scheme.isEmpty ? 'http' : parsed.scheme;
+    if (!parsed.hasPort) {
+      return '$scheme://$host';
+    }
+
+    try {
+      return '$scheme://$host:${parsed.port}';
+    } on FormatException {
+      // Invalid ports like ":abc" should be treated as invalid input.
+      return null;
+    }
+  }
+
+  static List<String> _normalizePathSegments(List<String> rawSegments) {
+    final segments = List<String>.from(rawSegments);
+    if (segments.isEmpty) {
+      return segments;
+    }
+
+    // If user pastes a login endpoint URL, move back to a service base path.
+    if (segments.last.toLowerCase() == 'login') {
+      segments.removeLast();
+      if (segments.isNotEmpty && segments.last.toLowerCase() == 'auth') {
+        segments.removeLast();
+      }
+    }
+
+    // Keep only the API base if user pasted a deeper API endpoint path.
+    final apiIndex = segments.indexWhere(
+      (segment) => segment.toLowerCase() == 'api',
+    );
+    if (apiIndex >= 0 && apiIndex < segments.length - 1) {
+      return segments.sublist(0, apiIndex + 1);
+    }
+
+    return segments;
   }
 
   static List<String> _dedupe(List<String> values) {
@@ -204,6 +315,63 @@ class ApiConfig {
     }
 
     return result;
+  }
+
+  static List<String> _androidCompatibleBaseUrls(List<String> values) {
+    final normalized = _dedupe(values);
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return normalized;
+    }
+
+    return normalized
+        .where((value) {
+          final uri = Uri.tryParse(value);
+          final host = uri?.host.trim().toLowerCase() ?? '';
+          return !_isAndroidUnresolvableHost(host);
+        })
+        .toList(growable: false);
+  }
+
+  static bool _isAndroidUnresolvableHost(String host) {
+    return host == 'localhost' ||
+        host == '127.0.0.1' ||
+        host == '::1' ||
+        host == 'phdhrm.local' ||
+        host.endsWith('.local');
+  }
+
+  static List<String> _normalizePersistedBaseUrls(List<String> values) {
+    final expanded = <String>[];
+
+    for (final raw in values) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) {
+        continue;
+      }
+
+      final withScheme =
+          RegExp(r'^https?://', caseSensitive: false).hasMatch(trimmed)
+              ? trimmed
+              : 'http://$trimmed';
+      final parsed = Uri.tryParse(withScheme);
+
+      if (parsed != null && parsed.host.trim().isNotEmpty) {
+        final lowerPath = parsed.path.toLowerCase();
+        final apiMarker = lowerPath.indexOf('/api/');
+        if (apiMarker >= 0) {
+          final authority = _buildAuthority(parsed);
+          if (authority != null) {
+            final apiPath = parsed.path.substring(0, apiMarker + 4);
+            expanded.add('$authority$apiPath');
+            continue;
+          }
+        }
+      }
+
+      expanded.addAll(_expandBaseUrlsFromInput(trimmed));
+    }
+
+    return _dedupe(expanded);
   }
 
   const ApiConfig._();

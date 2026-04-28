@@ -72,12 +72,8 @@
                                             1 => 'PHD', 4 => 'OD', 6 => 'Hospital', 7 => 'HC', default => '?'
                                         };
                                     }
-                                    $roleLabel = match($role->org_role) {
-                                        'head'         => localize('head', 'Head'),
-                                        'deputy_head'  => localize('deputy_head', 'Deputy Head'),
-                                        'manager'      => localize('manager', 'Manager'),
-                                        default        => $role->org_role ?: '—',
-                                    };
+                                    $roleCode = $role->systemRole?->code ?: $role->org_role;
+                                    $roleLabel = $roleLabels[$roleCode] ?? ($roleCode ?: '-');
                                     $scopeLabel = match($role->scope_type) {
                                         'self', 'self_only'       => localize('scope_self_only', 'Self only'),
                                         'self_unit_only'          => localize('scope_self_unit_only', 'Self unit only'),

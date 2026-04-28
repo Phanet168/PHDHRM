@@ -3,6 +3,9 @@
 @section('content')
     @include('humanresource::master-data.org-structure.header')
     @include('backend.layouts.common.validation')
+    @php
+        $advancedMode = (bool) ($advanced_mode ?? false);
+    @endphp
 
     <div class="card mb-4 fixed-tab-body">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -11,17 +14,17 @@
                     {{ localize('org_role_permission_matrix', 'Org Role Permission Matrix') }}
                 </h6>
                 <small class="text-muted">
-                    {{ localize('org_role_permission_matrix_desc', 'Configure module actions by org role (head/deputy/manager).') }}
+                    {{ localize('org_role_permission_matrix_desc', 'Configure module actions by system role.') }}
                 </small>
             </div>
-            @can('create_department')
-                @if ($matrix_ready)
+            @canany(['create_org_governance', 'create_department'])
+                @if ($matrix_ready && $advancedMode)
                     <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal"
                         data-bs-target="#create-org-role-permission-modal">
                         <i class="fa fa-plus-circle"></i>&nbsp;{{ localize('add', 'Add') }}
                     </button>
                 @endif
-            @endcan
+            @endcanany
         </div>
 
         <div class="card-body">
@@ -33,7 +36,26 @@
                 </div>
             @endif
 
+            <div class="alert {{ $advancedMode ? 'alert-danger' : 'alert-info' }} mb-3 py-2">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <div>
+                        <strong>{{ localize('advanced_mode', 'Advanced mode') }}:</strong>
+                        @if ($advancedMode)
+                            {{ localize('matrix_advanced_mode_on', 'ON - You are editing low-level action overrides.') }}
+                        @else
+                            {{ localize('matrix_advanced_mode_off', 'OFF - Default governance should be managed via Responsibility Templates and Workflow Policies.') }}
+                        @endif
+                    </div>
+                    <a href="{{ route('org-role-module-permissions.index', array_merge(request()->query(), ['advanced' => $advancedMode ? 0 : 1])) }}"
+                        class="btn btn-sm {{ $advancedMode ? 'btn-danger' : 'btn-outline-danger' }}">
+                        <i class="fa fa-sliders-h"></i>&nbsp;
+                        {{ $advancedMode ? localize('disable_advanced_mode', 'Disable Advanced') : localize('enable_advanced_mode', 'Enable Advanced') }}
+                    </a>
+                </div>
+            </div>
+
             <form method="GET" action="{{ route('org-role-module-permissions.index') }}" class="mb-3">
+                <input type="hidden" name="advanced" value="{{ $advancedMode ? 1 : 0 }}">
                 <div class="row g-2 align-items-end">
                     <div class="col-md-4">
                         <label class="form-label mb-1">{{ localize('module', 'Module') }}</label>
@@ -105,23 +127,28 @@
                                 </td>
                                 <td>{{ $item->note ?: '-' }}</td>
                                 <td>
-                                    @can('update_department')
-                                        <button type="button" class="btn btn-primary-soft btn-sm me-1" data-bs-toggle="modal"
-                                            data-bs-target="#edit-org-role-permission-modal-{{ $item->id }}">
-                                            <i class="fa fa-edit"></i>
-                                        </button>
-                                    @endcan
-                                    @can('delete_department')
-                                        <a href="javascript:void(0)" class="btn btn-danger-soft btn-sm delete-confirm"
-                                            data-route="{{ route('org-role-module-permissions.destroy', $item->id) }}"
-                                            data-csrf="{{ csrf_token() }}">
-                                            <i class="fa fa-trash"></i>
-                                        </a>
-                                    @endcan
+                                    @if ($advancedMode)
+                                        @canany(['update_org_governance', 'update_department'])
+                                            <button type="button" class="btn btn-primary-soft btn-sm me-1" data-bs-toggle="modal"
+                                                data-bs-target="#edit-org-role-permission-modal-{{ $item->id }}">
+                                                <i class="fa fa-edit"></i>
+                                            </button>
+                                        @endcanany
+                                        @canany(['delete_org_governance', 'delete_department'])
+                                            <a href="javascript:void(0)" class="btn btn-danger-soft btn-sm delete-confirm"
+                                                data-route="{{ route('org-role-module-permissions.destroy', $item->id) }}"
+                                                data-csrf="{{ csrf_token() }}">
+                                                <i class="fa fa-trash"></i>
+                                            </a>
+                                        @endcanany
+                                    @else
+                                        <span class="badge bg-secondary">{{ localize('read_only', 'Read only') }}</span>
+                                    @endif
                                 </td>
                             </tr>
 
-                            @can('update_department')
+                            @if ($advancedMode)
+                            @canany(['update_org_governance', 'update_department'])
                                 <div class="modal fade" id="edit-org-role-permission-modal-{{ $item->id }}"
                                     data-bs-backdrop="static" data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
                                     <div class="modal-dialog modal-lg">
@@ -133,13 +160,14 @@
                                                 method="POST">
                                                 @csrf
                                                 @method('PATCH')
+                                                <input type="hidden" name="advanced_mode" value="{{ $advancedMode ? 1 : 0 }}">
                                                 <div class="modal-body">
                                                     <div class="row g-3">
                                                         <div class="col-md-4">
                                                             <label class="form-label">{{ localize('module', 'Module') }} <span
                                                                     class="text-danger">*</span></label>
                                                             <select name="module_key"
-                                                                class="form-control select-basic-single role-module-select"
+                                                                class="form-control role-module-select"
                                                                 data-action-target="#edit-action-select-{{ $item->id }}"
                                                                 required>
                                                                 @foreach ($module_options as $moduleKey)
@@ -154,13 +182,13 @@
                                                                     class="text-danger">*</span></label>
                                                             <select name="action_key"
                                                                 id="edit-action-select-{{ $item->id }}"
-                                                                class="form-control select-basic-single role-action-select"
+                                                                class="form-control role-action-select"
                                                                 data-selected="{{ $item->action_key }}" required></select>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <label class="form-label">{{ localize('role', 'Role') }} <span
                                                                     class="text-danger">*</span></label>
-                                                            <select name="org_role" class="form-control select-basic-single"
+                                                            <select name="org_role" class="form-control"
                                                                 required>
                                                                 @foreach ($org_role_options as $roleKey)
                                                                     <option value="{{ $roleKey }}" @selected($item->org_role === $roleKey)>
@@ -193,7 +221,8 @@
                                         </div>
                                     </div>
                                 </div>
-                            @endcan
+                            @endcanany
+                            @endif
                         @empty
                             <tr>
                                 <td colspan="7" class="text-center text-muted py-4">
@@ -211,8 +240,8 @@
         </div>
     </div>
 
-    @can('create_department')
-        @if ($matrix_ready)
+    @canany(['create_org_governance', 'create_department'])
+        @if ($matrix_ready && $advancedMode)
             <div class="modal fade" id="create-org-role-permission-modal" data-bs-backdrop="static"
                 data-bs-keyboard="false" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog modal-lg">
@@ -222,13 +251,14 @@
                     </div>
                     <form action="{{ route('org-role-module-permissions.store') }}" method="POST">
                         @csrf
+                        <input type="hidden" name="advanced_mode" value="{{ $advancedMode ? 1 : 0 }}">
                         <div class="modal-body">
                             <div class="row g-3">
                                 <div class="col-md-4">
                                     <label class="form-label">{{ localize('module', 'Module') }} <span
                                             class="text-danger">*</span></label>
                                     <select name="module_key"
-                                        class="form-control select-basic-single role-module-select"
+                                        class="form-control role-module-select"
                                         data-action-target="#create-action-select" required>
                                         <option value="">{{ localize('select_one', 'Select One') }}</option>
                                         @foreach ($module_options as $moduleKey)
@@ -240,14 +270,14 @@
                                     <label class="form-label">{{ localize('action', 'Action') }} <span
                                             class="text-danger">*</span></label>
                                     <select name="action_key" id="create-action-select"
-                                        class="form-control select-basic-single role-action-select" required>
+                                        class="form-control role-action-select" required>
                                         <option value="">{{ localize('select_one', 'Select One') }}</option>
                                     </select>
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">{{ localize('role', 'Role') }} <span
                                             class="text-danger">*</span></label>
-                                    <select name="org_role" class="form-control select-basic-single" required>
+                                    <select name="org_role" class="form-control" required>
                                         <option value="">{{ localize('select_one', 'Select One') }}</option>
                                         @foreach ($org_role_options as $roleKey)
                                             <option value="{{ $roleKey }}">{{ $role_labels[$roleKey] ?? $roleKey }}</option>
@@ -278,7 +308,7 @@
             </div>
             </div>
         @endif
-    @endcan
+    @endcanany
 @endsection
 
 @push('js')

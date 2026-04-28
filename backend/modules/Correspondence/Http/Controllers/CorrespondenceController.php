@@ -10,8 +10,11 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Modules\Correspondence\Entities\CorrespondenceLetterAction;
 use Modules\Correspondence\Entities\CorrespondenceLetterDistribution;
@@ -19,7 +22,9 @@ use Modules\Correspondence\Entities\CorrespondenceLetter;
 use Modules\HumanResource\Entities\Department;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\OrgUnitType;
+use Modules\HumanResource\Entities\SystemRole;
 use Modules\HumanResource\Entities\UserOrgRole;
+use Modules\HumanResource\Support\ModuleTableGovernanceService;
 use Modules\HumanResource\Support\OrgHierarchyAccessService;
 use Modules\HumanResource\Support\OrgRolePermissionService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
@@ -30,6 +35,7 @@ class CorrespondenceController extends Controller
     use CorrespondenceScope;
 
     protected const DASHBOARD_COUNT_CACHE_SECONDS = 45;
+    protected const MANAGER_TEMPLATE_KEY = 'administration_office_manager';
 
     public function index(Request $request)
     {
@@ -55,28 +61,58 @@ class CorrespondenceController extends Controller
         $counts = Cache::remember($cacheKey, now()->addSeconds(self::DASHBOARD_COUNT_CACHE_SECONDS), function () use ($filters) {
             $incomingQuery = (clone $this->accessibleLettersQuery(CorrespondenceLetter::TYPE_INCOMING));
             $outgoingQuery = (clone $this->accessibleLettersQuery(CorrespondenceLetter::TYPE_OUTGOING));
-            $pendingQuery = (clone $this->accessibleLettersQuery())
-                ->whereIn('status', [CorrespondenceLetter::STATUS_PENDING, CorrespondenceLetter::STATUS_IN_PROGRESS]);
+            $pendingAckQuery = (clone $this->accessibleLettersQuery())
+                ->where('status', CorrespondenceLetter::STATUS_PENDING);
+            $inProgressQuery = (clone $this->accessibleLettersQuery())
+                ->where('status', CorrespondenceLetter::STATUS_IN_PROGRESS);
             $completedQuery = (clone $this->accessibleLettersQuery())
                 ->where('status', CorrespondenceLetter::STATUS_COMPLETED);
 
             $this->applyDateRange($incomingQuery, 'received_date', $filters['startDate'], $filters['endDate']);
             $this->applyDateRange($outgoingQuery, 'sent_date', $filters['startDate'], $filters['endDate']);
-            $this->applyDateRange($pendingQuery, 'created_at', $filters['startDate'], $filters['endDate']);
+            $this->applyDateRange($pendingAckQuery, 'created_at', $filters['startDate'], $filters['endDate']);
+            $this->applyDateRange($inProgressQuery, 'created_at', $filters['startDate'], $filters['endDate']);
             $this->applyDateRange($completedQuery, 'created_at', $filters['startDate'], $filters['endDate']);
 
             $incomingCount = $incomingQuery->count();
             $outgoingCount = $outgoingQuery->count();
-            $pendingCount = $pendingQuery->count();
+            $pendingAckCount = $pendingAckQuery->count();
+            $inProgressCount = $inProgressQuery->count();
             $completedCount = $completedQuery->count();
 
             return [
                 'incomingCount' => $incomingCount,
                 'outgoingCount' => $outgoingCount,
-                'pendingCount' => $pendingCount,
+                'pendingCount' => $pendingAckCount,
+                'pendingAckCount' => $pendingAckCount,
+                'inProgressCount' => $inProgressCount,
                 'completedCount' => $completedCount,
             ];
         });
+
+        if ($this->shouldReturnApiResponse($request)) {
+            $navPerms = $this->navPermissionData();
+            // Keep API create flags aligned with backend create-role policy.
+            $canCreateIncoming = (bool) ($navPerms['canCreateIncoming'] ?? false);
+            $canCreateOutgoing = (bool) ($navPerms['canCreateOutgoing'] ?? false);
+            $canCreateAny = $canCreateIncoming || $canCreateOutgoing;
+            return $this->correspondenceApiResponse([
+                'incoming_total' => (int) ($counts['incomingCount'] ?? 0),
+                'outgoing_total' => (int) ($counts['outgoingCount'] ?? 0),
+                'pending_ack_count' => (int) ($counts['pendingAckCount'] ?? $counts['pendingCount'] ?? 0),
+                'in_progress_count' => (int) ($counts['inProgressCount'] ?? 0),
+                'completed_count' => (int) ($counts['completedCount'] ?? 0),
+                'permissions' => [
+                    'corr_level' => (string) ($navPerms['corrLevel'] ?? ''),
+                    'corr_level_label' => (string) ($navPerms['corrLevelLabel'] ?? ''),
+                    'corr_department_name' => (string) ($navPerms['corrDepartmentName'] ?? ''),
+                    // UI/mobile should use these flags to render create actions.
+                    'can_create_incoming' => $canCreateIncoming,
+                    'can_create_outgoing' => $canCreateOutgoing,
+                    'can_create_any' => $canCreateAny,
+                ],
+            ]);
+        }
 
         return view('correspondence::dashboard.index', [
             'level' => $level,
@@ -128,12 +164,17 @@ class CorrespondenceController extends Controller
             ->with([
                 'originDepartment:id,department_name',
                 'assignedDepartment:id,department_name',
+                'currentHandler:id,full_name',
             ])
             ->latest('received_date')
             ->latest('letter_date')
             ->latest('id')
-            ->simplePaginate($perPage)
+            ->paginate($perPage)
             ->appends($request->query());
+
+        if ($this->shouldReturnApiResponse($request)) {
+            return $this->correspondenceApiResponse($this->paginatedLetterPayload($letters));
+        }
 
         return view('correspondence::incoming.index', [
             'level' => $level,
@@ -184,6 +225,7 @@ class CorrespondenceController extends Controller
             ->with([
                 'originDepartment:id,department_name',
                 'assignedDepartment:id,department_name',
+                'currentHandler:id,full_name',
                 'distributions:id,letter_id,distribution_type,target_department_id,target_user_id',
                 'distributions.targetDepartment:id,department_name',
                 'distributions.targetUser:id,full_name,email',
@@ -201,8 +243,12 @@ class CorrespondenceController extends Controller
             ->latest('sent_date')
             ->latest('letter_date')
             ->latest('id')
-            ->simplePaginate($perPage)
+            ->paginate($perPage)
             ->appends($request->query());
+
+        if ($this->shouldReturnApiResponse($request)) {
+            return $this->correspondenceApiResponse($this->paginatedLetterPayload($letters));
+        }
 
         return view('correspondence::outgoing.index', [
             'level' => $level,
@@ -213,6 +259,209 @@ class CorrespondenceController extends Controller
             'endDate' => $filters['endDate']?->toDateString(),
             'perPage' => $perPage,
         ] + $this->navPermissionData());
+    }
+
+    public function settings()
+    {
+        $this->assertCanManageSettings();
+
+        $managerTemplateId = 0;
+        $managerTemplateName = '';
+
+        if (Schema::hasTable('correspondence_responsibility_templates')) {
+            $managerTemplate = DB::table('correspondence_responsibility_templates')
+                ->where('template_key', self::MANAGER_TEMPLATE_KEY)
+                ->where('is_active', 1)
+                ->whereNull('deleted_at')
+                ->first(['id', 'name', 'name_km']);
+
+            if ($managerTemplate) {
+                $managerTemplateId = (int) ($managerTemplate->id ?? 0);
+                $managerTemplateName = (string) (($managerTemplate->name_km ?? '') !== ''
+                    ? ($managerTemplate->name_km ?? '')
+                    : ($managerTemplate->name ?? ''));
+            }
+        }
+
+        $managerAssignments = collect();
+        if ($managerTemplateId > 0 && Schema::hasTable('correspondence_user_responsibilities')) {
+            $managerAssignments = DB::table('correspondence_user_responsibilities as cur')
+                ->join('users as u', 'u.id', '=', 'cur.user_id')
+                ->leftJoin('departments as d', 'd.id', '=', 'cur.department_id')
+                ->where('cur.template_id', $managerTemplateId)
+                ->whereNull('cur.deleted_at')
+                ->where('cur.is_active', 1)
+                ->orderByDesc('cur.is_primary')
+                ->orderBy('u.full_name')
+                ->get([
+                    'cur.id',
+                    'cur.user_id',
+                    'cur.scope_type',
+                    'cur.is_primary',
+                    'u.full_name as user_name',
+                    'u.email as user_email',
+                    'd.department_name as department_name',
+                ])
+                ->map(function ($row): array {
+                    return [
+                        'id' => (int) ($row->id ?? 0),
+                        'user_id' => (int) ($row->user_id ?? 0),
+                        'user_name' => (string) ($row->user_name ?? ''),
+                        'user_email' => (string) ($row->user_email ?? ''),
+                        'department_name' => (string) ($row->department_name ?? ''),
+                        'scope_type' => (string) ($row->scope_type ?? ''),
+                        'is_primary' => (bool) ($row->is_primary ?? false),
+                    ];
+                })
+                ->values();
+        }
+
+        $userOptions = User::query()
+            ->where('is_active', 1)
+            ->orderBy('full_name')
+            ->get(['id', 'full_name', 'email']);
+
+        $departmentOptions = Department::query()
+            ->where('is_active', 1)
+            ->orderBy('department_name')
+            ->get(['id', 'department_name']);
+
+        return view('correspondence::settings.index', [
+            'managerTemplateId' => $managerTemplateId,
+            'managerTemplateName' => $managerTemplateName,
+            'managerAssignments' => $managerAssignments,
+            'userOptions' => $userOptions,
+            'departmentOptions' => $departmentOptions,
+        ] + $this->navPermissionData());
+    }
+
+    public function assignSettingsUser(Request $request)
+    {
+        $this->assertCanManageSettings();
+
+        $managerTemplateId = $this->resolveManagerTemplateId();
+        if ($managerTemplateId <= 0 || !Schema::hasTable('correspondence_user_responsibilities')) {
+            return redirect()
+                ->back()
+                ->with('error', localize('settings_not_ready', 'Settings table is not ready. Please run migration.'));
+        }
+
+        $validated = $request->validate([
+            'user_ids' => 'nullable|array',
+            'user_ids.*' => 'nullable|integer|exists:users,id',
+            'department_id' => 'nullable|integer|exists:departments,id',
+            'is_primary' => 'nullable|boolean',
+        ]);
+
+        $userIds = collect($validated['user_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($userIds->isEmpty()) {
+            return redirect()
+                ->back()
+                ->with('error', localize('user_required', 'Please select at least one user.'));
+        }
+
+        $baseDepartmentId = (int) ($validated['department_id'] ?? 0);
+        $requestPrimary = (bool) ($validated['is_primary'] ?? false);
+        $savedCount = 0;
+
+        if ($requestPrimary) {
+            DB::table('correspondence_user_responsibilities')
+                ->where('template_id', $managerTemplateId)
+                ->whereNull('deleted_at')
+                ->update([
+                    'is_primary' => false,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        foreach ($userIds as $index => $userId) {
+            $departmentId = $baseDepartmentId > 0
+                ? $baseDepartmentId
+                : $this->resolveSettingDepartmentForUser((int) $userId);
+
+            if ($departmentId <= 0) {
+                continue;
+            }
+
+            $isPrimary = $requestPrimary && $index === 0;
+
+            $existing = DB::table('correspondence_user_responsibilities')
+                ->where('template_id', $managerTemplateId)
+                ->where('user_id', (int) $userId)
+                ->where('department_id', $departmentId)
+                ->whereNull('deleted_at')
+                ->first(['id']);
+
+            if ($existing) {
+                DB::table('correspondence_user_responsibilities')
+                    ->where('id', (int) $existing->id)
+                    ->update([
+                        'scope_type' => 'self_and_children',
+                        'is_primary' => $isPrimary,
+                        'is_active' => true,
+                        'updated_at' => now(),
+                    ]);
+            } else {
+                DB::table('correspondence_user_responsibilities')->insert([
+                    'uuid' => (string) Str::uuid(),
+                    'user_id' => (int) $userId,
+                    'employee_id' => Employee::query()->where('user_id', (int) $userId)->value('id'),
+                    'department_id' => $departmentId,
+                    'template_id' => $managerTemplateId,
+                    'scope_type' => 'self_and_children',
+                    'effective_from' => now()->toDateString(),
+                    'effective_to' => null,
+                    'is_primary' => $isPrimary,
+                    'is_active' => true,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            $savedCount++;
+        }
+
+        if ($savedCount <= 0) {
+            return redirect()->back()->with('error', localize('department_required', 'Department is required for assignment.'));
+        }
+
+        return redirect()->back()->with('success', localize('data_save', 'Saved successfully') . " ({$savedCount})");
+    }
+
+    protected function resolveManagerTemplateId(): int
+    {
+        if (!Schema::hasTable('correspondence_responsibility_templates')) {
+            return 0;
+        }
+
+        return (int) (DB::table('correspondence_responsibility_templates')
+            ->where('template_key', self::MANAGER_TEMPLATE_KEY)
+            ->where('is_active', 1)
+            ->whereNull('deleted_at')
+            ->value('id') ?? 0);
+    }
+
+    public function removeSettingsUser(int $assignment)
+    {
+        $this->assertCanManageSettings();
+
+        if (Schema::hasTable('correspondence_user_responsibilities')) {
+            DB::table('correspondence_user_responsibilities')
+                ->where('id', $assignment)
+                ->whereNull('deleted_at')
+                ->update([
+                    'is_active' => false,
+                    'deleted_at' => now(),
+                    'updated_at' => now(),
+                ]);
+        }
+
+        return redirect()->back()->with('success', localize('data_delete', 'Deleted successfully'));
     }
 
     protected function resolveListFilters(Request $request): array
@@ -389,7 +638,9 @@ class CorrespondenceController extends Controller
                 if (!$file) {
                     continue;
                 }
-                $attachmentPaths[] = $file->store('correspondence/attachments', 'public');
+                $originalName = basename((string) $file->getClientOriginalName());
+                $directory = 'correspondence/attachments/' . now()->format('Y/m/d');
+                $attachmentPaths[] = $file->storeAs($directory, $originalName, 'public');
             }
         }
 
@@ -549,6 +800,23 @@ class CorrespondenceController extends Controller
             ]);
         }
 
+        if ($this->shouldReturnApiResponse($request)) {
+            $letter = $letter->fresh([
+                'originDepartment:id,department_name',
+                'assignedDepartment:id,department_name',
+                'currentHandler:id,full_name',
+                'actions',
+                'distributions.targetDepartment:id,department_name',
+                'distributions.targetUser:id,full_name,email',
+            ]);
+
+            return $this->correspondenceApiResponse(
+                $this->serializeLetter($letter),
+                localize('data_save', 'Saved successfully.'),
+                201
+            );
+        }
+
         return redirect()
             ->route('correspondence.show', $letter->id)
             ->with('success', localize('data_save', 'Saved successfully.'));
@@ -640,6 +908,7 @@ class CorrespondenceController extends Controller
         } else {
             $workflowFocusAction = match ($context) {
                 'delegated' => 'office_comment',
+                'office_comment_related' => 'office_comment',
                 'office_commented' => 'deputy_review',
                 'deputy_reviewed' => 'director_decision',
                 default => null,
@@ -689,7 +958,12 @@ class CorrespondenceController extends Controller
             ->merge($letter->actions->pluck('target_user_id'))
             ->merge($letter->distributions->pluck('target_user_id'))
             ->merge($letter->childLetters->pluck('current_handler_user_id'))
-            ->merge(array_values($workflowAssignments))
+            ->merge([
+                (int) ($workflowAssignments['office_comment_user_id'] ?? 0),
+                (int) ($workflowAssignments['deputy_review_user_id'] ?? 0),
+                (int) ($workflowAssignments['director_user_id'] ?? 0),
+            ])
+            ->merge($workflowAssignments['office_comment_related_user_ids'] ?? [])
             ->filter()
             ->map(fn ($id) => (int) $id)
             ->unique()
@@ -709,11 +983,14 @@ class CorrespondenceController extends Controller
         $userRoleMap = UserOrgRole::withoutGlobalScopes()
             ->effective()
             ->whereIn('user_id', $relatedUserIds)
-            ->get(['user_id', 'org_role'])
+            ->with('systemRole:id,code')
+            ->get(['id', 'user_id', 'org_role', 'system_role_id'])
             ->groupBy('user_id')
             ->map(function ($rows) {
                 $roleCodes = $rows
-                    ->pluck('org_role')
+                    ->map(function ($row) {
+                        return $row->getEffectiveRoleCode();
+                    })
                     ->filter(fn ($code) => trim((string) $code) !== '')
                     ->values();
 
@@ -755,6 +1032,12 @@ class CorrespondenceController extends Controller
 
         $highlightDistributionId = max(0, (int) $request->query('highlight_distribution', 0));
 
+        if ($this->shouldReturnApiResponse($request)) {
+            return $this->correspondenceApiResponse(
+                $this->serializeLetter($letter, $userMap, $departmentMap)
+            );
+        }
+
         return view('correspondence::show', [
             'letter' => $letter,
             'level' => $this->corrLevel(),
@@ -762,7 +1045,7 @@ class CorrespondenceController extends Controller
             'workflowAssignments' => $workflowAssignments,
             'isRecipientActor' => $this->isRecipientActor($letter),
             'canDelegate' => $this->canDelegateIncoming($letter),
-            'canOfficeComment' => $this->isRecipientActor($letter),
+            'canOfficeComment' => $this->isRecipientActor($letter) || $this->isRelatedOfficeCommentParticipant($letter, (int) Auth::id()),
             'canDeputyReview' => $this->isRecipientActor($letter),
             'canDirectorDecision' => $this->isRecipientActor($letter),
             'canDistribute' => $this->canPerformModuleAction(
@@ -811,6 +1094,15 @@ class CorrespondenceController extends Controller
             'actions',
         ]);
 
+        // Reload distributions to include soft-deleted records for complete feedback display
+        $letter->setRelation('distributions', 
+            $letter->distributions()
+                ->withTrashed()
+                ->with(['targetDepartment', 'targetUser'])
+                ->orderByDesc('id')
+                ->get()
+        );
+
         $actionUserIds = collect([$letter->created_by, $letter->updated_by, $letter->current_handler_user_id])
             ->merge($letter->actions->pluck('acted_by'))
             ->merge($letter->actions->pluck('target_user_id'))
@@ -856,6 +1148,50 @@ class CorrespondenceController extends Controller
     {
         $this->assertCanView($letter);
 
+        $resolvedPath = $this->resolveAttachmentPathByIndex($letter, $index);
+
+        $ext = strtolower(pathinfo($resolvedPath, PATHINFO_EXTENSION));
+        $previewableExts = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
+
+        if ($ext === 'pdf') {
+            return redirect()->to(route('correspondence.attachments.file', [$letter->id, (int) $index]));
+        }
+
+        return view('correspondence::attachment-preview', [
+            'fileUrl' => route('correspondence.attachments.file', [$letter->id, (int) $index]),
+            'downloadUrl' => route('correspondence.attachments.file', [$letter->id, (int) $index]) . '?download=1',
+            'fileName' => basename($resolvedPath),
+            'fileExt' => $ext,
+            'isPreviewable' => in_array($ext, $previewableExts, true),
+        ]);
+    }
+
+    public function attachmentFile(Request $request, CorrespondenceLetter $letter, int $index)
+    {
+        $this->assertCanView($letter);
+
+        $resolvedPath = $this->resolveAttachmentPathByIndex($letter, $index);
+        $fileName = basename($resolvedPath);
+        $absolutePath = storage_path('app/public/' . ltrim($resolvedPath, '/'));
+
+        if (!is_file($absolutePath)) {
+            abort(404);
+        }
+
+        if ((string) $request->query('download', '0') === '1') {
+            return response()->download($absolutePath, $fileName);
+        }
+
+        $mimeType = @mime_content_type($absolutePath) ?: 'application/octet-stream';
+
+        return response()->file($absolutePath, [
+            'Content-Type' => $mimeType,
+            'Content-Disposition' => 'inline; filename="' . $fileName . '"',
+        ]);
+    }
+
+    protected function resolveAttachmentPathByIndex(CorrespondenceLetter $letter, int $index): string
+    {
         $attachments = is_array($letter->attachment_path)
             ? $letter->attachment_path
             : json_decode((string) $letter->attachment_path, true);
@@ -871,22 +1207,19 @@ class CorrespondenceController extends Controller
             abort(404);
         }
 
-        $path = (string) $attachments[$index];
+        $path = ltrim((string) $attachments[$index], '/');
+        $normalizedPath = preg_replace('#^(storage/|public/)#', '', $path) ?: $path;
         $disk = Storage::disk('public');
 
-        if (!$disk->exists($path)) {
-            abort(404);
+        if ($disk->exists($normalizedPath)) {
+            return $normalizedPath;
         }
 
-        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
-        $previewableExts = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'];
+        if ($disk->exists($path)) {
+            return $path;
+        }
 
-        return view('correspondence::attachment-preview', [
-            'fileUrl' => asset('storage/' . ltrim($path, '/')),
-            'fileName' => basename($path),
-            'fileExt' => $ext,
-            'isPreviewable' => in_array($ext, $previewableExts, true),
-        ]);
+        abort(404);
     }
 
     public function progress(Request $request, CorrespondenceLetter $letter)
@@ -902,8 +1235,12 @@ class CorrespondenceController extends Controller
                 'close',
             ])],
             'assigned_department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'assigned_department_ids' => ['nullable', 'array'],
+            'assigned_department_ids.*' => ['nullable', 'integer', 'exists:departments,id'],
             'target_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'office_comment_user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'office_comment_related_user_ids' => ['nullable', 'array'],
+            'office_comment_related_user_ids.*' => ['nullable', 'integer', 'exists:users,id'],
             'deputy_review_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'director_user_id' => ['nullable', 'integer', 'exists:users,id'],
             'target_department_ids' => ['nullable', 'array'],
@@ -944,6 +1281,32 @@ class CorrespondenceController extends Controller
                 $officeCommentUserId = (int) ($validated['office_comment_user_id'] ?? 0);
                 $deputyReviewUserId = (int) ($validated['deputy_review_user_id'] ?? 0);
                 $directorUserId = (int) ($validated['director_user_id'] ?? 0);
+                $assignedDepartmentIds = collect($validated['assigned_department_ids'] ?? [])
+                    ->filter(fn ($id) => (int) $id > 0)
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->values();
+
+                if ($assignedDepartmentIds->isEmpty() && !empty($validated['assigned_department_id'])) {
+                    $assignedDepartmentIds = collect([(int) $validated['assigned_department_id']]);
+                }
+
+                if ($assignedDepartmentIds->isEmpty()) {
+                    return back()->withErrors([
+                        'assigned_department_ids' => localize('assigned_units_required', 'Please select at least one org unit.'),
+                    ])->withInput();
+                }
+
+                $assignedDepartmentId = (int) ($assignedDepartmentIds->first() ?? 0);
+
+                $officeCommentRelatedUserIds = collect($validated['office_comment_related_user_ids'] ?? [])
+                    ->filter(fn ($id) => (int) $id > 0)
+                    ->map(fn ($id) => (int) $id)
+                    ->unique()
+                    ->reject(function ($id) use ($officeCommentUserId, $deputyReviewUserId, $directorUserId) {
+                        return in_array((int) $id, [$officeCommentUserId, $deputyReviewUserId, $directorUserId], true);
+                    })
+                    ->values();
 
                 if ($officeCommentUserId <= 0 || $deputyReviewUserId <= 0 || $directorUserId <= 0) {
                     return back()->withErrors([
@@ -951,8 +1314,23 @@ class CorrespondenceController extends Controller
                     ])->withInput();
                 }
 
+                if (!$this->isUserLinkedToAnyDepartment($officeCommentUserId, $assignedDepartmentIds->all())) {
+                    return back()->withErrors([
+                        'office_comment_user_id' => localize('step3_user_not_in_selected_units', 'Step 3 responsible user must belong to selected org units.'),
+                    ])->withInput();
+                }
+
+                $invalidRelatedUserId = $officeCommentRelatedUserIds
+                    ->first(fn ($id) => !$this->isUserLinkedToAnyDepartment((int) $id, $assignedDepartmentIds->all()));
+
+                if ((int) $invalidRelatedUserId > 0) {
+                    return back()->withErrors([
+                        'office_comment_related_user_ids' => localize('step3_related_users_not_in_selected_units', 'Related users in step 3 must belong to selected org units.'),
+                    ])->withInput();
+                }
+
                 $letter->update([
-                    'assigned_department_id' => !empty($validated['assigned_department_id']) ? (int) $validated['assigned_department_id'] : $letter->assigned_department_id,
+                    'assigned_department_id' => $assignedDepartmentId > 0 ? $assignedDepartmentId : $letter->assigned_department_id,
                     'current_handler_user_id' => $officeCommentUserId,
                     'current_step' => CorrespondenceLetter::STEP_INCOMING_OFFICE_COMMENT,
                     'status' => CorrespondenceLetter::STATUS_IN_PROGRESS,
@@ -964,18 +1342,16 @@ class CorrespondenceController extends Controller
                     'delegate',
                     CorrespondenceLetter::STEP_INCOMING_DELEGATED,
                     $officeCommentUserId,
-                    !empty($validated['assigned_department_id']) ? (int) $validated['assigned_department_id'] : null,
+                    $assignedDepartmentId > 0 ? $assignedDepartmentId : null,
                     $note,
                     [
+                        'assigned_department_ids' => $assignedDepartmentIds->all(),
                         'office_comment_user_id' => $officeCommentUserId,
+                        'office_comment_related_user_ids' => $officeCommentRelatedUserIds->all(),
                         'deputy_review_user_id' => $deputyReviewUserId,
                         'director_user_id' => $directorUserId,
                     ]
                 );
-
-                $assignedDepartmentId = !empty($validated['assigned_department_id'])
-                    ? (int) $validated['assigned_department_id']
-                    : (int) ($letter->assigned_department_id ?? 0);
 
                 $this->notifyAssignmentRecipients(
                     $letter,
@@ -985,20 +1361,85 @@ class CorrespondenceController extends Controller
                     $officeCommentUserId,
                     $assignedDepartmentId > 0 ? $assignedDepartmentId : null
                 );
+
+                foreach ($officeCommentRelatedUserIds as $relatedUserId) {
+                    $this->notifyAssignmentRecipients(
+                        $letter,
+                        null,
+                        $note,
+                        'delegated',
+                        (int) $relatedUserId,
+                        null
+                    );
+                }
                 break;
 
             case 'office_comment':
-                if ((string) $letter->current_step !== CorrespondenceLetter::STEP_INCOMING_OFFICE_COMMENT) {
-                    return back()->with('error', localize('step_not_allowed', 'Current step does not allow office comment.'));
-                }
-                if (!$this->isRecipientActor($letter)) {
-                    return back()->with('error', localize('permission_denied', 'Permission denied.'));
-                }
                 if ($note === '') {
                     return back()->withErrors(['note' => localize('comment_required', 'Comment is required.')]);
                 }
 
+                $currentStep = (string) ($letter->current_step ?? '');
                 $workflowAssignments = $this->repairIncomingWorkflowAssignments($letter, $this->incomingWorkflowAssignments($letter));
+                $officeCommentUserId = (int) ($workflowAssignments['office_comment_user_id'] ?? 0);
+                $relatedOfficeUserIds = collect($workflowAssignments['office_comment_related_user_ids'] ?? [])
+                    ->map(fn ($id) => (int) $id)
+                    ->filter(fn ($id) => $id > 0)
+                    ->unique()
+                    ->values();
+                $pendingRelatedUserIds = $this->step3PendingRelatedUserIds($letter, $workflowAssignments);
+                $currentUserId = (int) ($user->id ?? 0);
+                $isMainOfficeActor = $currentStep === CorrespondenceLetter::STEP_INCOMING_OFFICE_COMMENT && $this->isRecipientActor($letter);
+                $isRelatedOfficeActor = $relatedOfficeUserIds->contains($currentUserId);
+                $allowLateRelatedComment = $currentStep === CorrespondenceLetter::STEP_INCOMING_DEPUTY_REVIEW
+                    && in_array($currentUserId, $pendingRelatedUserIds, true);
+
+                if (!in_array($currentStep, [
+                    CorrespondenceLetter::STEP_INCOMING_OFFICE_COMMENT,
+                    CorrespondenceLetter::STEP_INCOMING_DEPUTY_REVIEW,
+                ], true)) {
+                    return back()->with('error', localize('step_not_allowed', 'Current step does not allow office comment.'));
+                }
+
+                if ($currentStep === CorrespondenceLetter::STEP_INCOMING_DEPUTY_REVIEW && !$allowLateRelatedComment) {
+                    return back()->with('error', localize('step_not_allowed', 'Current step does not allow office comment.'));
+                }
+
+                if (!$isMainOfficeActor && !$isRelatedOfficeActor && !$allowLateRelatedComment) {
+                    return back()->with('error', localize('permission_denied', 'Permission denied.'));
+                }
+
+                if ($isRelatedOfficeActor || $allowLateRelatedComment) {
+                    $this->logAction(
+                        $letter,
+                        'office_comment_related',
+                        CorrespondenceLetter::STEP_INCOMING_OFFICE_COMMENT,
+                        $officeCommentUserId > 0 ? $officeCommentUserId : null,
+                        (int) ($letter->assigned_department_id ?? 0) ?: null,
+                        $note
+                    );
+
+                    if ($officeCommentUserId > 0 && $officeCommentUserId !== (int) ($user->id ?? 0)) {
+                        $this->notifyAssignmentRecipients(
+                            $letter,
+                            null,
+                            $note,
+                            'office_comment_related',
+                            $officeCommentUserId,
+                            null
+                        );
+                    }
+
+                    $successMessage = localize('related_comment_saved_wait_main_step3', 'Related comment saved. Waiting for the step 3 responsible actor to continue.');
+                    break;
+                }
+
+                if (!empty($pendingRelatedUserIds)) {
+                    return back()->withErrors([
+                        'note' => localize('step3_waiting_related_comments', 'Cannot continue to step 4 yet. Waiting related comments from') . ': ' . $this->formatUserDisplayList($pendingRelatedUserIds),
+                    ])->withInput();
+                }
+
                 $deputyReviewUserId = (int) ($workflowAssignments['deputy_review_user_id'] ?? 0);
                 if ($deputyReviewUserId <= 0) {
                     return back()->with('error', localize('incoming_chain_missing_deputy', 'Deputy reviewer is not configured. Please update the delegation step first.'));
@@ -1040,6 +1481,12 @@ class CorrespondenceController extends Controller
                 }
 
                 $workflowAssignments = $this->repairIncomingWorkflowAssignments($letter, $this->incomingWorkflowAssignments($letter));
+                $pendingRelatedUserIds = $this->step3PendingRelatedUserIds($letter, $workflowAssignments);
+                if (!empty($pendingRelatedUserIds)) {
+                    return back()->withErrors([
+                        'note' => localize('step3_waiting_related_comments', 'Cannot continue to step 4 yet. Waiting related comments from') . ': ' . $this->formatUserDisplayList($pendingRelatedUserIds),
+                    ])->withInput();
+                }
                 $directorUserId = (int) ($workflowAssignments['director_user_id'] ?? 0);
                 if ($directorUserId <= 0) {
                     return back()->with('error', localize('incoming_chain_missing_director', 'Director is not configured. Please update the delegation step first.'));
@@ -1143,6 +1590,13 @@ class CorrespondenceController extends Controller
                 $ackNote = $note !== '' ? $note : localize('child_unit_in_progress', 'Child unit is processing this letter.');
                 $this->syncParentDistributionFromChild($letter, CorrespondenceLetterDistribution::STATUS_ACKNOWLEDGED, $ackNote);
             }
+        }
+
+        if ($this->shouldReturnApiResponse($request)) {
+            return $this->correspondenceApiResponse(
+                $this->freshSerializedLetter($letter),
+                $successMessage
+            );
         }
 
         return redirect()
@@ -1373,6 +1827,13 @@ class CorrespondenceController extends Controller
                 "Distributed {$createdCount} target(s), skipped {$skippedCount} duplicate target(s)."
             );
 
+            if ($this->shouldReturnApiResponse($request)) {
+                return $this->correspondenceApiResponse(
+                    $this->freshSerializedLetter($letter),
+                    $message
+                );
+            }
+
             return redirect()
                 ->route('correspondence.show', $letter->id)
                 ->with('success', $message);
@@ -1526,6 +1987,13 @@ class CorrespondenceController extends Controller
             "Distributed {$createdCount} target(s), auto-created {$childCount} child letter(s), skipped {$skippedCount} duplicate target(s)."
         );
 
+        if ($this->shouldReturnApiResponse($request)) {
+            return $this->correspondenceApiResponse(
+                $this->freshSerializedLetter($letter),
+                $message
+            );
+        }
+
         return redirect()
             ->route('correspondence.show', $letter->id)
             ->with('success', $message);
@@ -1572,6 +2040,13 @@ class CorrespondenceController extends Controller
         }
 
         $this->refreshCompletionState($letter);
+
+        if ($this->shouldReturnApiResponse($request)) {
+            return $this->correspondenceApiResponse(
+                $this->freshSerializedDistribution($distribution),
+                localize('acknowledged', 'Acknowledged.')
+            );
+        }
 
         return redirect()
             ->route('correspondence.show', $letter->id)
@@ -1622,6 +2097,13 @@ class CorrespondenceController extends Controller
 
         $this->refreshCompletionState($letter);
 
+        if ($this->shouldReturnApiResponse($request)) {
+            return $this->correspondenceApiResponse(
+                $this->freshSerializedDistribution($distribution),
+                localize('feedback_saved', 'Feedback saved.')
+            );
+        }
+
         return redirect()
             ->route('correspondence.show', $letter->id)
             ->with('success', localize('feedback_saved', 'Feedback saved.'));
@@ -1670,6 +2152,13 @@ class CorrespondenceController extends Controller
             ['source_distribution_id' => $sourceDistributionId]
         );
 
+        if ($this->shouldReturnApiResponse($request)) {
+            return $this->correspondenceApiResponse(
+                null,
+                localize('feedback_sent_to_parent', 'Feedback has been sent to the parent department.')
+            );
+        }
+
         return redirect()
             ->route('correspondence.show', $letter->id)
             ->with('success', localize('feedback_sent_to_parent', 'Feedback has been sent to the parent department.'));
@@ -1698,11 +2187,47 @@ class CorrespondenceController extends Controller
         $keyword = trim((string) $request->query('q', ''));
         $limit = max(10, min(50, (int) $request->query('limit', 20)));
         $authUser = Auth::user();
+        $departmentIds = collect($request->query('department_ids', []));
+
+        if ($departmentIds->isEmpty() && !empty($request->query('department_id'))) {
+            $departmentIds = collect([$request->query('department_id')]);
+        }
+
+        if ($departmentIds->count() === 1 && is_string($departmentIds->first()) && str_contains((string) $departmentIds->first(), ',')) {
+            $departmentIds = collect(explode(',', (string) $departmentIds->first()));
+        }
+
+        $departmentIds = $departmentIds
+            ->flatMap(function ($value) {
+                return is_array($value) ? $value : [$value];
+            })
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        // Users with correspondence workflow permission can search all users (needed to
+        // assign director / deputy / office-comment roles across org levels).
+        // For other non-admin users restrict to their managed branches only.
+        $canSearchAll = $this->orgAccessService()->isSystemAdmin($authUser)
+            || ($authUser && method_exists($authUser, 'can') && $authUser->can('update_correspondence_management'));
+
+        $departmentRoleUserIds = collect();
+        if ($departmentIds->isNotEmpty()) {
+            $departmentRoleUserIds = UserOrgRole::query()
+                ->effective()
+                ->whereIn('department_id', $departmentIds->all())
+                ->pluck('user_id')
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => $id > 0)
+                ->unique()
+                ->values();
+        }
 
         $rows = User::query()
             ->withoutGlobalScope('sortByLatest')
             ->when(
-                !$this->orgAccessService()->isSystemAdmin($authUser),
+                !$canSearchAll,
                 function ($query) use ($authUser) {
                     $managedBranchIds = $this->orgAccessService()->managedBranchIds($authUser);
                     $authUserId = (int) ($authUser->id ?? 0);
@@ -1723,6 +2248,22 @@ class CorrespondenceController extends Controller
                     }
                 }
             )
+            ->when($departmentIds->isNotEmpty(), function ($query) use ($departmentIds, $departmentRoleUserIds) {
+                $departmentIdList = $departmentIds->all();
+                $query->where(function ($q) use ($departmentIdList, $departmentRoleUserIds) {
+                    $q->whereHas('employee', function ($employeeQuery) use ($departmentIdList) {
+                        $employeeQuery->where(function ($deptQuery) use ($departmentIdList) {
+                            $deptQuery
+                                ->whereIn('department_id', $departmentIdList)
+                                ->orWhereIn('sub_department_id', $departmentIdList);
+                        });
+                    });
+
+                    if ($departmentRoleUserIds->isNotEmpty()) {
+                        $q->orWhereIn('id', $departmentRoleUserIds->all());
+                    }
+                });
+            })
             ->when($keyword !== '', function ($query) use ($keyword) {
                 $query->where(function ($q) use ($keyword) {
                     $q->where('full_name', 'like', '%' . $keyword . '%')
@@ -1733,16 +2274,212 @@ class CorrespondenceController extends Controller
             ->limit($limit)
             ->get(['id', 'full_name', 'email']);
 
-        return response()->json([
-            'results' => $rows->map(function ($user) {
+        $results = $rows->map(function ($user) {
                 $name = trim((string) ($user->full_name ?? ''));
                 $email = trim((string) ($user->email ?? ''));
                 return [
                     'id' => (int) $user->id,
                     'text' => $email !== '' ? "{$name} ({$email})" : $name,
                 ];
-            })->values(),
+            })->values();
+
+        if ($this->shouldReturnApiResponse($request)) {
+            return $this->correspondenceApiResponse($results);
+        }
+
+        return response()->json([
+            'results' => $results,
         ]);
+    }
+
+    public function orgUnits(Request $request): JsonResponse
+    {
+        $options = $this->originOrgUnitOptions()
+            ->map(function ($unit) {
+                $path = trim((string) ($unit->path ?? ''));
+                $label = trim((string) ($unit->label ?? ''));
+                $displayName = $path !== '' ? $path : $label;
+
+                return [
+                    'id' => (int) ($unit->id ?? 0),
+                    'text' => $displayName,
+                    'path' => $path !== '' ? $path : null,
+                    'label' => $label !== '' ? $label : $displayName,
+                ];
+            })
+            ->values();
+
+        if ($this->shouldReturnApiResponse($request)) {
+            return $this->correspondenceApiResponse($options);
+        }
+
+        return response()->json([
+            'results' => $options,
+        ]);
+    }
+
+    protected function shouldReturnApiResponse(Request $request): bool
+    {
+        return $request->expectsJson() || $request->is('api/*');
+    }
+
+    protected function correspondenceApiResponse($data = null, string $message = 'OK', int $status = 200): JsonResponse
+    {
+        return response()->json([
+            'response' => [
+                'status' => 'ok',
+                'message' => $message,
+                'data' => $data,
+            ],
+        ], $status);
+    }
+
+    protected function paginatedLetterPayload($paginator): array
+    {
+        $items = collect($paginator->items())
+            ->map(fn (CorrespondenceLetter $letter) => $this->serializeLetter($letter))
+            ->values()
+            ->all();
+
+        $currentPage = method_exists($paginator, 'currentPage') ? (int) $paginator->currentPage() : 1;
+        $perPage = method_exists($paginator, 'perPage') ? (int) $paginator->perPage() : count($items);
+        $total = method_exists($paginator, 'total')
+            ? (int) $paginator->total()
+            : (($currentPage - 1) * max(1, $perPage)) + count($items) + ((method_exists($paginator, 'hasMorePages') && $paginator->hasMorePages()) ? 1 : 0);
+        $lastPage = method_exists($paginator, 'lastPage')
+            ? (int) $paginator->lastPage()
+            : $currentPage + ((method_exists($paginator, 'hasMorePages') && $paginator->hasMorePages()) ? 1 : 0);
+
+        return [
+            'data' => $items,
+            'current_page' => $currentPage,
+            'per_page' => $perPage,
+            'total' => $total,
+            'last_page' => max(1, $lastPage),
+        ];
+    }
+
+    protected function freshSerializedLetter(CorrespondenceLetter $letter): array
+    {
+        $fresh = $letter->fresh([
+            'originDepartment:id,department_name',
+            'assignedDepartment:id,department_name',
+            'currentHandler:id,full_name',
+            'actions',
+            'distributions.targetDepartment:id,department_name',
+            'distributions.targetUser:id,full_name,email',
+        ]);
+
+        return $this->serializeLetter($fresh ?? $letter);
+    }
+
+    protected function freshSerializedDistribution(CorrespondenceLetterDistribution $distribution): array
+    {
+        $fresh = $distribution->fresh([
+            'targetDepartment:id,department_name',
+            'targetUser:id,full_name,email',
+        ]);
+
+        return $this->serializeDistribution($fresh ?? $distribution);
+    }
+
+    protected function serializeLetter(CorrespondenceLetter $letter, array $userMap = [], array $departmentMap = []): array
+    {
+        $originDepartmentName = optional($letter->originDepartment)->department_name
+            ?? ($departmentMap[(int) ($letter->origin_department_id ?? 0)] ?? null);
+        $assignedDepartmentName = optional($letter->assignedDepartment)->department_name
+            ?? ($departmentMap[(int) ($letter->assigned_department_id ?? 0)] ?? null);
+        $currentHandlerName = optional($letter->currentHandler)->full_name
+            ?? ($userMap[(int) ($letter->current_handler_user_id ?? 0)] ?? null);
+        $createdByName = $userMap[(int) ($letter->created_by ?? 0)] ?? null;
+
+        $payload = [
+            'id' => (int) $letter->id,
+            'letter_type' => (string) ($letter->letter_type ?? ''),
+            'subject' => (string) ($letter->subject ?? ''),
+            'status' => (string) ($letter->status ?? ''),
+            'current_step' => (string) ($letter->current_step ?? ''),
+            'letter_no' => $letter->letter_no,
+            'registry_no' => $letter->registry_no,
+            'priority' => $letter->priority,
+            'from_org' => $letter->from_org,
+            'to_org' => $letter->to_org,
+            'letter_date' => optional($letter->letter_date)->toDateTimeString(),
+            'received_date' => optional($letter->received_date)->toDateTimeString(),
+            'sent_date' => optional($letter->sent_date)->toDateTimeString(),
+            'due_date' => optional($letter->due_date)->toDateTimeString(),
+            'attachment_path' => $letter->attachment_path,
+            'current_handler_user_id' => $letter->current_handler_user_id ? (int) $letter->current_handler_user_id : null,
+            'current_handler_name' => $currentHandlerName,
+            'origin_department_id' => $letter->origin_department_id ? (int) $letter->origin_department_id : null,
+            'origin_department_name' => $originDepartmentName,
+            'assigned_department_id' => $letter->assigned_department_id ? (int) $letter->assigned_department_id : null,
+            'assigned_department_name' => $assignedDepartmentName,
+            'parent_letter_id' => $letter->parent_letter_id ? (int) $letter->parent_letter_id : null,
+            'created_by_user_id' => $letter->created_by ? (int) $letter->created_by : null,
+            'created_by_name' => $createdByName,
+            'created_at' => optional($letter->created_at)->toDateTimeString(),
+            'decision' => $letter->final_decision,
+            'distributions_count' => isset($letter->distributions_total_count)
+                ? (int) $letter->distributions_total_count
+                : (isset($letter->distributions_count) ? (int) $letter->distributions_count : null),
+            'completed_count' => isset($letter->distributions_done_count) ? (int) $letter->distributions_done_count : null,
+        ];
+
+        if ($letter->relationLoaded('actions')) {
+            $payload['actions'] = $letter->actions
+                ->map(fn (CorrespondenceLetterAction $action) => $this->serializeAction($action, $userMap, $departmentMap))
+                ->values()
+                ->all();
+        }
+
+        if ($letter->relationLoaded('distributions')) {
+            $payload['distributions'] = $letter->distributions
+                ->map(fn (CorrespondenceLetterDistribution $distribution) => $this->serializeDistribution($distribution, $userMap, $departmentMap))
+                ->values()
+                ->all();
+        }
+
+        return $payload;
+    }
+
+    protected function serializeAction(CorrespondenceLetterAction $action, array $userMap = [], array $departmentMap = []): array
+    {
+        return [
+            'id' => (int) $action->id,
+            'letter_id' => (int) $action->letter_id,
+            'step_key' => (string) ($action->step_key ?? ''),
+            'action_type' => (string) ($action->action_type ?? ''),
+            'acted_by_user_id' => $action->acted_by ? (int) $action->acted_by : null,
+            'acted_by_name' => $userMap[(int) ($action->acted_by ?? 0)] ?? null,
+            'target_user_id' => $action->target_user_id ? (int) $action->target_user_id : null,
+            'target_user_name' => $userMap[(int) ($action->target_user_id ?? 0)] ?? null,
+            'target_department_id' => $action->target_department_id ? (int) $action->target_department_id : null,
+            'target_department_name' => $departmentMap[(int) ($action->target_department_id ?? 0)] ?? null,
+            'note' => $action->note,
+            'meta_json' => $action->meta_json,
+            'created_at' => optional($action->created_at)->toDateTimeString(),
+        ];
+    }
+
+    protected function serializeDistribution(CorrespondenceLetterDistribution $distribution, array $userMap = [], array $departmentMap = []): array
+    {
+        return [
+            'id' => (int) $distribution->id,
+            'letter_id' => (int) $distribution->letter_id,
+            'target_department_id' => $distribution->target_department_id ? (int) $distribution->target_department_id : null,
+            'target_department_name' => optional($distribution->targetDepartment)->department_name
+                ?? ($departmentMap[(int) ($distribution->target_department_id ?? 0)] ?? null),
+            'target_user_id' => $distribution->target_user_id ? (int) $distribution->target_user_id : null,
+            'target_user_name' => optional($distribution->targetUser)->full_name
+                ?? ($userMap[(int) ($distribution->target_user_id ?? 0)] ?? null),
+            'distribution_type' => (string) ($distribution->distribution_type ?? ''),
+            'status' => (string) ($distribution->status ?? ''),
+            'acknowledged_at' => optional($distribution->acknowledged_at)->toDateTimeString(),
+            'feedback_note' => $distribution->feedback_note,
+            'child_letter_id' => $distribution->child_letter_id ? (int) $distribution->child_letter_id : null,
+            'created_at' => optional($distribution->created_at)->toDateTimeString(),
+        ];
     }
 
     protected function accessibleLettersQuery(?string $type = null)
@@ -1757,34 +2494,35 @@ class CorrespondenceController extends Controller
             return $query->whereRaw('1=0');
         }
 
-        if ($this->orgAccessService()->isSystemAdmin($user)) {
+        if ($this->orgAccessService()->isSystemAdmin($user) || $this->isCorrespondenceManager($user)) {
             return $query;
         }
 
-        $deptIds = $this->corrAccessibleDepartmentIds();
-
-        // PHD level → null → sees everything
-        if ($deptIds === null) {
-            return $query;
-        }
-
-        // No org role → sees only own letters / personally assigned
+        // Non-manager users only see letters directly related to themselves.
         $userId = (int) $user->id;
 
-        $query->where(function ($q) use ($deptIds, $userId) {
+        $query->where(function ($q) use ($userId) {
             $q->where('created_by', $userId)
                 ->orWhere('current_handler_user_id', $userId)
+                ->orWhere(function ($workflowQuery) use ($userId) {
+                    $workflowQuery->where('letter_type', CorrespondenceLetter::TYPE_INCOMING)
+                        ->whereHas('actions', function ($actionQuery) use ($userId) {
+                            $actionQuery->where('action_type', 'delegate')
+                                ->where(function ($metaQuery) use ($userId) {
+                                    $metaQuery->where('meta_json', 'like', '%"office_comment_user_id":' . $userId . '%')
+                                        ->orWhere('meta_json', 'like', '%"deputy_review_user_id":' . $userId . '%')
+                                        ->orWhere('meta_json', 'like', '%"director_user_id":' . $userId . '%')
+                                        ->orWhere('meta_json', 'like', '%"office_comment_related_user_ids":%"' . $userId . '"%')
+                                        ->orWhere('meta_json', 'like', '%"office_comment_related_user_ids":%,' . $userId . ',%')
+                                        ->orWhere('meta_json', 'like', '%"office_comment_related_user_ids":%[' . $userId . ',%')
+                                        ->orWhere('meta_json', 'like', '%"office_comment_related_user_ids":%,' . $userId . ']%')
+                                        ->orWhere('meta_json', 'like', '%"office_comment_related_user_ids":%[' . $userId . ']%');
+                                });
+                        });
+                })
                 ->orWhereHas('distributions', function ($distributionQuery) use ($userId) {
                     $distributionQuery->where('target_user_id', $userId);
                 });
-
-            if (!empty($deptIds)) {
-                $q->orWhereIn('origin_department_id', $deptIds)
-                    ->orWhereIn('assigned_department_id', $deptIds)
-                    ->orWhereHas('distributions', function ($distributionQuery) use ($deptIds) {
-                        $distributionQuery->whereIn('target_department_id', $deptIds);
-                    });
-            }
         });
 
         return $query;
@@ -1797,11 +2535,26 @@ class CorrespondenceController extends Controller
             abort(403);
         }
 
-        if ($this->orgAccessService()->isSystemAdmin($user)) {
+        if ($this->orgAccessService()->isSystemAdmin($user) || $this->isCorrespondenceManager($user)) {
             return;
         }
 
         $userId = (int) $user->id;
+        $hasDistribution = $letter->distributions()->exists();
+
+        // Undistributed letters are private except for explicit workflow participants.
+        if (!$hasDistribution) {
+            if (
+                (int) $letter->created_by === $userId
+                || (int) $letter->current_handler_user_id === $userId
+                || $this->isUserInIncomingWorkflowChain($letter, $userId)
+            ) {
+                return;
+            }
+
+            abort(403);
+        }
+
         if (
             (int) $letter->created_by === $userId
             || (int) $letter->current_handler_user_id === $userId
@@ -1811,24 +2564,36 @@ class CorrespondenceController extends Controller
             return;
         }
 
-        $deptIds = $this->corrAccessibleDepartmentIds();
-
-        // PHD level → null → can view everything
-        if ($deptIds === null) {
-            return;
-        }
-
-        if (!empty($deptIds)) {
-            if (
-                in_array((int) ($letter->origin_department_id ?? 0), $deptIds, true)
-                || in_array((int) ($letter->assigned_department_id ?? 0), $deptIds, true)
-                || $letter->distributions()->whereIn('target_department_id', $deptIds)->exists()
-            ) {
-                return;
-            }
-        }
-
         abort(403);
+    }
+
+    protected function isCorrespondenceManager(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        if (!Schema::hasTable('correspondence_user_responsibilities') || !Schema::hasTable('correspondence_responsibility_templates')) {
+            return false;
+        }
+
+        $today = now()->toDateString();
+
+        return DB::table('correspondence_user_responsibilities as cur')
+            ->join('correspondence_responsibility_templates as crt', 'crt.id', '=', 'cur.template_id')
+            ->where('cur.user_id', (int) $user->id)
+            ->where('cur.is_active', 1)
+            ->where('crt.is_active', 1)
+            ->where('crt.template_key', self::MANAGER_TEMPLATE_KEY)
+            ->whereNull('cur.deleted_at')
+            ->whereNull('crt.deleted_at')
+            ->where(function ($query) use ($today) {
+                $query->whereNull('cur.effective_from')->orWhereDate('cur.effective_from', '<=', $today);
+            })
+            ->where(function ($query) use ($today) {
+                $query->whereNull('cur.effective_to')->orWhereDate('cur.effective_to', '>=', $today);
+            })
+            ->exists();
     }
 
     protected function isUserInIncomingWorkflowChain(CorrespondenceLetter $letter, int $userId): bool
@@ -1853,6 +2618,19 @@ class CorrespondenceController extends Controller
             $meta = is_array($decoded) ? $decoded : [];
         }
 
+        $relatedOfficeUserIds = collect($meta['office_comment_related_user_ids'] ?? [])
+            ->flatMap(function ($value) {
+                return is_array($value) ? $value : [$value];
+            })
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($relatedOfficeUserIds->contains($userId)) {
+            return true;
+        }
+
         return in_array($userId, [
             (int) ($meta['office_comment_user_id'] ?? 0),
             (int) ($meta['deputy_review_user_id'] ?? 0),
@@ -1874,7 +2652,7 @@ class CorrespondenceController extends Controller
         $roles = $this->orgAccessService()
             ->effectiveOrgRoles($user)
             ->filter(function (UserOrgRole $role) use ($requiredRoles) {
-                return in_array((string) $role->org_role, $requiredRoles, true);
+                return in_array((string) $role->getEffectiveRoleCode(), $requiredRoles, true);
             });
 
         if ($roles->isEmpty()) {
@@ -1893,7 +2671,7 @@ class CorrespondenceController extends Controller
             }
 
             $scopeType = (string) ($role->scope_type ?: UserOrgRole::SCOPE_SELF_AND_CHILDREN);
-            if ($scopeType === UserOrgRole::SCOPE_SELF) {
+            if (in_array($scopeType, [UserOrgRole::SCOPE_SELF, UserOrgRole::SCOPE_SELF_ONLY], true)) {
                 if ($roleDepartmentId === $targetDepartmentId) {
                     return true;
                 }
@@ -2008,6 +2786,13 @@ class CorrespondenceController extends Controller
     {
         $level = $this->corrLevel();
         $dept = $this->corrUserDepartment();
+        $user = Auth::user();
+        $canManageSettings = false;
+
+        if ($user) {
+            $canManageSettings = $this->orgAccessService()->isSystemAdmin($user)
+                || $user->can('setting_correspondence_management');
+        }
 
         return [
             'corrLevel' => $level,
@@ -2015,7 +2800,62 @@ class CorrespondenceController extends Controller
             'corrDepartmentName' => $dept ? (string) $dept->department_name : '',
             'canCreateIncoming' => $this->canCreateType(CorrespondenceLetter::TYPE_INCOMING),
             'canCreateOutgoing' => $this->canCreateType(CorrespondenceLetter::TYPE_OUTGOING),
+            'canManageSettings' => $canManageSettings,
         ];
+    }
+
+    protected function assertCanManageSettings(): void
+    {
+        if ($this->canManageSettings(Auth::user())) {
+            return;
+        }
+
+        abort(403, localize('permission_denied', 'Permission denied.'));
+    }
+
+    protected function canManageSettings(?User $user): bool
+    {
+        if (!$user) {
+            return false;
+        }
+
+        return $this->orgAccessService()->isSystemAdmin($user)
+            || $user->can('setting_correspondence_management');
+    }
+
+    protected function resolveSettingDepartmentForUser(int $userId): int
+    {
+        if ($userId <= 0) {
+            return 0;
+        }
+
+        $roleQuery = UserOrgRole::query()
+            ->withoutGlobalScope('sortByLatest')
+            ->where('user_id', $userId)
+            ->where('is_active', 1)
+            ->whereNull('deleted_at');
+
+        if (Schema::hasColumn('user_org_roles', 'is_primary')) {
+            $roleQuery->orderByDesc('is_primary');
+        }
+        if (Schema::hasColumn('user_org_roles', 'effective_from')) {
+            $roleQuery->orderByDesc('effective_from');
+        }
+
+        $roleQuery->orderByDesc('id');
+
+        $departmentId = (int) ($roleQuery->value('department_id') ?? 0);
+
+        if ($departmentId > 0) {
+            return $departmentId;
+        }
+
+        $employee = Employee::query()
+            ->withoutGlobalScope('sortByLatest')
+            ->where('user_id', $userId)
+            ->first(['department_id', 'sub_department_id']);
+
+        return (int) ($employee?->sub_department_id ?: $employee?->department_id ?: 0);
     }
 
     protected function assertCanCreateType(string $type): void
@@ -2029,43 +2869,23 @@ class CorrespondenceController extends Controller
 
     protected function canCreateType(string $type): bool
     {
+        if (!in_array($type, [CorrespondenceLetter::TYPE_INCOMING, CorrespondenceLetter::TYPE_OUTGOING], true)) {
+            return false;
+        }
+
         $user = Auth::user();
         if (!$user) {
             return false;
         }
 
-        if ($this->orgAccessService()->isSystemAdmin($user)) {
-            return true;
-        }
+        $departmentId = (int) ($this->corrUserDepartment()?->id ?? 0);
+        $actionKey = $type === CorrespondenceLetter::TYPE_INCOMING ? 'create_incoming' : 'create_outgoing';
 
-        $fallbackRoles = match ($type) {
-            CorrespondenceLetter::TYPE_INCOMING => [
-                UserOrgRole::ROLE_MANAGER,
-                UserOrgRole::ROLE_DEPUTY_HEAD,
-                UserOrgRole::ROLE_HEAD,
-            ],
-            CorrespondenceLetter::TYPE_OUTGOING => [
-                UserOrgRole::ROLE_MANAGER,
-                UserOrgRole::ROLE_DEPUTY_HEAD,
-                UserOrgRole::ROLE_HEAD,
-            ],
-            default => [],
-        };
-
-        if (empty($fallbackRoles)) {
-            return false;
-        }
-
-        $actionKey = $type === CorrespondenceLetter::TYPE_INCOMING
-            ? 'create_incoming'
-            : 'create_outgoing';
-
-        return $this->rolePermissionService()->canUserPerform(
+        return app(ModuleTableGovernanceService::class)->canUserPerform(
             $user,
             'correspondence',
             $actionKey,
-            null,
-            $fallbackRoles
+            $departmentId > 0 ? $departmentId : null
         );
     }
 
@@ -2317,9 +3137,35 @@ class CorrespondenceController extends Controller
             ->first();
 
         $meta = (array) ($delegateAction->meta_json ?? []);
+        $assignedDepartmentIds = collect($meta['assigned_department_ids'] ?? [])
+            ->flatMap(function ($value) {
+                return is_array($value) ? $value : [$value];
+            })
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($assignedDepartmentIds->isEmpty()) {
+            $fallbackDepartmentId = (int) ($letter->assigned_department_id ?: $letter->origin_department_id ?: 0);
+            if ($fallbackDepartmentId > 0) {
+                $assignedDepartmentIds = collect([$fallbackDepartmentId]);
+            }
+        }
+
+        $relatedOfficeUserIds = collect($meta['office_comment_related_user_ids'] ?? [])
+            ->flatMap(function ($value) {
+                return is_array($value) ? $value : [$value];
+            })
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
 
         return [
+            'assigned_department_ids' => $assignedDepartmentIds->all(),
             'office_comment_user_id' => (int) ($meta['office_comment_user_id'] ?? 0),
+            'office_comment_related_user_ids' => $relatedOfficeUserIds->all(),
             'deputy_review_user_id' => (int) ($meta['deputy_review_user_id'] ?? 0),
             'director_user_id' => (int) ($meta['director_user_id'] ?? 0),
         ];
@@ -2327,38 +3173,74 @@ class CorrespondenceController extends Controller
 
     protected function repairIncomingWorkflowAssignments(CorrespondenceLetter $letter, array $assignments): array
     {
+        $assignedDepartmentIds = collect($assignments['assigned_department_ids'] ?? [])
+            ->flatMap(function ($value) {
+                return is_array($value) ? $value : [$value];
+            })
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($assignedDepartmentIds->isEmpty()) {
+            $fallbackDepartmentId = (int) ($letter->assigned_department_id ?: $letter->origin_department_id ?: 0);
+            if ($fallbackDepartmentId > 0) {
+                $assignedDepartmentIds = collect([$fallbackDepartmentId]);
+            }
+        }
+
         $officeUserId = (int) ($assignments['office_comment_user_id'] ?? 0);
         if ($officeUserId <= 0) {
             $officeUserId = (int) ($letter->current_handler_user_id ?? 0);
         }
 
+        $relatedOfficeUserIds = collect($assignments['office_comment_related_user_ids'] ?? [])
+            ->flatMap(function ($value) {
+                return is_array($value) ? $value : [$value];
+            })
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->reject(fn ($id) => $id === $officeUserId)
+            ->values();
+
         $deputyUserId = (int) ($assignments['deputy_review_user_id'] ?? 0);
         $directorUserId = (int) ($assignments['director_user_id'] ?? 0);
-        $departmentId = (int) ($letter->assigned_department_id ?: $letter->origin_department_id ?: 0);
+        $departmentId = (int) ($assignedDepartmentIds->first() ?? ($letter->assigned_department_id ?: $letter->origin_department_id ?: 0));
 
         if ($departmentId > 0 && $deputyUserId <= 0) {
-            $deputyUserId = (int) (UserOrgRole::withoutGlobalScopes()
+            $deputyQuery = UserOrgRole::withoutGlobalScopes()
                 ->effective()
                 ->where('department_id', $departmentId)
-                ->where('org_role', UserOrgRole::ROLE_DEPUTY_HEAD)
+                ->where(function ($query) {
+                    $this->applyOrgRoleCodeFilter($query, [UserOrgRole::ROLE_DEPUTY_HEAD]);
+                })
                 ->when($officeUserId > 0, fn ($q) => $q->where('user_id', '!=', $officeUserId))
-                ->orderByDesc('id')
-                ->value('user_id') ?? 0);
+                ->orderByDesc('id');
+            $deputyUserId = (int) ($deputyQuery->value('user_id') ?? 0);
         }
 
         if ($departmentId > 0 && $directorUserId <= 0) {
-            $directorUserId = (int) (UserOrgRole::withoutGlobalScopes()
+            $directorQuery = UserOrgRole::withoutGlobalScopes()
                 ->effective()
                 ->where('department_id', $departmentId)
-                ->where('org_role', UserOrgRole::ROLE_HEAD)
+                ->where(function ($query) {
+                    $this->applyOrgRoleCodeFilter($query, [UserOrgRole::ROLE_HEAD]);
+                })
                 ->when($officeUserId > 0, fn ($q) => $q->where('user_id', '!=', $officeUserId))
                 ->when($deputyUserId > 0, fn ($q) => $q->where('user_id', '!=', $deputyUserId))
-                ->orderByDesc('id')
-                ->value('user_id') ?? 0);
+                ->orderByDesc('id');
+            $directorUserId = (int) ($directorQuery->value('user_id') ?? 0);
         }
 
+        $relatedOfficeUserIds = $relatedOfficeUserIds
+            ->reject(fn ($id) => in_array((int) $id, [$officeUserId, $deputyUserId, $directorUserId], true))
+            ->values();
+
         $resolved = [
+            'assigned_department_ids' => $assignedDepartmentIds->all(),
             'office_comment_user_id' => $officeUserId,
+            'office_comment_related_user_ids' => $relatedOfficeUserIds->all(),
             'deputy_review_user_id' => $deputyUserId,
             'director_user_id' => $directorUserId,
         ];
@@ -2378,6 +3260,124 @@ class CorrespondenceController extends Controller
         }
 
         return $resolved;
+    }
+
+    protected function isRelatedOfficeCommentParticipant(CorrespondenceLetter $letter, int $userId): bool
+    {
+        if ($userId <= 0 || $letter->letter_type !== CorrespondenceLetter::TYPE_INCOMING) {
+            return false;
+        }
+
+        $workflowAssignments = $this->incomingWorkflowAssignments($letter);
+        $relatedIds = collect($workflowAssignments['office_comment_related_user_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        return $relatedIds->contains($userId);
+    }
+
+    protected function step3PendingRelatedUserIds(CorrespondenceLetter $letter, array $workflowAssignments): array
+    {
+        $relatedIds = collect($workflowAssignments['office_comment_related_user_ids'] ?? [])
+            ->flatMap(function ($value) {
+                return is_array($value) ? $value : [$value];
+            })
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($relatedIds->isEmpty()) {
+            return [];
+        }
+
+        $latestDelegateActionId = (int) CorrespondenceLetterAction::query()
+            ->where('letter_id', (int) $letter->id)
+            ->where('action_type', 'delegate')
+            ->max('id');
+
+        $completedIds = CorrespondenceLetterAction::query()
+            ->where('letter_id', (int) $letter->id)
+            ->whereIn('acted_by', $relatedIds->all())
+            ->whereIn('action_type', ['office_comment_related', 'office_comment'])
+            ->when($latestDelegateActionId > 0, fn ($q) => $q->where('id', '>', $latestDelegateActionId))
+            ->pluck('acted_by')
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values();
+
+        return $relatedIds
+            ->reject(fn ($id) => $completedIds->contains((int) $id))
+            ->values()
+            ->all();
+    }
+
+    protected function formatUserDisplayList(array $userIds): string
+    {
+        $ids = collect($userIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($ids)) {
+            return '-';
+        }
+
+        $names = User::query()
+            ->withoutGlobalScope('sortByLatest')
+            ->whereIn('id', $ids)
+            ->get(['id', 'full_name', 'email'])
+            ->map(function ($item) {
+                $name = trim((string) ($item->full_name ?? ''));
+                $email = trim((string) ($item->email ?? ''));
+                return $email !== '' ? ($name . ' (' . $email . ')') : ($name !== '' ? $name : ('#' . (int) $item->id));
+            })
+            ->values()
+            ->all();
+
+        if (!empty($names)) {
+            return implode(', ', $names);
+        }
+
+        return implode(', ', array_map(fn ($id) => '#' . (int) $id, $ids));
+    }
+
+    protected function isUserLinkedToAnyDepartment(int $userId, array $departmentIds): bool
+    {
+        $userId = (int) $userId;
+        $departmentIds = collect($departmentIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($userId <= 0 || empty($departmentIds)) {
+            return false;
+        }
+
+        $inEmployee = Employee::query()
+            ->where('user_id', $userId)
+            ->where(function ($query) use ($departmentIds) {
+                $query->whereIn('department_id', $departmentIds)
+                    ->orWhereIn('sub_department_id', $departmentIds);
+            })
+            ->exists();
+
+        if ($inEmployee) {
+            return true;
+        }
+
+        return UserOrgRole::query()
+            ->effective()
+            ->where('user_id', $userId)
+            ->whereIn('department_id', $departmentIds)
+            ->exists();
     }
 
     protected function logAction(
@@ -2451,7 +3451,9 @@ class CorrespondenceController extends Controller
             $roleUserIds = UserOrgRole::query()
                 ->effective()
                 ->where('department_id', $resolvedTargetDepartmentId)
-                ->whereIn('org_role', $roleFilters)
+                ->where(function ($query) use ($roleFilters) {
+                    $this->applyOrgRoleCodeFilter($query, $roleFilters);
+                })
                 ->pluck('user_id');
 
             $recipientIds = $recipientIds->merge($roleUserIds);
@@ -2524,6 +3526,53 @@ class CorrespondenceController extends Controller
                         'error' => $throwable->getMessage(),
                     ]);
                 }
+            }
+        });
+    }
+
+    protected function roleCodesToSystemRoleIds(array $roleCodes): array
+    {
+        $codes = collect($roleCodes)
+            ->map(fn ($code) => trim((string) $code))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($codes)) {
+            return [];
+        }
+
+        if (!Schema::hasTable('system_roles')) {
+            return [];
+        }
+
+        return SystemRole::query()
+            ->whereIn('code', $codes)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
+    protected function applyOrgRoleCodeFilter($query, array $roleCodes): void
+    {
+        $codes = collect($roleCodes)
+            ->map(fn ($code) => trim((string) $code))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($codes)) {
+            return;
+        }
+
+        $systemRoleIds = $this->roleCodesToSystemRoleIds($codes);
+
+        $query->where(function ($roleQuery) use ($codes, $systemRoleIds) {
+            $roleQuery->whereIn('org_role', $codes);
+            if (!empty($systemRoleIds)) {
+                $roleQuery->orWhereIn('system_role_id', $systemRoleIds);
             }
         });
     }

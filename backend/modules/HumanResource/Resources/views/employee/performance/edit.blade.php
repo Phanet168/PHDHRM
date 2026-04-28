@@ -1,5 +1,5 @@
 @extends('backend.layouts.app')
-@section('title', localize('Employee Performance'))
+@section('title', localize('employee_performance', 'ការវាយតម្លៃសមិទ្ធផលបុគ្គលិក'))
 @push('css')
     <link href="{{ asset('public/backend') }}/assets/custom.css" rel="stylesheet">
 @endpush
@@ -11,12 +11,12 @@
             <div class="card-header">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('Edit Employee Performance') }}</h6>
+                        <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('edit_employee_performance', 'កែប្រែការវាយតម្លៃសមិទ្ធផលបុគ្គលិក') }}</h6>
                     </div>
                     <div class="text-end">
                         <div class="actions">
                             <a href="{{ route('employee-performances.index') }}" class="btn btn-success btn-sm"><i
-                                    class="fa fa-list"></i>&nbsp;{{ localize('Employee Performance List') }}</a>
+                                    class="fa fa-list"></i>&nbsp;{{ localize('employee_performance_list', 'បញ្ជីការវាយតម្លៃសមិទ្ធផលបុគ្គលិក') }}</a>
                         </div>
                     </div>
                 </div>
@@ -24,7 +24,7 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-12 text-center">
-                        <h3> {{ strtoupper(localize('PERFORMANCE APPRAISAL INTERVIEW FORM')) }}</h3>
+                        <h3> {{ strtoupper(localize('performance_appraisal_interview_form', 'ទម្រង់សម្ភាសន៍វាយតម្លៃសមិទ្ធផល')) }}</h3>
                     </div>
                     <div class="col-md-12 text-center">
                         <p class="fs-17 mt-3 fs-i text-danger">
@@ -38,10 +38,10 @@
                     <div class="row mt-5">
                         <div class="col-md-6 mt-3">
                             <div class="d-flex align-items-center">
-                                <label class="col-md-3">{{ localize('Name of Employee') }} :</label>
+                                <label class="col-md-3">{{ localize('name_of_employee') }} :</label>
                                 <select name="employee_id" class="form-control basic-single" tabindex="-1"
                                     aria-hidden="true" autocomplete="off">
-                                    <option value="">{{ localize('Select Employee') }}</option>
+                                    <option value="">{{ localize('select_employee') }}</option>
                                     @foreach ($employees as $employee)
                                         <option value="{{ $employee->id }}"
                                             {{ $employee_performance->employee_id == $employee->id ? 'selected' : '' }}>
@@ -52,19 +52,19 @@
                         </div>
                         <div class="col-md-6 mt-3">
                             <div class="input-group d-flex align-items-center">
-                                <span class="col-md-3 fw-700">{{ localize('Review Period') }} :</span>
+                                <span class="col-md-3 fw-700">{{ localize('review_period', 'រយៈពេលវាយតម្លៃ') }} :</span>
                                 <input type="number" name="review_period" class="form-control"
-                                    placeholder="Review Period In Months" aria-describedby="basic-addon1" required=""
+                                    placeholder="{{ localize('review_period_in_months', 'រយៈពេលវាយតម្លៃគិតជាខែ') }}" aria-describedby="basic-addon1" required=""
                                     autocomplete="off" value="{{ $employee_performance->review_period }}">
                             </div>
                         </div>
                         <div class="col-xs-12 mt-3">
                             <div class="input-group d-flex align-items-center">
                                 <span
-                                    class="col-md-4 fw-700">{{ localize('Name and Position of Supervisor/Head of Department') }}
+                                    class="col-md-4 fw-700">{{ localize('supervisor_name_and_position', 'ឈ្មោះ និងមុខតំណែងរបស់អ្នកគ្រប់គ្រង/ប្រធានអង្គភាព') }}
                                     :</span>
                                 <input type="text" name="position_of_supervisor" class="form-control"
-                                    placeholder="Name and Position of Supervisor/Head of Department"
+                                    placeholder="{{ localize('supervisor_name_and_position', 'ឈ្មោះ និងមុខតំណែងរបស់អ្នកគ្រប់គ្រង/ប្រធានអង្គភាព') }}"
                                     aria-describedby="basic-addon1" autocomplete="off"
                                     value="{{ $employee_performance->position_of_supervisor }}">
                             </div>
@@ -183,7 +183,7 @@
                                 @endforeach
                                 <tr>
                                     <td></td>
-                                    <td class="text-end" colspan="5">{{ localize('Total Score (Maximum = 60)') }}</td>
+                                    <td class="text-end" colspan="5">{{ localize('total_score_max_60', 'ពិន្ទុសរុប (អតិបរមា = 60)') }}</td>
                                     <td>
                                         <input type="number" id="assessment_a_total_score"
                                             name="assessment_a_total_score" class="form-control review-table"
@@ -201,7 +201,7 @@
                     </div>
                     <div class="row">
                         <h3 class="mt-3">
-                            {{ strtoupper(localize('B. ASSESSMENT OF OTHER PERFORMANCE STANDARDS AND INDICATORS')) }}
+                            {{ strtoupper(localize('performance_section_b', 'ខ. ការវាយតម្លៃស្តង់ដារ និងសូចនាករសមិទ្ធផលផ្សេងទៀត')) }}
                         </h3>
                         <table class="table table-bordered">
                             <thead>
@@ -269,7 +269,7 @@
 
                                 <tr>
                                     <td></td>
-                                    <td colspan="5">{{ localize('Total Score (Maximum = 40)') }}</td>
+                                    <td colspan="5">{{ localize('total_score_max_40', 'ពិន្ទុសរុប (អតិបរមា = 40)') }}</td>
                                     <td>
                                         <input type="number" id="assessment_b_total_score"
                                             name="assessment_b_total_score" class="form-control review-table"
@@ -287,12 +287,12 @@
                     </div>
 
                     <div class="row">
-                        <h3 class="mt-3">{{ strtoupper(localize('C. TOTAL SCORE')) }}</h3>
+                        <h3 class="mt-3">{{ strtoupper(localize('performance_section_c', 'គ. ពិន្ទុសរុប')) }}</h3>
                         <table class="table table-bordered">
                             <thead>
                                 <tr>
-                                    <th>{{ localize('Total Score (Score A + Score B)') }}</th>
-                                    <th>{{ localize('Overall Comments / Recommendations by Reviewer') }}</th>
+                                    <th>{{ localize('total_score_score_a_b', 'ពិន្ទុសរុប (ពិន្ទុ A + ពិន្ទុ B)') }}</th>
+                                    <th>{{ localize('overall_comments_reviewer', 'មតិយោបល់/អនុសាសន៍រួមរបស់អ្នកវាយតម្លៃ') }}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -308,7 +308,7 @@
                                                 {{ $assessment_one->sum('score') + $assessment_two->sum('score') }}</p>
                                         </div>
                                         <div>
-                                            <p class="fw-700">{{ localize('Classification of Employee') }}:</p>
+                                            <p class="fw-700">{{ localize('classification_of_employee', 'ចំណាត់ថ្នាក់បុគ្គលិក') }}:</p>
                                         </div>
                                         <div class="d-flex">
                                             <p class="fw-700">EE <br> (80-100)</p>
@@ -327,7 +327,7 @@
                                             <p class="fw-700">{{ localize('Date') }}:</p>
                                         </div>
                                         <div>
-                                            <p class="fw-700">{{ localize('Next Review Period') }}:</p>
+                                            <p class="fw-700">{{ localize('next_review_period', 'រយៈពេលវាយតម្លៃបន្ទាប់') }}:</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -335,11 +335,11 @@
                         </table>
                     </div>
                     <div class="row">
-                        <h3 class="mt-3">{{ strtoupper(localize('D. COMMENTS BY EMPLOYEE')) }}</h3>
-                        <textarea name="employee_comments" class="form-control" placeholder="Maximum 500 words" autocomplete="off"> {{ $employee_performance->employee_comments }} </textarea>
+                        <h3 class="mt-3">{{ strtoupper(localize('performance_section_d', 'ឃ. មតិយោបល់របស់បុគ្គលិក')) }}</h3>
+                        <textarea name="employee_comments" class="form-control" placeholder="{{ localize('maximum_500_words', 'អតិបរមា 500 ពាក្យ') }}" autocomplete="off"> {{ $employee_performance->employee_comments }} </textarea>
                     </div>
                     <div class="row">
-                        <h3 class="mt-3">{{ strtoupper(localize('E. DEVELOPMENT PLAN')) }}</h3>
+                        <h3 class="mt-3">{{ strtoupper(localize('performance_section_e', 'ង. ផែនការអភិវឌ្ឍន៍')) }}</h3>
                         <table class="table table-bordered" id="request_table_dev_plan">
                             <thead>
                                 <tr>
@@ -393,7 +393,7 @@
                         </table>
                     </div>
                     <div class="row">
-                        <h3 class="mt-3">{{ strtoupper(localize('F. KEY GOALS FOR NEXT REVIEW PERIOD')) }}</h3>
+                        <h3 class="mt-3">{{ strtoupper(localize('performance_section_f', 'ច. គោលដៅសំខាន់សម្រាប់រយៈពេលវាយតម្លៃបន្ទាប់')) }}</h3>
                         <table class="table table-bordered" id="request_table">
                             <thead>
                                 <tr>

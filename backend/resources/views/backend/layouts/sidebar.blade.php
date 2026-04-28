@@ -28,14 +28,31 @@
                     </li>
                 @endcan
 
-                @can('read_attendance')
+                @php
+                    $canUseAttendanceModule = auth()->user()?->can('read_attendance')
+                        || app(\Modules\HumanResource\Support\OrgRolePermissionService::class)->canUserPerform(
+                            auth()->user(),
+                            'attendance',
+                            'create_adjustment',
+                            null,
+                            []
+                        )
+                        || app(\Modules\HumanResource\Support\OrgRolePermissionService::class)->canUserPerform(
+                            auth()->user(),
+                            'attendance',
+                            'manage_exceptions',
+                            null,
+                            []
+                        );
+                @endphp
+                @if ($canUseAttendanceModule)
                     <li class="{{ request()->routeIs('attendances.*') ? 'mm-active' : '' }}">
                         <a class="has-arrow material-ripple" href="#">
                             <i class="fa fa-user"></i>
                             <span> {{ localize('attendance') }}</span>
                         </a>
                         <ul class="nav-second-level {{ request()->routeIs('attendances.*') ? 'mm-show' : '' }}">
-                            @can('read_attendance')
+                            @if ($canUseAttendanceModule)
                                 <li class="{{ request()->routeIs('attendances.workflow') ? 'mm-active' : '' }}">
                                     <a class="dropdown-item"
                                         href="{{ route('attendances.workflow') }}">{{ localize('attendance_workflow', 'Workflow វត្តមាន') }}</a>
@@ -58,10 +75,10 @@
                                             href="{{ route('attendances.missingAttendance') }}">{{ localize('missing_attendance') }}</a>
                                     </li>
                                 @endcan
-                            @endcan
+                            @endif
                         </ul>
                     </li>
-                @endcan
+                @endif
 
                 @can('read_award')
                     <li class="{{ request()->routeIs('award.*') ? 'mm-active' : '' }}">
@@ -80,16 +97,20 @@
 
                 @if (auth()->user()->can('read_department') || auth()->user()->can('read_positions') || auth()->user()->can('read_setup_rules'))
                     @php
+                        $showAdvancedGovernance = (bool) config('hr_governance.ui.show_advanced_central_governance', false);
                         $masterDataHrActive = request()->routeIs('departments.*')
                             || request()->routeIs('professional-skills.*')
                             || request()->routeIs('positions.*')
                             || request()->routeIs('pay-levels.*')
                             || request()->routeIs('salary-scales.*')
-                            || request()->routeIs('org-unit-type-positions.*')
-                            || request()->routeIs('user-org-roles.*')
-                            || request()->routeIs('workflow-policies.*')
-                            || request()->routeIs('org-role-module-permissions.*')
-                            || request()->routeIs('system-roles.*');
+                            || request()->routeIs('org-unit-type-positions.*');
+                        if ($showAdvancedGovernance) {
+                            $masterDataHrActive = $masterDataHrActive
+                                || request()->routeIs('user-org-roles.*')
+                                || request()->routeIs('workflow-policies.*')
+                                || request()->routeIs('org-role-module-permissions.*')
+                                || request()->routeIs('system-roles.*');
+                        }
                     @endphp
                     <li class="{{ $masterDataHrActive ? 'mm-active' : '' }}">
                         <a class="has-arrow material-ripple" href="#">
@@ -104,11 +125,14 @@
                                     </a>
                                 </li>
                                 @php
-                                    $orgStructureActive = request()->routeIs('org-unit-type-positions.*')
-                                        || request()->routeIs('user-org-roles.*')
-                                        || request()->routeIs('workflow-policies.*')
-                                        || request()->routeIs('org-role-module-permissions.*')
-                                        || request()->routeIs('system-roles.*');
+                                    $orgStructureActive = request()->routeIs('org-unit-type-positions.*');
+                                    if ($showAdvancedGovernance) {
+                                        $orgStructureActive = $orgStructureActive
+                                            || request()->routeIs('user-org-roles.*')
+                                            || request()->routeIs('workflow-policies.*')
+                                            || request()->routeIs('org-role-module-permissions.*')
+                                            || request()->routeIs('system-roles.*');
+                                    }
                                 @endphp
                                 <li class="{{ $orgStructureActive ? 'mm-active' : '' }}">
                                     <a class="dropdown-item" href="{{ route('org-unit-type-positions.index') }}">
@@ -248,7 +272,31 @@
                     </li>
                 @endcan
 
-                @canany(['read_correspondence_management'])
+                @php
+                    $canUseCorrespondenceModule = auth()->user()?->can('read_correspondence_management')
+                        || app(\Modules\HumanResource\Support\OrgRolePermissionService::class)->canUserPerform(
+                            auth()->user(),
+                            'correspondence',
+                            'print',
+                            null,
+                            []
+                        )
+                        || app(\Modules\HumanResource\Support\OrgRolePermissionService::class)->canUserPerform(
+                            auth()->user(),
+                            'correspondence',
+                            'create_incoming',
+                            null,
+                            []
+                        )
+                        || app(\Modules\HumanResource\Support\OrgRolePermissionService::class)->canUserPerform(
+                            auth()->user(),
+                            'correspondence',
+                            'create_outgoing',
+                            null,
+                            []
+                        );
+                @endphp
+                @if ($canUseCorrespondenceModule)
                     <li class="{{ request()->routeIs('correspondence.*') ? 'mm-active' : '' }}">
                         <a class="has-arrow material-ripple" href="#">
                             <i class="fa fa-envelope"></i>
@@ -269,7 +317,7 @@
                             </li>
                         </ul>
                     </li>
-                @endcanany
+                @endif
 
                 @canany(['read_pharmaceutical_management', 'read_pharm_medicines', 'read_pharm_distributions', 'read_pharm_stock', 'read_pharm_dispensings', 'read_pharm_reports', 'read_pharm_users'])
                     <li class="{{ request()->routeIs('pharmaceutical.*') ? 'mm-active' : '' }}">

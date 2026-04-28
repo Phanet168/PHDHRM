@@ -2,8 +2,10 @@
 
 namespace Modules\HumanResource\Services;
 
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Modules\HumanResource\Entities\ResponsibilityTemplate;
 use Modules\HumanResource\Entities\SystemRole;
 use Modules\HumanResource\Entities\UserAssignment;
 use Modules\HumanResource\Entities\UserOrgRole;
@@ -162,8 +164,34 @@ class GovernanceAssignmentService
 
     protected function normalizeCanonicalPayload(array $payload): array
     {
+        $userId = (int) ($payload['user_id'] ?? 0);
+        if ($userId <= 0) {
+            throw ValidationException::withMessages([
+                'user_id' => localize('user_required', 'User is required.'),
+            ]);
+        }
+
+        [$defaultDepartmentId, $defaultPositionId] = $this->resolveCurrentPlacementForUser($userId);
+
+        $templateId = (int) ($payload['responsibility_template_id'] ?? 0);
+        $template = null;
+        if ($templateId > 0) {
+            $template = ResponsibilityTemplate::query()
+                ->withoutGlobalScope('sortByLatest')
+                ->active()
+                ->find($templateId);
+
+            if (!$template) {
+                throw ValidationException::withMessages([
+                    'responsibility_template_id' => localize('template_not_found_or_inactive', 'Template not found or inactive.'),
+                ]);
+            }
+        }
+
         $responsibilityId = (int) ($payload['responsibility_id'] ?? 0);
-        if ($responsibilityId <= 0 && !empty($payload['responsibility_code'])) {
+        if ($template) {
+            $responsibilityId = (int) ($template->responsibility_id ?? 0);
+        } elseif ($responsibilityId <= 0 && !empty($payload['responsibility_code'])) {
             $responsibilityId = (int) (SystemRole::query()
                 ->where('code', trim((string) $payload['responsibility_code']))
                 ->value('id') ?? 0);
@@ -171,21 +199,36 @@ class GovernanceAssignmentService
 
         if ($responsibilityId <= 0) {
             throw ValidationException::withMessages([
-                'responsibility_id' => localize('responsibility_required', 'Responsibility is required.'),
+                'responsibility_template_id' => localize(
+                    'template_or_responsibility_required',
+                    'Responsibility template (or direct responsibility) is required.'
+                ),
             ]);
         }
 
-        $scope = $this->normalizeScope((string) ($payload['scope_type'] ?? UserAssignment::SCOPE_SELF_AND_CHILDREN));
+        $scopeSource = (string) ($payload['scope_type'] ?? ($template?->default_scope_type ?: UserAssignment::SCOPE_SELF_AND_CHILDREN));
+        $scope = $this->normalizeScope($scopeSource);
         if (!in_array($scope, UserAssignment::scopeOptions(), true)) {
             throw ValidationException::withMessages([
                 'scope_type' => localize('invalid_scope', 'Invalid scope type.'),
             ]);
         }
 
+        $departmentId = (int) ($payload['department_id'] ?? 0);
+        if ($departmentId <= 0) {
+            $departmentId = $defaultDepartmentId;
+        }
+
+        $positionId = !empty($payload['position_id']) ? (int) $payload['position_id'] : 0;
+        if ($positionId <= 0) {
+            $positionId = (int) ($template?->position_id ?: $defaultPositionId);
+        }
+
         $normalized = [
-            'user_id' => (int) ($payload['user_id'] ?? 0),
-            'department_id' => (int) ($payload['department_id'] ?? 0),
-            'position_id' => !empty($payload['position_id']) ? (int) $payload['position_id'] : null,
+            'user_id' => $userId,
+            'department_id' => $departmentId,
+            'position_id' => $positionId > 0 ? $positionId : null,
+            'responsibility_template_id' => $templateId > 0 ? $templateId : null,
             'responsibility_id' => $responsibilityId,
             'scope_type' => $scope,
             'is_primary' => (bool) ($payload['is_primary'] ?? false),
@@ -195,15 +238,12 @@ class GovernanceAssignmentService
             'note' => !empty($payload['note']) ? trim((string) $payload['note']) : null,
         ];
 
-        if ($normalized['user_id'] <= 0) {
-            throw ValidationException::withMessages([
-                'user_id' => localize('user_required', 'User is required.'),
-            ]);
-        }
-
         if ($normalized['department_id'] <= 0) {
             throw ValidationException::withMessages([
-                'department_id' => localize('department_required', 'Department is required.'),
+                'department_id' => localize(
+                    'department_required_or_set_placement',
+                    'Department is required. Please select department or ensure current placement exists.'
+                ),
             ]);
         }
 
@@ -225,6 +265,7 @@ class GovernanceAssignmentService
             'user_id' => (int) ($legacyPayload['user_id'] ?? ($legacyRecord?->user_id ?? 0)),
             'department_id' => (int) ($legacyPayload['department_id'] ?? ($legacyRecord?->department_id ?? 0)),
             'position_id' => null,
+            'responsibility_template_id' => null,
             'responsibility_id' => $responsibilityId,
             'scope_type' => $scope,
             'is_primary' => (bool) ($legacyPayload['is_primary'] ?? false),
@@ -371,5 +412,42 @@ class GovernanceAssignmentService
         $endB = $bTo ?: '9999-12-31';
 
         return $startA <= $endB && $startB <= $endA;
+    }
+
+    protected function resolveCurrentPlacementForUser(int $userId): array
+    {
+        if ($userId <= 0) {
+            return [0, 0];
+        }
+
+        $user = User::query()
+            ->withoutGlobalScope('sortByLatest')
+            ->with([
+                'employee:id,user_id,department_id,sub_department_id,position_id',
+                'employee.primaryUnitPosting' => function ($query): void {
+                    $query->select([
+                        'employee_unit_postings.id',
+                        'employee_unit_postings.employee_id',
+                        'employee_unit_postings.department_id',
+                        'employee_unit_postings.position_id',
+                    ]);
+                },
+            ])
+            ->find($userId, ['id']);
+
+        if (!$user || !$user->employee) {
+            return [0, 0];
+        }
+
+        $employee = $user->employee;
+        $departmentId = (int) ($employee->primaryUnitPosting?->department_id
+            ?: $employee->sub_department_id
+            ?: $employee->department_id
+            ?: 0);
+        $positionId = (int) ($employee->primaryUnitPosting?->position_id
+            ?: $employee->position_id
+            ?: 0);
+
+        return [$departmentId, $positionId];
     }
 }

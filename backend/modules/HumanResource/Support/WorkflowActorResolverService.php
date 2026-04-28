@@ -5,9 +5,11 @@ namespace Modules\HumanResource\Support;
 use App\Models\User;
 use Modules\HumanResource\Entities\Department;
 use Modules\HumanResource\Entities\Employee;
+use Modules\HumanResource\Entities\ResponsibilityTemplate;
 use Modules\HumanResource\Entities\SystemRole;
 use Modules\HumanResource\Entities\UserAssignment;
 use Modules\HumanResource\Entities\UserOrgRole;
+use Modules\HumanResource\Entities\WorkflowDefinition;
 use Modules\HumanResource\Entities\WorkflowDefinitionStep;
 use Spatie\Permission\Models\Role;
 
@@ -19,11 +21,12 @@ class WorkflowActorResolverService
 
     public function previewPlan(array $plan, array $context = []): array
     {
+        $moduleKey = $this->normalizeModuleKey((string) ($plan['module_key'] ?? ''));
         $steps = collect((array) ($plan['steps'] ?? []))
-            ->map(function (array $step) use ($context) {
+            ->map(function (array $step) use ($context, $moduleKey) {
                 $resolvedType = $this->resolveStepActorTypeFromArray($step);
                 $sourceDepartmentId = $this->resolveSourceDepartmentId($context);
-                $candidates = $this->resolveCandidatesFromArray($step, $resolvedType, $sourceDepartmentId);
+                $candidates = $this->resolveCandidatesFromArray($step, $resolvedType, $sourceDepartmentId, $moduleKey);
 
                 $step['resolved_actor_type'] = $resolvedType;
                 $step['resolution_priority'] = [
@@ -46,9 +49,25 @@ class WorkflowActorResolverService
         return $plan;
     }
 
-    public function canUserActOnStep(User $user, WorkflowDefinitionStep $step, int $sourceDepartmentId = 0): bool
+    public function canUserActOnStep(
+        User $user,
+        WorkflowDefinitionStep $step,
+        int $sourceDepartmentId = 0,
+        ?string $moduleKey = null
+    ): bool
     {
         $actorType = $step->getEffectiveActorType();
+        $moduleKey = $this->normalizeModuleKey(
+            $moduleKey
+                ?? ($step->relationLoaded('definition')
+                    ? (string) ($step->definition?->module_key ?? '')
+                    : '')
+        );
+        if ($moduleKey === '' && !empty($step->workflow_definition_id)) {
+            $moduleKey = $this->normalizeModuleKey((string) (WorkflowDefinition::query()
+                ->where('id', (int) $step->workflow_definition_id)
+                ->value('module_key') ?? ''));
+        }
 
         return match ($actorType) {
             WorkflowDefinitionStep::ACTOR_TYPE_SPECIFIC_USER
@@ -58,11 +77,12 @@ class WorkflowActorResolverService
                 => $this->userHasMatchingAssignment(
                     $user,
                     $sourceDepartmentId,
-                    static fn (UserAssignment $assignment): bool => (int) $assignment->position_id === (int) $step->actor_position_id
+                    static fn (UserAssignment $assignment): bool => (int) $assignment->position_id === (int) $step->actor_position_id,
+                    $moduleKey
                 ),
 
             WorkflowDefinitionStep::ACTOR_TYPE_RESPONSIBILITY
-                => $this->userHasResponsibilityForStep($user, $step, $sourceDepartmentId),
+                => $this->userHasResponsibilityForStep($user, $step, $sourceDepartmentId, $moduleKey),
 
             WorkflowDefinitionStep::ACTOR_TYPE_SPATIE_ROLE
                 => $this->userHasSpatieRole($user, (int) $step->actor_role_id),
@@ -89,7 +109,12 @@ class WorkflowActorResolverService
         return WorkflowDefinitionStep::ACTOR_TYPE_RESPONSIBILITY;
     }
 
-    protected function resolveCandidatesFromArray(array $step, string $resolvedType, int $sourceDepartmentId): array
+    protected function resolveCandidatesFromArray(
+        array $step,
+        string $resolvedType,
+        int $sourceDepartmentId,
+        string $moduleKey = ''
+    ): array
     {
         return match ($resolvedType) {
             WorkflowDefinitionStep::ACTOR_TYPE_SPECIFIC_USER
@@ -98,7 +123,8 @@ class WorkflowActorResolverService
             WorkflowDefinitionStep::ACTOR_TYPE_POSITION
                 => $this->assignmentCandidates(
                     $sourceDepartmentId,
-                    static fn (UserAssignment $assignment): bool => (int) $assignment->position_id === (int) ($step['actor_position_id'] ?? 0)
+                    static fn (UserAssignment $assignment): bool => (int) $assignment->position_id === (int) ($step['actor_position_id'] ?? 0),
+                    $moduleKey
                 ),
 
             WorkflowDefinitionStep::ACTOR_TYPE_RESPONSIBILITY
@@ -116,7 +142,8 @@ class WorkflowActorResolverService
                         }
 
                         return $responsibilityId > 0 && (int) $assignment->responsibility_id === $responsibilityId;
-                    }
+                    },
+                    $moduleKey
                 ),
 
             WorkflowDefinitionStep::ACTOR_TYPE_SPATIE_ROLE
@@ -148,8 +175,9 @@ class WorkflowActorResolverService
         ]];
     }
 
-    protected function assignmentCandidates(int $sourceDepartmentId, callable $predicate): array
+    protected function assignmentCandidates(int $sourceDepartmentId, callable $predicate, string $moduleKey = ''): array
     {
+        $moduleKey = $this->normalizeModuleKey($moduleKey);
         $assignments = UserAssignment::query()
             ->withoutGlobalScope('sortByLatest')
             ->with([
@@ -157,12 +185,17 @@ class WorkflowActorResolverService
                 'department:id,department_name,parent_id,unit_type_id',
                 'position:id,position_name,position_name_km',
                 'responsibility:id,code,name,name_km',
+                'responsibilityTemplate:id,module_key,template_key,name,name_km,is_active',
             ])
             ->effective()
             ->get();
 
         $results = [];
         foreach ($assignments as $assignment) {
+            if (!$this->canUseAssignmentForModule($assignment, $moduleKey)) {
+                continue;
+            }
+
             if (!$predicate($assignment)) {
                 continue;
             }
@@ -185,6 +218,9 @@ class WorkflowActorResolverService
                 'position_name' => (string) ($assignment->position->position_name_km ?: ($assignment->position->position_name ?? '')),
                 'responsibility_id' => (int) ($assignment->responsibility_id ?? 0),
                 'responsibility_code' => (string) ($assignment->responsibility->code ?? ''),
+                'template_id' => !empty($assignment->responsibility_template_id) ? (int) $assignment->responsibility_template_id : null,
+                'template_key' => (string) ($assignment->responsibilityTemplate?->template_key ?? ''),
+                'template_module_key' => (string) ($assignment->responsibilityTemplate?->module_key ?? ''),
                 'scope_type' => (string) $assignment->scope_type,
                 'is_primary' => (bool) $assignment->is_primary,
                 'source' => 'user_assignments',
@@ -247,15 +283,26 @@ class WorkflowActorResolverService
         return $filtered;
     }
 
-    protected function userHasMatchingAssignment(User $user, int $sourceDepartmentId, callable $predicate): bool
+    protected function userHasMatchingAssignment(
+        User $user,
+        int $sourceDepartmentId,
+        callable $predicate,
+        string $moduleKey = ''
+    ): bool
     {
+        $moduleKey = $this->normalizeModuleKey($moduleKey);
         $assignments = UserAssignment::query()
             ->withoutGlobalScope('sortByLatest')
             ->effective()
             ->where('user_id', (int) $user->id)
+            ->with('responsibilityTemplate:id,module_key,is_active')
             ->get();
 
         foreach ($assignments as $assignment) {
+            if (!$this->canUseAssignmentForModule($assignment, $moduleKey)) {
+                continue;
+            }
+
             if (!$predicate($assignment)) {
                 continue;
             }
@@ -268,7 +315,12 @@ class WorkflowActorResolverService
         return false;
     }
 
-    protected function userHasResponsibilityForStep(User $user, WorkflowDefinitionStep $step, int $sourceDepartmentId): bool
+    protected function userHasResponsibilityForStep(
+        User $user,
+        WorkflowDefinitionStep $step,
+        int $sourceDepartmentId,
+        string $moduleKey = ''
+    ): bool
     {
         $responsibilityId = (int) ($step->actor_responsibility_id ?: $step->system_role_id);
         if ($responsibilityId <= 0 && !empty($step->org_role)) {
@@ -281,7 +333,8 @@ class WorkflowActorResolverService
             $found = $this->userHasMatchingAssignment(
                 $user,
                 $sourceDepartmentId,
-                static fn (UserAssignment $assignment): bool => (int) $assignment->responsibility_id === $responsibilityId
+                static fn (UserAssignment $assignment): bool => (int) $assignment->responsibility_id === $responsibilityId,
+                $moduleKey
             );
             if ($found) {
                 return true;
@@ -441,5 +494,32 @@ class WorkflowActorResolverService
         }
 
         return (int) ($employee->department_id ?? 0);
+    }
+
+    protected function normalizeModuleKey(?string $moduleKey): string
+    {
+        return trim(mb_strtolower((string) $moduleKey));
+    }
+
+    protected function canUseAssignmentForModule(UserAssignment $assignment, string $moduleKey = ''): bool
+    {
+        $moduleKey = $this->normalizeModuleKey($moduleKey);
+        if ($moduleKey === '') {
+            return true;
+        }
+
+        /** @var ResponsibilityTemplate|null $template */
+        $template = $assignment->responsibilityTemplate;
+        if (!$template) {
+            // Legacy assignment without template remains valid during migration period.
+            return true;
+        }
+
+        if (!(bool) $template->is_active) {
+            return false;
+        }
+
+        $templateModule = $this->normalizeModuleKey((string) ($template->module_key ?? ''));
+        return in_array($templateModule, ['', '*', 'all', $moduleKey], true);
     }
 }

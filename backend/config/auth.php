@@ -20,6 +20,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Public Registration
+    |--------------------------------------------------------------------------
+    |
+    | Set AUTH_ALLOW_PUBLIC_REGISTRATION=true only if your project requires
+    | end-users to self-register from the public web form.
+    |
+    */
+    'allow_public_registration' => (bool) env('AUTH_ALLOW_PUBLIC_REGISTRATION', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Authentication Guards
     |--------------------------------------------------------------------------
     |

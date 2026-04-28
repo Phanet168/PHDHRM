@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../auth/models/auth_user.dart';
 import '../models/leave_request_models.dart';
 import '../services/home_leave_service.dart';
@@ -60,16 +61,14 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
         _requests = results[2] as List<LeaveRequestItem>;
       });
     } catch (e) {
-      if (mounted) _showError(e.toString());
+      if (mounted) _showError(e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _showError(String message) {
-    final msg = message
-        .replaceAll('ApiException(statusCode: null, message: ', '')
-        .replaceAll(')', '');
+  void _showError(Object error) {
+    final msg = extractApiErrorMessage(error);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: const Color(0xFFEF4444)),
     );
@@ -333,13 +332,16 @@ class _BalanceSummaryCard extends StatelessWidget {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: <Widget>[
-                        Text(
-                          '\$totalRemaining',
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
-                            color: Color(0xFF0B6B58),
-                            height: 1.1,
+                        Flexible(
+                          child: Text(
+                            '$totalRemaining',
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF0B6B58),
+                              height: 1.1,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 4),
@@ -369,7 +371,7 @@ class _BalanceSummaryCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
-                  '\${DateTime.now().year}',
+                  '${DateTime.now().year}',
                   style: const TextStyle(
                     color: Color(0xFF10B981),
                     fontWeight: FontWeight.w700,
@@ -455,20 +457,26 @@ class _LeaveBalanceCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              Text(
-                '\${item.used}/\${item.total}',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[600],
+              Flexible(
+                child: Text(
+                  '${item.used}/${item.total}',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[600],
+                  ),
                 ),
               ),
-              Text(
-                'នៅសល់ \${item.remaining}',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: item.accent,
+              Flexible(
+                child: Text(
+                  'នៅសល់ ${item.remaining}',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: item.accent,
+                  ),
                 ),
               ),
             ],
@@ -539,7 +547,7 @@ class _LeaveRequestCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '\${request.startDate}  →  \${request.endDate}',
+                  '${request.startDate}  →  ${request.endDate}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF64748B),
@@ -547,7 +555,7 @@ class _LeaveRequestCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '\${request.requestedDays} ថ្ងៃ',
+                  '${request.requestedDays} ថ្ងៃ',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,

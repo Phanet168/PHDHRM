@@ -66,4 +66,9 @@ class Position extends Model
     {
         return $this->hasMany(UserAssignment::class, 'position_id', 'id');
     }
+
+    public function responsibilityTemplates()
+    {
+        return $this->hasMany(ResponsibilityTemplate::class, 'position_id', 'id');
+    }
 }

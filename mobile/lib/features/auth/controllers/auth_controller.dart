@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/network/api_exception.dart';
@@ -16,7 +18,8 @@ class AuthController extends ChangeNotifier {
     DeviceHeartbeatService? deviceHeartbeatService,
   }) : _authService = authService ?? AuthService(),
        _tokenStorageService = tokenStorageService ?? TokenStorageService(),
-       _deviceHeartbeatService = deviceHeartbeatService ?? DeviceHeartbeatService();
+       _deviceHeartbeatService =
+           deviceHeartbeatService ?? DeviceHeartbeatService();
 
   final AuthService _authService;
   final TokenStorageService _tokenStorageService;
@@ -37,16 +40,21 @@ class AuthController extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final token = await _tokenStorageService.readToken();
-    if (token == null || token.isEmpty) {
-      _status = AuthStatus.unauthenticated;
-      _deviceHeartbeatService.stop();
-      notifyListeners();
-      return;
-    }
-
     try {
-      final user = await _authService.getCurrentUser();
+      final token =await _tokenStorageService.readToken().timeout(
+        const Duration(seconds: 4),
+      );
+      if (token == null || token.isEmpty) {
+        _currentUser = null;
+        _status = AuthStatus.unauthenticated;
+        _deviceHeartbeatService.stop();
+        notifyListeners();
+        return;
+      }
+
+      final user = await _authService.getCurrentUser().timeout(
+        const Duration(seconds: 15),
+      );
       if (user == null) {
         await _tokenStorageService.clearToken();
         _currentUser = null;
@@ -55,14 +63,38 @@ class AuthController extends ChangeNotifier {
       } else {
         _currentUser = user;
         _status = AuthStatus.authenticated;
-        await _deviceHeartbeatService.start();
+        unawaited(_deviceHeartbeatService.start());
       }
     } on ApiException catch (error) {
-      await _tokenStorageService.clearToken();
+      if (error is NetworkException || isNetworkErrorMessage(error.message)) {
+        _currentUser = null;
+        _status = AuthStatus.unauthenticated;
+        _errorMessage = null;
+        _deviceHeartbeatService.stop();
+      } else {
+        await _tokenStorageService.clearToken();
+        _currentUser = null;
+        _status = AuthStatus.unauthenticated;
+        _errorMessage = error.message;
+        _deviceHeartbeatService.stop();
+      }
+    } on TimeoutException {
       _currentUser = null;
       _status = AuthStatus.unauthenticated;
-      _errorMessage = error.message;
+      _errorMessage = null;
       _deviceHeartbeatService.stop();
+    } catch (error) {
+      if (isNetworkErrorMessage(error.toString())) {
+        _currentUser = null;
+        _status = AuthStatus.unauthenticated;
+        _errorMessage = null;
+        _deviceHeartbeatService.stop();
+      } else {
+        _currentUser = null;
+        _status = AuthStatus.unauthenticated;
+        _errorMessage = extractApiErrorMessage(error);
+        _deviceHeartbeatService.stop();
+      }
     }
 
     notifyListeners();
@@ -80,14 +112,18 @@ class AuthController extends ChangeNotifier {
 
       _currentUser = response.user;
       _status = AuthStatus.authenticated;
-      await _deviceHeartbeatService.start();
+      unawaited(_deviceHeartbeatService.start());
       return true;
     } on ApiException catch (error) {
-      _errorMessage = error.message;
+      _errorMessage = extractApiErrorMessage(error);
       _deviceHeartbeatService.stop();
       return false;
     } on FormatException catch (error) {
       _errorMessage = error.message;
+      _deviceHeartbeatService.stop();
+      return false;
+    } catch (error) {
+      _errorMessage = extractApiErrorMessage(error);
       _deviceHeartbeatService.stop();
       return false;
     } finally {

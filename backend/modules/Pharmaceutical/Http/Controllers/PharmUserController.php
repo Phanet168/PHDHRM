@@ -18,7 +18,10 @@ class PharmUserController extends Controller
     private function canManageUsers(): bool
     {
         $user = Auth::user();
-        return $user && (int) $user->user_type_id === 1;
+        return (bool) ($user && (
+            (int) $user->user_type_id === 1
+            || (method_exists($user, 'hasRole') && $user->hasRole('Super Admin'))
+        ));
     }
 
     /**
@@ -37,7 +40,7 @@ class PharmUserController extends Controller
         $query = UserOrgRole::withoutGlobalScopes()
             ->whereNull('deleted_at')
             ->whereIn('department_id', $pharmDeptIds)
-            ->with(['user', 'department']);
+            ->with(['user', 'department', 'systemRole']);
 
         if ($filterDept > 0) {
             $query->where('department_id', $filterDept);
@@ -64,6 +67,7 @@ class PharmUserController extends Controller
         return view('pharmaceutical::users.index', [
             'roles' => $roles,
             'departments' => $departments,
+            'roleLabels' => UserOrgRole::roleLabels(),
             'search' => $search,
             'filterDept' => $filterDept,
             'level' => $level,
@@ -88,6 +92,7 @@ class PharmUserController extends Controller
         return view('pharmaceutical::users.create', [
             'departments' => $departments,
             'orgRoles' => UserOrgRole::roleOptions(),
+            'roleLabels' => UserOrgRole::roleLabels(),
             'scopeOptions' => UserOrgRole::scopeOptions(),
             'level' => $level,
         ]);
@@ -127,6 +132,7 @@ class PharmUserController extends Controller
             'user_id'       => (int) $validated['user_id'],
             'department_id' => (int) $validated['department_id'],
             'org_role'      => $validated['org_role'],
+            'system_role_id' => UserOrgRole::resolveSystemRoleIdByCode((string) $validated['org_role']),
             'scope_type'    => $validated['scope_type'],
             'is_active'     => true,
             'effective_from' => now()->toDateString(),

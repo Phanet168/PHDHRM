@@ -128,13 +128,6 @@
     <div class="body-content">
         @include('correspondence::_nav')
 
-        @if (($level ?? 'unknown') === 'unknown')
-            <div class="alert alert-warning">
-                <i class="fa fa-exclamation-triangle"></i>
-                {{ localize('no_org_role_assigned', 'អ្នកមិនទាន់មានតួនាទីតាមអង្គភាព។ សូមទាក់ទងអ្នកគ្រប់គ្រងប្រព័ន្ធ។') }}
-            </div>
-        @endif
-
         <div class="card corr-card mb-3">
             <div class="card-body py-2">
                 <form method="GET" class="row g-2 align-items-end">

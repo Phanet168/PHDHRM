@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../auth/models/auth_user.dart';
 import '../models/leave_request_models.dart';
 import '../services/home_leave_service.dart';
@@ -85,10 +86,7 @@ class _LeaveDetailPageState extends State<LeaveDetailPage> {
       Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        final msg = e
-            .toString()
-            .replaceAll('ApiException(statusCode: null, message: ', '')
-            .replaceAll(')', '');
+        final msg = extractApiErrorMessage(e);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(msg),

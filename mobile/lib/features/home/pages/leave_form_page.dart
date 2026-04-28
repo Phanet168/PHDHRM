@@ -1,6 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
+import '../../../core/network/api_exception.dart';
 import '../../auth/models/auth_user.dart';
 import '../models/leave_request_models.dart';
 import '../services/home_leave_service.dart';
@@ -45,15 +46,6 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
   String _tr(String key, String fallback) {
     final v = widget.language[key]?.trim();
     return (v == null || v.isEmpty) ? fallback : v;
-  }
-
-  LeaveTypeOption? get _selectedType {
-    if (_selectedTypeId == null) return null;
-    try {
-      return widget.types.firstWhere((t) => t.id == _selectedTypeId);
-    } catch (_) {
-      return null;
-    }
   }
 
   LeaveBalanceItem? get _selectedBalance {
@@ -130,7 +122,7 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
   // ── Attachment ─────────────────────────────────────────────────────────────
 
   Future<void> _pickAttachment() async {
-    final result = await FilePicker.platform.pickFiles(withData: true);
+    final result = await FilePicker.platform.pickFiles(withData: false);
     if (result == null || result.files.isEmpty) return;
     setState(() => _attachment = result.files.first);
   }
@@ -146,10 +138,11 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
       return;
     }
     if (_startDate == null || _endDate == null) {
-      _showMsg('សូមជ្រើសកាលបរិច្ឆេទ', isError: true);
+      _showMsg('សូមជ្រើសថ្ងៃ', isError: true);
       return;
     }
     final reason = _reasonController.text.trim();
+    final note = _noteController.text.trim();
     if (reason.isEmpty) {
       _showMsg(_tr('leave_reason', 'សូមបញ្ចូលមូលហេតុ'), isError: true);
       return;
@@ -163,6 +156,7 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
         startDate: _startDate!,
         endDate: _endDate!,
         reason: reason,
+        note: note.isEmpty ? null : note,
         attachmentPath: _attachment?.path,
         attachmentBytes: _attachment?.bytes,
         attachmentName: _attachment?.name,
@@ -171,19 +165,16 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
       _showMsg('សំណើច្បាប់ត្រូវបានបញ្ជូនរួចរាល់');
       Navigator.of(context).pop(true);
     } catch (e) {
-      if (mounted) _showMsg(e.toString(), isError: true);
+      if (mounted) _showMsg(extractApiErrorMessage(e), isError: true);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
   void _showMsg(String msg, {bool isError = false}) {
-    final clean = msg
-        .replaceAll('ApiException(statusCode: null, message: ', '')
-        .replaceAll(')', '');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(clean),
+        content: Text(msg),
         backgroundColor:
             isError ? const Color(0xFFEF4444) : const Color(0xFF10B981),
       ),
@@ -212,190 +203,205 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
           child: Container(height: 1, color: const Color(0xFFF0F0F0)),
         ),
       ),
-      body: widget.types.isEmpty
-          ? _buildNoTypes()
-          : Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-                children: <Widget>[
-                  // Leave type selector
-                  _SectionCard(
-                    title: 'ប្រភេទច្បាប់',
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        _DropdownField<int>(
-                          hint: 'ជ្រើសប្រភេទច្បាប់',
-                          value: _selectedTypeId,
-                          items: widget.types
-                              .map(
-                                (t) => DropdownMenuItem<int>(
-                                  value: t.id,
-                                  child:
-                                      Text(t.displayName(widget.language)),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: _submitting
-                              ? null
-                              : (v) => setState(() => _selectedTypeId = v),
-                        ),
-                        if (_selectedBalance != null) ...<Widget>[
-                          const SizedBox(height: 10),
-                          _BalancePill(balance: _selectedBalance!),
+      body:
+          widget.types.isEmpty
+              ? _buildNoTypes()
+              : Form(
+                key: _formKey,
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+                  children: <Widget>[
+                    // Leave type selector
+                    _SectionCard(
+                      title: 'ប្រភេទច្បាប់',
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          _DropdownField<int>(
+                            hint: 'ជ្រើសប្រភេទច្បាប់',
+                            value: _selectedTypeId,
+                            items:
+                                widget.types
+                                    .map(
+                                      (t) => DropdownMenuItem<int>(
+                                        value: t.id,
+                                        child: Text(
+                                          t.displayName(widget.language),
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                            onChanged:
+                                _submitting
+                                    ? null
+                                    : (v) =>
+                                        setState(() => _selectedTypeId = v),
+                          ),
+                          if (_selectedBalance != null) ...<Widget>[
+                            const SizedBox(height: 10),
+                            _BalancePill(balance: _selectedBalance!),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-                  // Date range
-                  _SectionCard(
-                    title: 'រយៈពេលច្បាប់',
-                    child: Column(
-                      children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            Expanded(
-                              child: _DatePickerTile(
-                                label: 'ថ្ងៃចាប់ផ្តើម',
-                                value: _fmt(_startDate),
-                                hasValue: _startDate != null,
-                                onTap: _submitting ? null : _pickStart,
+                    // Date range
+                    _SectionCard(
+                      title: 'រយៈពេលច្បាប់',
+                      child: Column(
+                        children: <Widget>[
+                          Row(
+                            children: <Widget>[
+                              Expanded(
+                                child: _DatePickerTile(
+                                  label: 'ថ្ងៃចាប់ផ្តើម',
+                                  value: _fmt(_startDate),
+                                  hasValue: _startDate != null,
+                                  onTap: _submitting ? null : _pickStart,
+                                ),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8),
-                              child: Icon(Icons.arrow_forward_rounded,
-                                  size: 18, color: Colors.grey[400]),
-                            ),
-                            Expanded(
-                              child: _DatePickerTile(
-                                label: 'ថ្ងៃបញ្ចប់',
-                                value: _fmt(_endDate),
-                                hasValue: _endDate != null,
-                                onTap: _submitting ? null : _pickEnd,
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                child: Icon(
+                                  Icons.arrow_forward_rounded,
+                                  size: 18,
+                                  color: Colors.grey[400],
+                                ),
                               ),
+                              Expanded(
+                                child: _DatePickerTile(
+                                  label: 'ថ្ងៃបញ្ចប់',
+                                  value: _fmt(_endDate),
+                                  hasValue: _endDate != null,
+                                  onTap: _submitting ? null : _pickEnd,
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_startDate != null &&
+                              _endDate != null) ...<Widget>[
+                            const SizedBox(height: 10),
+                            _DayCountBanner(
+                              days: _dayCount,
+                              exceeds: _exceedsBalance,
+                              remaining: _selectedBalance?.remaining,
                             ),
                           ],
-                        ),
-                        if (_startDate != null && _endDate != null) ...<Widget>[
-                          const SizedBox(height: 10),
-                          _DayCountBanner(
-                            days: _dayCount,
-                            exceeds: _exceedsBalance,
-                            remaining: _selectedBalance?.remaining,
-                          ),
                         ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Reason
-                  _SectionCard(
-                    title: 'មូលហេតុ',
-                    child: TextFormField(
-                      controller: _reasonController,
-                      enabled: !_submitting,
-                      minLines: 3,
-                      maxLines: 5,
-                      validator: (v) =>
-                          (v == null || v.trim().isEmpty) ? 'សូមបញ្ចូលមូលហេតុ' : null,
-                      decoration: _inputDeco(
-                        hint: 'បញ្ចូលមូលហេតុ / ការពន្យល់ ...',
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-                  // Attachment
-                  _SectionCard(
-                    title: 'ឯកសារភ្ជាប់ (ស្រេចចិត្ត)',
-                    child: _AttachmentPicker(
-                      file: _attachment,
-                      disabled: _submitting,
-                      onPick: _pickAttachment,
-                      onClear: () => setState(() => _attachment = null),
+                    // Reason
+                    _SectionCard(
+                      title: 'មូលហេតុ',
+                      child: TextFormField(
+                        controller: _reasonController,
+                        enabled: !_submitting,
+                        minLines: 3,
+                        maxLines: 5,
+                        validator:
+                            (v) =>
+                                (v == null || v.trim().isEmpty)
+                                    ? 'សូមបញ្ចូលមូលហេតុ'
+                                    : null,
+                        decoration: _inputDeco(
+                          hint: 'បញ្ចូលមូលហេតុ / ការពន្យល់ ...',
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
+                    const SizedBox(height: 12),
 
-                  // Note
-                  _SectionCard(
-                    title: 'កំណត់សម្គាល់ (ស្រេចចិត្ត)',
-                    child: TextFormField(
-                      controller: _noteController,
-                      enabled: !_submitting,
-                      minLines: 2,
-                      maxLines: 4,
-                      decoration: _inputDeco(hint: 'កំណត់ចំណាំបន្ថែម ...'),
+                    // Attachment
+                    _SectionCard(
+                      title: 'ឯកសារភ្ជាប់ (ឯកលក្ខណ៍)',
+                      child: _AttachmentPicker(
+                        file: _attachment,
+                        disabled: _submitting,
+                        onPick: _pickAttachment,
+                        onClear: () => setState(() => _attachment = null),
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+
+                    // Note
+                    _SectionCard(
+                      title: 'កំណត់សម្គាល់ (ឯកលក្ខណ៍)',
+                      child: TextFormField(
+                        controller: _noteController,
+                        enabled: !_submitting,
+                        minLines: 2,
+                        maxLines: 4,
+                        decoration: _inputDeco(hint: 'កំណត់ចំណាំបន្ថែម ...'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
 
       // ── Action bar ──────────────────────────────────────────────────────
-      bottomNavigationBar: widget.types.isEmpty
-          ? null
-          : Container(
-              padding: EdgeInsets.fromLTRB(
-                16,
-                12,
-                16,
-                12 + MediaQuery.of(context).padding.bottom,
-              ),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: Color(0x10000000),
-                    blurRadius: 12,
-                    offset: Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: SizedBox(
-                      height: 50,
-                      child: ElevatedButton.icon(
-                        onPressed: _submitting ? null : _submit,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF0B6B58),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(13),
+      bottomNavigationBar:
+          widget.types.isEmpty
+              ? null
+              : Container(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  12,
+                  16,
+                  12 + MediaQuery.of(context).padding.bottom,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: Color(0x10000000),
+                      blurRadius: 12,
+                      offset: Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: SizedBox(
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed: _submitting ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF0B6B58),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            elevation: 0,
                           ),
-                          elevation: 0,
-                        ),
-                        icon: _submitting
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.send_rounded, size: 18),
-                        label: Text(
-                          _submitting ? 'កំពុងដាក់...' : 'ដាក់សំណើ',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
+                          icon:
+                              _submitting
+                                  ? const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                  : const Icon(Icons.send_rounded, size: 18),
+                          label: Text(
+                            _submitting ? 'កំពុងដាក់...' : 'ដាក់សំណើ',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
     );
   }
 
@@ -406,10 +412,7 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
         children: <Widget>[
           Icon(Icons.event_busy_outlined, size: 56, color: Colors.grey[300]),
           const SizedBox(height: 12),
-          Text(
-            'មិនមានប្រភេទច្បាប់',
-            style: TextStyle(color: Colors.grey[500]),
-          ),
+          Text('មិនមានប្រភេទច្បាប់', style: TextStyle(color: Colors.grey[500])),
         ],
       ),
     );
@@ -489,8 +492,10 @@ class _DropdownField<T> extends StatelessWidget {
       onChanged: onChanged,
       decoration: InputDecoration(
         hintText: hint,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
@@ -501,8 +506,7 @@ class _DropdownField<T> extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide:
-              const BorderSide(color: Color(0xFF0B6B58), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF0B6B58), width: 1.5),
         ),
         filled: true,
         fillColor: const Color(0xFFF8FAFC),
@@ -532,7 +536,7 @@ class _BalancePill extends StatelessWidget {
           Icon(Icons.info_outline_rounded, size: 14, color: color),
           const SizedBox(width: 6),
           Text(
-            'នៅសល់ $rem ថ្ងៃ  (ប្រើ ${balance.used}/${balance.entitlement})',
+            'នៅសល់ $rem ថ្ងៃ  (ប្រើប្រាស់ ${balance.used}/${balance.entitlement})',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -563,15 +567,15 @@ class _DatePickerTile extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
           color: const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: hasValue
-                ? const Color(0xFF0B6B58).withValues(alpha: 0.5)
-                : const Color(0xFFE2E8F0),
+            color:
+                hasValue
+                    ? const Color(0xFF0B6B58).withValues(alpha: 0.5)
+                    : const Color(0xFFE2E8F0),
           ),
         ),
         child: Column(
@@ -591,9 +595,10 @@ class _DatePickerTile extends StatelessWidget {
                 Icon(
                   Icons.calendar_today_outlined,
                   size: 13,
-                  color: hasValue
-                      ? const Color(0xFF0B6B58)
-                      : const Color(0xFF94A3B8),
+                  color:
+                      hasValue
+                          ? const Color(0xFF0B6B58)
+                          : const Color(0xFF94A3B8),
                 ),
                 const SizedBox(width: 5),
                 Expanded(
@@ -602,9 +607,10 @@ class _DatePickerTile extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: hasValue
-                          ? const Color(0xFF0F172A)
-                          : const Color(0xFFCBD5E1),
+                      color:
+                          hasValue
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFFCBD5E1),
                     ),
                   ),
                 ),
@@ -630,8 +636,7 @@ class _DayCountBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        exceeds ? const Color(0xFFEF4444) : const Color(0xFF0B6B58);
+    final color = exceeds ? const Color(0xFFEF4444) : const Color(0xFF0B6B58);
     final bg = color.withValues(alpha: 0.07);
 
     return Container(
@@ -703,12 +708,16 @@ class _AttachmentPicker extends StatelessWidget {
           color: const Color(0xFFECFDF5),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-              color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+            color: const Color(0xFF10B981).withValues(alpha: 0.3),
+          ),
         ),
         child: Row(
           children: <Widget>[
-            const Icon(Icons.attach_file_rounded,
-                size: 18, color: Color(0xFF10B981)),
+            const Icon(
+              Icons.attach_file_rounded,
+              size: 18,
+              color: Color(0xFF10B981),
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -723,8 +732,11 @@ class _AttachmentPicker extends StatelessWidget {
             ),
             GestureDetector(
               onTap: disabled ? null : onClear,
-              child: const Icon(Icons.close_rounded,
-                  size: 18, color: Color(0xFF9CA3AF)),
+              child: const Icon(
+                Icons.close_rounded,
+                size: 18,
+                color: Color(0xFF9CA3AF),
+              ),
             ),
           ],
         ),
@@ -746,8 +758,7 @@ class _AttachmentPicker extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Icon(Icons.upload_file_outlined,
-                size: 20, color: Colors.grey[400]),
+            Icon(Icons.upload_file_outlined, size: 20, color: Colors.grey[400]),
             const SizedBox(width: 8),
             Text(
               'ជ្រើសឯកសារ',

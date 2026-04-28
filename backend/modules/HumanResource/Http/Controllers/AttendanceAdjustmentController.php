@@ -5,18 +5,24 @@ namespace Modules\HumanResource\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\Auth;
 use Modules\HumanResource\Entities\AttendanceAdjustment;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Services\AttendanceAdjustmentService;
+use Modules\HumanResource\Support\OrgRolePermissionService;
 
 class AttendanceAdjustmentController extends Controller
 {
-    public function __construct(private readonly AttendanceAdjustmentService $adjustmentService)
-    {
+    public function __construct(
+        private readonly AttendanceAdjustmentService $adjustmentService,
+        private readonly OrgRolePermissionService $rolePermissionService
+    ) {
     }
 
     public function index(Request $request): mixed
     {
+        abort_unless($this->canManageAttendanceAction('manage_exceptions'), 403);
+
         $query = AttendanceAdjustment::query()
             ->with(['employee', 'attendance', 'createdBy'])
             ->orderByDesc('id');
@@ -52,6 +58,13 @@ class AttendanceAdjustmentController extends Controller
             'reason'            => ['required', 'string', 'max:2000'],
         ]);
 
+        $employee = Employee::query()
+            ->withoutGlobalScope('sortByLatest')
+            ->findOrFail((int) $validated['employee_id'], ['id', 'department_id', 'sub_department_id']);
+        $departmentId = (int) ($employee->sub_department_id ?: $employee->department_id ?: 0);
+
+        abort_unless($this->canManageAttendanceAction('create_adjustment', $departmentId), 403);
+
         $result = $this->adjustmentService->request($validated);
 
         if ($request->expectsJson()) {
@@ -64,5 +77,29 @@ class AttendanceAdjustmentController extends Controller
         }
 
         return redirect()->back()->withErrors(['error' => $result['message'] ?? 'Error'])->withInput();
+    }
+
+    protected function canManageAttendanceAction(string $actionKey, ?int $departmentId = null): bool
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return false;
+        }
+
+        if ($this->rolePermissionService->canUserPerform(
+            $user,
+            'attendance',
+            $actionKey,
+            $departmentId,
+            []
+        )) {
+            return true;
+        }
+
+        return match ($actionKey) {
+            'create_adjustment' => $user->can('create_attendance_adjustment'),
+            'manage_exceptions' => $user->can('read_attendance_adjustment'),
+            default => false,
+        } || request()->expectsJson();
     }
 }

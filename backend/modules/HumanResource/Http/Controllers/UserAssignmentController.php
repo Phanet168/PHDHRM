@@ -13,19 +13,24 @@ use Modules\HumanResource\Entities\UserAssignment;
 use Modules\HumanResource\Http\Requests\StoreUserAssignmentRequest;
 use Modules\HumanResource\Http\Requests\UpdateUserAssignmentRequest;
 use Modules\HumanResource\Services\GovernanceAssignmentService;
+use Modules\HumanResource\Services\ResponsibilityTemplateService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
 
 class UserAssignmentController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:read_org_governance|read_department')->only(['index', 'userOptions']);
+        $this->middleware('permission:read_org_governance|read_department')->only(['index', 'userOptions', 'userPlacement']);
         $this->middleware('permission:create_org_governance|create_department')->only(['store']);
         $this->middleware('permission:update_org_governance|update_department')->only(['update']);
         $this->middleware('permission:delete_org_governance|delete_department')->only(['destroy']);
     }
 
-    public function index(Request $request, OrgUnitRuleService $orgUnitRuleService)
+    public function index(
+        Request $request,
+        OrgUnitRuleService $orgUnitRuleService,
+        ResponsibilityTemplateService $templateService
+    )
     {
         $selectedUserId = (int) $request->integer('user_id');
         $selectedStatus = (string) $request->query('is_active', '');
@@ -36,6 +41,7 @@ class UserAssignmentController extends Controller
                 'user:id,full_name,email',
                 'department:id,department_name',
                 'position:id,position_name,position_name_km',
+                'responsibilityTemplate:id,module_key,template_key,name,name_km,responsibility_id',
                 'responsibility:id,code,name,name_km',
                 'legacyOrgRole:id,user_assignment_id,user_id,department_id,org_role,system_role_id,scope_type,is_active',
             ]);
@@ -65,6 +71,13 @@ class UserAssignmentController extends Controller
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get(['id', 'code', 'name', 'name_km']);
+        $templateGroups = $templateService->groupedOptions();
+        $templateModuleOptions = collect($templateService->moduleOptions())
+            ->merge(array_keys($templateGroups))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
 
         $selectedUser = null;
         if ($selectedUserId > 0) {
@@ -88,6 +101,8 @@ class UserAssignmentController extends Controller
             'departments' => $departments,
             'positions' => $positions,
             'responsibilities' => $responsibilities,
+            'template_groups' => $templateGroups,
+            'template_module_options' => $templateModuleOptions,
             'scope_options' => UserAssignment::scopeOptions(),
             'scope_labels' => $this->scopeLabels(),
             'selected_user_id' => $selectedUserId,
@@ -140,6 +155,45 @@ class UserAssignmentController extends Controller
             'pagination' => [
                 'more' => ($page * $perPage) < $total,
             ],
+        ]);
+    }
+
+    public function userPlacement(User $user): JsonResponse
+    {
+        $user = User::query()
+            ->withoutGlobalScope('sortByLatest')
+            ->with([
+                'employee:id,user_id,department_id,sub_department_id,position_id',
+                'employee.primaryUnitPosting' => function ($query): void {
+                    $query->select([
+                        'employee_unit_postings.id',
+                        'employee_unit_postings.employee_id',
+                        'employee_unit_postings.department_id',
+                        'employee_unit_postings.position_id',
+                    ]);
+                },
+            ])
+            ->find((int) $user->id, ['id']);
+
+        if (!$user || !$user->employee) {
+            return response()->json([
+                'department_id' => null,
+                'position_id' => null,
+            ]);
+        }
+
+        $employee = $user->employee;
+        $departmentId = (int) ($employee->primaryUnitPosting?->department_id
+            ?: $employee->sub_department_id
+            ?: $employee->department_id
+            ?: 0);
+        $positionId = (int) ($employee->primaryUnitPosting?->position_id
+            ?: $employee->position_id
+            ?: 0);
+
+        return response()->json([
+            'department_id' => $departmentId > 0 ? $departmentId : null,
+            'position_id' => $positionId > 0 ? $positionId : null,
         ]);
     }
 

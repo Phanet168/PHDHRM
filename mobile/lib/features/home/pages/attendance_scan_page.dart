@@ -29,7 +29,6 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
     with WidgetsBindingObserver {
   late final MobileScannerController _scannerController;
   bool _isSubmitting = false;
-  bool _isPreviewing = false;
   bool _torchEnabled = false;
   String _statusMessage = '';
   Color _statusColor = const Color(0xFF0B6B58);
@@ -85,7 +84,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {
-    if (_isSubmitting || _isPreviewing) {
+    if (_isSubmitting) {
       return;
     }
 
@@ -152,11 +151,6 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
           errorCode: 'invalid_qr_data',
         ),
       );
-      return;
-    }
-
-    final shouldSubmit = await _confirmPunchPreview();
-    if (!shouldSubmit || !mounted) {
       return;
     }
 
@@ -588,91 +582,4 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
     await _submitAttendance(token);
   }
 
-  Future<bool> _confirmPunchPreview() async {
-    setState(() {
-      _isPreviewing = true;
-    });
-
-    try {
-      final punchType = await widget.attendanceService
-          .predictNextPunchType(widget.user)
-          .timeout(const Duration(seconds: 2), onTimeout: () => 'in');
-      if (!mounted) {
-        return false;
-      }
-
-      final normalized = punchType.trim().toLowerCase();
-      final isIn = normalized == 'in';
-      final label = isIn ? _tr('time_in', 'IN') : _tr('time_out', 'OUT');
-
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: Text(_tr('punch_preview', 'Punch Preview')),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _tr(
-                    'punch_preview_desc',
-                    'The next attendance action is estimated as:',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        isIn
-                            ? const Color(0xFFE9F4F1)
-                            : const Color(0xFFFFF1E5),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color:
-                          isIn
-                              ? const Color(0xFFCDE4DB)
-                              : const Color(0xFFF0D8B6),
-                    ),
-                  ),
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color:
-                          isIn
-                              ? const Color(0xFF0B6B58)
-                              : const Color(0xFFA85C00),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: Text(_tr('cancel', 'Cancel')),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text(_tr('confirm', 'Confirm')),
-              ),
-            ],
-          );
-        },
-      );
-
-      return confirmed == true;
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isPreviewing = false;
-        });
-      }
-    }
-  }
 }

@@ -42,6 +42,19 @@
                 'label' => (string) $item->name,
             ];
         })->values();
+        $users = collect($users ?? [])->map(function ($item) {
+            $fullName = trim((string) ($item->full_name ?? ''));
+            $email = trim((string) ($item->email ?? ''));
+            $label = $fullName !== '' ? $fullName : ('ID: ' . (int) $item->id);
+            if ($email !== '') {
+                $label .= ' (' . $email . ')';
+            }
+
+            return [
+                'id' => (int) $item->id,
+                'label' => $label,
+            ];
+        })->values();
     @endphp
 
     <div class="card mb-4 fixed-tab-body">
@@ -248,6 +261,15 @@
                         @csrf
                         <input type="hidden" id="workflow-policy-form-method" name="_method" value="POST">
                         <div class="modal-body">
+                            <div class="alert alert-light border py-2 px-3 mb-3">
+                                <div class="fw-semibold mb-1">{{ localize('workflow_form_quick_help_title', 'របៀបបំពេញ (ងាយយល់)') }}</div>
+                                <div class="small text-muted">
+                                    1) {{ localize('workflow_form_quick_help_1', 'ជ្រើស ម៉ូឌុល + ប្រភេទសំណើ') }}
+                                    &nbsp;->&nbsp;2) {{ localize('workflow_form_quick_help_2', 'ដាក់ឈ្មោះគោលការណ៍ និងអាទិភាព') }}
+                                    &nbsp;->&nbsp;3) {{ localize('workflow_form_quick_help_3', 'បន្ថែមជំហានអនុម័ត និងជ្រើសអ្នកអនុម័ត') }}
+                                    &nbsp;->&nbsp;4) {{ localize('save', 'រក្សាទុក') }}
+                                </div>
+                            </div>
                             <div class="row g-3">
                                 <div class="col-md-3">
                                     <label class="form-label">{{ localize('module', 'Module') }} *</label>
@@ -268,7 +290,8 @@
                                 </div>
                                 <div class="col-md-3">
                                     <label class="form-label">{{ localize('policy_name', 'Policy name') }} *</label>
-                                    <input type="text" name="name" id="wf-name" class="form-control" required>
+                                    <input type="text" name="name" id="wf-name" class="form-control" required
+                                        placeholder="{{ localize('workflow_policy_name_placeholder', 'ឧ. លំហូរអនុម័តសុំច្បាប់') }}">
                                 </div>
                                 <div class="col-md-2">
                                     <label class="form-label">{{ localize('priority', 'Priority') }} *</label>
@@ -283,12 +306,16 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">{{ localize('description', 'Description') }}</label>
-                                    <textarea name="description" id="wf-description" class="form-control" rows="2"></textarea>
+                                    <textarea name="description" id="wf-description" class="form-control" rows="2"
+                                        placeholder="{{ localize('workflow_description_placeholder', 'ពិពណ៌នាខ្លីអំពីគោលការណ៍នេះ') }}"></textarea>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label">{{ localize('condition_json', 'Condition (JSON, optional)') }}</label>
                                     <textarea name="condition_json" id="wf-condition-json" class="form-control" rows="2"
                                         placeholder='{"min_days":2,"max_days":3}'></textarea>
+                                    <small class="text-muted">
+                                        {{ localize('condition_json_help_simple', 'វាលនេះមិនចាំបាច់ទេ។ ប្រើតែពេលចង់បែងចែក policy តាមលក្ខខណ្ឌពិសេស។') }}
+                                    </small>
                                 </div>
                                 <div class="col-md-12 d-flex justify-content-between align-items-center">
                                     <button type="button" class="btn btn-outline-primary btn-sm" id="wf-apply-template">
@@ -300,6 +327,12 @@
                                         </button>
                                     </div>
                                 </div>
+                                <div class="col-md-12">
+                                    <div class="small text-muted">
+                                        <strong>{{ localize('preview_optional_label', 'ផ្នែកសាកល្បង (មិនចាំបាច់):') }}</strong>
+                                        {{ localize('preview_optional_desc', 'ប្រើសម្រាប់ពិនិត្យថាលំហូរដែលកំណត់ អាចផ្គូផ្គងតាមបរិបទបានឬអត់ មុនរក្សាទុក។') }}
+                                    </div>
+                                </div>
                                 <div class="col-md-4">
                                     <label class="form-label">{{ localize('preview_days', 'Preview days') }}</label>
                                     <input type="number" min="0" id="wf-preview-days" class="form-control" value="1">
@@ -307,12 +340,12 @@
                                 <div class="col-md-4">
                                     <label class="form-label">{{ localize('preview_employee_id', 'Preview employee ID') }}</label>
                                     <input type="number" min="1" id="wf-preview-employee-id" class="form-control"
-                                        placeholder="optional">
+                                        placeholder="{{ localize('optional', 'Optional') }}">
                                 </div>
                                 <div class="col-md-4">
                                     <label class="form-label">{{ localize('preview_department_id', 'Preview department ID') }}</label>
                                     <input type="number" min="1" id="wf-preview-department-id" class="form-control"
-                                        placeholder="optional">
+                                        placeholder="{{ localize('optional', 'Optional') }}">
                                 </div>
                                 <div class="col-md-12">
                                     <div id="wf-preview-result" class="small"></div>
@@ -329,23 +362,26 @@
                                 <table class="table table-sm table-bordered align-middle mb-0">
                                     <thead>
                                         <tr>
-                                            <th>#</th>
-                                            <th>{{ localize('step_key', 'Step key') }}</th>
+                                            <th>{{ localize('sl', 'ល.រ') }}</th>
+                                            <th>{{ localize('step_key_optional', 'កូដជំហាន (មិនបង្ខំ)') }}</th>
                                             <th>{{ localize('step_name', 'Step name') }}</th>
-                                            <th>{{ localize('action', 'Action') }}</th>
-                                            <th>{{ localize('actor_type', 'Actor type') }}</th>
-                                            <th>{{ localize('actor_target', 'Actor target') }}</th>
+                                            <th>{{ localize('action_label_simple', 'សកម្មភាព') }}</th>
+                                            <th>{{ localize('actor_type_simple', 'ប្រភេទអ្នកអនុម័ត') }}</th>
+                                            <th>{{ localize('actor_target_simple', 'ជ្រើសអ្នកអនុម័ត') }}</th>
                                             <th>{{ localize('scope', 'Scope') }}</th>
-                                            <th>{{ localize('final', 'Final') }}</th>
-                                            <th>{{ localize('required', 'Required') }}</th>
-                                            <th>{{ localize('return', 'Return') }}</th>
-                                            <th>{{ localize('reject', 'Reject') }}</th>
+                                            <th>{{ localize('final_question', 'ជំហានចុងក្រោយ?') }}</th>
+                                            <th>{{ localize('required_question', 'ចាំបាច់?') }}</th>
+                                            <th>{{ localize('can_return_question', 'អាចត្រឡប់?') }}</th>
+                                            <th>{{ localize('can_reject_question', 'អាចបដិសេធ?') }}</th>
                                             <th></th>
                                         </tr>
                                     </thead>
                                     <tbody id="wf-steps-body"></tbody>
                                 </table>
                             </div>
+                            <small class="text-muted d-block mt-2">
+                                {{ localize('workflow_final_step_note', 'ចំណាំ: ត្រូវមានយ៉ាងហោចណាស់ ១ ជំហានដែលកំណត់ជា "ជំហានចុងក្រោយ? = បាទ/ចាស"។') }}
+                            </small>
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-danger"
@@ -372,6 +408,7 @@
             var responsibilities = @json($responsibilities);
             var positions = @json($positions);
             var spatieRoles = @json($spatieRoles);
+            var users = @json($users);
             var moduleLabels = @json($moduleLabels);
             var requestTypeLabels = @json($requestTypeLabels);
             var allRequestTypeOptions = @json(array_values($requestTypeOptions));
@@ -383,6 +420,12 @@
             var addText = @json(localize('add', 'Add'));
             var editText = @json(localize('edit', 'Edit'));
             var selectRequestTypeText = @json(localize('select_request_type', 'Select request type'));
+            var selectUserText = @json(localize('select_user', 'Select user'));
+            var selectPositionText = @json(localize('select_position', 'ជ្រើសមុខតំណែង'));
+            var selectResponsibilityText = @json(localize('select_responsibility', 'ជ្រើសតួនាទីទទួលខុសត្រូវ'));
+            var selectRoleText = @json(localize('select_role', 'ជ្រើសតួនាទី'));
+            var stepOptionalText = @json(localize('optional', 'Optional'));
+            var candidateLabelText = @json(localize('workflow_candidates_label', 'នាក់ដែលអាចអនុវត្ត'));
             var allText = @json(localize('all', 'All'));
             var noTemplateText = @json(localize('workflow_template_not_found', 'No template found for selected module and request type.'));
             var previewNoResultText = @json(localize('preview_no_result', 'No matching workflow for the preview context.'));
@@ -414,8 +457,18 @@
                 return html;
             }
 
-            function optionListFromObjects(items, valueKey, labelKey, selectedValue) {
-                var html = '<option value=""></option>';
+            function setSelectValue($select, value) {
+                $select.val(value);
+                if ($select.data('select2')) {
+                    $select.trigger('change.select2');
+                } else {
+                    $select.trigger('change');
+                }
+            }
+
+            function optionListFromObjects(items, valueKey, labelKey, selectedValue, placeholderText) {
+                var placeholder = String(placeholderText || '');
+                var html = '<option value="">' + escapeHtml(placeholder) + '</option>';
                 (items || []).forEach(function(item) {
                     var value = String(item[valueKey] || '');
                     var label = String(item[labelKey] || value);
@@ -423,6 +476,46 @@
                     html += '<option value="' + escapeHtml(value) + '"' + selected + '>' + escapeHtml(label) + '</option>';
                 });
                 return html;
+            }
+
+            function initActorUserSelect2($scope) {
+                if (!$.fn || typeof $.fn.select2 !== 'function') {
+                    return;
+                }
+
+                var $root = $scope && $scope.length ? $scope : $(document);
+                $root.find('.wf-actor-user').each(function() {
+                    var $select = $(this);
+                    if ($select.data('select2')) {
+                        return;
+                    }
+
+                    $select.select2({
+                        width: '100%',
+                        allowClear: true,
+                        placeholder: selectUserText,
+                        dropdownParent: $('#workflow-policy-modal')
+                    });
+                });
+            }
+
+            function initWorkflowModalSelect2() {
+                if (!$.fn || typeof $.fn.select2 !== 'function') {
+                    return;
+                }
+
+                var $modal = $('#workflow-policy-modal');
+                $modal.find('#wf-module-key, #wf-request-type-key').each(function() {
+                    var $select = $(this);
+                    if ($select.data('select2')) {
+                        $select.select2('destroy');
+                    }
+
+                    $select.select2({
+                        width: '100%',
+                        dropdownParent: $modal
+                    });
+                });
             }
 
             function roleCodeToResponsibilityId(code) {
@@ -447,18 +540,19 @@
                 var html = '';
                 html += '<tr class="wf-step-row">';
                 html += '<td><input type="number" min="1" name="steps[' + index + '][step_order]" class="form-control form-control-sm" value="' + escapeHtml(step.step_order || (index + 1)) + '" required></td>';
-                html += '<td><input type="text" name="steps[' + index + '][step_key]" class="form-control form-control-sm" value="' + escapeHtml(step.step_key || '') + '"></td>';
+                html += '<td><input type="text" name="steps[' + index + '][step_key]" class="form-control form-control-sm" value="' + escapeHtml(step.step_key || '') + '" placeholder="' + escapeHtml(stepOptionalText) + '"></td>';
                 html += '<td><input type="text" name="steps[' + index + '][step_name]" class="form-control form-control-sm" value="' + escapeHtml(step.step_name || '') + '" required></td>';
                 html += '<td><select name="steps[' + index + '][action_type]" class="form-control form-control-sm">' + mapToOptions(actionTypeLabels) + '</select></td>';
                 html += '<td><select name="steps[' + index + '][actor_type]" class="form-control form-control-sm wf-actor-type">' + mapToOptions(actorTypeLabels) + '</select></td>';
                 html += '<td>';
-                html += '<input type="number" min="1" name="steps[' + index + '][actor_user_id]" class="form-control form-control-sm wf-actor-input wf-actor-user mb-1" placeholder="User ID" value="' + escapeHtml(step.actor_user_id || '') + '">';
+                html += '<select name="steps[' + index + '][actor_user_id]" class="form-control form-control-sm wf-actor-input wf-actor-user mb-1">' +
+                    optionListFromObjects(users, 'id', 'label', step.actor_user_id, selectUserText) + '</select>';
                 html += '<select name="steps[' + index + '][actor_position_id]" class="form-control form-control-sm wf-actor-input wf-actor-position mb-1">' +
-                    optionListFromObjects(positions, 'id', 'label', step.actor_position_id) + '</select>';
+                    optionListFromObjects(positions, 'id', 'label', step.actor_position_id, selectPositionText) + '</select>';
                 html += '<select name="steps[' + index + '][actor_responsibility_id]" class="form-control form-control-sm wf-actor-input wf-actor-responsibility mb-1">' +
-                    optionListFromObjects(responsibilities, 'id', 'label', responsibilityId) + '</select>';
+                    optionListFromObjects(responsibilities, 'id', 'label', responsibilityId, selectResponsibilityText) + '</select>';
                 html += '<select name="steps[' + index + '][actor_role_id]" class="form-control form-control-sm wf-actor-input wf-actor-role mb-1">' +
-                    optionListFromObjects(spatieRoles, 'id', 'label', step.actor_role_id) + '</select>';
+                    optionListFromObjects(spatieRoles, 'id', 'label', step.actor_role_id, selectRoleText) + '</select>';
                 html += '<input type="hidden" name="steps[' + index + '][org_role]" class="wf-org-role-legacy" value="' + escapeHtml(step.org_role || '') + '">';
                 html += '<input type="hidden" name="steps[' + index + '][system_role_id]" class="wf-system-role-legacy" value="' + escapeHtml(step.system_role_id || '') + '">';
                 html += '</td>';
@@ -492,11 +586,21 @@
 
             function toggleActorInputs($row) {
                 var actorType = String($row.find('.wf-actor-type').val() || '');
-                $row.find('.wf-actor-input').hide();
-                $row.find('.wf-actor-input').prop('required', false);
+                $row.find('.wf-actor-input').each(function() {
+                    var $input = $(this);
+                    $input.hide();
+                    $input.prop('required', false);
+                    if ($input.hasClass('wf-actor-user') && $input.data('select2')) {
+                        $input.next('.select2-container').hide();
+                    }
+                });
 
                 if (actorType === 'specific_user') {
-                    $row.find('.wf-actor-user').show().prop('required', true);
+                    var $userSelect = $row.find('.wf-actor-user');
+                    $userSelect.show().prop('required', true);
+                    if ($userSelect.data('select2')) {
+                        $userSelect.next('.select2-container').show();
+                    }
                 } else if (actorType === 'position') {
                     $row.find('.wf-actor-position').show().prop('required', true);
                 } else if (actorType === 'responsibility') {
@@ -534,6 +638,7 @@
                     html += stepRowHtml(idx, step || {});
                 });
                 $('#wf-steps-body').html(html);
+                initActorUserSelect2($('#wf-steps-body'));
 
                 $('#wf-steps-body .wf-step-row').each(function(i) {
                     applyStepDefaults($(this), steps[i] || {});
@@ -557,11 +662,10 @@
                 });
                 $select.html(html);
                 var nextValue = String(selectedValue || '');
-                if (nextValue !== '' && options.indexOf(nextValue) !== -1) {
-                    $select.val(nextValue);
-                } else {
-                    $select.val('');
+                if (nextValue === '' || options.indexOf(nextValue) === -1) {
+                    nextValue = '';
                 }
+                setSelectValue($select, nextValue);
             }
 
             function syncModalRequestTypes(selectedValue) {
@@ -603,9 +707,11 @@
                 $('#workflow-policy-modal-title').text(addText);
                 $('#workflow-policy-form').attr('action', storeAction);
                 $('#workflow-policy-form-method').val('POST');
-                $('#wf-module-key,#wf-request-type-key,#wf-name,#wf-description,#wf-condition-json').val('');
+                setSelectValue($('#wf-module-key'), '');
+                setSelectValue($('#wf-request-type-key'), '');
+                $('#wf-name,#wf-description,#wf-condition-json').val('');
                 $('#wf-priority').val(100);
-                $('#wf-active').val('1');
+                setSelectValue($('#wf-active'), '1');
                 $('#wf-preview-result').empty();
                 renderRows([]);
                 syncModalRequestTypes('');
@@ -640,9 +746,10 @@
                         html += '<ul class="mb-0 ps-3">';
                         data.steps.forEach(function(step) {
                             var actorType = String(step.resolved_actor_type || step.actor_type || '');
+                            var actorTypeText = String(actorTypeLabels[actorType] || actorType);
                             var count = Number(step.resolved_candidate_count || 0);
                             html += '<li><strong>' + escapeHtml(String(step.step_order || '')) + '. ' + escapeHtml(String(step.step_name || '')) + '</strong> - '
-                                + escapeHtml(actorType) + ' - ' + count + ' candidate(s)</li>';
+                                + escapeHtml(actorTypeText) + ' - ' + count + ' ' + escapeHtml(candidateLabelText) + '</li>';
                         });
                         html += '</ul></div>';
                         $('#wf-preview-result').html(html);
@@ -661,11 +768,11 @@
                 $('#workflow-policy-modal-title').text(editText);
                 $('#workflow-policy-form').attr('action', $button.data('action'));
                 $('#workflow-policy-form-method').val('PATCH');
-                $('#wf-module-key').val($button.data('module'));
+                setSelectValue($('#wf-module-key'), String($button.data('module') || ''));
                 syncModalRequestTypes(String($button.data('request-type') || ''));
                 $('#wf-name').val($button.data('name'));
                 $('#wf-priority').val($button.data('priority'));
-                $('#wf-active').val(String($button.data('active')));
+                setSelectValue($('#wf-active'), String($button.data('active')));
 
                 var desc = '';
                 try {
@@ -713,6 +820,7 @@
                     can_reject: 1
                 }));
                 var $newRow = $('#wf-steps-body .wf-step-row').last();
+                initActorUserSelect2($newRow);
                 applyStepDefaults($newRow, {});
             });
 
@@ -755,6 +863,12 @@
             $(document).on('click', '#wf-apply-template', applyTemplate);
             $(document).on('click', '#wf-preview-resolution', previewResolution);
 
+            $('#workflow-policy-modal').on('shown.bs.modal', function() {
+                initWorkflowModalSelect2();
+                initActorUserSelect2($('#wf-steps-body'));
+            });
+
+            initWorkflowModalSelect2();
             syncModalRequestTypes($('#wf-request-type-key').val() || '');
             syncFilterRequestTypes($('#wf-filter-request-type-key').val() || '');
             renderRows([]);

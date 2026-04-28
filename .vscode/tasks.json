@@ -52,8 +52,13 @@
         "-avd",
         "Pixel_6_VIC",
         "-gpu",
-        "swiftshader_indirect",
-        "-no-snapshot-load"
+        "host",
+        "-no-boot-anim",
+        "-camera-back",
+        "none",
+        "-camera-front",
+        "none",
+        "-noaudio"
       ],
       "isBackground": true,
       "problemMatcher": []
@@ -62,7 +67,7 @@
       "label": "mobile: flutter run android",
       "type": "shell",
       "command": "flutter",
-      "args": ["run", "-d", "android"],
+      "args": ["run", "-d", "emulator-5554"],
       "options": {
         "cwd": "${workspaceFolder}/mobile"
       },

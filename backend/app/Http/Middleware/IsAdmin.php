@@ -17,7 +17,7 @@ class IsAdmin
      */
     public function handle(Request $request, Closure $next)
     {
-        if (Auth::user() &&  Auth::user()->user_type_id == 1) {
+        if (Auth::user() && Auth::user()->admin()) {
             if (auth()->user()->can('read_dashboard')) {
                 return $next($request);
             } else {

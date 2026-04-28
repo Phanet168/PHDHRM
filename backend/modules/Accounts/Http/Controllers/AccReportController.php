@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Modules\Accounts\Entities\AccCoa;
 use Modules\Accounts\Entities\AccOpeningBalance;
 use Modules\Accounts\Entities\AccPredefineAccount;
@@ -16,7 +17,6 @@ use Modules\Accounts\Entities\AccVoucher;
 use Modules\Accounts\Entities\AccVoucherType;
 use Modules\Accounts\Entities\FinancialYear;
 use Modules\Accounts\Http\Traits\AccReportTrait;
-use PDF;
 use \Illuminate\Database\Eloquent\Collection;
 
 class AccReportController extends Controller
@@ -46,7 +46,7 @@ class AccReportController extends Controller
     public function cashbook()
     {
         $accDropdown = AccCoa::where('head_level', 4)->where('is_active', 1)->where('is_cash_nature', 1)->get();
-        $fromDate = Carbon::now()->subDay(30)->format('d/m/Y');
+        $fromDate = Carbon::now()->subDays(30)->format('d/m/Y');
         $toDate = date('d/m/Y');
         $date = $fromDate . ' - ' . $toDate;
         $acc_coa_id = $accDropdown?->first()->id ?? '';
@@ -154,7 +154,7 @@ class AccReportController extends Controller
     {
 
         $accDropdown = AccCoa::where('head_level', 4)->where('is_active', 1)->where('is_bank_nature', 1)->get();
-        $fromDate = Carbon::now()->subDay(30)->format('d/m/Y');
+        $fromDate = Carbon::now()->subDays(30)->format('d/m/Y');
         $toDate = date('d/m/Y');
         $date = $fromDate . ' - ' . $toDate;
         $getBalanceOpening = "";
@@ -227,7 +227,7 @@ class AccReportController extends Controller
     {
 
         $accDropdown = AccCoa::where('head_level', 4)->where('is_active', 1)->where('is_bank_nature', 0)->where('is_cash_nature', 0)->get();
-        $fromDate = Carbon::now()->subDay(30)->format('d/m/Y');
+        $fromDate = Carbon::now()->subDays(30)->format('d/m/Y');
         $toDate = date('d/m/Y');
         $date = $fromDate . ' - ' . $toDate;
         $getBalanceOpening = "";
@@ -292,7 +292,7 @@ class AccReportController extends Controller
 
         $accSubType = AccSubtype::where('status', 1)->get();
 
-        $fromDate = Carbon::now()->subDay(30)->format('d/m/Y');
+        $fromDate = Carbon::now()->subDays(30)->format('d/m/Y');
         $toDate = date('d/m/Y');
         $date = $fromDate . ' - ' . $toDate;
         $getBalanceOpening = "";
@@ -477,7 +477,7 @@ class AccReportController extends Controller
 
         $openingBalnce = array_sum($balnceResult);
         //to_date - 1 day
-        $from_date = Carbon::parse($request->from_date)->subDay(1)->format('Y-m-d') . ' 23:59:59';
+        $from_date = Carbon::parse($request->from_date)->subDay()->format('Y-m-d') . ' 23:59:59';
         $tanjectionVouture = AccTransaction::with('voucherType', 'accCoa', 'accSubcode', 'accReverseCode')->where('acc_coa_id', $request->acc_coa_id)
             ->whereBetween('voucher_date', [$getyearDetails->start_date, $from_date])->get();
 
@@ -577,7 +577,7 @@ class AccReportController extends Controller
 
             $openingBalnce = array_sum($balnceResult);
 
-            $from_date = Carbon::parse($request->from_date)->subDay(1)->format('Y-m-d') . ' 23:59:59';
+            $from_date = Carbon::parse($request->from_date)->subDay()->format('Y-m-d') . ' 23:59:59';
             $tanjectionVouture = AccTransaction::where('acc_subtype_id', $request->subtype_id)
                 ->when($request->acc_subcode_id !== 0, function ($query) use ($request) {
                     return $query->where('acc_subcode_id', $request->acc_subcode_id);
@@ -1556,7 +1556,7 @@ class AccReportController extends Controller
     //Receipt Payment
     public function receiptpayment()
     {
-        $fromDate = Carbon::now()->subDay(30)->format('d/m/Y');
+        $fromDate = Carbon::now()->subDays(30)->format('d/m/Y');
         $toDate = date('d/m/Y');
         $date = $fromDate . ' - ' . $toDate;
         $vature = [];

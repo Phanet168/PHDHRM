@@ -127,16 +127,16 @@ class EmployeeDataTable extends DataTable
 
                 $button = '';
                 if (auth()->user()->can('read_employee')) {
-                    $button .= '<a href="' . route('employees.show', $employee->id) . '" class="btn btn-primary-soft btn-sm me-1" title="Show"><i class="fa fa-eye"></i></a>';
+                    $button .= '<a href="' . route('employees.show', $employee->id) . '" class="btn btn-primary-soft btn-sm me-1" title="' . e(localize('show')) . '"><i class="fa fa-eye"></i></a>';
                     $button .= '<a href="' . route('employees.profile.print', $employee->id) . '" class="btn btn-info-soft btn-sm me-1" title="' . e(localize('print_employee_profile', 'បោះពុម្ពប្រវត្តិរូប')) . '" target="_blank" rel="noopener"><i class="fa fa-print"></i></a>';
                 }
 
                 if (auth()->user()->can('update_employee')) {
-                    $button .= '<a href="' . route('employees.edit', $employee->id) . '" class="btn btn-success-soft btn-sm me-1" title="Edit"><i class="fa fa-edit"></i></a>';
+                    $button .= '<a href="' . route('employees.edit', $employee->id) . '" class="btn btn-success-soft btn-sm me-1" title="' . e(localize('edit')) . '"><i class="fa fa-edit"></i></a>';
                 }
 
                 if (auth()->user()->can('delete_employee')) {
-                    $button .= '<a href="javascript:void(0)" class="btn btn-danger-soft btn-sm delete-confirm" data-bs-toggle="tooltip" title="Delete" data-route="' . route('employees.destroy', $employee->id) . '" data-csrf="' . csrf_token() . '"><i class="fas fa-trash-alt"></i></a>';
+                    $button .= '<a href="javascript:void(0)" class="btn btn-danger-soft btn-sm delete-confirm" data-bs-toggle="tooltip" title="' . e(localize('delete')) . '" data-route="' . route('employees.destroy', $employee->id) . '" data-csrf="' . csrf_token() . '"><i class="fas fa-trash-alt"></i></a>';
                 }
 
                 return $button;
@@ -489,20 +489,30 @@ class EmployeeDataTable extends DataTable
             ->minifiedAjax()
             ->orderBy(1, 'asc')
             ->language([
-                //change preloader icon
                 'processing' => '<div class="lds-spinner">
                 <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>',
+                'search' => localize('search') . ':',
+                'lengthMenu' => localize('show') . ' _MENU_ ' . localize('entries', 'ធាតុ'),
+                'zeroRecords' => localize('no_matching_records', 'មិនមានទិន្នន័យត្រូវគ្នា'),
+                'emptyTable' => localize('no_data_available'),
+                'info' => localize('showing_records', 'បង្ហាញ _START_ ដល់ _END_ នៃ _TOTAL_ ធាតុ'),
+                'infoEmpty' => localize('no_data_available'),
+                'infoFiltered' => localize('filtered_from_total', '(ត្រងពី _MAX_ ធាតុសរុប)'),
+                'paginate' => [
+                    'previous' => localize('previous'),
+                    'next' => localize('next'),
+                ],
             ])
             ->selectStyleSingle()
-            ->lengthMenu([[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']])
+            ->lengthMenu([[10, 25, 50, 100, -1], [10, 25, 50, 100, localize('all')]])
             ->dom("<'row mb-3'<'col-md-4'l><'col-md-4 text-center'B><'col-md-4'f>>rt<'bottom'<'row'<'col-md-6'i><'col-md-6'p>>><'clear'>")
             ->buttons([
                 Button::make('csv')
                     ->className('btn btn-secondary buttons-csv buttons-html5 btn-sm prints')
-                    ->text('<i class="fa fa-file-csv"></i> CSV')->exportOptions(['columns' => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]),
+                    ->text('<i class="fa fa-file-csv"></i> ' . e(localize('export_csv', 'នាំចេញ CSV')))->exportOptions(['columns' => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]]),
                 Button::make('excel')
                     ->className('btn btn-secondary buttons-excel buttons-html5 btn-sm prints')
-                    ->text('<i class="fa fa-file-excel"></i> Excel')
+                    ->text('<i class="fa fa-file-excel"></i> ' . e(localize('export_excel', 'នាំចេញ Excel')))
                     ->action("function(e, dt, node, config) {
                         var payload = {
                             employee_name: ($('#employee_name').val() || ''),

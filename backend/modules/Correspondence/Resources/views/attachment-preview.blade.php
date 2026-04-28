@@ -48,15 +48,20 @@
 <body>
     <div class="toolbar">
         <span class="name">{{ $fileName }}</span>
-        <a href="{{ $fileUrl }}" download>{{ localize('download', 'ទាញយក') }}</a>
+        <a href="{{ $downloadUrl ?? ($fileUrl . '?download=1') }}">{{ localize('download', 'ទាញយក') }}</a>
     </div>
     <div class="content">
         @if ($isPreviewable)
             <div class="content-inner">
                 @if ($fileExt === 'pdf')
-                    <iframe src="{{ $fileUrl }}#view=FitH&zoom=100" title="{{ $fileName }}"></iframe>
+                    <object data="{{ $fileUrl }}#view=FitH&zoom=100" type="application/pdf" width="100%" height="100%">
+                        <embed src="{{ $fileUrl }}#view=FitH&zoom=100" type="application/pdf" width="100%" height="100%" />
+                        <div class="fallback">
+                            {{ localize('pdf_preview_unavailable', 'មិនអាចបង្ហាញ PDF ដោយផ្ទាល់បាន។ សូមចុចប៊ូតុងទាញយក។') }}
+                        </div>
+                    </object>
                 @else
-                    <img src="{{ $fileUrl }}" alt="{{ $fileName }}">
+                    <iframe src="{{ $fileUrl }}" title="{{ $fileName }}"></iframe>
                 @endif
             </div>
         @else

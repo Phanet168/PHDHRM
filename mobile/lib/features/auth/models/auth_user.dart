@@ -4,6 +4,8 @@ class AuthUser {
     required this.name,
     required this.email,
     required this.userId,
+    required this.userTypeId,
+    this.hasEmployeeProfile = true,
     this.departmentName,
     this.profilePic,
     this.fcmToken,
@@ -47,7 +49,18 @@ class AuthUser {
   final String name;
   final String email;
   final int userId;
+  final int userTypeId;
+
+  /// false = admin/technical user who has no employee record
+  final bool hasEmployeeProfile;
   final String? departmentName;
+
+  /// User is a system admin (user_type_id = 1 or Super Admin role)
+  bool get isSystemAdmin =>
+      userTypeId == 1 || (role?.toLowerCase().contains('super admin') == true);
+
+  /// User has an employee profile linked
+  bool get hasEmployee => hasEmployeeProfile && employeeId > 0;
   final String? profilePic;
   final String? fcmToken;
   final String? role;
@@ -122,7 +135,8 @@ class AuthUser {
       gender = 'ប្រុស';
     } else if (genderId == 2 || genderId == '2') {
       gender = 'ស្រី';
-    } else if ((gender == null || gender.isEmpty) && json['gender_name'] is String) {
+    } else if ((gender == null || gender.isEmpty) &&
+        json['gender_name'] is String) {
       gender = (json['gender_name'] as String).trim();
     }
 
@@ -147,30 +161,36 @@ class AuthUser {
     }
 
     return AuthUser(
-      employeeId: (json['id'] as num?)?.toInt() ?? 0,
+      employeeId: _toInt(
+        json['employee_record_id'] ?? json['employee_db_id'] ?? json['id'],
+      ),
+      userTypeId: _toInt(json['user_type_id']),
+      hasEmployeeProfile: json['has_employee_profile'] != false,
       name:
-        (json['full_name'] as String?)?.trim().isNotEmpty == true
-          ? (json['full_name'] as String).trim()
-          : combinedWithMiddle.isNotEmpty
-          ? combinedWithMiddle
-          : combinedName.isNotEmpty
-          ? combinedName
-          : ((json['name'] as String?)?.trim() ?? ''),
+          (json['full_name'] as String?)?.trim().isNotEmpty == true
+              ? (json['full_name'] as String).trim()
+              : combinedWithMiddle.isNotEmpty
+              ? combinedWithMiddle
+              : combinedName.isNotEmpty
+              ? combinedName
+              : ((json['name'] as String?)?.trim() ?? ''),
       email: (json['email'] as String?) ?? '',
       userId:
-          (json['user_id'] as num?)?.toInt() ??
-          (json['id'] as num?)?.toInt() ??
+          _toIntOrNull(json['user_id']) ??
+          _toIntOrNull(json['auth_user_id']) ??
+          _toIntOrNull(json['id']) ??
           0,
-        departmentName:
+      departmentName:
           (json['sub_department_name'] as String?)?.isNotEmpty == true
-            ? json['sub_department_name'] as String
-            : ((json['department_name'] as String?)?.isNotEmpty == true
-              ? json['department_name'] as String
-              : json['unit_name'] as String?),
+              ? json['sub_department_name'] as String
+              : ((json['department_name'] as String?)?.isNotEmpty == true
+                  ? json['department_name'] as String
+                  : json['unit_name'] as String?),
       profilePic: json['profile_pic'] as String?,
       fcmToken: json['token_id'] as String?,
       role: role,
-        canReviewLeaveRequestsFlag: json['can_review_leave_requests'] == true ||
+      canReviewLeaveRequestsFlag:
+          json['can_review_leave_requests'] == true ||
           json['can_review_leave_requests'] == 1 ||
           json['can_review_leave_requests'] == '1',
       // Personal
@@ -196,16 +216,16 @@ class AuthUser {
               ? json['national_id_no'] as String
               : json['national_id'] as String?,
       // Work
-        employeeNo:
+      employeeNo:
           (json['employee_id'] as String?)?.isNotEmpty == true
-            ? json['employee_id'] as String
-            : (json['official_id_10'] as String?),
+              ? json['employee_id'] as String
+              : (json['official_id_10'] as String?),
       cardNo: json['card_no'] as String?,
       employeeCode: json['employee_code'] as String?,
-        position:
+      position:
           (json['position_name'] as String?)?.isNotEmpty == true
-            ? json['position_name'] as String
-            : (json['role_display'] as String?),
+              ? json['position_name'] as String
+              : (json['role_display'] as String?),
       positionKm: json['position_name_km'] as String?,
       joiningDate: json['joining_date'] as String?,
       hireDate: json['hire_date'] as String?,
@@ -219,22 +239,38 @@ class AuthUser {
       isFullRightOfficer: isFullRight,
       legalDocumentType: json['legal_document_type'] as String?,
       legalDocumentNumber: json['legal_document_number'] as String?,
-        workStatusName:
+      workStatusName:
           (json['work_status_name'] as String?)?.isNotEmpty == true
-            ? json['work_status_name'] as String
-            : (json['work_status'] as String?),
-        employeeGrade:
+              ? json['work_status_name'] as String
+              : (json['work_status'] as String?),
+      employeeGrade:
           (json['employee_grade'] as String?)?.isNotEmpty == true
-            ? json['employee_grade'] as String
-            : (json['pay_level'] as String?),
+              ? json['employee_grade'] as String
+              : (json['pay_level'] as String?),
       employeeGradeKm: json['employee_grade_km'] as String?,
       skillName:
           (json['skill_name'] as String?)?.isNotEmpty == true
               ? json['skill_name'] as String
-            : ((json['current_work_skill'] as String?)?.isNotEmpty == true
-              ? json['current_work_skill'] as String
-              : json['skill'] as String?),
+              : ((json['current_work_skill'] as String?)?.isNotEmpty == true
+                  ? json['current_work_skill'] as String
+                  : json['skill'] as String?),
     );
+  }
+
+  static int _toInt(dynamic value) {
+    return _toIntOrNull(value) ?? 0;
+  }
+
+  static int? _toIntOrNull(dynamic value) {
+    if (value is num) {
+      return value.toInt();
+    }
+
+    if (value is String) {
+      return int.tryParse(value.trim());
+    }
+
+    return null;
   }
 
   Map<String, dynamic> toJson() {
@@ -243,6 +279,8 @@ class AuthUser {
       'name': name,
       'email': email,
       'user_id': userId,
+      'user_type_id': userTypeId,
+      'has_employee_profile': hasEmployeeProfile,
       if (departmentName != null) 'department_name': departmentName,
       if (profilePic != null) 'profile_pic': profilePic,
       if (fcmToken != null) 'token_id': fcmToken,

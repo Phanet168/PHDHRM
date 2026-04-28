@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Auth\Events\Registered;
 use App\Providers\RouteServiceProvider;
 use Illuminate\Support\Facades\Validator;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Modules\User\Entities\PasswordSetting;
 use Illuminate\Foundation\Auth\RedirectsUsers;
 use Illuminate\Foundation\Auth\RegistersUsers;
@@ -51,17 +52,26 @@ class RegisterController extends Controller
 
     public function showRegistrationForm()
     {
+        if (!$this->registrationEnabled()) {
+            throw new NotFoundHttpException();
+        }
+
         return view('auth.register');
     }
 
 
     public function register(Request $request)
     {
+        if (!$this->registrationEnabled()) {
+            throw new NotFoundHttpException();
+        }
+
         $passwordSetting = PasswordSetting::firstOrFail();
         $this->validator($request->all())->validate();
         $data = $request->except(['password','user_type_id']);
         $data['password'] = $request->password . $passwordSetting->salt;
-        $data['user_type_id'] = 1;
+        // Public registration (when enabled) must never create admin accounts.
+        $data['user_type_id'] = 2;
 
         event(new Registered($user = $this->create($data)));
 
@@ -103,7 +113,7 @@ class RegisterController extends Controller
             'user_name' => $data['user_name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            'user_type_id' => 1,
+            'user_type_id' => 2,
         ]);
     }
 
@@ -115,5 +125,10 @@ class RegisterController extends Controller
     protected function registered(Request $request, $user)
     {
         //
+    }
+
+    protected function registrationEnabled(): bool
+    {
+        return (bool) config('auth.allow_public_registration', false);
     }
 }

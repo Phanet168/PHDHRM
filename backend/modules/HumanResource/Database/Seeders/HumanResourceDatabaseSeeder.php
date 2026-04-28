@@ -263,5 +263,12 @@ class HumanResourceDatabaseSeeder extends Seeder
                 'evaluation_type_id' => 1,
             ],
         ]);
+
+        // Governance seeds are idempotent and keep tenant overrides intact.
+        $this->call([
+            AttendanceGovernanceSeeder::class,
+            GovernanceLookupSeeder::class,
+            ResponsibilityTemplateSeeder::class,
+        ]);
     }
 }

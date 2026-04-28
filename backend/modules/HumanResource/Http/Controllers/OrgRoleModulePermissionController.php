@@ -15,10 +15,10 @@ class OrgRoleModulePermissionController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:read_department', ['only' => ['index']]);
-        $this->middleware('permission:create_department', ['only' => ['store']]);
-        $this->middleware('permission:update_department', ['only' => ['update']]);
-        $this->middleware('permission:delete_department', ['only' => ['destroy']]);
+        $this->middleware('permission:read_org_governance|read_department', ['only' => ['index']]);
+        $this->middleware('permission:create_org_governance|create_department', ['only' => ['store']]);
+        $this->middleware('permission:update_org_governance|update_department', ['only' => ['update']]);
+        $this->middleware('permission:delete_org_governance|delete_department', ['only' => ['destroy']]);
     }
 
     public function index(Request $request)
@@ -26,6 +26,7 @@ class OrgRoleModulePermissionController extends Controller
         $selectedModule = trim((string) $request->query('module_key', ''));
         $selectedRole = trim((string) $request->query('org_role', ''));
         $selectedStatus = (string) $request->query('is_active', '');
+        $advancedMode = $request->boolean('advanced');
 
         $matrixReady = $this->isMatrixReady();
         $records = collect();
@@ -55,28 +56,36 @@ class OrgRoleModulePermissionController extends Controller
             'module_options' => array_keys($moduleActionMap),
             'org_role_options' => UserOrgRole::roleOptions(),
             'system_roles' => $systemRoles,
-            'role_labels' => $this->roleLabels(),
+            'role_labels' => UserOrgRole::roleLabels(),
             'action_labels' => $actionLabels,
             'selected_module' => $selectedModule,
             'selected_role' => $selectedRole,
             'selected_status' => $selectedStatus,
             'matrix_ready' => $matrixReady,
+            'advanced_mode' => $advancedMode,
         ]);
     }
 
     public function store(Request $request)
     {
+        $advancedMode = $request->boolean('advanced_mode');
         if (!$this->isMatrixReady()) {
             Toastr::error(localize('permission_matrix_not_ready', 'Permission matrix table is not ready. Please run migration first.'));
             return redirect()->route('org-role-module-permissions.index');
         }
 
         $validated = $this->validated($request);
+        $systemRoleId = UserOrgRole::resolveSystemRoleIdByCode($validated['org_role']);
 
         $exists = OrgRoleModulePermission::query()
             ->where('module_key', $validated['module_key'])
             ->where('action_key', $validated['action_key'])
-            ->where('org_role', $validated['org_role'])
+            ->where(function ($query) use ($validated, $systemRoleId) {
+                $query->where('org_role', $validated['org_role']);
+                if ($systemRoleId) {
+                    $query->orWhere('system_role_id', $systemRoleId);
+                }
+            })
             ->exists();
 
         if ($exists) {
@@ -88,27 +97,36 @@ class OrgRoleModulePermissionController extends Controller
         }
 
         OrgRoleModulePermission::create(array_merge($validated, [
-            'system_role_id' => SystemRole::where('code', $validated['org_role'])->value('id'),
+            'system_role_id' => $systemRoleId,
         ]));
 
         Toastr::success(localize('data_save', 'Data saved'));
-        return redirect()->route('org-role-module-permissions.index');
+        return redirect()->route('org-role-module-permissions.index', [
+            'advanced' => $advancedMode ? 1 : 0,
+        ]);
     }
 
     public function update(Request $request, OrgRoleModulePermission $org_role_module_permission)
     {
+        $advancedMode = $request->boolean('advanced_mode');
         if (!$this->isMatrixReady()) {
             Toastr::error(localize('permission_matrix_not_ready', 'Permission matrix table is not ready. Please run migration first.'));
             return redirect()->route('org-role-module-permissions.index');
         }
 
         $validated = $this->validated($request);
+        $systemRoleId = UserOrgRole::resolveSystemRoleIdByCode($validated['org_role']);
 
         $exists = OrgRoleModulePermission::query()
             ->where('id', '!=', (int) $org_role_module_permission->id)
             ->where('module_key', $validated['module_key'])
             ->where('action_key', $validated['action_key'])
-            ->where('org_role', $validated['org_role'])
+            ->where(function ($query) use ($validated, $systemRoleId) {
+                $query->where('org_role', $validated['org_role']);
+                if ($systemRoleId) {
+                    $query->orWhere('system_role_id', $systemRoleId);
+                }
+            })
             ->exists();
 
         if ($exists) {
@@ -120,11 +138,13 @@ class OrgRoleModulePermissionController extends Controller
         }
 
         $org_role_module_permission->update(array_merge($validated, [
-            'system_role_id' => SystemRole::where('code', $validated['org_role'])->value('id'),
+            'system_role_id' => $systemRoleId,
         ]));
 
         Toastr::success(localize('data_update', 'Data updated'));
-        return redirect()->route('org-role-module-permissions.index');
+        return redirect()->route('org-role-module-permissions.index', [
+            'advanced' => $advancedMode ? 1 : 0,
+        ]);
     }
 
     public function destroy(OrgRoleModulePermission $org_role_module_permission)
@@ -174,15 +194,6 @@ class OrgRoleModulePermissionController extends Controller
         ];
     }
 
-    protected function roleLabels(): array
-    {
-        return [
-            UserOrgRole::ROLE_HEAD => localize('org_role_head', 'Head'),
-            UserOrgRole::ROLE_DEPUTY_HEAD => localize('org_role_deputy_head', 'Deputy Head'),
-            UserOrgRole::ROLE_MANAGER => localize('org_role_manager', 'Office Head / Manager'),
-        ];
-    }
-
     protected function actionLabels(): array
     {
         return [
@@ -204,6 +215,11 @@ class OrgRoleModulePermissionController extends Controller
             'reject' => localize('reject', 'Reject'),
             'publish' => localize('publish', 'Publish'),
             'finalize' => localize('finalize', 'Finalize'),
+            'create_adjustment' => localize('attendance_create_adjustment', 'Create attendance adjustment'),
+            'review_adjustment' => localize('attendance_review_adjustment', 'Review attendance adjustment'),
+            'approve_adjustment' => localize('attendance_approve_adjustment', 'Approve attendance adjustment'),
+            'finalize_adjustment' => localize('attendance_finalize_adjustment', 'Finalize attendance adjustment'),
+            'manage_exceptions' => localize('attendance_manage_exceptions', 'Manage attendance exceptions'),
         ];
     }
 

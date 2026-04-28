@@ -10,7 +10,7 @@ use League\CommonMark\MarkdownConverter;
 
 class EmployeeHelpController extends Controller
 {
-    private const ARTICLES = [
+    private const EMPLOYEE_ARTICLES = [
         'overview' => [
             'title_km' => 'ទិដ្ឋភាពទូទៅ',
             'title_en' => 'Overview',
@@ -73,12 +73,22 @@ class EmployeeHelpController extends Controller
         ],
     ];
 
+    private const ORG_STRUCTURE_ARTICLES = [
+        'org-structure-overview' => [
+            'title_key' => 'org_structure_governance_help',
+            'title_km' => 'ជំនួយ៖ គ្រប់គ្រងរចនាសម្ព័ន្ធអង្គភាព',
+            'title_en' => 'Org Structure Governance Help',
+            'file' => '01-org-structure-governance.md',
+            'icon' => 'fa-sitemap',
+        ],
+    ];
+
     public function index(?string $article = null)
     {
         $slug = $article ?: 'overview';
-        abort_unless(array_key_exists($slug, self::ARTICLES), 404);
+        abort_unless(array_key_exists($slug, self::EMPLOYEE_ARTICLES), 404);
 
-        $articleMeta = self::ARTICLES[$slug];
+        $articleMeta = self::EMPLOYEE_ARTICLES[$slug];
         $articlePath = base_path('docs/hr-employee-help-km/' . $articleMeta['file']);
         abort_unless(is_file($articlePath), 404);
 
@@ -89,10 +99,41 @@ class EmployeeHelpController extends Controller
         $isEnglish = $locale === 'en';
 
         return view('humanresource::help.employee.index', [
-            'articles' => self::ARTICLES,
+            'articles' => self::EMPLOYEE_ARTICLES,
             'activeArticle' => $slug,
             'articleMeta' => $articleMeta,
             'articleTitle' => $isEnglish ? $articleMeta['title_en'] : $articleMeta['title_km'],
+            'articleHtml' => $articleHtml,
+            'isEnglish' => $isEnglish,
+        ]);
+    }
+
+    public function orgGovernanceHelp(?string $article = null)
+    {
+        $slug = trim((string) ($article ?: 'org-structure-overview'));
+        if (!array_key_exists($slug, self::ORG_STRUCTURE_ARTICLES)) {
+            $slug = 'org-structure-overview';
+        }
+
+        $articleMeta = self::ORG_STRUCTURE_ARTICLES[$slug];
+        $articlePath = base_path('docs/hr-org-structure-help-km/' . $articleMeta['file']);
+        abort_unless(is_file($articlePath), 404);
+
+        $markdown = file_get_contents($articlePath) ?: '';
+        $articleHtml = $this->renderMarkdown($markdown);
+
+        $locale = app()->getLocale();
+        $isEnglish = $locale === 'en';
+        $articleTitleFallback = $isEnglish ? $articleMeta['title_en'] : $articleMeta['title_km'];
+        $articleTitleKey = (string) ($articleMeta['title_key'] ?? '');
+
+        return view('humanresource::help.org-structure.index', [
+            'articles' => self::ORG_STRUCTURE_ARTICLES,
+            'activeArticle' => $slug,
+            'articleMeta' => $articleMeta,
+            'articleTitle' => $articleTitleKey !== ''
+                ? localize($articleTitleKey, $articleTitleFallback)
+                : $articleTitleFallback,
             'articleHtml' => $articleHtml,
             'isEnglish' => $isEnglish,
         ]);

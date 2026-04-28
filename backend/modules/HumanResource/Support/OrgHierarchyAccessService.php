@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Collection;
 use Modules\HumanResource\Entities\Department;
 use Modules\HumanResource\Entities\SystemRole;
+use Modules\HumanResource\Entities\UserAssignment;
 use Modules\HumanResource\Entities\UserOrgRole;
 
 class OrgHierarchyAccessService
@@ -31,6 +32,43 @@ class OrgHierarchyAccessService
     {
         if (!$user) {
             return collect();
+        }
+
+        $assignmentRoles = UserAssignment::query()
+            ->withoutGlobalScope('sortByLatest')
+            ->with('responsibility:id,code,can_approve')
+            ->effective()
+            ->where('user_id', (int) $user->id)
+            ->orderByDesc('is_primary')
+            ->orderBy('department_id')
+            ->orderBy('id')
+            ->get()
+            ->map(function (UserAssignment $assignment) {
+                $role = new UserOrgRole();
+                $role->id = null;
+                $role->user_id = (int) ($assignment->user_id ?? 0);
+                $role->user_assignment_id = (int) ($assignment->id ?? 0);
+                $role->department_id = (int) ($assignment->department_id ?? 0);
+                $role->org_role = (string) ($assignment->responsibility?->code ?? '');
+                $role->system_role_id = !empty($assignment->responsibility_id)
+                    ? (int) $assignment->responsibility_id
+                    : null;
+                $role->scope_type = (string) ($assignment->scope_type ?: UserOrgRole::SCOPE_SELF_AND_CHILDREN);
+                $role->is_active = (bool) ($assignment->is_active ?? true);
+                if ($assignment->relationLoaded('responsibility') && $assignment->responsibility) {
+                    $role->setRelation('systemRole', $assignment->responsibility);
+                }
+
+                return $role;
+            })
+            ->filter(function (UserOrgRole $role) {
+                return (int) ($role->department_id ?? 0) > 0
+                    && trim((string) $role->getEffectiveRoleCode()) !== '';
+            })
+            ->values();
+
+        if ($assignmentRoles->isNotEmpty()) {
+            return $assignmentRoles;
         }
 
         return UserOrgRole::query()
@@ -92,7 +130,7 @@ class OrgHierarchyAccessService
 
         $roles = $this->effectiveOrgRoles($user)
             ->filter(function (UserOrgRole $role) {
-                return in_array((string) $role->org_role, [
+                return in_array($role->getEffectiveRoleCode(), [
                     UserOrgRole::ROLE_HEAD,
                     UserOrgRole::ROLE_DEPUTY_HEAD,
                     UserOrgRole::ROLE_MANAGER,
@@ -124,7 +162,7 @@ class OrgHierarchyAccessService
                 if ($role->systemRole) {
                     return (bool) $role->systemRole->can_approve;
                 }
-                return in_array((string) $role->org_role, [
+                return in_array($role->getEffectiveRoleCode(), [
                     UserOrgRole::ROLE_HEAD,
                     UserOrgRole::ROLE_DEPUTY_HEAD,
                 ], true);

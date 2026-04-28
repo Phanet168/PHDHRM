@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import '../../../core/config/app_routes.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/localization/laravel_language_service.dart';
+import '../../../core/network/api_exception.dart';
 import '../../auth/controllers/auth_controller.dart';
+import '../../correspondence/pages/correspondence_page.dart';
 import '../models/attendance_day_record.dart';
 import '../models/dashboard_summary.dart';
+import '../models/home_notification_item.dart';
 import '../models/mission_summary.dart';
 import 'attendance_history_page.dart';
 import 'leave_request_page.dart';
@@ -13,6 +16,7 @@ import 'attendance_scan_page.dart';
 import '../services/home_attendance_service.dart';
 import '../services/home_dashboard_service.dart';
 import '../services/home_mission_service.dart';
+import '../services/home_notification_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.authController});
@@ -27,11 +31,16 @@ class _HomePageState extends State<HomePage> {
   late final HomeDashboardService _dashboardService;
   late final HomeAttendanceService _attendanceService;
   late final HomeMissionService _missionService;
+  late final HomeNotificationService _notificationService;
   late final Future<Map<String, String>> _languageFuture;
   Future<DashboardSummary>? _summaryFuture;
   Future<List<AttendanceDayRecord>>? _attendanceFuture;
   Future<List<MissionSummary>>? _missionsFuture;
+  Future<HomeNotificationPageData>? _notificationsFuture;
+  bool _isMarkingAllNotifications = false;
   _HomeMenuItem _selectedMenu = _HomeMenuItem.dashboard;
+
+  bool get _isOnDashboard => _selectedMenu == _HomeMenuItem.dashboard;
 
   double _contentBottomPadding(BuildContext context, {double base = 24}) {
     final inset = MediaQuery.of(context).padding.bottom;
@@ -44,11 +53,13 @@ class _HomePageState extends State<HomePage> {
     _dashboardService = HomeDashboardService();
     _attendanceService = HomeAttendanceService();
     _missionService = HomeMissionService();
+    _notificationService = HomeNotificationService();
     _languageFuture = LaravelLanguageService.instance.load();
     _summaryFuture = _loadSummary();
     // Preload attendance data so the dashboard can show today's status quickly.
     _attendanceFuture = _loadAttendance();
     _missionsFuture = null;
+    _notificationsFuture = _loadNotifications();
   }
 
   String _tr(Map<String, String> language, String key, String fallback) {
@@ -67,21 +78,23 @@ class _HomePageState extends State<HomePage> {
       case _HomeMenuItem.attendance:
         return _tr(language, 'attendance_history', 'ប្រវត្តិវត្តមាន');
       case _HomeMenuItem.leave:
-        return _tr(language, 'leave_type', 'Leave');
+        return _tr(language, 'leave_type', 'ការសុំច្បាប់');
       case _HomeMenuItem.mission:
-        return _tr(language, 'mission', 'Mission');
+        return _tr(language, 'mission', 'បេសកកម្ម');
       case _HomeMenuItem.salary:
-        return _tr(language, 'salary_details', 'Salary');
+        return _tr(language, 'salary_details', 'ព័ត៌មានប្រាក់ខែ');
       case _HomeMenuItem.notice:
-        return _tr(language, 'notice_list', 'Notice');
+        return _tr(language, 'notice_list', 'ជូនដំណឹង');
+      case _HomeMenuItem.correspondence:
+        return _tr(language, 'correspondence', 'លិខិតរដ្ឋបាល');
       case _HomeMenuItem.profile:
         return _tr(language, 'my_profile', 'ព័ត៌មានផ្ទាល់ខ្លួន');
       case _HomeMenuItem.logout:
-        return _tr(language, 'logout', 'Logout');
+        return _tr(language, 'logout', 'ចាកចេញ');
     }
   }
 
-  int _bottomNavIndex() {
+  int? _bottomNavIndex() {
     switch (_selectedMenu) {
       case _HomeMenuItem.dashboard:
         return 0;
@@ -90,7 +103,7 @@ class _HomePageState extends State<HomePage> {
       case _HomeMenuItem.notice:
         return 2;
       default:
-        return 0;
+        return null;
     }
   }
 
@@ -110,6 +123,7 @@ class _HomePageState extends State<HomePage> {
       case 2:
         setState(() {
           _selectedMenu = _HomeMenuItem.notice;
+          _notificationsFuture ??= _loadNotifications();
         });
         return;
       case 3:
@@ -121,28 +135,64 @@ class _HomePageState extends State<HomePage> {
   Future<DashboardSummary> _loadSummary({bool forceRefresh = false}) {
     final user = widget.authController.currentUser;
     if (user == null) {
-      throw Exception('User session មិនមាន');
+      throw Exception('មិនមាន session អ្នកប្រើប្រាស់');
     }
 
-    return _dashboardService.fetchSummary(user, forceRefresh: forceRefresh);
+    return _dashboardService
+        .fetchSummary(user, forceRefresh: forceRefresh)
+        .timeout(
+          const Duration(seconds: 25),
+          onTimeout: () {
+            throw NetworkException();
+          },
+        );
   }
 
   Future<List<AttendanceDayRecord>> _loadAttendance() {
     final user = widget.authController.currentUser;
     if (user == null) {
-      throw Exception('User session មិនមាន');
+      throw Exception('មិនមាន session អ្នកប្រើប្រាស់');
     }
 
-    return _attendanceService.fetchAttendanceHistory(user);
+    if (!user.hasEmployee) {
+      return Future<List<AttendanceDayRecord>>.value(
+        const <AttendanceDayRecord>[],
+      );
+    }
+
+    return _attendanceService
+        .fetchAttendanceHistory(user)
+        .timeout(
+          const Duration(seconds: 25),
+          onTimeout: () {
+            throw NetworkException();
+          },
+        );
   }
 
   Future<List<MissionSummary>> _loadMissions() {
     final user = widget.authController.currentUser;
     if (user == null) {
-      throw Exception('User session មិនមាន');
+      throw Exception('មិនមាន session អ្នកប្រើប្រាស់');
     }
 
-    return _missionService.fetchMissions(user);
+    return _missionService
+        .fetchMissions(user)
+        .timeout(
+          const Duration(seconds: 25),
+          onTimeout: () {
+            throw NetworkException();
+          },
+        );
+  }
+
+  Future<HomeNotificationPageData> _loadNotifications() {
+    return _notificationService.fetchNotifications().timeout(
+      const Duration(seconds: 25),
+      onTimeout: () {
+        throw NetworkException();
+      },
+    );
   }
 
   String _attendanceStatusLabel(Map<String, String> language, String? status) {
@@ -153,15 +203,15 @@ class _HomePageState extends State<HomePage> {
 
     switch (normalized) {
       case 'on_time':
-        return _tr(language, 'on_time', 'On Time');
+        return _tr(language, 'on_time', 'ទាន់ពេល');
       case 'late':
-        return _tr(language, 'late', 'Late');
+        return _tr(language, 'late', 'មកយឺត');
       case 'early_leave':
-        return _tr(language, 'early_leave', 'Early Leave');
+        return _tr(language, 'early_leave', 'ចេញមុនម៉ោង');
       case 'late_and_early_leave':
-        return _tr(language, 'late_and_early_leave', 'Late & Early Leave');
+        return _tr(language, 'late_and_early_leave', 'មកយឺត និងចេញមុន');
       case 'incomplete':
-        return _tr(language, 'incomplete', 'Incomplete');
+        return _tr(language, 'incomplete', 'មិនពេញលេញ');
       default:
         return status!.replaceAll('_', ' ').trim();
     }
@@ -219,7 +269,8 @@ class _HomePageState extends State<HomePage> {
         return value;
       }
 
-      final normalizedPath = uri.path.startsWith('/') ? uri.path : '/${uri.path}';
+      final normalizedPath =
+          uri.path.startsWith('/') ? uri.path : '/${uri.path}';
       return '$origin$normalizedPath';
     }
 
@@ -254,11 +305,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _openAdditionalService(
-    _HomeMenuItem item,
-    Map<String, String> language, {
-    String? message,
-  }) {
+  void _switchToMenu(_HomeMenuItem item) {
+    if (_selectedMenu == item) {
+      return;
+    }
+
     setState(() {
       _selectedMenu = item;
       if (item == _HomeMenuItem.attendance && _attendanceFuture == null) {
@@ -267,7 +318,22 @@ class _HomePageState extends State<HomePage> {
       if (item == _HomeMenuItem.mission && _missionsFuture == null) {
         _missionsFuture = _loadMissions();
       }
+      if (item == _HomeMenuItem.notice && _notificationsFuture == null) {
+        _notificationsFuture = _loadNotifications();
+      }
     });
+  }
+
+  void _returnToDashboard() {
+    _switchToMenu(_HomeMenuItem.dashboard);
+  }
+
+  void _openAdditionalService(
+    _HomeMenuItem item,
+    Map<String, String> language, {
+    String? message,
+  }) {
+    _switchToMenu(item);
 
     if (message != null && message.trim().isNotEmpty) {
       _showServiceMessage(message);
@@ -278,9 +344,7 @@ class _HomePageState extends State<HomePage> {
     final screenWidth = MediaQuery.of(context).size.width;
     final crossAxisCount = screenWidth >= 760 ? 3 : 2;
     final childAspectRatio =
-        crossAxisCount == 3
-            ? 1.45
-            : (screenWidth < 380 ? 1.18 : 1.32);
+        crossAxisCount == 3 ? 1.45 : (screenWidth < 380 ? 1.18 : 1.32);
 
     return GridView.count(
       crossAxisCount: crossAxisCount,
@@ -300,7 +364,7 @@ class _HomePageState extends State<HomePage> {
                 message: _tr(
                   language,
                   'service_redirect_leave',
-                  'Please submit a leave request and wait for approval.',
+                  'សូមដាក់សំណើច្បាប់ រួចរង់ចាំការអនុម័ត។',
                 ),
               ),
         ),
@@ -346,7 +410,7 @@ class _HomePageState extends State<HomePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _tr(language, 'wrong_info_alert', 'User session not found'),
+            _tr(language, 'wrong_info_alert', 'មិនមានព័ត៌មានអ្នកប្រើប្រាស់'),
           ),
           backgroundColor: const Color(0xFFD34B5F),
         ),
@@ -376,10 +440,17 @@ class _HomePageState extends State<HomePage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _tr(language, 'wrong_info_alert', 'User session not found'),
+            _tr(language, 'wrong_info_alert', 'មិនមានព័ត៌មានអ្នកប្រើប្រាស់'),
           ),
           backgroundColor: const Color(0xFFD34B5F),
         ),
+      );
+      return;
+    }
+
+    if (!user.hasEmployee) {
+      _showServiceMessage(
+        'គណនីនេះមិនទាន់ភ្ជាប់ប្រវត្តិបុគ្គលិក ដូច្នេះមិនអាចស្កេនវត្តមានបានទេ។',
       );
       return;
     }
@@ -532,7 +603,7 @@ class _HomePageState extends State<HomePage> {
         _ProfileSection(
           icon: Icons.person_outline,
           title: 'ព័ត៌មានផ្ទាល់ខ្លួន',
-          subtitle: 'Personal Information',
+          subtitle: 'ព័ត៌មានបុគ្គល',
           rows: [
             r(_tr(language, 'gender', 'ភេទ'), user.gender as String?),
             r('ថ្ងៃខែឆ្នាំកំណើត', _formatDateDisplay(user.dateOfBirth)),
@@ -565,7 +636,7 @@ class _HomePageState extends State<HomePage> {
         _ProfileSection(
           icon: Icons.card_giftcard_outlined,
           title: 'អត្តសញ្ញាណ និងឯកសារ',
-          subtitle: 'Identity & Documents',
+          subtitle: 'អត្តសញ្ញាណ និងឯកសារផ្លូវការ',
           rows: [
             r('លេខអត្តសញ្ញាណប័ណ្ណ', user.nationalId as String?),
             r('លេខឯកសារ', user.legalDocumentNumber as String?),
@@ -578,7 +649,7 @@ class _HomePageState extends State<HomePage> {
         _ProfileSection(
           icon: Icons.business,
           title: 'ព័ត៌មានអង្គភាព និងការងារ',
-          subtitle: 'Work Information',
+          subtitle: 'ព័ត៌មានការងារ',
           subsections: [
             _ProfileSubsection(
               label: 'ឯកលក្ខណ៍របស់មន្ត្រី',
@@ -591,8 +662,8 @@ class _HomePageState extends State<HomePage> {
                           ? user.employeeCode as String
                           : user.employeeId.toString()),
                 ),
-                r('Employee Code', user.employeeCode as String?),
-                r('Card No', user.cardNo as String?),
+                r('កូដបុគ្គលិក', user.employeeCode as String?),
+                r('លេខកាត', user.cardNo as String?),
               ],
             ),
             _ProfileSubsection(
@@ -664,6 +735,19 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    if (_selectedMenu == _HomeMenuItem.notice) {
+      setState(() {
+        _notificationsFuture = _loadNotifications();
+      });
+
+      try {
+        await _notificationsFuture;
+      } catch (_) {
+        // FutureBuilder renders error state for failed notification requests.
+      }
+      return;
+    }
+
     setState(() {
       _summaryFuture = _loadSummary(forceRefresh: true);
     });
@@ -675,6 +759,52 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  Future<void> _markNotificationAsRead(HomeNotificationItem item) async {
+    if (!item.isUnread || item.id <= 0) {
+      return;
+    }
+
+    try {
+      await _notificationService.markAsRead(item.id);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _notificationsFuture = _loadNotifications();
+      });
+    } catch (error) {
+      _showServiceMessage(error.toString());
+    }
+  }
+
+  Future<void> _markAllNotificationsAsRead() async {
+    if (_isMarkingAllNotifications) {
+      return;
+    }
+
+    setState(() {
+      _isMarkingAllNotifications = true;
+    });
+
+    try {
+      await _notificationService.markAllAsRead();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _notificationsFuture = _loadNotifications();
+      });
+    } catch (error) {
+      _showServiceMessage(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isMarkingAllNotifications = false;
+        });
+      }
+    }
+  }
+
   void _onMenuTap(_HomeMenuItem item) {
     Navigator.of(context).pop();
 
@@ -683,15 +813,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    setState(() {
-      _selectedMenu = item;
-      if (item == _HomeMenuItem.attendance && _attendanceFuture == null) {
-        _attendanceFuture = _loadAttendance();
-      }
-      if (item == _HomeMenuItem.mission && _missionsFuture == null) {
-        _missionsFuture = _loadMissions();
-      }
-    });
+    _switchToMenu(item);
   }
 
   String _userInitial(dynamic user) {
@@ -804,6 +926,12 @@ class _HomePageState extends State<HomePage> {
               onTap: () => _onMenuTap(_HomeMenuItem.notice),
             ),
             _DrawerMenuTile(
+              icon: Icons.mail_outlined,
+              title: _menuTitle(_HomeMenuItem.correspondence, language),
+              selected: _selectedMenu == _HomeMenuItem.correspondence,
+              onTap: () => _onMenuTap(_HomeMenuItem.correspondence),
+            ),
+            _DrawerMenuTile(
               icon: Icons.person_outline,
               title: _menuTitle(_HomeMenuItem.profile, language),
               selected: _selectedMenu == _HomeMenuItem.profile,
@@ -867,13 +995,26 @@ class _HomePageState extends State<HomePage> {
           return FutureBuilder<List<AttendanceDayRecord>>(
             future: attendanceFuture,
             builder: (context, attendanceSnapshot) {
-              final records = attendanceSnapshot.data ?? const <AttendanceDayRecord>[];
+              final records =
+                  attendanceSnapshot.data ?? const <AttendanceDayRecord>[];
               final recentRecords = records.take(2).toList();
               final todayRecord = _findTodayRecord(records);
               final statusToday = _attendanceStatusLabel(
                 language,
                 todayRecord?.attendanceStatus,
               );
+              final employeeBadgeText =
+                  (user?.employeeNo?.trim().isNotEmpty == true)
+                      ? user!.employeeNo!.trim()
+                      : (user?.employeeCode?.trim().isNotEmpty == true)
+                      ? user!.employeeCode!.trim()
+                      : (user?.cardNo?.trim().isNotEmpty == true)
+                      ? user!.cardNo!.trim()
+                      : '${user?.employeeId ?? '-'}';
+              final positionText =
+                  (user?.positionKm?.trim().isNotEmpty == true)
+                      ? user!.positionKm!.trim()
+                      : user?.position;
               final shiftToday =
                   (todayRecord == null ||
                           todayRecord.timeIn == '-' ||
@@ -888,9 +1029,9 @@ class _HomePageState extends State<HomePage> {
                     greeting: _tr(language, 'welcome_msg', 'សូមស្វាគមន៍'),
                     name: user?.name ?? 'User',
                     email: user?.email ?? '-',
-                    employeeId: '${user?.employeeId ?? '-'}',
+                    employeeId: employeeBadgeText,
                     department: user?.departmentName ?? '-',
-                    position: user?.position,
+                    position: positionText,
                     initial: _userInitial(user),
                   ),
                   const SizedBox(height: 12),
@@ -923,11 +1064,19 @@ class _HomePageState extends State<HomePage> {
                         title: _tr(language, 'mission', 'បេសកកម្ម'),
                         tint: const Color(0xFFEAF1FF),
                         iconColor: const Color(0xFF5771B8),
-                        onTap: () => _openAdditionalService(_HomeMenuItem.mission, language),
+                        onTap:
+                            () => _openAdditionalService(
+                              _HomeMenuItem.mission,
+                              language,
+                            ),
                       ),
                       _QuickActionItem(
                         icon: Icons.fact_check_outlined,
-                        title: _tr(language, 'attendance_adjustment', 'កែវត្តមាន'),
+                        title: _tr(
+                          language,
+                          'attendance_adjustment',
+                          'កែវត្តមាន',
+                        ),
                         tint: const Color(0xFFEAF7EE),
                         iconColor: const Color(0xFF4F9C6F),
                         onTap: () {
@@ -949,19 +1098,24 @@ class _HomePageState extends State<HomePage> {
                         title: _tr(language, 'leave_type', 'សុំច្បាប់'),
                         tint: const Color(0xFFFFF4E5),
                         iconColor: const Color(0xFFD79C2E),
-                        onTap: () => _openAdditionalService(
-                          _HomeMenuItem.leave,
-                          language,
-                          message: _tr(
-                            language,
-                            'service_redirect_leave',
-                            'Please submit a leave request and wait for approval.',
-                          ),
-                        ),
+                        onTap:
+                            () => _openAdditionalService(
+                              _HomeMenuItem.leave,
+                              language,
+                              message: _tr(
+                                language,
+                                'service_redirect_leave',
+                                'Please submit a leave request and wait for approval.',
+                              ),
+                            ),
                       ),
                       _QuickActionItem(
                         icon: Icons.history_outlined,
-                        title: _tr(language, 'attendance_history', 'ប្រវត្តិវត្តមាន'),
+                        title: _tr(
+                          language,
+                          'attendance_history',
+                          'ប្រវត្តិវត្តមាន',
+                        ),
                         tint: const Color(0xFFEAF1FF),
                         iconColor: const Color(0xFF5D79C8),
                         onTap: () => _openAttendanceHistory(language),
@@ -976,7 +1130,11 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(height: 8),
                   if (recentRecords.isEmpty)
                     _SectionCard(
-                      title: _tr(language, 'attendance_history', 'ប្រវត្តិវត្តមាន'),
+                      title: _tr(
+                        language,
+                        'attendance_history',
+                        'ប្រវត្តិវត្តមាន',
+                      ),
                       description: _tr(
                         language,
                         'no_record_found',
@@ -987,12 +1145,13 @@ class _HomePageState extends State<HomePage> {
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        mainAxisExtent: 148,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            mainAxisExtent: 148,
+                          ),
                       itemCount: recentRecords.length,
                       itemBuilder: (context, index) {
                         final record = recentRecords[index];
@@ -1000,7 +1159,10 @@ class _HomePageState extends State<HomePage> {
                           date: record.date,
                           inTime: record.timeIn,
                           outTime: record.timeOut,
-                          status: _attendanceStatusLabel(language, record.attendanceStatus),
+                          status: _attendanceStatusLabel(
+                            language,
+                            record.attendanceStatus,
+                          ),
                           statusCode: record.attendanceStatus,
                         );
                       },
@@ -1010,7 +1172,11 @@ class _HomePageState extends State<HomePage> {
                     child: OutlinedButton(
                       onPressed: () => _openAttendanceHistory(language),
                       child: Text(
-                        _tr(language, 'view_full_history', 'មើលប្រវត្តិទាំងអស់'),
+                        _tr(
+                          language,
+                          'view_full_history',
+                          'មើលប្រវត្តិទាំងអស់',
+                        ),
                       ),
                     ),
                   ),
@@ -1229,23 +1395,23 @@ class _HomePageState extends State<HomePage> {
               for (final record in recentRecords) ...[
                 _AttendanceRecordCard(
                   date: record.date,
-                  timeInLabel: _tr(language, 'in_time', 'In'),
+                  timeInLabel: _tr(language, 'in_time', 'ម៉ោងចូល'),
                   timeIn: record.timeIn,
-                  timeOutLabel: _tr(language, 'out_time', 'Out'),
+                  timeOutLabel: _tr(language, 'out_time', 'ម៉ោងចេញ'),
                   timeOut: record.timeOut,
-                  totalLabel: _tr(language, 'total_hours', 'Total Hours'),
+                  totalLabel: _tr(language, 'total_hours', 'ម៉ោងសរុប'),
                   totalHours: record.totalHours,
                   punchesLabel: _tr(language, 'punches', 'ចំនួនស្កេន'),
                   punchCount: record.punchCount.toString(),
-                  statusLabel: _tr(language, 'status', 'Status'),
+                  statusLabel: _tr(language, 'status', 'ស្ថានភាព'),
                   statusValue: _attendanceStatusLabel(
                     language,
                     record.attendanceStatus,
                   ),
                   statusCode: record.attendanceStatus,
-                  lateLabel: _tr(language, 'late', 'Late'),
+                  lateLabel: _tr(language, 'late', 'មកយឺត'),
                   lateMinutes: record.lateMinutes,
-                  earlyLeaveLabel: _tr(language, 'early_leave', 'Early Leave'),
+                  earlyLeaveLabel: _tr(language, 'early_leave', 'ចេញមុនម៉ោង'),
                   earlyLeaveMinutes: record.earlyLeaveMinutes,
                   hasException: record.hasException == true,
                 ),
@@ -1300,7 +1466,7 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.all(16),
               children: [
                 _ErrorStateCard(
-                  title: _tr(language, 'mission', 'Mission'),
+                  title: _tr(language, 'mission', 'បេសកកម្ម'),
                   message: '${snapshot.error}',
                   onRetry: _refresh,
                 ),
@@ -1314,7 +1480,7 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.all(16),
               children: [
                 _SectionCard(
-                  title: _tr(language, 'mission', 'Mission'),
+                  title: _tr(language, 'mission', 'បេសកកម្ម'),
                   description: _tr(
                     language,
                     'no_missions',
@@ -1357,8 +1523,8 @@ class _HomePageState extends State<HomePage> {
 
     return RefreshIndicator(
       onRefresh: _refresh,
-      child: FutureBuilder<DashboardSummary>(
-        future: _summaryFuture,
+      child: FutureBuilder<HomeNotificationPageData>(
+        future: _notificationsFuture ?? _loadNotifications(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return ListView(
@@ -1375,7 +1541,7 @@ class _HomePageState extends State<HomePage> {
               padding: const EdgeInsets.all(16),
               children: [
                 _ErrorStateCard(
-                  title: _tr(language, 'notice_list', 'Notice'),
+                  title: _tr(language, 'notice_list', 'ជូនដំណឹង'),
                   message: '${snapshot.error}',
                   onRetry: _refresh,
                 ),
@@ -1383,19 +1549,24 @@ class _HomePageState extends State<HomePage> {
             );
           }
 
-          final summary = snapshot.data;
-          final notices = summary?.notices ?? const <String>[];
+          final noticeData =
+              snapshot.data ??
+              const HomeNotificationPageData(
+                items: <HomeNotificationItem>[],
+                unreadCount: 0,
+              );
+          final notices = noticeData.items;
 
           if (notices.isEmpty) {
             return ListView(
               padding: listPadding,
               children: [
                 _SectionCard(
-                  title: _tr(language, 'notice_list', 'Notice'),
+                  title: _tr(language, 'notice_list', 'ជូនដំណឹង'),
                   description: _tr(
                     language,
                     'no_notice_to_show',
-                    'មិនទាន់មាន notice',
+                    'No notifications yet',
                   ),
                 ),
               ],
@@ -1407,15 +1578,50 @@ class _HomePageState extends State<HomePage> {
             children: [
               _AttendanceSectionHeader(
                 title: _tr(language, 'notice_list', 'ជូនដំណឹង'),
-                subtitle: _tr(language, 'latest_records', 'ព័ត៌មានថ្មីៗ'),
+                subtitle:
+                    noticeData.unreadCount > 0
+                        ? '${_tr(language, 'unread', 'Unread')}: ${noticeData.unreadCount}'
+                        : _tr(language, 'latest_records', 'Latest updates'),
               ),
+              if (noticeData.unreadCount > 0) ...[
+                const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed:
+                        _isMarkingAllNotifications
+                            ? null
+                            : _markAllNotificationsAsRead,
+                    icon:
+                        _isMarkingAllNotifications
+                            ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                            : const Icon(Icons.done_all_rounded, size: 18),
+                    label: Text(
+                      _tr(language, 'mark_all_read', 'Mark all as read'),
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 12),
-              for (var i = 0; i < notices.length; i++) ...[
+              for (final notice in notices) ...[
                 _NoticeFeedCard(
-                  title: '${_tr(language, 'notice_list', 'ជូនដំណឹង')} ${i + 1}',
-                  description: notices[i],
-                  meta: _tr(language, 'latest_records', 'ថ្មីៗ'),
-                  unread: i < 2,
+                  title: notice.title,
+                  description: notice.description,
+                  meta: notice.meta,
+                  unread: notice.isUnread,
+                  onTap:
+                      notice.isUnread
+                          ? () => _markNotificationAsRead(notice)
+                          : null,
+                  onMarkRead:
+                      notice.isUnread
+                          ? () => _markNotificationAsRead(notice)
+                          : null,
+                  actionLabel: _tr(language, 'mark_as_read', 'Mark as read'),
                 ),
                 const SizedBox(height: 10),
               ],
@@ -1447,7 +1653,11 @@ class _HomePageState extends State<HomePage> {
             children: [
               _SectionCard(
                 title: _menuTitle(_selectedMenu, language),
-                description: _tr(language, 'wrong_info_alert', 'User session not found'),
+                description: _tr(
+                  language,
+                  'wrong_info_alert',
+                  'មិនមានព័ត៌មានអ្នកប្រើប្រាស់',
+                ),
               ),
             ],
           );
@@ -1464,6 +1674,8 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         );
+      case _HomeMenuItem.correspondence:
+        return CorrespondencePage(authController: widget.authController);
       case _HomeMenuItem.notice:
         return _buildNoticeCenter(language);
       case _HomeMenuItem.logout:
@@ -1482,55 +1694,74 @@ class _HomePageState extends State<HomePage> {
       builder: (context, snapshot) {
         final language = snapshot.data ?? const <String, String>{};
 
-        return Scaffold(
-          appBar: AppBar(
-            automaticallyImplyLeading: false,
-            title: Text(
-              _menuTitle(_selectedMenu, language),
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            actions: [
-              if (_selectedMenu == _HomeMenuItem.dashboard) ...[
-                _TopActionIcon(
-                  icon: Icons.refresh_rounded,
-                  onPressed: _refresh,
-                  tooltip: 'Refresh',
-                ),
-                const SizedBox(width: 4),
-                Builder(
-                  builder: (context) => _TopActionIcon(
-                    icon: Icons.menu_rounded,
-                    onPressed: () => Scaffold.of(context).openDrawer(),
-                    tooltip: 'Menu',
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ] else ...[
-                if (_selectedMenu == _HomeMenuItem.attendance ||
-                    _selectedMenu == _HomeMenuItem.mission)
-                  IconButton(
+        return PopScope(
+          canPop: _isOnDashboard,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop && !_isOnDashboard) {
+              _returnToDashboard();
+            }
+          },
+          child: Scaffold(
+            appBar: AppBar(
+              automaticallyImplyLeading: false,
+              leading:
+                  _isOnDashboard
+                      ? null
+                      : IconButton(
+                        onPressed: _returnToDashboard,
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        tooltip: _tr(language, 'back', 'ត្រឡប់ក្រោយ'),
+                      ),
+              title: Text(
+                _menuTitle(_selectedMenu, language),
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              actions: [
+                if (_selectedMenu == _HomeMenuItem.dashboard) ...[
+                  _TopActionIcon(
+                    icon: Icons.refresh_rounded,
                     onPressed: _refresh,
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'Refresh',
+                    tooltip: _tr(language, 'refresh', 'ធ្វើបច្ចុប្បន្នភាព'),
                   ),
-                IconButton(
-                  onPressed:
-                      authController.isSubmitting
-                          ? null
-                          : () async {
-                            await authController.logout();
-                          },
-                  icon: const Icon(Icons.logout),
-                  tooltip: _tr(language, 'logout', 'Logout'),
-                ),
+                  const SizedBox(width: 4),
+                  Builder(
+                    builder:
+                        (context) => _TopActionIcon(
+                          icon: Icons.menu_rounded,
+                          onPressed: () => Scaffold.of(context).openDrawer(),
+                          tooltip: _tr(language, 'menu', 'ម៉ឺនុយ'),
+                        ),
+                  ),
+                  const SizedBox(width: 8),
+                ] else ...[
+                  if (_selectedMenu == _HomeMenuItem.attendance ||
+                      _selectedMenu == _HomeMenuItem.mission ||
+                      _selectedMenu == _HomeMenuItem.notice ||
+                      _selectedMenu == _HomeMenuItem.correspondence)
+                    IconButton(
+                      onPressed: _refresh,
+                      icon: const Icon(Icons.refresh),
+                      tooltip: _tr(language, 'refresh', 'ធ្វើបច្ចុប្បន្នភាព'),
+                    ),
+                  IconButton(
+                    onPressed:
+                        authController.isSubmitting
+                            ? null
+                            : () async {
+                              await authController.logout();
+                            },
+                    icon: const Icon(Icons.logout),
+                    tooltip: _tr(language, 'logout', 'ចាកចេញ'),
+                  ),
+                ],
               ],
-            ],
-          ),
-          drawer: _buildDrawer(user, language),
-          body: _buildBody(user, language, theme),
-          bottomNavigationBar: _HomeBottomNavigation(
-            currentIndex: _bottomNavIndex(),
-            onTap: _onBottomNavTap,
+            ),
+            drawer: _buildDrawer(user, language),
+            body: _buildBody(user, language, theme),
+            bottomNavigationBar: _HomeBottomNavigation(
+              currentIndex: _bottomNavIndex(),
+              onTap: _onBottomNavTap,
+            ),
           ),
         );
       },
@@ -1539,14 +1770,15 @@ class _HomePageState extends State<HomePage> {
 }
 
 enum _HomeMenuItem {
-  dashboard('Dashboard'),
-  attendance('Attendance'),
-  leave('Leave'),
-  mission('Mission'),
-  salary('Salary'),
-  notice('Notice'),
-  profile('Profile'),
-  logout('Logout');
+  dashboard('ទំព័រដើម'),
+  attendance('វត្តមាន'),
+  leave('ច្បាប់'),
+  mission('បេសកកម្ម'),
+  salary('ប្រាក់ខែ'),
+  notice('ជូនដំណឹង'),
+  correspondence('លិខិតរដ្ឋបាល'),
+  profile('ព័ត៌មានផ្ទាល់ខ្លួន'),
+  logout('ចាកចេញ');
 
   const _HomeMenuItem(this.title);
 
@@ -1601,7 +1833,7 @@ class _HomeBottomNavigation extends StatelessWidget {
     required this.onTap,
   });
 
-  final int currentIndex;
+  final int? currentIndex;
   final Future<void> Function(int index) onTap;
 
   @override
@@ -1639,7 +1871,7 @@ class _HomeBottomNavigation extends StatelessWidget {
                   child: _BottomNavItem(
                     icon: items[i].icon,
                     label: items[i].label,
-                    active: i == currentIndex,
+                    active: currentIndex != null && i == currentIndex,
                     onTap: () => onTap(i),
                   ),
                 ),
@@ -1682,7 +1914,8 @@ class _BottomNavItem extends StatelessWidget {
               Icon(
                 icon,
                 size: 22,
-                color: active ? const Color(0xFF2E7D61) : const Color(0xFF758695),
+                color:
+                    active ? const Color(0xFF2E7D61) : const Color(0xFF758695),
               ),
               const SizedBox(height: 4),
               Text(
@@ -1690,7 +1923,10 @@ class _BottomNavItem extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: active ? const Color(0xFF2E7D61) : const Color(0xFF758695),
+                  color:
+                      active
+                          ? const Color(0xFF2E7D61)
+                          : const Color(0xFF758695),
                   fontSize: 11.5,
                   fontWeight: active ? FontWeight.w800 : FontWeight.w700,
                 ),
@@ -1984,7 +2220,11 @@ class _DashboardTodayCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.check_circle, color: Color(0xFF2E7D61), size: 22),
+                const Icon(
+                  Icons.check_circle,
+                  color: Color(0xFF2E7D61),
+                  size: 22,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   '$title :',
@@ -2185,7 +2425,9 @@ class _TodaySecondaryLine extends StatelessWidget {
   Widget build(BuildContext context) {
     return RichText(
       text: TextSpan(
-        style: const TextStyle(fontFamilyFallback: ['Noto Sans Khmer', 'Public Sans']),
+        style: const TextStyle(
+          fontFamilyFallback: ['Noto Sans Khmer', 'Public Sans'],
+        ),
         children: [
           TextSpan(
             text: '$label: ',
@@ -2228,7 +2470,9 @@ class _CompactAttendanceRecordCard extends StatelessWidget {
 
   Color _badgeColor() {
     final normalized = statusCode?.trim().toLowerCase() ?? '';
-    if (normalized == 'on_time' || normalized == 'present' || normalized == 'p') {
+    if (normalized == 'on_time' ||
+        normalized == 'present' ||
+        normalized == 'p') {
       return const Color(0xFF2E7D61);
     }
     if (normalized.contains('late') || normalized == 'l') {
@@ -2356,7 +2600,8 @@ class _WelcomePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final subtitle = position?.trim().isNotEmpty == true ? position!.trim() : department;
+    final subtitle =
+        position?.trim().isNotEmpty == true ? position!.trim() : department;
 
     return Container(
       decoration: BoxDecoration(
@@ -2419,7 +2664,10 @@ class _WelcomePanel extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE9F4F1),
                     borderRadius: BorderRadius.circular(999),
@@ -2467,103 +2715,149 @@ class _NoticeFeedCard extends StatelessWidget {
     required this.description,
     required this.meta,
     required this.unread,
+    this.onTap,
+    this.onMarkRead,
+    this.actionLabel,
   });
 
   final String title;
   final String description;
   final String meta;
   final bool unread;
+  final VoidCallback? onTap;
+  final VoidCallback? onMarkRead;
+  final String? actionLabel;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: unread ? const Color(0xFFD6E6FF) : const Color(0xFFE2EAE7),
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A14211D),
-            blurRadius: 10,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: unread ? const Color(0xFFEAF1FF) : const Color(0xFFF2F4F7),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                unread ? Icons.notifications_active_outlined : Icons.notifications_none,
-                color: unread ? const Color(0xFF1D4F91) : const Color(0xFF64748B),
-                size: 18,
-              ),
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: unread ? const Color(0xFFD6E6FF) : const Color(0xFFE2EAE7),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A14211D),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color:
+                        unread
+                            ? const Color(0xFFEAF1FF)
+                            : const Color(0xFFF2F4F7),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    unread
+                        ? Icons.notifications_active_outlined
+                        : Icons.notifications_none,
+                    color:
+                        unread
+                            ? const Color(0xFF1D4F91)
+                            : const Color(0xFF64748B),
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF10211B),
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF10211B),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
                           ),
+                          if (unread)
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF1D4F91),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF334155),
+                          fontSize: 13,
+                          height: 1.45,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      if (unread)
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFF1D4F91),
-                            shape: BoxShape.circle,
+                      const SizedBox(height: 7),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              meta,
+                              style: const TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (onMarkRead != null)
+                            TextButton(
+                              onPressed: onMarkRead,
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                minimumSize: const Size(0, 30),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                (actionLabel ?? 'Mark as read').trim(),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF334155),
-                      fontSize: 13,
-                      height: 1.45,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    meta,
-                    style: const TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -2784,7 +3078,10 @@ class _TodayAttendanceStatusCard extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withAlpha(22),
                     borderRadius: BorderRadius.circular(999),
@@ -2879,7 +3176,7 @@ class _ProminentScanCard extends StatelessWidget {
                     Icon(Icons.qr_code_scanner_rounded, color: Colors.white),
                     SizedBox(width: 8),
                     Text(
-                      'QR Attendance',
+                      'ស្កេន QR វត្តមាន',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w900,
@@ -3363,7 +3660,7 @@ class _MissionRecordCard extends StatelessWidget {
               children: [
                 _SoftPill(
                   icon: Icons.apartment_outlined,
-                  label: '${_tr('destination', 'Destination')}: $destination',
+                  label: '${_tr('destination', 'គោលដៅ')}: $destination',
                   backgroundColor: const Color(0xFFEFF3FF),
                 ),
                 _SoftPill(
@@ -3373,7 +3670,7 @@ class _MissionRecordCard extends StatelessWidget {
                 ),
                 _SoftPill(
                   icon: Icons.group_outlined,
-                  label: '${_tr('employee', 'Employees')}: $employeeCount',
+                  label: '${_tr('employee', 'បុគ្គលិក')}: $employeeCount',
                   backgroundColor: const Color(0xFFFFF1E5),
                 ),
               ],
@@ -3632,7 +3929,7 @@ class _ProfileHeroCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: const Text(
-                              'My Profile',
+                              'ព័ត៌មានផ្ទាល់ខ្លួន',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -3719,7 +4016,9 @@ class _ProfileHeroCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: Colors.white.withAlpha(26),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withAlpha(34)),
+                            border: Border.all(
+                              color: Colors.white.withAlpha(34),
+                            ),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

@@ -1,5 +1,5 @@
 @extends('backend.layouts.app')
-@section('title', 'Employee Performance')
+@section('title', localize('employee_performance', 'ការវាយតម្លៃសមិទ្ធផលបុគ្គលិក'))
 @section('content')
     <!--/.Content Header (Page header)-->
     <div class="body-content">
@@ -22,17 +22,17 @@
                                 </div>
                                 <div class="col-md-5">
                                     <h3 style="text-align:center;">{{ date('Y', strtotime($employee_performance->date)) }}
-                                        PERFOMANCE APPRAISAL</h3>
+                                        {{ strtoupper(localize('performance_appraisal', 'ការវាយតម្លៃសមិទ្ធផល')) }}</h3>
                                 </div>
                                 <div class="col-md-4" style="text-align:right;">
-                                    <span>Serial No: #{{ $employee_performance->performance_code }}</span>
+                                    <span>{{ localize('serial_no', 'លេខស៊េរី') }}: #{{ $employee_performance->performance_code }}</span>
                                 </div>
                             </div>
                             <div class="row mt-5">
                                 <div class="col-md-6 mt-3">
                                     <div class="row">
                                         <div class="col-md-5">
-                                            <span class="fs-16 fw-700">Name of Employee:</span>
+                                            <span class="fs-16 fw-700">{{ localize('name_of_employee') }}:</span>
                                         </div>
                                         <div class="col-md-7 d-flex justify-content-center"
                                             style="border-bottom: 1px solid #000;">
@@ -43,7 +43,7 @@
                                 <div class="col-md-6 mt-3">
                                     <div class="row">
                                         <div class="col-md-4">
-                                            <span class="fs-16 fw-700">Department:</span>
+                                            <span class="fs-16 fw-700">{{ localize('department') }}:</span>
                                         </div>
                                         <div class="col-md-8 d-flex justify-content-center"
                                             style="border-bottom: 1px solid #000;">
@@ -55,7 +55,7 @@
                                 <div class="col-md-6 mt-3">
                                     <div class="row">
                                         <div class="col-md-4">
-                                            <span class="fs-16 fw-700">Job Title:</span>
+                                            <span class="fs-16 fw-700">{{ localize('position', 'មុខតំណែង') }}:</span>
                                         </div>
                                         <div class="col-md-8 d-flex justify-content-center"
                                             style="border-bottom: 1px solid #000;">
@@ -67,7 +67,7 @@
                                 <div class="col-md-6 mt-3">
                                     <div class="row">
                                         <div class="col-md-4">
-                                            <span class="fs-16 fw-700">Review Period:</span>
+                                            <span class="fs-16 fw-700">{{ localize('review_period', 'រយៈពេលវាយតម្លៃ') }}:</span>
                                         </div>
                                         <div class="col-md-8 d-flex justify-content-center"
                                             style="border-bottom: 1px solid #000;">
@@ -78,7 +78,7 @@
                                 <div class="col-md-12 mt-3">
                                     <div class="row">
                                         <div class="col-md-5">
-                                            <span class="fs-16 fw-700">Name and Position of Supervisor/Head of Department
+                                            <span class="fs-16 fw-700">{{ localize('supervisor_name_and_position', 'ឈ្មោះ និងមុខតំណែងរបស់អ្នកគ្រប់គ្រង/ប្រធានអង្គភាព') }}
                                                 :</span>
                                         </div>
                                         <div class="col-md-7 d-flex justify-content-center"
@@ -92,9 +92,7 @@
                             <br>
                             <div class="row">
                                 <div class="col-md-12">
-                                    <p class="fs-17 mt-3 fs-i">Please provide a critical assessment of the performance of
-                                        the employee within the review period using the following rating scale. Provide
-                                        examples where applicable. Please use a separate sheet if required.
+                                    <p class="fs-17 mt-3 fs-i">{{ localize('performance_assessment_instruction', 'សូមផ្តល់ការវាយតម្លៃសមិទ្ធផលការងាររបស់បុគ្គលិកក្នុងអំឡុងពេលវាយតម្លៃ ដោយប្រើមាត្រដ្ឋានខាងក្រោម។ សូមផ្តល់ឧទាហរណ៍នៅពេលចាំបាច់ ហើយអាចប្រើសន្លឹកបន្ថែមបានប្រសិនបើត្រូវការ។') }}
                                     </p>
                                 </div>
                             </div>
@@ -159,7 +157,7 @@
                                         @endforeach
                                         <tr>
                                             <td></td>
-                                            <td colspan="5">Total Score (Maximum = 60)</td>
+                                            <td colspan="5">{{ localize('total_score_max_60', 'ពិន្ទុសរុប (អតិបរមា = 60)') }}</td>
                                             <td>{{ $asssesment_one->sum('score') }}</td>
                                             <td></td>
                                         </tr>
@@ -169,18 +167,18 @@
 
 
                             <div class="row">
-                                <h3 class="mt-3">B. ASSESSMENT OF OTHER PERFORMANCE STANDARDS AND INDICATORS</h3>
+                                <h3 class="mt-3">{{ strtoupper(localize('performance_section_b', 'ខ. ការវាយតម្លៃស្តង់ដារ និងសូចនាករសមិទ្ធផលផ្សេងទៀត')) }}</h3>
                                 <table class="table table-bordered">
                                     <thead>
                                         <tr>
-                                            <th>Criteria</th>
+                                            <th>{{ localize('criteria', 'លក្ខខណ្ឌវាយតម្លៃ') }}</th>
                                             <th>P <br> (2)</th>
                                             <th>NI <br> (4)</th>
                                             <th>G <br> (6)</th>
                                             <th>VG <br> (9)</th>
                                             <th>E <br> (10)</th>
-                                            <th>Score</th>
-                                            <th>Comments and Examples</th>
+                                            <th>{{ localize('score', 'ពិន្ទុ') }}</th>
+                                            <th>{{ localize('comments_and_examples', 'មតិយោបល់ និងឧទាហរណ៍') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -208,7 +206,7 @@
                                         @endforeach
                                         <tr>
                                             <td></td>
-                                            <td colspan="5">Total Score (Maximum = 60)</td>
+                                            <td colspan="5">{{ localize('total_score_max_40', 'ពិន្ទុសរុប (អតិបរមា = 40)') }}</td>
                                             <td>{{ $asssesment_two->sum('score') }}</td>
                                             <td></td>
                                         </tr>
@@ -217,12 +215,12 @@
                             </div>
 
                             <div class="row">
-                                <h3 class="mt-3">C. TOTAL SCORE</h3>
+                                <h3 class="mt-3">{{ strtoupper(localize('performance_section_c', 'គ. ពិន្ទុសរុប')) }}</h3>
                                 <table class="table table-bordered">
                                     <thead>
                                         <tr>
-                                            <th>Total Score (Score A + Score B)</th>
-                                            <th>Overall Comments / Recommendations by Reviewer</th>
+                                            <th>{{ localize('total_score_score_a_b', 'ពិន្ទុសរុប (ពិន្ទុ A + ពិន្ទុ B)') }}</th>
+                                            <th>{{ localize('overall_comments_reviewer', 'មតិយោបល់/អនុសាសន៍រួមរបស់អ្នកវាយតម្លៃ') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -242,7 +240,7 @@
                                                     </tr>
                                                 </table>
                                                 <div>
-                                                    <p class="fw-700">Classification of Employee:</p>
+                                                    <p class="fw-700">{{ localize('classification_of_employee', 'ចំណាត់ថ្នាក់បុគ្គលិក') }}:</p>
                                                 </div>
                                                 <table style="border: solid white !important;">
                                                     <tr>
@@ -268,16 +266,16 @@
                                             </td>
                                             <td>
                                                 <div>
-                                                    <p class="fw-700">Name:</p>
+                                                    <p class="fw-700">{{ localize('name') }}:</p>
                                                 </div>
                                                 <div>
-                                                    <p class="fw-700">Signature:</p>
+                                                    <p class="fw-700">{{ localize('signature') }}:</p>
                                                 </div>
                                                 <div>
-                                                    <p class="fw-700">Date:</p>
+                                                    <p class="fw-700">{{ localize('date') }}:</p>
                                                 </div>
                                                 <div>
-                                                    <p class="fw-700">Next Review Period:</p>
+                                                    <p class="fw-700">{{ localize('next_review_period', 'រយៈពេលវាយតម្លៃបន្ទាប់') }}:</p>
                                                 </div>
                                             </td>
                                         </tr>
@@ -288,44 +286,42 @@
 
                             <div class="row">
                                 <div class="col-md-12">
-                                    <p class="fs-17 mt-3 fs-i">* If employee is an Unacceptably Performing Employee,
-                                        please attach a Performance Improvement Plan (PIP)</p>
+                                    <p class="fs-17 mt-3 fs-i">{{ localize('pip_required_note', 'ប្រសិនបើបុគ្គលិកមានលទ្ធផលការងារមិនអាចទទួលយកបាន សូមភ្ជាប់ផែនការកែលម្អសមិទ្ធផល (PIP) ផង។') }}</p>
                                 </div>
                             </div>
 
                             <br>
 
                             <div class="row">
-                                <h3 class="mt-3">COMMENTS BY EMPLOYEE</h3>
+                                <h3 class="mt-3">{{ strtoupper(localize('performance_section_d', 'ឃ. មតិយោបល់របស់បុគ្គលិក')) }}</h3>
                                 <div class="form-group">
                                     <textarea class="form-control" id="exampleFormControlTextarea1" rows="3">{{ $employee_performance->employee_comments }}</textarea>
                                 </div>
                             </div>
                             <div class="row mt-3">
                                 <div class="col-md-4">
-                                    <p>Name:</p>
+                                    <p>{{ localize('name') }}:</p>
                                 </div>
                                 <div class="col-md-4">
-                                    <p>Signature:</p>
+                                    <p>{{ localize('signature') }}:</p>
                                 </div>
                                 <div class="col-md-4">
-                                    <p>Date:</p>
+                                    <p>{{ localize('date') }}:</p>
                                 </div>
                             </div>
 
                             <br>
 
                             <div class="row">
-                                <h3 class="mt-3">E. DEVELOPMENT PLAN</h3>
+                                <h3 class="mt-3">{{ strtoupper(localize('performance_section_e', 'ង. ផែនការអភិវឌ្ឍន៍')) }}</h3>
                                 <table class="table table-bordered">
                                     <thead>
                                         <tr>
-                                            <th width="25%">Recommended Areas for Improvement / Development</th>
-                                            <th width="20%">Expected Outcome(s)</th>
-                                            <th width="35%"> Responsible Person(s) to assist in the achievement of the
-                                                Plan</th>
-                                            <th width="10%">Start {{ __('language.date') }}</th>
-                                            <th width="10%">End {{ __('language.date') }}</th>
+                                            <th width="25%">{{ localize('recommended_areas_for_improvement', 'ផ្នែកដែលណែនាំឲ្យកែលម្អ/អភិវឌ្ឍ') }}</th>
+                                            <th width="20%">{{ localize('expected_outcomes', 'លទ្ធផលរំពឹងទុក') }}</th>
+                                            <th width="35%">{{ localize('responsible_persons_for_plan', 'អ្នកទទួលខុសត្រូវជួយអនុវត្តផែនការ') }}</th>
+                                            <th width="10%">{{ localize('start_date', 'ថ្ងៃចាប់ផ្តើម') }}</th>
+                                            <th width="10%">{{ localize('end_date', 'ថ្ងៃបញ្ចប់') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -345,12 +341,12 @@
                             </div>
 
                             <div class="row">
-                                <h3 class="mt-3">F. KEY GOALS FOR NEXT REVIEW PERIOD</h3>
+                                <h3 class="mt-3">{{ strtoupper(localize('performance_section_f', 'ច. គោលដៅសំខាន់សម្រាប់រយៈពេលវាយតម្លៃបន្ទាប់')) }}</h3>
                                 <table class="table table-bordered">
                                     <thead>
                                         <tr>
-                                            <th>Goal (s) Set and Agreed on with Employee</th>
-                                            <th>Proposed Completion Period</th>
+                                            <th>{{ localize('goals_set_with_employee', 'គោលដៅដែលបានកំណត់ និងព្រមព្រៀងជាមួយបុគ្គលិក') }}</th>
+                                            <th>{{ localize('proposed_completion_period', 'រយៈពេលបញ្ចប់ដែលបានស្នើ') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody>

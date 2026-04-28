@@ -1,11 +1,17 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 
+import '../../../core/config/app_routes.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/device/device_metadata_service.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/network/api_service.dart';
+import '../../../core/storage/token_storage_service.dart';
+import '../../../core/storage/user_session_storage_service.dart';
 import '../../../core/storage/machine_number_storage_service.dart';
 import '../../auth/models/device_access_request_result.dart';
 import '../../auth/services/device_access_request_service.dart';
@@ -22,6 +28,9 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
   final DeviceAccessRequestService _deviceAccessRequestService =
       DeviceAccessRequestService();
   final DeviceMetadataService _deviceMetadataService = DeviceMetadataService();
+  final TokenStorageService _tokenStorageService = TokenStorageService();
+  final UserSessionStorageService _userSessionStorageService =
+      UserSessionStorageService();
 
   late final Future<String> _machineNumberFuture;
   late final Future<Map<String, dynamic>> _deviceInfoFuture;
@@ -34,8 +43,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
   @override
   void initState() {
     super.initState();
-    _serverController.text =
-        ApiConfig.hasStoredBaseUrls ? ApiConfig.baseUrls.join('\n') : '';
+    _serverController.text = ApiConfig.configuredBaseUrls.join('\n');
     _machineNumberFuture = MachineNumberStorageService().getMachineNumber();
     _deviceInfoFuture = _deviceMetadataService.collect();
   }
@@ -47,7 +55,9 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
   }
 
   List<String> _resolveCandidateBaseUrls() {
-    final custom = ApiConfig.normalizeConfiguredBaseUrls(_serverController.text);
+    final custom = ApiConfig.normalizeConfiguredBaseUrls(
+      _serverController.text,
+    );
     if (custom.isNotEmpty) {
       return custom;
     }
@@ -56,12 +66,16 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
   }
 
   Future<void> _saveServerConfig() async {
-    final values = ApiConfig.normalizeConfiguredBaseUrls(_serverController.text);
+    final values = ApiConfig.normalizeConfiguredBaseUrls(
+      _serverController.text,
+    );
     if (values.isEmpty) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(content: Text('សូមបញ្ចូល Server URL ឱ្យត្រឹមត្រូវ')),
+          const SnackBar(
+            content: Text('សូមបញ្ចូលអាសយដ្ឋានម៉ាស៊ីនមេឱ្យត្រឹមត្រូវ'),
+          ),
         );
       return;
     }
@@ -71,6 +85,9 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
     });
 
     await ApiConfig.saveConfiguredBaseUrls(values);
+    ApiService.resetRoutingState();
+    await _tokenStorageService.clearToken();
+    await _userSessionStorageService.clearUser();
 
     if (!mounted) {
       return;
@@ -78,34 +95,45 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
 
     setState(() {
       _isSavingServer = false;
-      _serverController.text = ApiConfig.baseUrls.join('\n');
+      _serverController.text = values.join('\n');
     });
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(content: Text('បានរក្សាទុក Server: ${ApiConfig.baseUrl}')),
+        SnackBar(content: Text('បានរក្សាទុកម៉ាស៊ីនមេ: ${ApiConfig.baseUrl}')),
       );
+
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
   }
 
   Future<void> _useDefaultServerConfig() async {
     await ApiConfig.clearConfiguredBaseUrls();
+    ApiService.resetRoutingState();
+    await _tokenStorageService.clearToken();
+    await _userSessionStorageService.clearUser();
     if (!mounted) {
       return;
     }
 
     setState(() {
       _serverController.clear();
-      _connectionMessage = 'បានត្រឡប់ទៅ Server លំនាំដើម';
+      _connectionMessage = 'បានត្រឡប់ទៅម៉ាស៊ីនមេលំនាំដើម';
       _connectionColor = const Color(0xFF0B6B58);
     });
+
+    Navigator.of(
+      context,
+    ).pushNamedAndRemoveUntil(AppRoutes.login, (route) => false);
   }
 
   Future<void> _testServerConnection() async {
     final candidates = _resolveCandidateBaseUrls();
     if (candidates.isEmpty) {
       setState(() {
-        _connectionMessage = 'មិនមាន Server URL សម្រាប់តេស្តទេ';
+        _connectionMessage = 'មិនមានអាសយដ្ឋានម៉ាស៊ីនមេសម្រាប់តេស្តទេ';
         _connectionColor = const Color(0xFFB42318);
       });
       return;
@@ -113,39 +141,69 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
 
     setState(() {
       _isTestingConnection = true;
-      _connectionMessage = 'កំពុងតេស្តភ្ជាប់ទៅ Server...';
+      _connectionMessage = 'កំពុងតេស្តភ្ជាប់ទៅម៉ាស៊ីនមេ...';
       _connectionColor = const Color(0xFF1D4F91);
     });
 
     String? failedReason;
 
     for (final base in candidates) {
-      final uri = ApiConfig.buildUriForBase(base, '/auth/profile');
+      final uri = ApiConfig.buildUriForBase(base, '/auth/login');
 
       try {
         final response = await http
-            .get(uri, headers: const <String, String>{'Accept': 'application/json'})
+            .post(
+              uri,
+              headers: const <String, String>{
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+              },
+              body: jsonEncode(<String, dynamic>{
+                'email': 'probe@example.com',
+                'password': 'invalid-password',
+                'device_id': 'connection-probe',
+              }),
+            )
             .timeout(const Duration(seconds: 8));
 
         if (!mounted) {
           return;
         }
 
-        if (response.statusCode < 500) {
+        final statusCode = response.statusCode;
+        final reachable =
+            (statusCode >= 200 && statusCode < 300) ||
+            statusCode == 400 ||
+            statusCode == 401 ||
+            statusCode == 422 ||
+            statusCode == 403;
+
+        final isJson = _isJsonResponse(response);
+
+        if (reachable) {
+          if (!isJson) {
+            failedReason = 'ទទួលបាន response មិនមែន JSON';
+            continue;
+          }
+
+          final authHint =
+              (statusCode == 401 || statusCode == 403)
+                  ? ' - ត្រូវការសិទ្ធិចូលប្រើ'
+                  : '';
           setState(() {
             _isTestingConnection = false;
             _connectionMessage =
-                'ភ្ជាប់ជោគជ័យ: $base (HTTP ${response.statusCode})';
+                'ភ្ជាប់ជោគជ័យ: $base (HTTP $statusCode$authHint)';
             _connectionColor = const Color(0xFF0B6B58);
           });
           return;
         }
 
-        failedReason = 'HTTP ${response.statusCode}';
+        failedReason = 'HTTP $statusCode';
       } on TimeoutException {
-        failedReason = 'Connection timeout';
+        failedReason = 'អស់ពេលក្នុងការភ្ជាប់';
       } catch (error) {
-        failedReason = error.toString();
+        failedReason = extractApiErrorMessage(error);
       }
     }
 
@@ -156,9 +214,15 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
     setState(() {
       _isTestingConnection = false;
       _connectionMessage =
-          'ភ្ជាប់មិនបានទេ។ សូមពិនិត្យ URL/Network (${failedReason ?? 'Unknown error'})';
+          'ភ្ជាប់មិនបានទេ។ សូមពិនិត្យ URL/បណ្តាញ (${failedReason ?? 'កំហុសដែលមិនស្គាល់'})';
       _connectionColor = const Color(0xFFB42318);
     });
+  }
+
+  bool _isJsonResponse(http.Response response) {
+    final contentType = response.headers['content-type']?.toLowerCase() ?? '';
+    return contentType.contains('application/json') ||
+        contentType.contains('+json');
   }
 
   Future<void> _openAccessRequestDialog(String machineNumber) async {
@@ -209,14 +273,14 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                       TextFormField(
                         controller: emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(labelText: 'Email'),
+                        decoration: const InputDecoration(labelText: 'អ៊ីមែល'),
                         validator: (value) {
                           final raw = (value ?? '').trim();
                           if (raw.isEmpty) {
-                            return 'សូមបញ្ចូល Email';
+                            return 'សូមបញ្ចូលអ៊ីមែល';
                           }
                           if (!raw.contains('@')) {
-                            return 'Email មិនត្រឹមត្រូវ';
+                            return 'អ៊ីមែលមិនត្រឹមត្រូវ';
                           }
                           return null;
                         },
@@ -226,7 +290,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                         controller: passwordController,
                         obscureText: obscurePassword,
                         decoration: InputDecoration(
-                          labelText: 'Password',
+                          labelText: 'ពាក្យសម្ងាត់',
                           suffixIcon: IconButton(
                             onPressed: () {
                               setDialogState(() {
@@ -242,7 +306,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return 'សូមបញ្ចូល Password';
+                            return 'សូមបញ្ចូលពាក្យសម្ងាត់';
                           }
                           return null;
                         },
@@ -251,14 +315,18 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                       TextFormField(
                         controller: phoneController,
                         keyboardType: TextInputType.phone,
-                        decoration: const InputDecoration(labelText: 'ទូរស័ព្ទ'),
+                        decoration: const InputDecoration(
+                          labelText: 'ទូរស័ព្ទ',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: reasonController,
                         minLines: 2,
                         maxLines: 4,
-                        decoration: const InputDecoration(labelText: 'មូលហេតុស្នើសុំ'),
+                        decoration: const InputDecoration(
+                          labelText: 'មូលហេតុស្នើសុំ',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Align(
@@ -272,7 +340,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'Device: $deviceSummary',
+                          'ឧបករណ៍: $deviceSummary',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
@@ -302,16 +370,17 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
 
                             try {
                               final submitResult =
-                                  await _deviceAccessRequestService.submitRequest(
-                                    fullName: nameController.text,
-                                    email: emailController.text,
-                                    password: passwordController.text,
-                                    phone: phoneController.text,
-                                    machineNumber: machineNumber,
-                                    deviceInfo: deviceInfo,
-                                    deviceSummary: deviceSummary,
-                                    reason: reasonController.text,
-                                  );
+                                  await _deviceAccessRequestService
+                                      .submitRequest(
+                                        fullName: nameController.text,
+                                        email: emailController.text,
+                                        password: passwordController.text,
+                                        phone: phoneController.text,
+                                        machineNumber: machineNumber,
+                                        deviceInfo: deviceInfo,
+                                        deviceSummary: deviceSummary,
+                                        reason: reasonController.text,
+                                      );
 
                               if (!context.mounted) {
                                 return;
@@ -325,7 +394,11 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                               ScaffoldMessenger.of(context)
                                 ..hideCurrentSnackBar()
                                 ..showSnackBar(
-                                  SnackBar(content: Text('$error')),
+                                  SnackBar(
+                                    content: Text(
+                                      extractApiErrorMessage(error),
+                                    ),
+                                  ),
                                 );
 
                               setDialogState(() {
@@ -362,7 +435,9 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(content: Text('${result.message} (Request ID: ${result.requestId})')),
+        SnackBar(
+          content: Text('${result.message} (លេខសំណើ: ${result.requestId})'),
+        ),
       );
   }
 
@@ -371,9 +446,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('System Settings'),
-      ),
+      appBar: AppBar(title: const Text('ការកំណត់ប្រព័ន្ធ')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -388,21 +461,21 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Connection to Server',
+                  'ការតភ្ជាប់ទៅម៉ាស៊ីនមេ',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'កំណត់ URL Server និងអាចតេស្តការតភ្ជាប់បាន (វាយតែ IP/Domain ក៏បាន)។',
+                  'កំណត់ URL ម៉ាស៊ីនមេ និងអាចតេស្តការតភ្ជាប់បាន (វាយ IP ឬ Domain ក៏បាន)។',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: const Color(0xFF5D6D65),
                   ),
                 ),
                 const SizedBox(height: 12),
                 SelectableText(
-                  'Current: ${ApiConfig.baseUrl}',
+                  'អាសយដ្ឋានដែលកំពុងប្រើ: ${ApiConfig.baseUrl}',
                   style: theme.textTheme.bodySmall,
                 ),
                 const SizedBox(height: 10),
@@ -411,9 +484,9 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                   minLines: 3,
                   maxLines: 6,
                   decoration: const InputDecoration(
-                    labelText: 'Server URL(s)',
+                    labelText: 'អាសយដ្ឋានម៉ាស៊ីនមេ',
                     hintText:
-                        '192.168.1.9\nphdhrm.local\n192.168.1.9/PHDHRM/backend\nphdhrm.local:8000',
+                        '192.168.1.9\n192.168.1.9/PHDHRM/backend\n10.0.2.2/PHDHRM/backend\n10.0.2.2:8000',
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -426,17 +499,21 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                           _isTestingConnection ? null : _testServerConnection,
                       icon: const Icon(Icons.wifi_tethering_outlined),
                       label: Text(
-                        _isTestingConnection ? 'កំពុងតេស្ត...' : 'Test Connection',
+                        _isTestingConnection
+                            ? 'កំពុងតេស្ត...'
+                            : 'តេស្តការតភ្ជាប់',
                       ),
                     ),
                     FilledButton.tonalIcon(
                       onPressed: _isSavingServer ? null : _saveServerConfig,
                       icon: const Icon(Icons.save_outlined),
-                      label: Text(_isSavingServer ? 'កំពុងរក្សាទុក...' : 'Save'),
+                      label: Text(
+                        _isSavingServer ? 'កំពុងរក្សាទុក...' : 'រក្សាទុក',
+                      ),
                     ),
                     TextButton(
                       onPressed: _useDefaultServerConfig,
-                      child: const Text('Use Default'),
+                      child: const Text('ប្រើលំនាំដើម'),
                     ),
                   ],
                 ),
@@ -470,7 +547,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Device and Access',
+                      'ឧបករណ៍ និងសិទ្ធិចូលប្រើ',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                       ),
@@ -501,7 +578,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                                 : _deviceMetadataService.summarize(info);
 
                         return Text(
-                          'Device: $summary',
+                          'ឧបករណ៍: $summary',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: const Color(0xFF5D6D65),
                           ),
@@ -534,7 +611,8 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                           label: const Text('ចម្លងលេខម៉ាស៊ីន'),
                         ),
                         OutlinedButton.icon(
-                          onPressed: () => _openAccessRequestDialog(machineNumber),
+                          onPressed:
+                              () => _openAccessRequestDialog(machineNumber),
                           icon: const Icon(Icons.send_outlined, size: 18),
                           label: const Text('ផ្ញើសំណើអនុញ្ញាត'),
                         ),
@@ -554,7 +632,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
               border: Border.all(color: const Color(0xFFDDE9E4)),
             ),
             child: Text(
-              'ព័ត៌មាន: Login Screen ត្រូវបានបង្រួមសម្រាប់ Username/Password/Login ប៉ុណ្ណោះ។ ការកំណត់ផ្សេងៗត្រូវបានផ្លាស់មកទំព័រ System Settings នេះ។',
+              'ព័ត៌មាន: ទំព័រចូលប្រើ ត្រូវបានបង្រួមសម្រាប់ការបញ្ចូលអ៊ីមែល និងពាក្យសម្ងាត់ប៉ុណ្ណោះ។ ការកំណត់ផ្សេងៗ ត្រូវបានផ្លាស់មកទំព័រ ការកំណត់ប្រព័ន្ធ នេះ។',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: const Color(0xFF5D6D65),
               ),

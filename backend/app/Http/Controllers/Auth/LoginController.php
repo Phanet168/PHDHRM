@@ -92,7 +92,7 @@ class LoginController extends Controller {
             'otp_verified_at',
         ]);
 
-        if ($user && (int) $user->user_type_id === 1 && $user->can('read_dashboard')) {
+        if ($user && $user->admin() && $user->can('read_dashboard')) {
             return redirect()->route('home');
         }
 

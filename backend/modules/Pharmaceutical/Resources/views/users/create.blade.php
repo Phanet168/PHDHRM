@@ -68,16 +68,8 @@
                             <label class="form-label fw-bold">{{ localize('org_role', 'Role') }} <span class="text-danger">*</span></label>
                             <select name="org_role" class="form-select" required>
                                 @foreach ($orgRoles as $role)
-                                    @php
-                                        $roleLabel = match($role) {
-                                            'head' => localize('head', 'Head'),
-                                            'deputy_head' => localize('deputy_head', 'Deputy Head'),
-                                            'manager' => localize('manager', 'Manager'),
-                                            default => $role,
-                                        };
-                                    @endphp
                                     <option value="{{ $role }}" {{ old('org_role') === $role ? 'selected' : '' }}>
-                                        {{ $roleLabel }}
+                                        {{ $roleLabels[$role] ?? $role }}
                                     </option>
                                 @endforeach
                             </select>
@@ -90,8 +82,10 @@
                                 @foreach ($scopeOptions as $scope)
                                     @php
                                         $scopeLabel = match($scope) {
-                                            'self' => localize('scope_self', 'Self only'),
+                                            'self', 'self_only' => localize('scope_self', 'Self only'),
+                                            'self_unit_only' => localize('scope_self_unit_only', 'Self unit only'),
                                             'self_and_children' => localize('scope_self_children', 'Self + Children'),
+                                            'all' => localize('scope_all', 'All units'),
                                             default => $scope,
                                         };
                                     @endphp

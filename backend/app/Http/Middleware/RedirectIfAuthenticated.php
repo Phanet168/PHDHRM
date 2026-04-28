@@ -24,7 +24,7 @@ class RedirectIfAuthenticated
             if (Auth::guard($guard)->check()) {
                 $user = Auth::guard($guard)->user();
 
-                if ((int) $user->user_type_id === 1) {
+                if ($user->admin()) {
                     return redirect()->route('home');
                 }
 
