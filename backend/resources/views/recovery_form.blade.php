@@ -11,9 +11,9 @@
             <div class="form-container my-4">
                 <div class="panel login-form-w">
                     <div class="panel-header text-center mb-3">
-                        <div class="mb-3">
-                            <img src="{{ app_setting()->favicon }}" class="rounded-circle" width="90" height="90"
-                                alt="">
+                        <div class="login-brand mb-3">
+                            <img src="{{ app_setting()->logo }}" class="login-brand__logo"
+                                alt="{{ app_setting()->title }} logo">
                         </div>
                         <h3 class="fs-24 fw-bold mb-1">{{ app_setting()->title }}</h3>
                         <p class="fw--semi-bold text-center fs-14 mb-0"> {{localize('password_recovery')}}</p>

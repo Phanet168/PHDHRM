@@ -12,18 +12,51 @@ int _toInt(dynamic value) {
   return 0;
 }
 
+double _toDouble(dynamic value) {
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  if (value is num) return value.toDouble();
+  if (value is String) {
+    final text = value.trim();
+    if (text.isEmpty) return 0;
+    return double.tryParse(text) ?? 0;
+  }
+  return 0;
+}
+
+bool _toBool(dynamic value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  if (value is String) {
+    final normalized = value.trim().toLowerCase();
+    return normalized == '1' ||
+        normalized == 'true' ||
+        normalized == 'yes' ||
+        normalized == 'on';
+  }
+  return false;
+}
+
 class LeaveTypeOption {
   const LeaveTypeOption({
     required this.id,
     required this.name,
     required this.nameKm,
     required this.days,
+    required this.scope,
+    required this.maxPerRequest,
+    required this.requiresAttachment,
+    required this.isPaid,
   });
 
   final int id;
   final String name;
   final String nameKm;
   final int days;
+  final String scope;
+  final double maxPerRequest;
+  final bool requiresAttachment;
+  final bool isPaid;
 
   String displayName(Map<String, String> language) {
     if (nameKm.trim().isNotEmpty) {
@@ -36,11 +69,60 @@ class LeaveTypeOption {
   }
 
   factory LeaveTypeOption.fromMap(Map<String, dynamic> map) {
+    final requiresAttachment =
+        _toBool(map['requires_attachment']) ||
+        _toBool(map['requires_medical_certificate']);
+
     return LeaveTypeOption(
       id: _toInt(map['id']),
       name: (map['leave_type'] ?? '').toString(),
       nameKm: (map['leave_type_km'] ?? '').toString(),
-      days: _toInt(map['leave_days']),
+      days: _toInt(map['entitlement_value']) > 0
+          ? _toInt(map['entitlement_value'])
+          : _toInt(map['leave_days']),
+      scope: (map['entitlement_scope'] ?? map['scope'] ?? 'per_year').toString(),
+      maxPerRequest: _toDouble(map['max_per_request']),
+      requiresAttachment: requiresAttachment,
+      isPaid: _toBool(map['is_paid']),
+    );
+  }
+}
+
+class HandoverEmployeeOption {
+  const HandoverEmployeeOption({
+    required this.id,
+    required this.employeeNo,
+    required this.fullName,
+    required this.fullNameLatin,
+  });
+
+  final int id;
+  final String employeeNo;
+  final String fullName;
+  final String fullNameLatin;
+
+  String displayLabel() {
+    final name = fullName.trim().isNotEmpty ? fullName.trim() : fullNameLatin.trim();
+    if (employeeNo.trim().isEmpty) {
+      return name;
+    }
+    return '$employeeNo - $name';
+  }
+
+  String get searchText {
+    return [
+      employeeNo.trim(),
+      fullName.trim(),
+      fullNameLatin.trim(),
+    ].where((value) => value.isNotEmpty).join(' ').toLowerCase();
+  }
+
+  factory HandoverEmployeeOption.fromMap(Map<String, dynamic> map) {
+    return HandoverEmployeeOption(
+      id: _toInt(map['id']),
+      employeeNo: (map['employee_no'] ?? '').toString(),
+      fullName: (map['full_name'] ?? '').toString(),
+      fullNameLatin: (map['full_name_latin'] ?? '').toString(),
     );
   }
 }
@@ -50,17 +132,23 @@ class LeaveBalanceItem {
     required this.leaveTypeId,
     required this.leaveType,
     required this.leaveTypeKm,
+    required this.scope,
     required this.entitlement,
     required this.used,
+    required this.pending,
     required this.remaining,
+    required this.maxPerRequest,
   });
 
   final int leaveTypeId;
   final String leaveType;
   final String leaveTypeKm;
+  final String scope;
   final int entitlement;
   final int used;
+  final int pending;
   final int remaining;
+  final int maxPerRequest;
 
   String displayName(Map<String, String> language) {
     if (leaveTypeKm.trim().isNotEmpty) {
@@ -77,9 +165,12 @@ class LeaveBalanceItem {
       leaveTypeId: _toInt(map['leave_type_id']),
       leaveType: (map['leave_type'] ?? '').toString(),
       leaveTypeKm: (map['leave_type_km'] ?? '').toString(),
+      scope: (map['scope'] ?? 'per_year').toString(),
       entitlement: _toInt(map['entitlement']),
       used: _toInt(map['used']),
+      pending: _toInt(map['pending']),
       remaining: _toInt(map['remaining']),
+      maxPerRequest: _toInt(map['max_per_request']),
     );
   }
 }
@@ -118,29 +209,45 @@ class LeaveSummary {
 class LeaveRequestItem {
   const LeaveRequestItem({
     required this.id,
+    required this.uuid,
+    required this.leaveTypeId,
     required this.leaveType,
     required this.leaveTypeKm,
+    required this.handoverEmployeeId,
+    required this.handoverEmployeeName,
     required this.startDate,
     required this.endDate,
     required this.requestedDays,
+    required this.approvedDays,
     required this.reason,
     required this.status,
+    required this.workflowStatus,
     this.attachmentUrl,
     this.employeeName,
     this.employeeNo,
+    this.submittedAt,
+    this.updatedAt,
   });
 
   final int id;
+  final String uuid;
+  final int leaveTypeId;
   final String leaveType;
   final String leaveTypeKm;
+  final int handoverEmployeeId;
+  final String handoverEmployeeName;
   final String startDate;
   final String endDate;
   final int requestedDays;
+  final int approvedDays;
   final String reason;
   final String status;
+  final String workflowStatus;
   final String? attachmentUrl;
   final String? employeeName;
   final String? employeeNo;
+  final String? submittedAt;
+  final String? updatedAt;
 
   bool get canCancel {
     final normalized = status.trim().toLowerCase();
@@ -174,18 +281,26 @@ class LeaveRequestItem {
 
     return LeaveRequestItem(
       id: _toInt(map['id']),
+      uuid: (map['uuid'] ?? '').toString(),
+      leaveTypeId: _toInt(map['leave_type_id']),
       leaveType: (map['leave_type'] ?? '').toString(),
       leaveTypeKm: (map['leave_type_km'] ?? '').toString(),
+      handoverEmployeeId: _toInt(map['handover_employee_id']),
+      handoverEmployeeName: (map['handover_employee_name'] ?? '').toString(),
       startDate: (map['start_date'] ?? '').toString(),
       endDate: (map['end_date'] ?? '').toString(),
       requestedDays: _toInt(map['requested_days']),
+      approvedDays: _toInt(map['approved_days']),
       reason: (map['reason'] ?? '').toString(),
       status: (map['status'] ?? '').toString(),
+      workflowStatus: (map['workflow_status'] ?? '').toString(),
       attachmentUrl: (map['attachment_url'] as String?)?.trim(),
       employeeName:
           employeeName?.trim().isEmpty == true ? null : employeeName?.trim(),
       employeeNo:
           employeeNo?.trim().isEmpty == true ? null : employeeNo?.trim(),
+      submittedAt: (map['submitted_at'] as String?)?.trim(),
+      updatedAt: (map['updated_at'] as String?)?.trim(),
     );
   }
 }

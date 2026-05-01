@@ -106,6 +106,7 @@ Route::prefix('v1')
         Route::post('/missions', [MissionController::class, 'store'])->name('api.v1.missions.store');
 
         Route::get('/leave-types', [LeaveRequestApiController::class, 'types'])->name('api.v1.leave_types.index');
+        Route::get('/leave-handover-employees', [LeaveRequestApiController::class, 'handoverEmployees'])->name('api.v1.leave_handover_employees.index');
         Route::get('/leave-requests/summary', [LeaveRequestApiController::class, 'summary'])->name('api.v1.leave_requests.summary');
         Route::get('/leave-requests/pending-review', [LeaveRequestApiController::class, 'pendingReview'])->name('api.v1.leave_requests.pending_review');
         Route::get('/leave-requests', [LeaveRequestApiController::class, 'index'])->name('api.v1.leave_requests.index');
@@ -123,19 +124,23 @@ Route::prefix('v1')
         Route::get('/notifications', [NoticeNotificationApiController::class, 'index'])->name('api.v1.notifications.index');
         Route::get('/notifications/unread-count', [NoticeNotificationApiController::class, 'unreadCount'])->name('api.v1.notifications.unread_count');
         Route::post('/notifications/read-all', [NoticeNotificationApiController::class, 'readAll'])->name('api.v1.notifications.read_all');
-        Route::post('/notifications/{notificationDelivery}/read', [NoticeNotificationApiController::class, 'read'])->whereNumber('notificationDelivery')->name('api.v1.notifications.read');
+        Route::post('/notifications/{notificationDelivery}/read', [NoticeNotificationApiController::class, 'read'])->name('api.v1.notifications.read');
 
         // Correspondence API routes (mobile)
-        Route::get('/correspondence/incoming', [CorrespondenceController::class, 'incoming'])->middleware('permission:read_correspondence_management')->name('api.v1.correspondence.incoming');
-        Route::get('/correspondence/outgoing', [CorrespondenceController::class, 'outgoing'])->middleware('permission:read_correspondence_management')->name('api.v1.correspondence.outgoing');
+        Route::get('/correspondence/incoming', [CorrespondenceController::class, 'incoming'])->name('api.v1.correspondence.incoming');
+        Route::get('/correspondence/outgoing', [CorrespondenceController::class, 'outgoing'])->name('api.v1.correspondence.outgoing');
         Route::get('/correspondence/org-units', [CorrespondenceController::class, 'orgUnits'])->middleware('permission:create_correspondence_management')->name('api.v1.correspondence.org_units');
-        Route::get('/correspondence/{letter}', [CorrespondenceController::class, 'show'])->whereNumber('letter')->middleware('permission:read_correspondence_management')->name('api.v1.correspondence.show');
+        Route::get('/correspondence/{letter}', [CorrespondenceController::class, 'show'])->whereNumber('letter')->name('api.v1.correspondence.show');
         Route::post('/correspondence/store', [CorrespondenceController::class, 'store'])->middleware('permission:create_correspondence_management')->name('api.v1.correspondence.store');
         Route::post('/correspondence/{letter}/progress', [CorrespondenceController::class, 'progress'])->whereNumber('letter')->middleware('permission:update_correspondence_management')->name('api.v1.correspondence.progress');
         Route::post('/correspondence/{letter}/distribute', [CorrespondenceController::class, 'distribute'])->whereNumber('letter')->middleware('permission:update_correspondence_management')->name('api.v1.correspondence.distribute');
         Route::post('/correspondence/distribution/{distribution}/acknowledge', [CorrespondenceController::class, 'acknowledge'])->name('api.v1.correspondence.acknowledge');
         Route::post('/correspondence/distribution/{distribution}/feedback', [CorrespondenceController::class, 'feedback'])->name('api.v1.correspondence.feedback');
         Route::post('/correspondence/{letter}/feedback-parent', [CorrespondenceController::class, 'feedbackParent'])->whereNumber('letter')->name('api.v1.correspondence.feedback_parent');
+        Route::get('/correspondence/{letter}/attachments/{index}/signed-url', [CorrespondenceController::class, 'attachmentSignedUrl'])
+            ->whereNumber('letter')
+            ->whereNumber('index')
+            ->name('api.v1.correspondence.attachment_signed_url');
         Route::get('/correspondence/users/search', [CorrespondenceController::class, 'searchUsers'])->name('api.v1.correspondence.search_users');
-        Route::get('/correspondence', [CorrespondenceController::class, 'index'])->middleware('permission:read_correspondence_management')->name('api.v1.correspondence.dashboard');
+        Route::get('/correspondence', [CorrespondenceController::class, 'index'])->name('api.v1.correspondence.dashboard');
     });

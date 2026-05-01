@@ -47,8 +47,18 @@ class _LeaveHistoryPageState extends State<LeaveHistoryPage> {
   ];
 
   static const List<String> _kmMonths = <String>[
-    'មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា',
-    'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ',
+    'មករា',
+    'កុម្ភៈ',
+    'មីនា',
+    'មេសា',
+    'ឧសភា',
+    'មិថុនា',
+    'កក្កដា',
+    'សីហា',
+    'កញ្ញា',
+    'តុលា',
+    'វិច្ឆិកា',
+    'ធ្នូ',
   ];
 
   @override
@@ -91,7 +101,8 @@ class _LeaveHistoryPageState extends State<LeaveHistoryPage> {
       if (start != null && start.year != _filterYear) return false;
 
       // Month filter
-      if (_filterMonth != null && start != null &&
+      if (_filterMonth != null &&
+          start != null &&
           start.month != _filterMonth) {
         return false;
       }
@@ -104,17 +115,7 @@ class _LeaveHistoryPageState extends State<LeaveHistoryPage> {
 
       // Type filter
       if (_filterTypeId != null) {
-        // Match by leave type name since item has no leaveTypeId exposed
-        final type = widget.types.firstWhere(
-          (t) => t.id == _filterTypeId,
-          orElse: () => const LeaveTypeOption(id: -1, name: '', nameKm: '', days: 0),
-        );
-        final eng = type.name.toLowerCase();
-        final km = type.nameKm.toLowerCase();
-        final reqEng = req.leaveType.toLowerCase();
-        final reqKm = req.leaveTypeKm.toLowerCase();
-        if (!reqEng.contains(eng) && !reqKm.contains(km) &&
-            !eng.contains(reqEng) && !km.contains(reqKm)) {
+        if (req.leaveTypeId != _filterTypeId) {
           return false;
         }
       }
@@ -142,11 +143,16 @@ class _LeaveHistoryPageState extends State<LeaveHistoryPage> {
 
   String _statusLabel(String status) {
     switch (status) {
-      case 'pending': return _tr('pending', 'រង់ចាំ');
-      case 'approved': return _tr('approved', 'អនុម័ត');
-      case 'rejected': return _tr('rejected', 'បដិសេធ');
-      case 'cancelled': return _tr('cancelled', 'បោះបង់');
-      default: return 'ទាំងអស់';
+      case 'pending':
+        return _tr('pending', 'រង់ចាំ');
+      case 'approved':
+        return _tr('approved', 'អនុម័ត');
+      case 'rejected':
+        return _tr('rejected', 'បដិសេធ');
+      case 'cancelled':
+        return _tr('cancelled', 'បោះបង់');
+      default:
+        return 'ទាំងអស់';
     }
   }
 
@@ -192,7 +198,8 @@ class _LeaveHistoryPageState extends State<LeaveHistoryPage> {
             years: _years,
             statusOptions: _statusOptions,
             types: widget.types,
-            onYearChanged: (v) => setState(() => _filterYear = v ?? DateTime.now().year),
+            onYearChanged:
+                (v) => setState(() => _filterYear = v ?? DateTime.now().year),
             onMonthChanged: (v) => setState(() => _filterMonth = v),
             onStatusChanged: (v) => setState(() => _filterStatus = v ?? 'all'),
             onTypeChanged: (v) => setState(() => _filterTypeId = v),
@@ -221,33 +228,36 @@ class _LeaveHistoryPageState extends State<LeaveHistoryPage> {
 
           // ── List ───────────────────────────────────────────────────────
           Expanded(
-            child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF0B6B58),
-                    ),
-                  )
-                : filtered.isEmpty
-                    ? _EmptyHistory(label: _tr('no_data_found', 'មិនមានទិន្នន័យ'))
-                    : RefreshIndicator(
-                        color: const Color(0xFF0B6B58),
-                        onRefresh: _loadAll,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
-                          itemCount: filtered.length,
-                          itemBuilder: (_, i) {
-                            final req = filtered[i];
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _HistoryCard(
-                                request: req,
-                                language: widget.language,
-                                onTap: () => _openDetail(req),
-                              ),
-                            );
-                          },
-                        ),
+            child:
+                _loading
+                    ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF0B6B58),
                       ),
+                    )
+                    : filtered.isEmpty
+                    ? _EmptyHistory(
+                      label: _tr('no_data_found', 'មិនមានទិន្នន័យ'),
+                    )
+                    : RefreshIndicator(
+                      color: const Color(0xFF0B6B58),
+                      onRefresh: _loadAll,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 32),
+                        itemCount: filtered.length,
+                        itemBuilder: (_, i) {
+                          final req = filtered[i];
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: _HistoryCard(
+                              request: req,
+                              language: widget.language,
+                              onTap: () => _openDetail(req),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
           ),
         ],
       ),
@@ -258,13 +268,14 @@ class _LeaveHistoryPageState extends State<LeaveHistoryPage> {
     await Navigator.push<void>(
       context,
       MaterialPageRoute<void>(
-        builder: (_) => LeaveDetailPage(
-          request: req,
-          language: widget.language,
-          leaveService: widget.leaveService,
-          user: widget.user,
-          onCancelled: _loadAll,
-        ),
+        builder:
+            (_) => LeaveDetailPage(
+              request: req,
+              language: widget.language,
+              leaveService: widget.leaveService,
+              user: widget.user,
+              onCancelled: _loadAll,
+            ),
       ),
     );
   }
@@ -320,12 +331,13 @@ class _FilterBar extends StatelessWidget {
             _FilterChipDrop<int>(
               icon: Icons.calendar_month_outlined,
               value: filterYear,
-              items: years
-                  .map((y) => DropdownMenuItem<int>(
-                        value: y,
-                        child: Text('$y'),
-                      ))
-                  .toList(),
+              items:
+                  years
+                      .map(
+                        (y) =>
+                            DropdownMenuItem<int>(value: y, child: Text('$y')),
+                      )
+                      .toList(),
               onChanged: onYearChanged,
             ),
             const SizedBox(width: 8),
@@ -336,7 +348,10 @@ class _FilterBar extends StatelessWidget {
               hint: 'ខែ',
               value: filterMonth,
               items: <DropdownMenuItem<int>>[
-                const DropdownMenuItem<int>(value: null, child: Text('ខែទាំងអស់')),
+                const DropdownMenuItem<int>(
+                  value: null,
+                  child: Text('ខែទាំងអស់'),
+                ),
                 ...List<DropdownMenuItem<int>>.generate(
                   12,
                   (i) => DropdownMenuItem<int>(
@@ -354,12 +369,15 @@ class _FilterBar extends StatelessWidget {
               icon: Icons.tune_rounded,
               hint: 'ស្ថានភាព',
               value: filterStatus,
-              items: statusOptions
-                  .map((s) => DropdownMenuItem<String>(
-                        value: s,
-                        child: Text(s == 'all' ? 'ទាំងអស់' : statusLabel(s)),
-                      ))
-                  .toList(),
+              items:
+                  statusOptions
+                      .map(
+                        (s) => DropdownMenuItem<String>(
+                          value: s,
+                          child: Text(s == 'all' ? 'ទាំងអស់' : statusLabel(s)),
+                        ),
+                      )
+                      .toList(),
               onChanged: onStatusChanged,
             ),
 
@@ -372,7 +390,9 @@ class _FilterBar extends StatelessWidget {
                 value: filterTypeId,
                 items: <DropdownMenuItem<int>>[
                   const DropdownMenuItem<int>(
-                      value: null, child: Text('ប្រភេទទាំងអស់')),
+                    value: null,
+                    child: Text('ប្រភេទទាំងអស់'),
+                  ),
                   ...types.map(
                     (t) => DropdownMenuItem<int>(
                       value: t.id,
@@ -416,18 +436,27 @@ class _FilterChipDrop<T> extends StatelessWidget {
       ),
       child: DropdownButton<T>(
         value: value,
-        hint: hint != null
-            ? Row(children: <Widget>[
-                Icon(icon, size: 14, color: const Color(0xFF64748B)),
-                const SizedBox(width: 4),
-                Text(hint!,
-                    style: const TextStyle(
-                        fontSize: 12, color: Color(0xFF64748B))),
-              ])
-            : Row(children: <Widget>[
-                Icon(icon, size: 14, color: const Color(0xFF0B6B58)),
-                const SizedBox(width: 4),
-              ]),
+        hint:
+            hint != null
+                ? Row(
+                  children: <Widget>[
+                    Icon(icon, size: 14, color: const Color(0xFF64748B)),
+                    const SizedBox(width: 4),
+                    Text(
+                      hint!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                )
+                : Row(
+                  children: <Widget>[
+                    Icon(icon, size: 14, color: const Color(0xFF0B6B58)),
+                    const SizedBox(width: 4),
+                  ],
+                ),
         underline: const SizedBox.shrink(),
         items: items,
         onChanged: onChanged,
@@ -459,9 +488,10 @@ class _HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final typeLabel = request.leaveTypeKm.trim().isNotEmpty
-        ? request.leaveTypeKm
-        : request.leaveType;
+    final typeLabel =
+        request.leaveTypeKm.trim().isNotEmpty
+            ? request.leaveTypeKm
+            : request.leaveType;
     final si = _statusInfo(request.status);
 
     return GestureDetector(
@@ -510,17 +540,17 @@ class _HistoryCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _StatusBadge(
-                        label: si.label(language),
-                        color: si.color,
-                      ),
+                      _StatusBadge(label: si.label(language), color: si.color),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Row(
                     children: <Widget>[
-                      const Icon(Icons.date_range_outlined,
-                          size: 13, color: Color(0xFF94A3B8)),
+                      const Icon(
+                        Icons.date_range_outlined,
+                        size: 13,
+                        color: Color(0xFF94A3B8),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${request.startDate}  →  ${request.endDate}',
@@ -534,8 +564,11 @@ class _HistoryCard extends StatelessWidget {
                   const SizedBox(height: 3),
                   Row(
                     children: <Widget>[
-                      const Icon(Icons.schedule_outlined,
-                          size: 13, color: Color(0xFF94A3B8)),
+                      const Icon(
+                        Icons.schedule_outlined,
+                        size: 13,
+                        color: Color(0xFF94A3B8),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${request.requestedDays} ថ្ងៃ',
@@ -551,8 +584,11 @@ class _HistoryCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded,
-                size: 18, color: Color(0xFFCBD5E1)),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: Color(0xFFCBD5E1),
+            ),
           ],
         ),
       ),
@@ -621,19 +657,27 @@ class _StatusInfo {
 
   Color get color {
     switch (_status.trim().toLowerCase()) {
-      case 'approved': return const Color(0xFF10B981);
-      case 'rejected': return const Color(0xFFEF4444);
-      case 'cancelled': return const Color(0xFF9CA3AF);
-      default: return const Color(0xFFF59E0B);
+      case 'approved':
+        return const Color(0xFF10B981);
+      case 'rejected':
+        return const Color(0xFFEF4444);
+      case 'cancelled':
+        return const Color(0xFF9CA3AF);
+      default:
+        return const Color(0xFFF59E0B);
     }
   }
 
   String label(Map<String, String> language) {
     switch (_status.trim().toLowerCase()) {
-      case 'approved': return language['approved'] ?? 'អនុម័ត';
-      case 'rejected': return language['rejected'] ?? 'បដិសេធ';
-      case 'cancelled': return language['cancelled'] ?? 'បោះបង់';
-      default: return language['pending'] ?? 'រង់ចាំ';
+      case 'approved':
+        return language['approved'] ?? 'អនុម័ត';
+      case 'rejected':
+        return language['rejected'] ?? 'បដិសេធ';
+      case 'cancelled':
+        return language['cancelled'] ?? 'បោះបង់';
+      default:
+        return language['pending'] ?? 'រង់ចាំ';
     }
   }
 }

@@ -26,6 +26,7 @@ class CorrespondenceLetter {
     this.assignedDepartmentId,
     this.assignedDepartmentName,
     this.parentLetterId,
+    this.sourceDistributionId,
     this.createdByUserId,
     this.createdByName,
     this.createdAt,
@@ -34,6 +35,7 @@ class CorrespondenceLetter {
     this.completedCount,
     this.actions,
     this.distributions,
+    this.permissions,
   });
 
   final int id;
@@ -58,6 +60,7 @@ class CorrespondenceLetter {
   final int? assignedDepartmentId;
   final String? assignedDepartmentName;
   final int? parentLetterId;
+  final int? sourceDistributionId;
   final int? createdByUserId;
   final String? createdByName;
   final DateTime? createdAt;
@@ -66,6 +69,7 @@ class CorrespondenceLetter {
   final int? completedCount;
   final List<CorrespondenceLetterAction>? actions;
   final List<CorrespondenceLetterDistribution>? distributions;
+  final CorrespondenceLetterPermissions? permissions;
 
   bool get isIncoming => letterType == 'incoming';
   bool get isOutgoing => letterType == 'outgoing';
@@ -121,6 +125,7 @@ class CorrespondenceLetter {
       assignedDepartmentName:
           (json['assigned_department_name'] as String?)?.trim(),
       parentLetterId: (json['parent_letter_id'] as num?)?.toInt(),
+      sourceDistributionId: (json['source_distribution_id'] as num?)?.toInt(),
       createdByUserId: (json['created_by_user_id'] as num?)?.toInt(),
       createdByName: (json['created_by_name'] as String?)?.trim(),
       createdAt: _parseDateTime(json['created_at']),
@@ -137,6 +142,12 @@ class CorrespondenceLetter {
               ?.whereType<Map<String, dynamic>>()
               .map(CorrespondenceLetterDistribution.fromJson)
               .toList(),
+      permissions:
+          json['permissions'] is Map<String, dynamic>
+              ? CorrespondenceLetterPermissions.fromJson(
+                json['permissions'] as Map<String, dynamic>,
+              )
+              : null,
     );
   }
 
@@ -159,6 +170,7 @@ class CorrespondenceLetter {
     'origin_department_id': originDepartmentId,
     'assigned_department_id': assignedDepartmentId,
     'parent_letter_id': parentLetterId,
+    'source_distribution_id': sourceDistributionId,
     'created_by_user_id': createdByUserId,
     'decision': decision,
   };
@@ -274,6 +286,8 @@ class CorrespondenceLetterDistribution {
     this.feedbackNote,
     this.childLetterId,
     this.createdAt,
+    this.canAcknowledge,
+    this.canFeedback,
   });
 
   final int id;
@@ -288,6 +302,8 @@ class CorrespondenceLetterDistribution {
   final String? feedbackNote;
   final int? childLetterId;
   final DateTime? createdAt;
+  final bool? canAcknowledge;
+  final bool? canFeedback;
 
   bool get isPendingAck => status == 'pending_ack';
   bool get isAcknowledged => status == 'acknowledged';
@@ -312,6 +328,14 @@ class CorrespondenceLetterDistribution {
       feedbackNote: (json['feedback_note'] as String?)?.trim(),
       childLetterId: (json['child_letter_id'] as num?)?.toInt(),
       createdAt: _parseDateTime(json['created_at']),
+      canAcknowledge:
+          json.containsKey('can_acknowledge')
+              ? json['can_acknowledge'] == true
+              : null,
+      canFeedback:
+          json.containsKey('can_feedback')
+              ? json['can_feedback'] == true
+              : null,
     );
   }
 
@@ -322,6 +346,38 @@ class CorrespondenceLetterDistribution {
     } catch (_) {
       return null;
     }
+  }
+}
+
+class CorrespondenceLetterPermissions {
+  CorrespondenceLetterPermissions({
+    required this.canDelegate,
+    required this.canOfficeComment,
+    required this.canDeputyReview,
+    required this.canDirectorDecision,
+    required this.canDistribute,
+    required this.canClose,
+    required this.canSendParentFeedback,
+  });
+
+  final bool canDelegate;
+  final bool canOfficeComment;
+  final bool canDeputyReview;
+  final bool canDirectorDecision;
+  final bool canDistribute;
+  final bool canClose;
+  final bool canSendParentFeedback;
+
+  factory CorrespondenceLetterPermissions.fromJson(Map<String, dynamic> json) {
+    return CorrespondenceLetterPermissions(
+      canDelegate: json['can_delegate'] == true,
+      canOfficeComment: json['can_office_comment'] == true,
+      canDeputyReview: json['can_deputy_review'] == true,
+      canDirectorDecision: json['can_director_decision'] == true,
+      canDistribute: json['can_distribute'] == true,
+      canClose: json['can_close'] == true,
+      canSendParentFeedback: json['can_send_parent_feedback'] == true,
+    );
   }
 }
 

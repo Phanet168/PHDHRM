@@ -4,8 +4,13 @@ import '../storage/api_base_url_storage_service.dart';
 
 class ApiConfig {
   static const String _primaryServerBaseUrl =
-      'http://phdhrm.local/PHDHRM/backend/api';
-  static const String _primaryServerArtisanUrl = 'http://phdhrm.local:8000/api';
+      'http://127.0.0.1/PHDHRM/backend/api';
+  static const String _primaryServerArtisanUrl = 'http://127.0.0.1:8000/api';
+  static const List<String> _androidLanBaseUrls = <String>[
+    'http://192.168.1.4/PHDHRM/backend/api',
+    'http://192.168.1.9/PHDHRM/backend/api',
+    'http://192.168.1.7/PHDHRM/backend/api',
+  ];
   static const List<String> _androidEmulatorBaseUrls = <String>[
     'http://10.0.2.2/PHDHRM/backend/api',
     'http://10.0.2.2:8000/api',
@@ -55,8 +60,10 @@ class ApiConfig {
     final stored = _storedBaseUrls;
     if (stored != null && stored.isNotEmpty) {
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        // For physical Android phones: try LAN IP first, then emulator fallback
         return _androidCompatibleBaseUrls(<String>[
           ...stored,
+          ..._androidLanBaseUrls,
           ..._androidEmulatorBaseUrls,
         ]);
       }
@@ -72,8 +79,10 @@ class ApiConfig {
     if (configured.trim().isNotEmpty) {
       final configuredBaseUrls = normalizeConfiguredBaseUrls(configured);
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+        // For physical Android phones: try configured URLs first, then LAN IP, then emulator
         return _androidCompatibleBaseUrls(<String>[
           ...configuredBaseUrls,
+          ..._androidLanBaseUrls,
           ..._androidEmulatorBaseUrls,
         ]);
       }
@@ -98,7 +107,10 @@ class ApiConfig {
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return _dedupe(const <String>[
+      // For physical Android phones: prioritize LAN IP, then DNS, then emulator
+      return _dedupe(<String>[
+        ..._androidLanBaseUrls,
+        'http://phdhrm.local/PHDHRM/backend/api',
         'http://10.0.2.2/PHDHRM/backend/api',
         'http://10.0.2.2:8000/api',
       ]);
@@ -107,6 +119,8 @@ class ApiConfig {
     return _dedupe(const <String>[
       _primaryServerBaseUrl,
       _primaryServerArtisanUrl,
+      'http://phdhrm.local/PHDHRM/backend/api',
+      'http://phdhrm.local:8000/api',
       'http://127.0.0.1/PHDHRM/backend/api',
       'http://127.0.0.1:8000/api',
     ]);
@@ -333,11 +347,9 @@ class ApiConfig {
   }
 
   static bool _isAndroidUnresolvableHost(String host) {
-    return host == 'localhost' ||
-        host == '127.0.0.1' ||
-        host == '::1' ||
-        host == 'phdhrm.local' ||
-        host.endsWith('.local');
+    // On Android, filter out localhost/127.0.0.1 which may be unreliable.
+    // Allow 192.168.x.x (LAN IPs), 10.x.x.x (emulator), and .local DNS domains as fallback.
+    return host == 'localhost' || host == '127.0.0.1' || host == '::1';
   }
 
   static List<String> _normalizePersistedBaseUrls(List<String> values) {

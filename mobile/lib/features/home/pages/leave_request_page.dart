@@ -28,6 +28,7 @@ class LeaveRequestPage extends StatefulWidget {
 
 class _LeaveRequestPageState extends State<LeaveRequestPage> {
   List<LeaveTypeOption> _types = <LeaveTypeOption>[];
+  List<HandoverEmployeeOption> _handoverEmployees = <HandoverEmployeeOption>[];
   List<LeaveRequestItem> _requests = <LeaveRequestItem>[];
   LeaveSummary _summary = const LeaveSummary(
     totalRemaining: 0,
@@ -51,14 +52,16 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
     try {
       final results = await Future.wait<dynamic>([
         widget.leaveService.fetchTypes(widget.user),
+        widget.leaveService.fetchHandoverEmployees(widget.user),
         widget.leaveService.fetchSummary(widget.user),
         widget.leaveService.fetchRequests(widget.user),
       ]);
       if (!mounted) return;
       setState(() {
         _types = results[0] as List<LeaveTypeOption>;
-        _summary = results[1] as LeaveSummary;
-        _requests = results[2] as List<LeaveRequestItem>;
+        _handoverEmployees = results[1] as List<HandoverEmployeeOption>;
+        _summary = results[2] as LeaveSummary;
+        _requests = results[3] as List<LeaveRequestItem>;
       });
     } catch (e) {
       if (mounted) _showError(e);
@@ -84,6 +87,7 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
               language: widget.language,
               leaveService: widget.leaveService,
               types: _types,
+              handoverEmployees: _handoverEmployees,
               summary: _summary,
             ),
       ),

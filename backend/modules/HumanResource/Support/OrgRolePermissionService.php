@@ -18,7 +18,8 @@ class OrgRolePermissionService
     public function __construct(
         protected OrgHierarchyAccessService $orgHierarchyAccessService,
         protected OrgUnitRuleService $orgUnitRuleService,
-        protected ModuleTableGovernanceService $moduleTableGovernanceService
+        protected ModuleTableGovernanceService $moduleTableGovernanceService,
+        protected WorkflowActorResolverService $workflowActorResolverService
     ) {}
 
     public function hasConfiguredAction(string $moduleKey, string $actionKey): bool
@@ -179,7 +180,6 @@ class OrgRolePermissionService
         $assignments = UserAssignment::query()
             ->withoutGlobalScope('sortByLatest')
             ->effective()
-            ->where('user_id', (int) $user->id)
             ->whereNotNull('responsibility_template_id')
             ->with([
                 'responsibilityTemplate:id,module_key,action_presets_json,is_active',
@@ -187,6 +187,14 @@ class OrgRolePermissionService
             ->get();
 
         foreach ($assignments as $assignment) {
+            $assignedUserId = (int) ($assignment->user_id ?? 0);
+            $effectiveUserId = $this->workflowActorResolverService
+                ->resolveActorUserIdForWorkflow($assignedUserId);
+            $resolvedUserId = $effectiveUserId > 0 ? $effectiveUserId : $assignedUserId;
+            if ($resolvedUserId !== (int) $user->id) {
+                continue;
+            }
+
             /** @var ResponsibilityTemplate|null $template */
             $template = $assignment->responsibilityTemplate;
             if (!$template || !(bool) $template->is_active) {

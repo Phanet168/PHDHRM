@@ -39,7 +39,9 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
     });
 
     try {
-      final requests = await widget.leaveService.fetchPendingReviews(widget.user);
+      final requests = await widget.leaveService.fetchPendingReviews(
+        widget.user,
+      );
       if (!mounted) {
         return;
       }
@@ -49,7 +51,7 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
       });
     } catch (error) {
       if (mounted) {
-        _showMessage(error.toString(), isError: true);
+        _showMessage(extractApiErrorMessage(error), isError: true);
       }
     } finally {
       if (mounted) {
@@ -68,29 +70,29 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
         return AlertDialog(
           title: Text(
             action == 'approve'
-                ? _tr('approve_leave', 'Approve leave')
-                : _tr('rejected', 'Reject leave'),
+                ? _tr('approve_leave', 'អនុម័តសំណើច្បាប់')
+                : _tr('rejected', 'បដិសេធសំណើច្បាប់'),
           ),
           content: TextField(
             controller: noteController,
             minLines: 2,
             maxLines: 4,
             decoration: InputDecoration(
-              labelText: _tr('note', 'Note'),
+              labelText: _tr('note', 'កំណត់សម្គាល់'),
               border: const OutlineInputBorder(),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(false),
-              child: Text(_tr('cancel', 'Cancel')),
+              child: Text(_tr('cancel', 'បោះបង់')),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
               child: Text(
                 action == 'approve'
-                    ? _tr('approve_leave', 'Approve')
-                    : _tr('rejected', 'Reject'),
+                    ? _tr('approve_leave', 'អនុម័ត')
+                    : _tr('rejected', 'បដិសេធ'),
               ),
             ),
           ],
@@ -108,23 +110,19 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
     });
 
     try {
-      await widget.leaveService.reviewRequest(
+      final message = await widget.leaveService.reviewRequest(
         user: widget.user,
         requestId: item.id,
         action: action,
         note: noteController.text,
       );
       if (mounted) {
-        _showMessage(
-          action == 'approve'
-              ? _tr('approve_leave', 'Approved successfully')
-              : _tr('rejected', 'Rejected successfully'),
-        );
+        _showMessage(message);
       }
       await _loadPendingReviews();
     } catch (error) {
       if (mounted) {
-        _showMessage(error.toString(), isError: true);
+        _showMessage(extractApiErrorMessage(error), isError: true);
       }
     } finally {
       noteController.dispose();
@@ -141,11 +139,9 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
   }
 
   void _showMessage(String message, {bool isError = false}) {
-    final normalized = extractApiErrorMessage(message);
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(normalized),
+        content: Text(message),
         backgroundColor: isError ? const Color(0xFFD34B5F) : null,
       ),
     );
@@ -154,13 +150,16 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
   Future<void> _openAttachment(String url) async {
     final uri = Uri.tryParse(url.trim());
     if (uri == null) {
-      _showMessage(_tr('attachment', 'Invalid attachment link'), isError: true);
+      _showMessage(_tr('attachment', 'តំណឯកសារភ្ជាប់មិនត្រឹមត្រូវ'), isError: true);
       return;
     }
 
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
-      _showMessage(_tr('attachment', 'Unable to open attachment'), isError: true);
+      _showMessage(
+        _tr('attachment', 'មិនអាចបើកឯកសារភ្ជាប់បាន'),
+        isError: true,
+      );
     }
   }
 
@@ -180,7 +179,7 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_tr('approve_leave', 'Review Leave Requests')),
+        title: Text(_tr('approve_leave', 'ពិនិត្យសំណើច្បាប់')),
         actions: [
           IconButton(
             onPressed: _loading ? null : _loadPendingReviews,
@@ -188,117 +187,147 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _loadPendingReviews,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  if (_requests.isEmpty)
-                    Card(
-                      child: ListTile(
-                        title: Text(_tr('no_data_found', 'No pending requests')),
-                      ),
-                    )
-                  else
-                    for (final item in _requests)
+      body:
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : RefreshIndicator(
+                onRefresh: _loadPendingReviews,
+                child: ListView(
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    if (_requests.isEmpty)
                       Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      item.employeeName?.isNotEmpty == true
-                                          ? item.employeeName!
-                                          : '-',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: _statusColor(item.status)
-                                          .withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                    child: Text(
-                                      item.displayStatus(widget.language),
-                                      style: TextStyle(
-                                        color: _statusColor(item.status),
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              if (item.employeeNo?.isNotEmpty == true)
-                                Text('ID: ${item.employeeNo}'),
-                              Text(
-                                item.leaveTypeKm.trim().isNotEmpty
-                                    ? item.leaveTypeKm
-                                    : item.leaveType,
-                              ),
-                              Text('${item.startDate} -> ${item.endDate}'),
-                              Text('${_tr('day_leave', 'Days')}: ${item.requestedDays}'),
-                              if (item.reason.trim().isNotEmpty) ...[
-                                const SizedBox(height: 6),
-                                Text(item.reason),
-                              ],
-                              if (item.attachmentUrl?.trim().isNotEmpty == true) ...[
-                                const SizedBox(height: 6),
-                                Align(
-                                  alignment: Alignment.centerLeft,
-                                  child: TextButton.icon(
-                                    onPressed: _submitting
-                                        ? null
-                                        : () => _openAttachment(item.attachmentUrl!),
-                                    icon: const Icon(Icons.attach_file_outlined),
-                                    label: Text(_tr('attachment', 'Open attachment')),
-                                  ),
-                                ),
-                              ],
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: OutlinedButton.icon(
-                                      onPressed: _submitting
-                                          ? null
-                                          : () => _submitReview(item, 'reject'),
-                                      icon: const Icon(Icons.close),
-                                      label: Text(_tr('rejected', 'Reject')),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: _submitting
-                                          ? null
-                                          : () => _submitReview(item, 'approve'),
-                                      icon: const Icon(Icons.check),
-                                      label: Text(_tr('approve_leave', 'Approve')),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                        child: ListTile(
+                          title: Text(
+                            _tr('no_data_found', 'មិនមានសំណើកំពុងរង់ចាំ'),
                           ),
                         ),
-                      ),
-                ],
+                      )
+                    else
+                      for (final item in _requests)
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        item.employeeName?.isNotEmpty == true
+                                            ? item.employeeName!
+                                            : '-',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: _statusColor(
+                                          item.status,
+                                        ).withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(
+                                          999,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        item.displayStatus(widget.language),
+                                        style: TextStyle(
+                                          color: _statusColor(item.status),
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                if (item.employeeNo?.isNotEmpty == true)
+                                  Text('លេខបុគ្គលិក: ${item.employeeNo}'),
+                                Text(
+                                  item.leaveTypeKm.trim().isNotEmpty
+                                      ? item.leaveTypeKm
+                                      : item.leaveType,
+                                ),
+                                Text('${item.startDate} ដល់ ${item.endDate}'),
+                                Text(
+                                  '${_tr('day_leave', 'ចំនួនថ្ងៃ')}: ${item.requestedDays}',
+                                ),
+                                if (item.handoverEmployeeName.trim().isNotEmpty)
+                                  Text(
+                                    '${_tr('handover_employee', 'Replacement employee')}: ${item.handoverEmployeeName}',
+                                  ),
+                                if (item.reason.trim().isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Text(item.reason),
+                                ],
+                                if (item.attachmentUrl?.trim().isNotEmpty ==
+                                    true) ...[
+                                  const SizedBox(height: 6),
+                                  Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: TextButton.icon(
+                                      onPressed:
+                                          _submitting
+                                              ? null
+                                              : () => _openAttachment(
+                                                item.attachmentUrl!,
+                                              ),
+                                      icon: const Icon(
+                                        Icons.attach_file_outlined,
+                                      ),
+                                      label: Text(
+                                        _tr('attachment', 'បើកឯកសារភ្ជាប់'),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        onPressed:
+                                            _submitting
+                                                ? null
+                                                : () => _submitReview(
+                                                  item,
+                                                  'reject',
+                                                ),
+                                        icon: const Icon(Icons.close),
+                                        label: Text(_tr('rejected', 'បដិសេធ')),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: ElevatedButton.icon(
+                                        onPressed:
+                                            _submitting
+                                                ? null
+                                                : () => _submitReview(
+                                                  item,
+                                                  'approve',
+                                                ),
+                                        icon: const Icon(Icons.check),
+                                        label: Text(
+                                          _tr('approve_leave', 'អនុម័ត'),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                  ],
+                ),
               ),
-            ),
     );
   }
 }

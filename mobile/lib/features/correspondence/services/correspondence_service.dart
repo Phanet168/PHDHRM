@@ -13,6 +13,14 @@ class CorrespondenceService {
   CorrespondenceService({ApiService? apiService})
     : _apiService = apiService ?? ApiService();
 
+  static const Duration _listCacheTtl = Duration(seconds: 45);
+  static final Map<String, _CacheEntry<CorrespondenceListResponse>>
+  _incomingCache = <String, _CacheEntry<CorrespondenceListResponse>>{};
+  static final Map<String, _CacheEntry<CorrespondenceListResponse>>
+  _outgoingCache = <String, _CacheEntry<CorrespondenceListResponse>>{};
+  static final Map<String, _CacheEntry<Map<String, dynamic>>> _dashboardCache =
+      <String, _CacheEntry<Map<String, dynamic>>>{};
+
   final ApiService _apiService;
   final TokenStorageService _tokenStorageService = TokenStorageService();
 
@@ -20,12 +28,20 @@ class CorrespondenceService {
   Future<CorrespondenceListResponse> fetchIncomingLetters({
     int page = 1,
     int perPage = 20,
+    String period = 'all',
+    bool forceRefresh = false,
     String? status,
     String? sortBy,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
     final queryParams = <String, dynamic>{'page': page, 'per_page': perPage};
+    _applyPeriodFilter(
+      queryParams,
+      period: period,
+      startDate: startDate,
+      endDate: endDate,
+    );
     if (status != null && status.isNotEmpty) {
       queryParams['status'] = status;
     }
@@ -37,25 +53,43 @@ class CorrespondenceService {
     }
     if (endDate != null) {
       queryParams['end_date'] = _formatDateOnly(endDate);
+    }
+
+    final cacheKey = _buildCacheKey('incoming', queryParams);
+    if (!forceRefresh) {
+      final cached = _readCache(_incomingCache, cacheKey);
+      if (cached != null) {
+        return cached;
+      }
     }
 
     final raw = await _apiService.get(
       '/v1/correspondence/incoming',
       queryParameters: queryParams,
     );
-    return CorrespondenceListResponse.fromJson(raw);
+    final response = CorrespondenceListResponse.fromJson(raw);
+    _writeCache(_incomingCache, cacheKey, response);
+    return response;
   }
 
   /// ទាក់ទងលិខិតចេញ
   Future<CorrespondenceListResponse> fetchOutgoingLetters({
     int page = 1,
     int perPage = 20,
+    String period = 'all',
+    bool forceRefresh = false,
     String? status,
     String? sortBy,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
     final queryParams = <String, dynamic>{'page': page, 'per_page': perPage};
+    _applyPeriodFilter(
+      queryParams,
+      period: period,
+      startDate: startDate,
+      endDate: endDate,
+    );
     if (status != null && status.isNotEmpty) {
       queryParams['status'] = status;
     }
@@ -69,11 +103,21 @@ class CorrespondenceService {
       queryParams['end_date'] = _formatDateOnly(endDate);
     }
 
+    final cacheKey = _buildCacheKey('outgoing', queryParams);
+    if (!forceRefresh) {
+      final cached = _readCache(_outgoingCache, cacheKey);
+      if (cached != null) {
+        return cached;
+      }
+    }
+
     final raw = await _apiService.get(
       '/v1/correspondence/outgoing',
       queryParameters: queryParams,
     );
-    return CorrespondenceListResponse.fromJson(raw);
+    final response = CorrespondenceListResponse.fromJson(raw);
+    _writeCache(_outgoingCache, cacheKey, response);
+    return response;
   }
 
   /// ទាក់ទងលម្អិតលិខិត
@@ -101,6 +145,7 @@ class CorrespondenceService {
     final response = _asResponse(raw);
     final data = response['data'];
     final payload = data is Map<String, dynamic> ? data : <String, dynamic>{};
+    _clearListCaches();
     return CorrespondenceLetter.fromJson(payload);
   }
 
@@ -168,6 +213,7 @@ class CorrespondenceService {
     final data = response['data'];
     final dataPayload =
         data is Map<String, dynamic> ? data : <String, dynamic>{};
+    _clearListCaches();
     return CorrespondenceLetter.fromJson(dataPayload);
   }
 
@@ -215,6 +261,7 @@ class CorrespondenceService {
     final data = response['data'];
     final dataPayload =
         data is Map<String, dynamic> ? data : <String, dynamic>{};
+    _clearListCaches();
     return CorrespondenceLetter.fromJson(dataPayload);
   }
 
@@ -228,6 +275,7 @@ class CorrespondenceService {
     final response = _asResponse(raw);
     final data = response['data'];
     final payload = data is Map<String, dynamic> ? data : <String, dynamic>{};
+    _clearListCaches();
     return CorrespondenceLetterDistribution.fromJson(payload);
   }
 
@@ -243,7 +291,29 @@ class CorrespondenceService {
     final response = _asResponse(raw);
     final data = response['data'];
     final payload = data is Map<String, dynamic> ? data : <String, dynamic>{};
+    _clearListCaches();
     return CorrespondenceLetterDistribution.fromJson(payload);
+  }
+
+  Future<String> fetchAttachmentSignedUrl({
+    required int letterId,
+    required int attachmentIndex,
+    bool download = false,
+  }) async {
+    final raw = await _apiService.get(
+      '/v1/correspondence/$letterId/attachments/$attachmentIndex/signed-url',
+      queryParameters: download ? <String, dynamic>{'download': 1} : null,
+    );
+    final response = _asResponse(raw);
+    final data = response['data'];
+    if (data is Map<String, dynamic>) {
+      final url = (data['url'] ?? '').toString().trim();
+      if (url.isNotEmpty) {
+        return url;
+      }
+    }
+
+    throw ApiException(message: 'Attachment URL is unavailable.');
   }
 
   /// ផ្ញើមតិយោបល់ដល់ឪក្នុង (សម្រាប់លិខិតកូន)
@@ -256,6 +326,7 @@ class CorrespondenceService {
       body: {'feedback_note': feedbackNote.trim()},
     );
     _asResponse(raw);
+    _clearListCaches();
   }
 
   /// ស្វាគមន៍អ្នក
@@ -288,6 +359,7 @@ class CorrespondenceService {
     final response = _asResponse(raw);
     final data = response['data'];
     final payload = data is Map<String, dynamic> ? data : <String, dynamic>{};
+    _clearListCaches();
     return CorrespondenceLetter.fromJson(payload);
   }
 
@@ -303,15 +375,31 @@ class CorrespondenceService {
 
   /// ទាក់ទងកំរិត (សម្រាប់រង្វាន់ឧក្រិដ្ឋ)
   Future<Map<String, dynamic>> fetchDashboard({
+    String period = 'all',
+    bool forceRefresh = false,
     DateTime? startDate,
     DateTime? endDate,
   }) async {
     final queryParams = <String, dynamic>{};
+    _applyPeriodFilter(
+      queryParams,
+      period: period,
+      startDate: startDate,
+      endDate: endDate,
+    );
     if (startDate != null) {
       queryParams['start_date'] = _formatDateOnly(startDate);
     }
     if (endDate != null) {
       queryParams['end_date'] = _formatDateOnly(endDate);
+    }
+
+    final cacheKey = _buildCacheKey('dashboard', queryParams);
+    if (!forceRefresh) {
+      final cached = _readCache(_dashboardCache, cacheKey);
+      if (cached != null) {
+        return Map<String, dynamic>.from(cached);
+      }
     }
 
     final raw = await _apiService.get(
@@ -320,7 +408,67 @@ class CorrespondenceService {
     );
     final response = _asResponse(raw);
     final data = response['data'];
-    return data is Map<String, dynamic> ? data : <String, dynamic>{};
+    final result = data is Map<String, dynamic> ? data : <String, dynamic>{};
+    _writeCache(_dashboardCache, cacheKey, Map<String, dynamic>.from(result));
+    return result;
+  }
+
+  T? _readCache<T>(Map<String, _CacheEntry<T>> cache, String key) {
+    final entry = cache[key];
+    if (entry == null) {
+      return null;
+    }
+
+    if (DateTime.now().difference(entry.createdAt) > _listCacheTtl) {
+      cache.remove(key);
+      return null;
+    }
+
+    return entry.data;
+  }
+
+  void _writeCache<T>(Map<String, _CacheEntry<T>> cache, String key, T data) {
+    cache[key] = _CacheEntry<T>(data: data, createdAt: DateTime.now());
+  }
+
+  String _buildCacheKey(String scope, Map<String, dynamic> queryParams) {
+    final entries =
+        queryParams.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
+    final query = entries.map((e) => '${e.key}=${e.value}').join('&');
+    return '$scope|$query';
+  }
+
+  void _clearListCaches() {
+    _incomingCache.clear();
+    _outgoingCache.clear();
+    _dashboardCache.clear();
+  }
+
+  void _applyPeriodFilter(
+    Map<String, dynamic> queryParams, {
+    required String period,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) {
+    const allowedPeriods = <String>{
+      'today',
+      'yesterday',
+      'this_week',
+      'this_month',
+      'all',
+      'custom',
+    };
+
+    var normalized = period.trim().toLowerCase();
+    if (!allowedPeriods.contains(normalized)) {
+      normalized = (startDate != null || endDate != null) ? 'custom' : 'all';
+    }
+
+    if (normalized == 'custom' && startDate == null && endDate == null) {
+      normalized = 'all';
+    }
+
+    queryParams['period'] = normalized;
   }
 
   String _formatDateOnly(DateTime date) {
@@ -331,20 +479,58 @@ class CorrespondenceService {
   }
 
   Map<String, dynamic> _asResponse(Map<String, dynamic> raw) {
-    final response = raw['response'];
-    if (response is! Map<String, dynamic>) {
-      throw ApiException(message: 'Invalid correspondence response format');
-    }
+    // Preferred backend shape:
+    // { "response": { "status": "ok", "message": "...", "data": ... } }
+    // Fallback shapes are tolerated to avoid false format errors.
+    final nested = raw['response'];
+    final response = nested is Map<String, dynamic> ? nested : raw;
 
     final status = (response['status'] ?? '').toString().toLowerCase();
-    if (status != 'ok') {
-      final message =
-          (response['message'] ?? 'Unable to process correspondence')
-              .toString();
-      throw ApiException(message: message);
+    if (status == 'ok') {
+      return response;
     }
 
-    return response;
+    // Some APIs may return payload without `status` but still include usable data.
+    if (response.containsKey('data') && status.isEmpty) {
+      return response;
+    }
+
+    final message = _extractReadableMessage(response);
+    throw ApiException(
+      message:
+          message ??
+          'Invalid correspondence response format. Expected {response:{status,data}}.',
+    );
+  }
+
+  String? _extractReadableMessage(Map<String, dynamic> payload) {
+    final directMessage = payload['message']?.toString().trim();
+    if (directMessage != null && directMessage.isNotEmpty) {
+      return directMessage;
+    }
+
+    final directError = payload['error']?.toString().trim();
+    if (directError != null && directError.isNotEmpty) {
+      return directError;
+    }
+
+    final errors = payload['errors'];
+    if (errors is Map) {
+      for (final value in errors.values) {
+        if (value is List && value.isNotEmpty) {
+          final first = value.first?.toString().trim();
+          if (first != null && first.isNotEmpty) {
+            return first;
+          }
+        }
+        final single = value?.toString().trim();
+        if (single != null && single.isNotEmpty) {
+          return single;
+        }
+      }
+    }
+
+    return null;
   }
 
   Future<CorrespondenceLetter> _createLetterMultipart(
@@ -447,6 +633,7 @@ class CorrespondenceService {
 
         if (response.statusCode >= 200 && response.statusCode < 300) {
           final payload = _asResponse(decoded)['data'];
+          _clearListCaches();
           return CorrespondenceLetter.fromJson(
             payload is Map<String, dynamic> ? payload : <String, dynamic>{},
           );
@@ -541,4 +728,11 @@ class CorrespondenceService {
 
     return fallback;
   }
+}
+
+class _CacheEntry<T> {
+  _CacheEntry({required this.data, required this.createdAt});
+
+  final T data;
+  final DateTime createdAt;
 }

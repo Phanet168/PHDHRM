@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Modules\Correspondence\Entities\CorrespondenceLetterAction;
@@ -666,6 +667,7 @@ class CorrespondenceController extends Controller
             'attachment_path' => !empty($attachmentPaths) ? json_encode($attachmentPaths, JSON_UNESCAPED_UNICODE) : null,
             'origin_department_id' => $originDepartmentId > 0 ? $originDepartmentId : null,
             'current_step' => CorrespondenceLetter::defaultStepForType((string) $validated['letter_type']),
+            'current_handler_user_id' => (int) ($user->id ?? 0) ?: null,
             'created_by' => (int) ($user->id ?? 0) ?: null,
             'updated_by' => (int) ($user->id ?? 0) ?: null,
         ]);
@@ -1032,9 +1034,72 @@ class CorrespondenceController extends Controller
 
         $highlightDistributionId = max(0, (int) $request->query('highlight_distribution', 0));
 
+        $currentStep = (string) ($letter->current_step ?? '');
+        $isRecipientActor = $this->isRecipientActor($letter);
+        $isRelatedOfficeActor = $this->isRelatedOfficeCommentParticipant($letter, (int) Auth::id());
+
+        $canDelegate = $this->canDelegateIncoming($letter)
+            && $letter->letter_type === CorrespondenceLetter::TYPE_INCOMING
+            && in_array($currentStep, [
+                CorrespondenceLetter::STEP_INCOMING_RECEIVED,
+                CorrespondenceLetter::STEP_INCOMING_DELEGATED,
+            ], true)
+            && $isRecipientActor;
+
+        $canOfficeComment = $letter->letter_type === CorrespondenceLetter::TYPE_INCOMING
+            && (
+                ($currentStep === CorrespondenceLetter::STEP_INCOMING_OFFICE_COMMENT && $isRecipientActor)
+                || (
+                    in_array($currentStep, [
+                        CorrespondenceLetter::STEP_INCOMING_OFFICE_COMMENT,
+                        CorrespondenceLetter::STEP_INCOMING_DEPUTY_REVIEW,
+                    ], true)
+                    && $isRelatedOfficeActor
+                )
+            );
+
+        $canDeputyReview = $letter->letter_type === CorrespondenceLetter::TYPE_INCOMING
+            && $currentStep === CorrespondenceLetter::STEP_INCOMING_DEPUTY_REVIEW
+            && $isRecipientActor;
+
+        $canDirectorDecision = $letter->letter_type === CorrespondenceLetter::TYPE_INCOMING
+            && $currentStep === CorrespondenceLetter::STEP_INCOMING_DIRECTOR_DECISION
+            && $isRecipientActor;
+
+        $canDistribute = $this->canDistributeLetter($letter);
+
+        $canClose = $letter->letter_type === CorrespondenceLetter::TYPE_OUTGOING
+            && $currentStep !== CorrespondenceLetter::STEP_CLOSED
+            && $currentStep !== CorrespondenceLetter::STEP_OUTGOING_DRAFT
+            && $this->canPerformModuleAction(
+                $letter,
+                'close',
+                [UserOrgRole::ROLE_MANAGER, UserOrgRole::ROLE_DEPUTY_HEAD, UserOrgRole::ROLE_HEAD]
+            );
+
         if ($this->shouldReturnApiResponse($request)) {
+            $canSendParentFeedback = (int) ($letter->source_distribution_id ?? 0) > 0 && (
+                ((int) $letter->current_handler_user_id === (int) Auth::id())
+                || $this->canPerformModuleAction(
+                    $letter,
+                    'feedback',
+                    [UserOrgRole::ROLE_MANAGER, UserOrgRole::ROLE_DEPUTY_HEAD, UserOrgRole::ROLE_HEAD]
+                )
+            );
+
+            $payload = $this->serializeLetter($letter, $userMap, $departmentMap);
+            $payload['permissions'] = [
+                'can_delegate' => $canDelegate,
+                'can_office_comment' => $canOfficeComment,
+                'can_deputy_review' => $canDeputyReview,
+                'can_director_decision' => $canDirectorDecision,
+                'can_distribute' => $canDistribute,
+                'can_close' => $canClose,
+                'can_send_parent_feedback' => $canSendParentFeedback,
+            ];
+
             return $this->correspondenceApiResponse(
-                $this->serializeLetter($letter, $userMap, $departmentMap)
+                $payload
             );
         }
 
@@ -1043,21 +1108,13 @@ class CorrespondenceController extends Controller
             'level' => $this->corrLevel(),
             'orgUnitOptions' => $originUnitOptions,
             'workflowAssignments' => $workflowAssignments,
-            'isRecipientActor' => $this->isRecipientActor($letter),
-            'canDelegate' => $this->canDelegateIncoming($letter),
-            'canOfficeComment' => $this->isRecipientActor($letter) || $this->isRelatedOfficeCommentParticipant($letter, (int) Auth::id()),
-            'canDeputyReview' => $this->isRecipientActor($letter),
-            'canDirectorDecision' => $this->isRecipientActor($letter),
-            'canDistribute' => $this->canPerformModuleAction(
-                $letter,
-                'distribute',
-                [UserOrgRole::ROLE_MANAGER, UserOrgRole::ROLE_DEPUTY_HEAD, UserOrgRole::ROLE_HEAD]
-            ),
-            'canClose' => $this->canPerformModuleAction(
-                $letter,
-                'close',
-                [UserOrgRole::ROLE_MANAGER, UserOrgRole::ROLE_DEPUTY_HEAD, UserOrgRole::ROLE_HEAD]
-            ),
+            'isRecipientActor' => $isRecipientActor,
+            'canDelegate' => $canDelegate,
+            'canOfficeComment' => $canOfficeComment,
+            'canDeputyReview' => $canDeputyReview,
+            'canDirectorDecision' => $canDirectorDecision,
+            'canDistribute' => $canDistribute,
+            'canClose' => $canClose,
             'stepLabels' => CorrespondenceLetter::stepLabels(),
             'sourceDistribution' => $sourceDistribution,
             'isChildLetter' => (int) ($letter->parent_letter_id ?? 0) > 0,
@@ -1170,6 +1227,42 @@ class CorrespondenceController extends Controller
     {
         $this->assertCanView($letter);
 
+        return $this->attachmentFileResponse($request, $letter, $index);
+    }
+
+    public function attachmentSignedUrl(Request $request, CorrespondenceLetter $letter, int $index)
+    {
+        $this->assertCanView($letter);
+        $this->resolveAttachmentPathByIndex($letter, $index);
+
+        $download = (string) $request->query('download', '0') === '1' ? '1' : '0';
+        $signedUrl = URL::temporarySignedRoute(
+            'correspondence.attachments.file.signed',
+            now()->addMinutes(10),
+            [
+                'letter' => (int) $letter->id,
+                'index' => (int) $index,
+                'download' => $download,
+            ]
+        );
+
+        $path = (string) (parse_url($signedUrl, PHP_URL_PATH) ?? '');
+        $query = (string) (parse_url($signedUrl, PHP_URL_QUERY) ?? '');
+        $relativePath = $query !== '' ? ($path . '?' . $query) : $path;
+
+        return $this->correspondenceApiResponse([
+            'url' => $signedUrl,
+            'path' => $relativePath,
+        ]);
+    }
+
+    public function attachmentFileSigned(Request $request, CorrespondenceLetter $letter, int $index)
+    {
+        return $this->attachmentFileResponse($request, $letter, $index);
+    }
+
+    protected function attachmentFileResponse(Request $request, CorrespondenceLetter $letter, int $index)
+    {
         $resolvedPath = $this->resolveAttachmentPathByIndex($letter, $index);
         $fileName = basename($resolvedPath);
         $absolutePath = storage_path('app/public/' . ltrim($resolvedPath, '/'));
@@ -1608,11 +1701,7 @@ class CorrespondenceController extends Controller
     {
         $this->assertCanView($letter);
 
-        if ($letter->letter_type === CorrespondenceLetter::TYPE_INCOMING && !$this->isRecipientActor($letter)) {
-            return back()->with('error', localize('only_recipient_can_assign', 'Only the current recipient can assign this letter.'));
-        }
-
-        if (!$this->canPerformModuleAction($letter, 'distribute', [UserOrgRole::ROLE_MANAGER, UserOrgRole::ROLE_DEPUTY_HEAD, UserOrgRole::ROLE_HEAD])) {
+        if (!$this->canDistributeLetter($letter)) {
             return back()->with('error', localize('permission_denied', 'Permission denied.'));
         }
 
@@ -2182,6 +2271,30 @@ class CorrespondenceController extends Controller
         return back();
     }
 
+    public function clearNotifications(Request $request)
+    {
+        $user = Auth::user();
+        if (!$user) {
+            abort(403);
+        }
+
+        $deleted = $user->notifications()
+            ->where('type', CorrespondenceAssignedNotification::class)
+            ->delete();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => 'ok',
+                'deleted_count' => (int) $deleted,
+            ]);
+        }
+
+        return back()->with(
+            'success',
+            localize('correspondence_notifications_cleared', 'Correspondence notifications cleared successfully.')
+        );
+    }
+
     public function searchUsers(Request $request): JsonResponse
     {
         $keyword = trim((string) $request->query('q', ''));
@@ -2416,6 +2529,7 @@ class CorrespondenceController extends Controller
             'assigned_department_id' => $letter->assigned_department_id ? (int) $letter->assigned_department_id : null,
             'assigned_department_name' => $assignedDepartmentName,
             'parent_letter_id' => $letter->parent_letter_id ? (int) $letter->parent_letter_id : null,
+            'source_distribution_id' => $letter->source_distribution_id ? (int) $letter->source_distribution_id : null,
             'created_by_user_id' => $letter->created_by ? (int) $letter->created_by : null,
             'created_by_name' => $createdByName,
             'created_at' => optional($letter->created_at)->toDateTimeString(),
@@ -2464,6 +2578,9 @@ class CorrespondenceController extends Controller
 
     protected function serializeDistribution(CorrespondenceLetterDistribution $distribution, array $userMap = [], array $departmentMap = []): array
     {
+        $canAccess = $this->canAccessDistribution($distribution);
+        $distributionStatus = (string) ($distribution->status ?? '');
+
         return [
             'id' => (int) $distribution->id,
             'letter_id' => (int) $distribution->letter_id,
@@ -2479,6 +2596,11 @@ class CorrespondenceController extends Controller
             'feedback_note' => $distribution->feedback_note,
             'child_letter_id' => $distribution->child_letter_id ? (int) $distribution->child_letter_id : null,
             'created_at' => optional($distribution->created_at)->toDateTimeString(),
+            'can_acknowledge' => $canAccess && $distributionStatus === CorrespondenceLetterDistribution::STATUS_PENDING_ACK,
+            'can_feedback' => $canAccess && in_array($distributionStatus, [
+                CorrespondenceLetterDistribution::STATUS_ACKNOWLEDGED,
+                CorrespondenceLetterDistribution::STATUS_FEEDBACK_SENT,
+            ], true),
         ];
     }
 
@@ -2716,6 +2838,53 @@ class CorrespondenceController extends Controller
                     UserOrgRole::ROLE_DEPUTY_HEAD,
                 ], true) && (int) ($role->department_id ?? 0) === $receivingDepartmentId;
             });
+    }
+
+    protected function canDistributeLetter(CorrespondenceLetter $letter): bool
+    {
+        $user = Auth::user();
+        if (!$user) {
+            return false;
+        }
+
+        $isOwnerActor = $this->isRecipientActor($letter);
+        $hasUpdatePermission = method_exists($user, 'can')
+            && $user->can('update_correspondence_management');
+        $hasRoleActionPermission = $this->canPerformModuleAction(
+            $letter,
+            'distribute',
+            [UserOrgRole::ROLE_MANAGER, UserOrgRole::ROLE_DEPUTY_HEAD, UserOrgRole::ROLE_HEAD]
+        );
+
+        if ($letter->letter_type === CorrespondenceLetter::TYPE_INCOMING) {
+            $isStepReady = (string) $letter->current_step === CorrespondenceLetter::STEP_INCOMING_DIRECTOR_DECISION
+                && (string) $letter->final_decision === CorrespondenceLetter::DECISION_APPROVED;
+
+            if (!$isStepReady) {
+                return false;
+            }
+
+            // Incoming distribution must be performed by the actor who currently owns this step.
+            if (!$isOwnerActor) {
+                return false;
+            }
+
+            return $hasRoleActionPermission || $hasUpdatePermission;
+        }
+
+        if (!in_array((string) $letter->current_step, [
+            CorrespondenceLetter::STEP_OUTGOING_DRAFT,
+            CorrespondenceLetter::STEP_OUTGOING_DISTRIBUTED,
+        ], true)) {
+            return false;
+        }
+
+        // Outgoing distribution is also limited to the current step owner.
+        if (!$isOwnerActor) {
+            return false;
+        }
+
+        return $hasRoleActionPermission || $hasUpdatePermission;
     }
 
     protected function canPerformModuleAction(

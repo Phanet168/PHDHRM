@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:motion_tab_bar_v2/motion-tab-bar.dart';
 
 import '../../../core/config/app_routes.dart';
 import '../../../core/config/api_config.dart';
@@ -17,6 +18,8 @@ import '../services/home_attendance_service.dart';
 import '../services/home_dashboard_service.dart';
 import '../services/home_mission_service.dart';
 import '../services/home_notification_service.dart';
+import '../services/home_profile_service.dart';
+import '../../auth/models/auth_user.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.authController});
@@ -32,11 +35,14 @@ class _HomePageState extends State<HomePage> {
   late final HomeAttendanceService _attendanceService;
   late final HomeMissionService _missionService;
   late final HomeNotificationService _notificationService;
+  late final HomeProfileService _profileService;
   late final Future<Map<String, String>> _languageFuture;
   Future<DashboardSummary>? _summaryFuture;
+  Future<List<AttendanceDayRecord>>? _dashboardAttendanceFuture;
   Future<List<AttendanceDayRecord>>? _attendanceFuture;
   Future<List<MissionSummary>>? _missionsFuture;
   Future<HomeNotificationPageData>? _notificationsFuture;
+  Future<AuthUser>? _profileFuture;
   bool _isMarkingAllNotifications = false;
   _HomeMenuItem _selectedMenu = _HomeMenuItem.dashboard;
 
@@ -54,12 +60,19 @@ class _HomePageState extends State<HomePage> {
     _attendanceService = HomeAttendanceService();
     _missionService = HomeMissionService();
     _notificationService = HomeNotificationService();
+    _profileService = HomeProfileService();
     _languageFuture = LaravelLanguageService.instance.load();
     _summaryFuture = _loadSummary();
-    // Preload attendance data so the dashboard can show today's status quickly.
-    _attendanceFuture = _loadAttendance();
+    // Fetch fresh profile data from backend
+    _profileFuture = _profileService.fetchProfile();
+    // Keep dashboard startup lightweight to avoid UI stalls on slower devices.
+    _dashboardAttendanceFuture = _loadAttendance(
+      fromDate: DateTime.now().subtract(const Duration(days: 7)),
+      toDate: DateTime.now(),
+    );
+    _attendanceFuture = null;
     _missionsFuture = null;
-    _notificationsFuture = _loadNotifications();
+    _notificationsFuture = null;
   }
 
   String _tr(Map<String, String> language, String key, String fallback) {
@@ -100,14 +113,12 @@ class _HomePageState extends State<HomePage> {
         return 0;
       case _HomeMenuItem.attendance:
         return 1;
-      case _HomeMenuItem.notice:
-        return 2;
       default:
         return null;
     }
   }
 
-  Future<void> _onBottomNavTap(int index) async {
+  Future<void> _onBottomNavTap(int index, Map<String, String> language) async {
     switch (index) {
       case 0:
         setState(() {
@@ -121,13 +132,7 @@ class _HomePageState extends State<HomePage> {
         });
         return;
       case 2:
-        setState(() {
-          _selectedMenu = _HomeMenuItem.notice;
-          _notificationsFuture ??= _loadNotifications();
-        });
-        return;
-      case 3:
-        await Navigator.of(context).pushNamed(AppRoutes.systemSettings);
+        await _openAttendanceScanner(language);
         return;
     }
   }
@@ -148,7 +153,10 @@ class _HomePageState extends State<HomePage> {
         );
   }
 
-  Future<List<AttendanceDayRecord>> _loadAttendance() {
+  Future<List<AttendanceDayRecord>> _loadAttendance({
+    DateTime? fromDate,
+    DateTime? toDate,
+  }) {
     final user = widget.authController.currentUser;
     if (user == null) {
       throw Exception('មិនមាន session អ្នកប្រើប្រាស់');
@@ -161,7 +169,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     return _attendanceService
-        .fetchAttendanceHistory(user)
+        .fetchAttendanceHistory(user, fromDate: fromDate, toDate: toDate)
         .timeout(
           const Duration(seconds: 25),
           onTimeout: () {
@@ -321,11 +329,32 @@ class _HomePageState extends State<HomePage> {
       if (item == _HomeMenuItem.notice && _notificationsFuture == null) {
         _notificationsFuture = _loadNotifications();
       }
+      if (item == _HomeMenuItem.profile) {
+        // Re-create future when entering profile so failed attempts can recover.
+        _profileFuture = _profileService.fetchProfile();
+      }
     });
   }
 
   void _returnToDashboard() {
     _switchToMenu(_HomeMenuItem.dashboard);
+  }
+
+  Widget _buildTopNotificationAction(Map<String, String> language) {
+    final notificationsFuture = _notificationsFuture ??= _loadNotifications();
+
+    return FutureBuilder<HomeNotificationPageData>(
+      future: notificationsFuture,
+      builder: (context, snapshot) {
+        final unreadCount = snapshot.data?.unreadCount ?? 0;
+
+        return _NotificationBellAction(
+          unreadCount: unreadCount,
+          onPressed: () => _switchToMenu(_HomeMenuItem.notice),
+          tooltip: _tr(language, 'all_notifications', 'ការជូនដំណឹង'),
+        );
+      },
+    );
   }
 
   void _openAdditionalService(
@@ -492,21 +521,21 @@ class _HomePageState extends State<HomePage> {
     Widget avatar;
     if (picUrl != null && picUrl.isNotEmpty) {
       avatar = CircleAvatar(
-        radius: 52,
+        radius: 44,
         backgroundColor: const Color(0xFFE7EFEB),
         backgroundImage: NetworkImage(picUrl),
         onBackgroundImageError: (_, __) {},
       );
     } else {
       avatar = CircleAvatar(
-        radius: 52,
+        radius: 44,
         backgroundColor: const Color(0xFF188754),
         child: Text(
           (user.name as String).isNotEmpty
               ? (user.name as String)[0].toUpperCase()
               : 'U',
           style: const TextStyle(
-            fontSize: 40,
+            fontSize: 32,
             color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
@@ -539,172 +568,169 @@ class _HomePageState extends State<HomePage> {
             ? (user.phone as String).trim()
             : (user.email as String).trim();
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-      children: [
-        _ProfileHeroCard(
-          avatar: avatar,
-          name: user.name as String,
-          position: positionText,
-          department: departmentText,
-          role: user.role as String?,
-          chips: [
-            _ProfileHighlightChip(
-              icon: Icons.badge_outlined,
-              label: 'អត្តលេខ',
-              value:
+    final profileCards = <Widget>[
+      _ProfileHeroCard(
+        avatar: avatar,
+        name: user.name as String,
+        position: positionText,
+        department: departmentText,
+        role: user.role as String?,
+        chips: [
+          _ProfileHighlightChip(
+            icon: Icons.badge_outlined,
+            label: 'អត្តលេខ',
+            value:
+                (user.employeeCode as String?)?.isNotEmpty == true
+                    ? user.employeeCode as String
+                    : ((user.cardNo as String?)?.isNotEmpty == true
+                        ? user.cardNo as String
+                        : '${user.employeeId}'),
+          ),
+          _ProfileHighlightChip(
+            icon: Icons.account_tree_outlined,
+            label: 'កាំប្រាក់',
+            value: payLevelText,
+          ),
+          _ProfileHighlightChip(
+            icon: Icons.calendar_month_outlined,
+            label: 'ថ្ងៃចូលបម្រើ',
+            value: serviceDateText,
+          ),
+          _ProfileHighlightChip(
+            icon: Icons.call_outlined,
+            label: 'ទំនាក់ទំនង',
+            value: contactText,
+          ),
+        ],
+        badges: [
+          if ((user.employeeCode as String?)?.isNotEmpty == true ||
+              (user.cardNo as String?)?.isNotEmpty == true)
+            _InfoBadge(
+              icon: Icons.credit_card_outlined,
+              text:
                   (user.employeeCode as String?)?.isNotEmpty == true
                       ? user.employeeCode as String
-                      : ((user.cardNo as String?)?.isNotEmpty == true
-                          ? user.cardNo as String
-                          : '${user.employeeId}'),
+                      : user.cardNo as String?,
             ),
-            _ProfileHighlightChip(
-              icon: Icons.account_tree_outlined,
-              label: 'កាំប្រាក់',
-              value: payLevelText,
-            ),
-            _ProfileHighlightChip(
-              icon: Icons.calendar_month_outlined,
-              label: 'ថ្ងៃចូលបម្រើ',
-              value: serviceDateText,
-            ),
-            _ProfileHighlightChip(
-              icon: Icons.call_outlined,
-              label: 'ទំនាក់ទំនង',
-              value: contactText,
-            ),
-          ],
-          badges: [
-            if ((user.employeeCode as String?)?.isNotEmpty == true ||
-                (user.cardNo as String?)?.isNotEmpty == true)
-              _InfoBadge(
-                icon: Icons.credit_card_outlined,
-                text:
-                    (user.employeeCode as String?)?.isNotEmpty == true
+          if ((user.phone as String?)?.isNotEmpty == true)
+            _InfoBadge(icon: Icons.phone_outlined, text: user.phone as String),
+          if ((user.email as String).isNotEmpty)
+            _InfoBadge(icon: Icons.email_outlined, text: user.email as String),
+        ],
+      ),
+      _ProfileSection(
+        icon: Icons.person_outline,
+        title: 'ព័ត៌មានផ្ទាល់ខ្លួន',
+        subtitle: 'ព័ត៌មានបុគ្គល',
+        initiallyExpanded: true,
+        rows: [
+          r(_tr(language, 'gender', 'ភេទ'), user.gender as String?),
+          r('ថ្ងៃខែឆ្នាំកំណើត', _formatDateDisplay(user.dateOfBirth)),
+          r('ស្ថានភាពអាពាហ៍ពិពាហ៍', user.maritalStatus as String?),
+          r('សញ្ជាតិ', user.nationality as String?),
+          r('សាសនា', user.religion as String?),
+          r('ជនជាតិ/ក្រុម', user.ethnicGroup as String?),
+        ],
+        subsections: [
+          _ProfileSubsection(
+            label: 'ទំនាក់ទំនង',
+            rows: [
+              r(_tr(language, 'phone', 'ទូរស័ព្ទ'), user.phone as String?),
+              r('ទូរស័ព្ទបន្ត', user.alternatePhone as String?),
+              r(_tr(language, 'email', 'អ៊ីមែល'), user.email as String),
+            ],
+          ),
+          _ProfileSubsection(
+            label: 'អាសយដ្ឋាន',
+            rows: [
+              r('បច្ចុប្បន្ន', user.presentAddress as String?),
+              r('អចិន្ត្រៃយ៍', user.permanentAddress as String?),
+            ],
+          ),
+        ],
+      ),
+      _ProfileSection(
+        icon: Icons.card_giftcard_outlined,
+        title: 'អត្តសញ្ញាណ និងឯកសារ',
+        subtitle: 'អត្តសញ្ញាណ និងឯកសារផ្លូវការ',
+        rows: [
+          r('លេខអត្តសញ្ញាណប័ណ្ណ', user.nationalId as String?),
+          r('លេខឯកសារ', user.legalDocumentNumber as String?),
+          r('ប្រភេទឯកសារ', user.legalDocumentType as String?),
+        ],
+      ),
+      _ProfileSection(
+        icon: Icons.business,
+        title: 'ព័ត៌មានអង្គភាព និងការងារ',
+        subtitle: 'ព័ត៌មានការងារ',
+        subsections: [
+          _ProfileSubsection(
+            label: 'ឯកលក្ខណ៍របស់មន្ត្រី',
+            rows: [
+              r(
+                'លេខសម្គាល់មន្ត្រី',
+                (user.employeeNo as String?)?.isNotEmpty == true
+                    ? user.employeeNo as String
+                    : ((user.employeeCode as String?)?.isNotEmpty == true
                         ? user.employeeCode as String
-                        : user.cardNo as String?,
+                        : user.employeeId.toString()),
               ),
-            if ((user.phone as String?)?.isNotEmpty == true)
-              _InfoBadge(
-                icon: Icons.phone_outlined,
-                text: user.phone as String,
+              r('កូដបុគ្គលិក', user.employeeCode as String?),
+              r('លេខកាត', user.cardNo as String?),
+            ],
+          ),
+          _ProfileSubsection(
+            label: 'តួនាទី និងអង្គភាព',
+            rows: [
+              r('នាយកដ្ឋាន', user.departmentName as String?),
+              r('តួនាទី', (user.positionKm ?? user.position) as String?),
+              r('ជំនាញ', user.skillName as String?),
+              r(
+                'កាំប្រាក់',
+                (user.employeeGradeKm ?? user.employeeGrade) as String?,
               ),
-            if ((user.email as String).isNotEmpty)
-              _InfoBadge(
-                icon: Icons.email_outlined,
-                text: user.email as String,
+            ],
+          ),
+          _ProfileSubsection(
+            label: 'កាលបរិច្ឆេទ',
+            rows: [
+              r('ថ្ងៃចូលបម្រើ', _formatDateDisplay(user.serviceStartDate)),
+              r('ថ្ងៃជួលចូល', _formatDateDisplay(user.hireDate)),
+              r('ថ្ងៃចូលធ្វើការ', _formatDateDisplay(user.joiningDate)),
+              r(
+                'ចាប់ផ្ដើមកិច្ចសន្យា',
+                _formatDateDisplay(user.contractStartDate),
               ),
-          ],
-        ),
-        const SizedBox(height: 12),
+              r('ផុតកំណត់កិច្ចសន្យា', _formatDateDisplay(user.contractEndDate)),
+            ],
+          ),
+          _ProfileSubsection(
+            label: 'ស្ថានភាព',
+            rows: [
+              r('ស្ថានភាពការងារ', user.workStatusName as String?),
+              r('ស្ថានភាពពេញសិទ្ធ', fullRightText),
+              r('ថ្ងៃពេញសិទ្ធ', _formatDateDisplay(user.fullRightDate)),
+            ],
+          ),
+        ],
+      ),
+    ];
 
-        // ─── ព័ត៌មានផ្ទាល់ខ្លួន ──────────────────────────────────────
-        _ProfileSection(
-          icon: Icons.person_outline,
-          title: 'ព័ត៌មានផ្ទាល់ខ្លួន',
-          subtitle: 'ព័ត៌មានបុគ្គល',
-          rows: [
-            r(_tr(language, 'gender', 'ភេទ'), user.gender as String?),
-            r('ថ្ងៃខែឆ្នាំកំណើត', _formatDateDisplay(user.dateOfBirth)),
-            r('ស្ថានភាពអាពាហ៍ពិពាហ៍', user.maritalStatus as String?),
-            r('សញ្ជាតិ', user.nationality as String?),
-            r('សាសនា', user.religion as String?),
-            r('ជនជាតិ/ក្រុម', user.ethnicGroup as String?),
-          ],
-          subsections: [
-            _ProfileSubsection(
-              label: 'ការទាក់ទងមាន',
-              rows: [
-                r(_tr(language, 'phone', 'ទូរស័ព្ទ'), user.phone as String?),
-                r('ទូរស័ព្ទបន្ត', user.alternatePhone as String?),
-                r(_tr(language, 'email', 'អ៊ីមែល'), user.email as String),
-              ],
-            ),
-            _ProfileSubsection(
-              label: 'អាសយដ្ឋាន',
-              rows: [
-                r('បច្ចុប្បន្ន', user.presentAddress as String?),
-                r('អចិន្ត្រៃយ៍', user.permanentAddress as String?),
-              ],
-            ),
-          ],
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFF3F8F6), Color(0xFFFAFCFB)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        const SizedBox(height: 12),
-
-        // ─── អត្តសញ្ញាណ ───────────────────────────────────────────────
-        _ProfileSection(
-          icon: Icons.card_giftcard_outlined,
-          title: 'អត្តសញ្ញាណ និងឯកសារ',
-          subtitle: 'អត្តសញ្ញាណ និងឯកសារផ្លូវការ',
-          rows: [
-            r('លេខអត្តសញ្ញាណប័ណ្ណ', user.nationalId as String?),
-            r('លេខឯកសារ', user.legalDocumentNumber as String?),
-            r('ប្រភេទឯកសារ', user.legalDocumentType as String?),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // ─── ព័ត៌មានអង្គភាព ──────────────────────────────────────────
-        _ProfileSection(
-          icon: Icons.business,
-          title: 'ព័ត៌មានអង្គភាព និងការងារ',
-          subtitle: 'ព័ត៌មានការងារ',
-          subsections: [
-            _ProfileSubsection(
-              label: 'ឯកលក្ខណ៍របស់មន្ត្រី',
-              rows: [
-                r(
-                  'លេខសម្គាល់មន្ត្រី',
-                  (user.employeeNo as String?)?.isNotEmpty == true
-                      ? user.employeeNo as String
-                      : ((user.employeeCode as String?)?.isNotEmpty == true
-                          ? user.employeeCode as String
-                          : user.employeeId.toString()),
-                ),
-                r('កូដបុគ្គលិក', user.employeeCode as String?),
-                r('លេខកាត', user.cardNo as String?),
-              ],
-            ),
-            _ProfileSubsection(
-              label: 'ដាក់ឡើងលើ',
-              rows: [
-                r('នាយកដ្ឋាន', user.departmentName as String?),
-                r('តួនាទី', (user.positionKm ?? user.position) as String?),
-                r('ជំនាញ', user.skillName as String?),
-                r(
-                  'កាំប្រាក់',
-                  (user.employeeGradeKm ?? user.employeeGrade) as String?,
-                ),
-              ],
-            ),
-            _ProfileSubsection(
-              label: 'កាលបរិច្ឆេដ',
-              rows: [
-                r('ថ្ងៃចូលបម្រើ', _formatDateDisplay(user.serviceStartDate)),
-                r('ថ្ងៃជួលចូល', _formatDateDisplay(user.hireDate)),
-                r('ថ្ងៃចូលធ្វើការ', _formatDateDisplay(user.joiningDate)),
-                r(
-                  'ចាប់ផ្ដើមកិច្ចសន្យា',
-                  _formatDateDisplay(user.contractStartDate),
-                ),
-                r(
-                  'ផុតកំណត់កិច្ចសន្យា',
-                  _formatDateDisplay(user.contractEndDate),
-                ),
-              ],
-            ),
-            _ProfileSubsection(
-              label: 'ស្ថានភាព',
-              rows: [
-                r('ស្ថានភាពការងារ', user.workStatusName as String?),
-                r('ស្ថានភាពពេញសិទ្ធ', fullRightText),
-                r('ថ្ងៃពេញសិទ្ធ', _formatDateDisplay(user.fullRightDate)),
-              ],
-            ),
-          ],
-        ),
-      ],
+      ),
+      child: ListView.separated(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
+        itemCount: profileCards.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 14),
+        itemBuilder: (context, index) => profileCards[index],
+      ),
     );
   }
 
@@ -748,8 +774,25 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
+    if (_selectedMenu == _HomeMenuItem.profile) {
+      setState(() {
+        _profileFuture = _profileService.fetchProfile(forceRefresh: true);
+      });
+
+      try {
+        await _profileFuture;
+      } catch (_) {
+        // FutureBuilder renders fallback profile data when profile fetch fails.
+      }
+      return;
+    }
+
     setState(() {
       _summaryFuture = _loadSummary(forceRefresh: true);
+      _dashboardAttendanceFuture = _loadAttendance(
+        fromDate: DateTime.now().subtract(const Duration(days: 7)),
+        toDate: DateTime.now(),
+      );
     });
 
     try {
@@ -760,7 +803,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _markNotificationAsRead(HomeNotificationItem item) async {
-    if (!item.isUnread || item.id <= 0) {
+    if (!item.isUnread || item.id.trim().isEmpty) {
       return;
     }
 
@@ -775,6 +818,39 @@ class _HomePageState extends State<HomePage> {
     } catch (error) {
       _showServiceMessage(error.toString());
     }
+  }
+
+  Future<void> _openNotificationItem(HomeNotificationItem item) async {
+    if (item.isUnread) {
+      await _markNotificationAsRead(item);
+      if (!mounted) {
+        return;
+      }
+    }
+
+    _switchToMenu(_resolveNotificationTarget(item));
+  }
+
+  _HomeMenuItem _resolveNotificationTarget(HomeNotificationItem item) {
+    final source = item.source.trim().toLowerCase();
+    final link = (item.link ?? '').trim().toLowerCase();
+
+    if (source == 'leave_workflow' || link.contains('/hr/leaves')) {
+      return _HomeMenuItem.leave;
+    }
+
+    if (source == 'attendance_workflow' ||
+        link.contains('/attendance-adjustments') ||
+        link.contains('/attendance')) {
+      return _HomeMenuItem.attendance;
+    }
+
+    if (source == 'correspondence_workflow' ||
+        link.contains('/correspondence')) {
+      return _HomeMenuItem.correspondence;
+    }
+
+    return _HomeMenuItem.notice;
   }
 
   Future<void> _markAllNotificationsAsRead() async {
@@ -814,6 +890,11 @@ class _HomePageState extends State<HomePage> {
     }
 
     _switchToMenu(item);
+  }
+
+  Future<void> _openSystemSettingsFromDrawer() async {
+    Navigator.of(context).pop();
+    await Navigator.of(context).pushNamed(AppRoutes.systemSettings);
   }
 
   String _userInitial(dynamic user) {
@@ -937,6 +1018,12 @@ class _HomePageState extends State<HomePage> {
               selected: _selectedMenu == _HomeMenuItem.profile,
               onTap: () => _onMenuTap(_HomeMenuItem.profile),
             ),
+            _DrawerMenuTile(
+              icon: Icons.settings_outlined,
+              title: _tr(language, 'settings', 'ការកំណត់'),
+              selected: false,
+              onTap: _openSystemSettingsFromDrawer,
+            ),
             const Spacer(),
             const Divider(height: 1, color: Color(0xFFE8EEF0)),
             _DrawerMenuTile(
@@ -957,7 +1044,11 @@ class _HomePageState extends State<HomePage> {
     Map<String, String> language,
     ThemeData theme,
   ) {
-    final attendanceFuture = _attendanceFuture ?? _loadAttendance();
+    final attendanceFuture =
+        _dashboardAttendanceFuture ??= _loadAttendance(
+          fromDate: DateTime.now().subtract(const Duration(days: 7)),
+          toDate: DateTime.now(),
+        );
     final listPadding = EdgeInsets.fromLTRB(
       16,
       12,
@@ -1190,6 +1281,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildAttendance(Map<String, String> language) {
+    final attendanceFuture = _attendanceFuture ??= _loadAttendance();
     final listPadding = EdgeInsets.fromLTRB(
       16,
       12,
@@ -1200,7 +1292,7 @@ class _HomePageState extends State<HomePage> {
     return RefreshIndicator(
       onRefresh: _refresh,
       child: FutureBuilder<List<AttendanceDayRecord>>(
-        future: _attendanceFuture,
+        future: attendanceFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return ListView(
@@ -1514,6 +1606,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildNoticeCenter(Map<String, String> language) {
+    final notificationsFuture = _notificationsFuture ??= _loadNotifications();
     final listPadding = EdgeInsets.fromLTRB(
       16,
       12,
@@ -1524,7 +1617,7 @@ class _HomePageState extends State<HomePage> {
     return RefreshIndicator(
       onRefresh: _refresh,
       child: FutureBuilder<HomeNotificationPageData>(
-        future: _notificationsFuture ?? _loadNotifications(),
+        future: notificationsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return ListView(
@@ -1566,7 +1659,7 @@ class _HomePageState extends State<HomePage> {
                   description: _tr(
                     language,
                     'no_notice_to_show',
-                    'No notifications yet',
+                    'មិនទាន់មានជូនដំណឹង',
                   ),
                 ),
               ],
@@ -1580,8 +1673,8 @@ class _HomePageState extends State<HomePage> {
                 title: _tr(language, 'notice_list', 'ជូនដំណឹង'),
                 subtitle:
                     noticeData.unreadCount > 0
-                        ? '${_tr(language, 'unread', 'Unread')}: ${noticeData.unreadCount}'
-                        : _tr(language, 'latest_records', 'Latest updates'),
+                        ? '${_tr(language, 'unread', 'មិនទាន់អាន')}: ${noticeData.unreadCount}'
+                        : _tr(language, 'latest_records', 'ព័ត៌មានថ្មីៗ'),
               ),
               if (noticeData.unreadCount > 0) ...[
                 const SizedBox(height: 4),
@@ -1601,7 +1694,7 @@ class _HomePageState extends State<HomePage> {
                             )
                             : const Icon(Icons.done_all_rounded, size: 18),
                     label: Text(
-                      _tr(language, 'mark_all_read', 'Mark all as read'),
+                      _tr(language, 'mark_all_read', 'សម្គាល់ថាបានអានទាំងអស់'),
                     ),
                   ),
                 ),
@@ -1612,16 +1705,16 @@ class _HomePageState extends State<HomePage> {
                   title: notice.title,
                   description: notice.description,
                   meta: notice.meta,
+                  typeLabel: notice.typeLabel,
+                  dateLabel: notice.dateLabel,
+                  source: notice.source,
                   unread: notice.isUnread,
-                  onTap:
-                      notice.isUnread
-                          ? () => _markNotificationAsRead(notice)
-                          : null,
+                  onTap: () => _openNotificationItem(notice),
                   onMarkRead:
                       notice.isUnread
                           ? () => _markNotificationAsRead(notice)
                           : null,
-                  actionLabel: _tr(language, 'mark_as_read', 'Mark as read'),
+                  actionLabel: _tr(language, 'mark_as_read', 'សម្គាល់ថាបានអាន'),
                 ),
                 const SizedBox(height: 10),
               ],
@@ -1645,7 +1738,21 @@ class _HomePageState extends State<HomePage> {
       case _HomeMenuItem.mission:
         return _buildMissions(language);
       case _HomeMenuItem.profile:
-        return _buildProfileSection(user, language, theme);
+        // Fetch fresh profile data from backend
+        return FutureBuilder<AuthUser>(
+          future: _profileFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const _ProfileLoadingSkeleton();
+            }
+            if (snapshot.hasError) {
+              // Fallback to cached user data if fetch fails
+              return _buildProfileSection(user, language, theme);
+            }
+            final profile = snapshot.data ?? user;
+            return _buildProfileSection(profile, language, theme);
+          },
+        );
       case _HomeMenuItem.leave:
         if (user == null) {
           return ListView(
@@ -1706,7 +1813,14 @@ class _HomePageState extends State<HomePage> {
               automaticallyImplyLeading: false,
               leading:
                   _isOnDashboard
-                      ? null
+                      ? Builder(
+                        builder:
+                            (context) => IconButton(
+                              onPressed: () => Scaffold.of(context).openDrawer(),
+                              icon: const Icon(Icons.menu_rounded),
+                              tooltip: _tr(language, 'menu', 'áž˜áŸ‰ážºáž“áž»áž™'),
+                            ),
+                      )
                       : IconButton(
                         onPressed: _returnToDashboard,
                         icon: const Icon(Icons.arrow_back_rounded),
@@ -1718,13 +1832,15 @@ class _HomePageState extends State<HomePage> {
               ),
               actions: [
                 if (_selectedMenu == _HomeMenuItem.dashboard) ...[
+                  _buildTopNotificationAction(language),
+                  const SizedBox(width: 4),
                   _TopActionIcon(
                     icon: Icons.refresh_rounded,
                     onPressed: _refresh,
                     tooltip: _tr(language, 'refresh', 'ធ្វើបច្ចុប្បន្នភាព'),
                   ),
                   const SizedBox(width: 4),
-                  Builder(
+                  if (_selectedMenu == _HomeMenuItem.logout) Builder(
                     builder:
                         (context) => _TopActionIcon(
                           icon: Icons.menu_rounded,
@@ -1734,6 +1850,8 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(width: 8),
                 ] else ...[
+                  _buildTopNotificationAction(language),
+                  const SizedBox(width: 4),
                   if (_selectedMenu == _HomeMenuItem.attendance ||
                       _selectedMenu == _HomeMenuItem.mission ||
                       _selectedMenu == _HomeMenuItem.notice ||
@@ -1760,7 +1878,7 @@ class _HomePageState extends State<HomePage> {
             body: _buildBody(user, language, theme),
             bottomNavigationBar: _HomeBottomNavigation(
               currentIndex: _bottomNavIndex(),
-              onTap: _onBottomNavTap,
+              onTap: (index) => _onBottomNavTap(index, language),
             ),
           ),
         );
@@ -1839,100 +1957,45 @@ class _HomeBottomNavigation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final items = <({IconData icon, String label})>[
-      (icon: Icons.home_outlined, label: 'គេហទំព័រ'),
-      (icon: Icons.calendar_today_outlined, label: 'ប្រតិទិន'),
-      (icon: Icons.notifications_none_rounded, label: 'ជូនដំណឹង'),
-      (icon: Icons.settings_outlined, label: 'ការកំណត់'),
+    final selectedIndex = (currentIndex == 1) ? 1 : 0;
+    const labels = [
+      '\u1796\u17d0\u178f\u17cc\u1798\u17b6\u1793', // ព័ត៌មាន
+      '\u179f\u17d2\u1780\u17c1\u1793', // ស្កេន
+      '\u179c\u178f\u17d2\u178f\u1798\u17b6\u1793', // វត្តមាន
     ];
 
     return SafeArea(
       top: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(16, 8, 16, bottomInset > 0 ? 8 : 16),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFE3EAF0)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0D14211D),
-                blurRadius: 20,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              for (var i = 0; i < items.length; i++) ...[
-                Expanded(
-                  child: _BottomNavItem(
-                    icon: items[i].icon,
-                    label: items[i].label,
-                    active: currentIndex != null && i == currentIndex,
-                    onTap: () => onTap(i),
-                  ),
-                ),
-                if (i != items.length - 1) const SizedBox(width: 4),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomNavItem extends StatelessWidget {
-  const _BottomNavItem({
-    required this.icon,
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: active ? const Color(0xFFEAF6EF) : Colors.transparent,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 22,
-                color:
-                    active ? const Color(0xFF2E7D61) : const Color(0xFF758695),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color:
-                      active
-                          ? const Color(0xFF2E7D61)
-                          : const Color(0xFF758695),
-                  fontSize: 11.5,
-                  fontWeight: active ? FontWeight.w800 : FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
+        padding: EdgeInsets.fromLTRB(0, 0, 0, bottomInset > 0 ? 6 : 10),
+        child: MotionTabBar(
+          initialSelectedTab: labels[selectedIndex == 0 ? 0 : 2],
+          labels: labels,
+          icons: const [
+            Icons.newspaper_outlined,
+            Icons.qr_code_scanner_rounded,
+            Icons.calendar_month_outlined,
+          ],
+          tabSize: 52,
+          tabBarHeight: 60,
+          textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+          tabIconSize: 22,
+          tabIconSelectedSize: 26,
+          tabSelectedColor: const Color(0xFF16A34A),
+          tabIconSelectedColor: Colors.white,
+          tabIconColor: const Color(0xFF9CA3AF),
+          tabBarColor: Colors.white,
+          onTabItemSelected: (index) {
+            if (index == 0) {
+              onTap(0);
+              return;
+            }
+            if (index == 1) {
+              onTap(2);
+              return;
+            }
+            onTap(1);
+          },
         ),
       ),
     );
@@ -2015,6 +2078,63 @@ class _TopActionIcon extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       ),
       icon: Icon(icon),
+    );
+  }
+}
+
+class _NotificationBellAction extends StatelessWidget {
+  const _NotificationBellAction({
+    required this.unreadCount,
+    required this.onPressed,
+    required this.tooltip,
+  });
+
+  final int unreadCount;
+  final VoidCallback onPressed;
+  final String tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasUnread = unreadCount > 0;
+
+    return IconButton(
+      onPressed: onPressed,
+      tooltip: tooltip,
+      style: IconButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF53687A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.notifications_none_rounded),
+          if (hasUnread)
+            Positioned(
+              top: -4,
+              right: -6,
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEF4444),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: Colors.white, width: 2),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  unreadCount > 99 ? '99+' : '$unreadCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -2714,6 +2834,9 @@ class _NoticeFeedCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.meta,
+    required this.typeLabel,
+    required this.dateLabel,
+    required this.source,
     required this.unread,
     this.onTap,
     this.onMarkRead,
@@ -2723,10 +2846,54 @@ class _NoticeFeedCard extends StatelessWidget {
   final String title;
   final String description;
   final String meta;
+  final String typeLabel;
+  final String dateLabel;
+  final String source;
   final bool unread;
   final VoidCallback? onTap;
   final VoidCallback? onMarkRead;
   final String? actionLabel;
+
+  IconData _iconForSource() {
+    switch (source) {
+      case 'leave_workflow':
+        return Icons.send_rounded;
+      case 'attendance_workflow':
+        return Icons.hourglass_top_rounded;
+      case 'correspondence_workflow':
+        return Icons.mail_outline_rounded;
+      default:
+        return unread
+            ? Icons.notifications_active_outlined
+            : Icons.notifications_none;
+    }
+  }
+
+  Color _iconTint() {
+    switch (source) {
+      case 'leave_workflow':
+        return const Color(0xFF2563EB);
+      case 'attendance_workflow':
+        return const Color(0xFFF59E0B);
+      case 'correspondence_workflow':
+        return const Color(0xFF059669);
+      default:
+        return unread ? const Color(0xFF1D4F91) : const Color(0xFF64748B);
+    }
+  }
+
+  Color _iconBg() {
+    switch (source) {
+      case 'leave_workflow':
+        return const Color(0xFFEAF1FF);
+      case 'attendance_workflow':
+        return const Color(0xFFFFF4E5);
+      case 'correspondence_workflow':
+        return const Color(0xFFECFDF3);
+      default:
+        return unread ? const Color(0xFFEAF1FF) : const Color(0xFFF2F4F7);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2759,20 +2926,12 @@ class _NoticeFeedCard extends StatelessWidget {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color:
-                        unread
-                            ? const Color(0xFFEAF1FF)
-                            : const Color(0xFFF2F4F7),
+                    color: _iconBg(),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
-                    unread
-                        ? Icons.notifications_active_outlined
-                        : Icons.notifications_none,
-                    color:
-                        unread
-                            ? const Color(0xFF1D4F91)
-                            : const Color(0xFF64748B),
+                    _iconForSource(),
+                    color: _iconTint(),
                     size: 18,
                   ),
                 ),
@@ -2817,6 +2976,41 @@ class _NoticeFeedCard extends StatelessWidget {
                           height: 1.45,
                           fontWeight: FontWeight.w500,
                         ),
+                      ),
+                      const SizedBox(height: 7),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF2F4F7),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: Text(
+                              typeLabel,
+                              style: const TextStyle(
+                                color: Color(0xFF475467),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          if (dateLabel.trim().isNotEmpty)
+                            Text(
+                              dateLabel,
+                              style: const TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 7),
                       Row(
@@ -3779,6 +3973,63 @@ class _ProfileRow {
   final String value;
 }
 
+class _ProfileLoadingSkeleton extends StatelessWidget {
+  const _ProfileLoadingSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFF3F8F6), Color(0xFFFAFCFB)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
+        children: const [
+          _SkeletonBlock(height: 264, radius: 24),
+          SizedBox(height: 14),
+          _SkeletonBlock(height: 104, radius: 20),
+          SizedBox(height: 10),
+          _SkeletonBlock(height: 170, radius: 20),
+          SizedBox(height: 14),
+          _SkeletonBlock(height: 104, radius: 20),
+          SizedBox(height: 10),
+          _SkeletonBlock(height: 132, radius: 20),
+          SizedBox(height: 14),
+          _SkeletonBlock(height: 104, radius: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonBlock extends StatelessWidget {
+  const _SkeletonBlock({required this.height, required this.radius});
+
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE8F2EE), Color(0xFFF2F7F5), Color(0xFFE8F2EE)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        border: Border.all(color: const Color(0xFFDDE9E4)),
+      ),
+    );
+  }
+}
+
 class _InfoBadge extends StatelessWidget {
   const _InfoBadge({required this.icon, required this.text});
 
@@ -3801,7 +4052,7 @@ class _InfoBadge extends StatelessWidget {
           Icon(icon, size: 14, color: const Color(0xFF0B6B58)),
           const SizedBox(width: 6),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 180),
+            constraints: const BoxConstraints(maxWidth: 220),
             child: Text(
               text!,
               maxLines: 1,
@@ -3857,220 +4108,173 @@ class _ProfileHeroCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
-          colors: [Color(0xFF0C6A58), Color(0xFF1C4A8D), Color(0xFF7AB8A3)],
+          colors: [Color(0xFF0F4C5C), Color(0xFF15443E)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          stops: [0.0, 0.58, 1.0],
         ),
+        border: Border.all(color: const Color(0x33000000)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x2610322A),
-            blurRadius: 28,
-            offset: Offset(0, 16),
+            color: Color(0x1A102A24),
+            blurRadius: 18,
+            offset: Offset(0, 8),
           ),
         ],
       ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -38,
-            right: -10,
-            child: Container(
-              width: 148,
-              height: 148,
-              decoration: BoxDecoration(
-                color: Colors.white.withAlpha(24),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: -44,
-            left: -20,
-            child: Container(
-              width: 164,
-              height: 164,
-              decoration: BoxDecoration(
-                color: Colors.white.withAlpha(18),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
-            child: Column(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(28),
-                        borderRadius: BorderRadius.circular(999),
+                Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(34),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: avatar,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'ប្រវត្តិមន្ត្រី',
+                        style: TextStyle(
+                          color: Color(0xFFD8EAF0),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.6,
+                        ),
                       ),
-                      child: avatar,
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
+                      const SizedBox(height: 8),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 21,
+                          fontWeight: FontWeight.w800,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        position,
+                        style: const TextStyle(
+                          color: Color(0xFFF4F8FA),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        department,
+                        style: const TextStyle(
+                          color: Color(0xFFD7E5EA),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      if ((role ?? '').trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0x1FFFFFFF),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: const Color(0x44FFFFFF)),
+                          ),
+                          child: Text(
+                            role!.trim(),
+                            style: const TextStyle(
+                              color: Color(0xFFF1FBFF),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isCompact = constraints.maxWidth < 380;
+                final isUltraCompact = constraints.maxWidth < 340;
+                final crossAxisCount = isCompact ? 1 : 2;
+                final cardHeight =
+                    isUltraCompact ? 78.0 : (isCompact ? 82.0 : 88.0);
+
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: chips.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    mainAxisExtent: cardHeight,
+                  ),
+                  itemBuilder: (context, index) {
+                    final chip = chips[index];
+                    return Container(
+                      padding:
+                          isUltraCompact
+                              ? const EdgeInsets.fromLTRB(10, 8, 10, 8)
+                              : const EdgeInsets.fromLTRB(10, 10, 10, 8),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(24),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withAlpha(36)),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withAlpha(34),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: const Text(
-                              'ព័ត៌មានផ្ទាល់ខ្លួន',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.4,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
+                          Icon(chip.icon, size: 16, color: Colors.white),
                           Text(
-                            name,
+                            chip.label,
                             style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              height: 1.15,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            position,
-                            style: const TextStyle(
-                              color: Color(0xFFF4F8FA),
-                              fontSize: 14,
+                              color: Color(0xFFCFE3EA),
+                              fontSize: 10.3,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
-                          const SizedBox(height: 3),
                           Text(
-                            department,
+                            chip.value,
+                            maxLines: isCompact ? 2 : 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              color: Color(0xFFD9E7ED),
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
+                              color: Colors.white,
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-                          if ((role ?? '').trim().isNotEmpty) ...[
-                            const SizedBox(height: 10),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF2C8),
-                                borderRadius: BorderRadius.circular(999),
-                              ),
-                              child: Text(
-                                role!.trim(),
-                                style: const TextStyle(
-                                  color: Color(0xFF5F4A00),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                          ],
                         ],
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isCompact = constraints.maxWidth < 380;
-                    final crossAxisCount = isCompact ? 1 : 2;
-                    final cardHeight = isCompact ? 92.0 : 102.0;
-
-                    return GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: chips.length,
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: crossAxisCount,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        mainAxisExtent: cardHeight,
-                      ),
-                      itemBuilder: (context, index) {
-                        final chip = chips[index];
-                        return Container(
-                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withAlpha(26),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: Colors.white.withAlpha(34),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withAlpha(34),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  chip.icon,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                chip.label,
-                                style: const TextStyle(
-                                  color: Color(0xFFD8E8EC),
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Text(
-                                chip.value,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.2,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
                     );
                   },
-                ),
-                if (visibleBadges.isNotEmpty) ...[
-                  const SizedBox(height: 14),
-                  Wrap(spacing: 8, runSpacing: 8, children: visibleBadges),
-                ],
-              ],
+                );
+              },
             ),
-          ),
-        ],
+            if (visibleBadges.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Wrap(spacing: 8, runSpacing: 8, children: visibleBadges),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -4082,13 +4286,14 @@ class _ProfileSubsection {
   final List<_ProfileRow> rows;
 }
 
-class _ProfileSection extends StatelessWidget {
+class _ProfileSection extends StatefulWidget {
   const _ProfileSection({
     required this.title,
     required this.subtitle,
     this.icon,
     this.rows,
     this.subsections,
+    this.initiallyExpanded = false,
   });
 
   final IconData? icon;
@@ -4096,14 +4301,28 @@ class _ProfileSection extends StatelessWidget {
   final String subtitle;
   final List<_ProfileRow>? rows;
   final List<_ProfileSubsection>? subsections;
+  final bool initiallyExpanded;
+
+  @override
+  State<_ProfileSection> createState() => _ProfileSectionState();
+}
+
+class _ProfileSectionState extends State<_ProfileSection> {
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _expanded = widget.initiallyExpanded;
+  }
 
   @override
   Widget build(BuildContext context) {
     // Determine which rows to display
-    List<_ProfileRow> mainRows = rows ?? [];
+    final List<_ProfileRow> mainRows = widget.rows ?? [];
     final mainVisible = mainRows.where((r) => r.value.isNotEmpty).toList();
     final subsVisible =
-        subsections
+        widget.subsections
             ?.where((s) => s.rows.any((r) => r.value.isNotEmpty))
             .toList() ??
         [];
@@ -4115,48 +4334,45 @@ class _ProfileSection extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE3ECE7)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFDCE9E4)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A14211D),
-            blurRadius: 18,
-            offset: Offset(0, 8),
+            color: Color(0x10142721),
+            blurRadius: 14,
+            offset: Offset(0, 5),
           ),
         ],
       ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            padding: const EdgeInsets.fromLTRB(18, 14, 16, 14),
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Color(0xFFF4FAF7),
-                  Color(0xFFEDF7F2),
-                  Color(0xFFF7FBFC),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+              color: Color(0xFFF4F8F6),
               borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(24),
-                topRight: Radius.circular(24),
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
               ),
             ),
             child: Row(
               children: [
-                if (icon != null) ...[
+                if (widget.icon != null) ...[
                   Container(
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFDFF2E9),
-                      borderRadius: BorderRadius.circular(14),
+                      color: const Color(0xFFDDEEE6),
+                      borderRadius: BorderRadius.circular(13),
                     ),
-                    child: Icon(icon, size: 20, color: const Color(0xFF0B6B58)),
+                    child: Icon(
+                      widget.icon,
+                      size: 20,
+                      color: const Color(0xFF0B6B58),
+                    ),
                   ),
                   const SizedBox(width: 12),
                 ],
@@ -4165,82 +4381,124 @@ class _ProfileSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        title,
+                        widget.title,
                         style: const TextStyle(
                           fontWeight: FontWeight.w800,
-                          fontSize: 15,
+                          fontSize: 15.5,
                           color: Color(0xFF123E34),
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
                       Text(
-                        subtitle,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey[600],
-                          fontWeight: FontWeight.w500,
+                        widget.subtitle,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF3F5A51),
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
                   ),
                 ),
+                InkWell(
+                  onTap: () => setState(() => _expanded = !_expanded),
+                  borderRadius: BorderRadius.circular(999),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color:
+                          _expanded
+                              ? const Color(0xFFD5EAE1)
+                              : const Color(0xFFE5F0EB),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _expanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      color: const Color(0xFF0B6B58),
+                      size: 22,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFE8EFEC)),
-          for (int i = 0; i < mainVisible.length; i++) ...[
-            _buildRow(mainVisible[i]),
-            if (i < mainVisible.length - 1)
-              const Divider(height: 1, indent: 18, endIndent: 18),
-          ],
-          if (subsVisible.isNotEmpty) ...[
-            for (int sIdx = 0; sIdx < subsVisible.length; sIdx++) ...[
-              _buildSubsection(subsVisible[sIdx]),
-              if (sIdx < subsVisible.length - 1 || mainVisible.isNotEmpty)
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 190),
+            firstCurve: Curves.easeOut,
+            secondCurve: Curves.easeIn,
+            sizeCurve: Curves.easeInOut,
+            crossFadeState:
+                _expanded
+                    ? CrossFadeState.showSecond
+                    : CrossFadeState.showFirst,
+            firstChild: const SizedBox.shrink(),
+            secondChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 const Divider(height: 1, color: Color(0xFFE7EFEB)),
-            ],
-          ],
+                const SizedBox(height: 6),
+                for (final row in mainVisible) _buildRow(row),
+                if (subsVisible.isNotEmpty)
+                  for (final subsection in subsVisible) ...[
+                    _buildSubsection(subsection),
+                    const SizedBox(height: 2),
+                  ],
+                const SizedBox(height: 6),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildRow(_ProfileRow row) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final labelWidth = screenWidth < 360 ? 104.0 : 126.0;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+      child: Column(
         children: [
-          SizedBox(
-            width: 132,
-            child: Text(
-              row.label,
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FBF9),
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFE3ECE7)),
-              ),
-              child: Text(
-                row.value,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: Color(0xFF163A31),
-                  height: 1.3,
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: labelWidth,
+                  child: Text(
+                    row.label,
+                    style: const TextStyle(
+                      color: Color(0xFF5E746D),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    row.value,
+                    textAlign: TextAlign.right,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.8,
+                      color: Color(0xFF163A31),
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
+          const Divider(height: 1, color: Color(0xFFE8EFEB)),
         ],
       ),
     );
@@ -4254,11 +4512,11 @@ class _ProfileSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: const Color(0xFFEAF6F0),
+              color: const Color(0xFFE8F3EE),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
@@ -4266,55 +4524,13 @@ class _ProfileSection extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF0B6B58),
+                color: Color(0xFF1A5A4C),
                 letterSpacing: 0.2,
               ),
             ),
           ),
         ),
-        for (int i = 0; i < visible.length; i++) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 114,
-                  child: Text(
-                    visible[i].label,
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FBF9),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE3ECE7)),
-                    ),
-                    child: Text(
-                      visible[i].value,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                        color: Color(0xFF163A31),
-                        height: 1.3,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        for (int i = 0; i < visible.length; i++) _buildRow(visible[i]),
       ],
     );
   }

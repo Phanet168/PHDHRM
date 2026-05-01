@@ -37,6 +37,25 @@
         </style>
     @endif
 
+    <style>
+        .login-brand {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-brand__logo {
+            display: block;
+            max-width: min(220px, 72vw);
+            max-height: 120px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+    </style>
+
     @stack('css')
     @include('login.assets.css')
 </head>

@@ -36,7 +36,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void initState() {
     super.initState();
-    _languageFuture = LaravelLanguageService.instance.load(forceRefresh: true);
+    _languageFuture = LaravelLanguageService.instance.load();
   }
 
   @override

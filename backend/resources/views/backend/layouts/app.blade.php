@@ -55,6 +55,197 @@
             .table th {
                 line-height: 1.45;
             }
+
+            .workflow-notification-menu {
+                width: min(420px, calc(100vw - 24px));
+                min-width: min(420px, calc(100vw - 24px));
+                max-width: min(420px, calc(100vw - 24px));
+                border: 1px solid #e5e7eb;
+                border-radius: 16px;
+                overflow: hidden;
+                box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+            }
+
+            .workflow-notification-menu .list-group-item,
+            .workflow-notification-menu .small,
+            .workflow-notification-menu .fw-semi-bold,
+            .workflow-notification-menu .fw-bold {
+                line-height: 1.6;
+                white-space: normal;
+                word-break: break-word;
+            }
+
+            .workflow-notification-menu .list-group {
+                max-height: min(65vh, 560px);
+                overflow-y: auto;
+                overscroll-behavior: contain;
+            }
+
+            .notification-hub-trigger {
+                position: relative;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 40px;
+                height: 40px;
+                border-radius: 999px;
+                color: #475467 !important;
+                background: transparent;
+                transition: background-color 0.18s ease, color 0.18s ease;
+            }
+
+            .notification-hub-trigger:hover {
+                background: #f3f4f6;
+                color: #111827 !important;
+                text-decoration: none;
+            }
+
+            .notification-hub-trigger svg {
+                width: 20px;
+                height: 20px;
+                display: block;
+            }
+
+            .notification-hub-badge {
+                position: absolute;
+                top: 1px;
+                right: 0;
+                min-width: 18px;
+                height: 18px;
+                padding: 0 4px;
+                border-radius: 999px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border: 2px solid #fff;
+                background: #ef4444;
+                color: #fff;
+                font-size: 10px;
+                font-weight: 700;
+                line-height: 1;
+                box-shadow: 0 6px 12px rgba(239, 68, 68, 0.22);
+            }
+
+            .workflow-notification-header {
+                padding: 14px 16px 12px;
+                background: #fff;
+            }
+
+            .workflow-notification-section {
+                padding: 14px 16px;
+                background: #fff;
+            }
+
+            .workflow-notification-section + .workflow-notification-section {
+                border-top: 1px solid #f1f5f9;
+            }
+
+            .workflow-notification-count {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                min-width: 24px;
+                height: 24px;
+                padding: 0 8px;
+                border-radius: 999px;
+                background: #f3f4f6;
+                color: #344054;
+                font-size: 12px;
+                font-weight: 700;
+            }
+
+            .workflow-notification-action {
+                white-space: nowrap;
+            }
+
+            .workflow-notification-status {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                margin-top: 6px;
+                font-size: 12px;
+                font-weight: 600;
+            }
+
+            .workflow-notification-status-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 999px;
+                display: inline-block;
+            }
+
+            .workflow-notification-status.unread {
+                color: #b42318;
+            }
+
+            .workflow-notification-status.unread .workflow-notification-status-dot {
+                background: #ef4444;
+            }
+
+            .workflow-notification-status.read {
+                color: #475467;
+            }
+
+            .workflow-notification-status.read .workflow-notification-status-dot {
+                background: #98a2b3;
+            }
+
+            .workflow-notification-row {
+                display: flex;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .workflow-notification-icon {
+                width: 36px;
+                height: 36px;
+                flex: 0 0 36px;
+                border-radius: 12px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 15px;
+            }
+
+            .workflow-notification-content {
+                min-width: 0;
+                flex: 1 1 auto;
+            }
+
+            .workflow-notification-meta {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px 10px;
+                margin-top: 6px;
+                font-size: 12px;
+                color: #667085;
+            }
+
+            .workflow-notification-type {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 12px;
+                font-weight: 700;
+                color: #475467;
+            }
+
+            .workflow-notification-type-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 999px;
+                display: inline-block;
+            }
+
+            .workflow-notification-footer {
+                padding: 10px 12px;
+                border-top: 1px solid #f1f5f9;
+                background: #fcfcfd;
+            }
+
+            .workflow-notification-footer .btn {
+                border-radius: 10px;
+            }
         </style>
     @endif
     @stack('css')
@@ -131,12 +322,97 @@
                                 ->where('type', \App\Notifications\CorrespondenceAssignedNotification::class)
                                 ->count();
                             $correspondenceNotifications = auth()->user()
-                                ->unreadNotifications()
+                                ->notifications()
                                 ->where('type', \App\Notifications\CorrespondenceAssignedNotification::class)
                                 ->latest()
-                                ->limit(5)
+                                ->limit(10)
                                 ->get();
                         }
+
+                        $leaveWorkflowNotifications = collect();
+                        $leaveWorkflowUnreadCount = 0;
+                        if (auth()->check() && \Illuminate\Support\Facades\Route::has('leave.notifications.open')) {
+                            $leaveWorkflowUnreadCount = auth()->user()
+                                ->unreadNotifications()
+                                ->where('type', \App\Notifications\LeaveWorkflowNotification::class)
+                                ->count();
+                            $leaveWorkflowNotifications = auth()->user()
+                                ->notifications()
+                                ->where('type', \App\Notifications\LeaveWorkflowNotification::class)
+                                ->latest()
+                                ->limit(10)
+                                ->get();
+                        }
+
+                        $attendanceWorkflowNotifications = collect();
+                        $attendanceWorkflowUnreadCount = 0;
+                        if (auth()->check() && \Illuminate\Support\Facades\Route::has('attendance-adjustments.notifications.open')) {
+                            $attendanceWorkflowUnreadCount = auth()->user()
+                                ->unreadNotifications()
+                                ->where('type', \App\Notifications\AttendanceWorkflowNotification::class)
+                                ->count();
+                            $attendanceWorkflowNotifications = auth()->user()
+                                ->notifications()
+                                ->where('type', \App\Notifications\AttendanceWorkflowNotification::class)
+                                ->latest()
+                                ->limit(10)
+                                ->get();
+                        }
+
+                        $hasCorrespondenceNotifications = auth()->check() && \Illuminate\Support\Facades\Route::has('correspondence.index');
+                        $hasLeaveNotifications = auth()->check() && \Illuminate\Support\Facades\Route::has('leave.notifications.open');
+                        $hasAttendanceNotifications = auth()->check() && \Illuminate\Support\Facades\Route::has('attendance-adjustments.notifications.open');
+                        $unifiedWorkflowUnreadCount = $correspondenceUnreadCount + $leaveWorkflowUnreadCount + $attendanceWorkflowUnreadCount;
+                        $unifiedWorkflowNotifications = collect();
+
+                        if ($hasLeaveNotifications) {
+                            $unifiedWorkflowNotifications = $unifiedWorkflowNotifications->merge(
+                                $leaveWorkflowNotifications->map(function ($notification) {
+                                    return [
+                                        'source' => 'leave',
+                                        'notification' => $notification,
+                                        'link' => route('leave.notifications.open', $notification->id),
+                                        'list_link' => route('leave.index'),
+                                    ];
+                                })
+                            );
+                        }
+
+                        if ($hasAttendanceNotifications) {
+                            $unifiedWorkflowNotifications = $unifiedWorkflowNotifications->merge(
+                                $attendanceWorkflowNotifications->map(function ($notification) {
+                                    return [
+                                        'source' => 'attendance',
+                                        'notification' => $notification,
+                                        'link' => route('attendance-adjustments.notifications.open', $notification->id),
+                                        'list_link' => route('attendance-adjustments.index'),
+                                    ];
+                                })
+                            );
+                        }
+
+                        if ($hasCorrespondenceNotifications) {
+                            $unifiedWorkflowNotifications = $unifiedWorkflowNotifications->merge(
+                                $correspondenceNotifications->map(function ($notification) {
+                                    $data = $notification->data ?? [];
+
+                                    return [
+                                        'source' => 'correspondence',
+                                        'notification' => $notification,
+                                        'link' => route('correspondence.notifications.open', $notification->id),
+                                        'list_link' => route('correspondence.index'),
+                                        'data' => $data,
+                                    ];
+                                })
+                            );
+                        }
+
+                        $unifiedWorkflowNotifications = $unifiedWorkflowNotifications
+                            ->sortByDesc(function ($item) {
+                                return optional($item['notification']->created_at)->timestamp ?? 0;
+                            })
+                            ->take(12)
+                            ->values();
 
                         $retirementNotification = null;
                         if (
@@ -151,20 +427,279 @@
                     <div class="navbar-icon d-flex">
                         <ul class="navbar-nav flex-row gap-3 align-items-center">
                             <!--/.dropdown-->
-                            @if (auth()->check() && \Illuminate\Support\Facades\Route::has('correspondence.index'))
+                            @if ($hasCorrespondenceNotifications || $hasLeaveNotifications || $hasAttendanceNotifications)
+                                <li class="nav-item dropdown">
+                                    <a class="notification-hub-trigger" href="#"
+                                        role="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                        title="{{ localize('all_notifications', 'ការជូនដំណឹង') }}">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none">
+                                            <path d="M12 3a4 4 0 0 0-4 4v1.17c0 .53-.21 1.04-.59 1.41L6.29 10.7A2 2 0 0 0 5.7 12.1V15l-1.41 1.41A1 1 0 0 0 5 18h14a1 1 0 0 0 .71-1.71L18.3 15v-2.9a2 2 0 0 0-.59-1.4l-1.12-1.13A2 2 0 0 1 16 8.17V7a4 4 0 0 0-4-4Z" fill="currentColor"/>
+                                            <path d="M9.5 19a2.5 2.5 0 0 0 5 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                                        </svg>
+                                        @if ($unifiedWorkflowUnreadCount > 0)
+                                            <span class="notification-hub-badge">
+                                                {{ $unifiedWorkflowUnreadCount > 99 ? '99+' : $unifiedWorkflowUnreadCount }}
+                                            </span>
+                                        @endif
+                                    </a>
+                                    <div class="dropdown-menu dropdown-menu-end shadow p-0 workflow-notification-menu">
+                                        <div class="workflow-notification-header border-bottom">
+                                            <div class="fw-bold">{{ localize('all_notifications', 'ការជូនដំណឹង') }}</div>
+                                            <div class="small text-muted">
+                                                {{ localize('unread_total', 'មិនទាន់អានសរុប') }}: {{ $unifiedWorkflowUnreadCount }}
+                                            </div>
+                                        </div>
+                                        <div class="list-group list-group-flush">
+                                            @forelse ($unifiedWorkflowNotifications as $entry)
+                                                @php
+                                                    $notification = $entry['notification'];
+                                                    $data = $entry['data'] ?? ($notification->data ?? []);
+                                                    $source = $entry['source'];
+                                                    $context = trim((string) ($data['context'] ?? ''));
+                                                    $title = trim((string) ($data['title'] ?? localize('notification', 'ការជូនដំណឹង')));
+                                                    $message = trim((string) ($data['message'] ?? ''));
+                                                    $metaPrimary = trim((string) ($data['employee_name'] ?? $data['sender_name'] ?? $data['reference_no'] ?? '-'));
+                                                    $metaSecondary = '';
+                                                    $dateText = '';
+                                                    $formatNotificationDate = function (?string $value, bool $includeTime = false): string {
+                                                        $value = trim((string) $value);
+                                                        if ($value === '') {
+                                                            return '';
+                                                        }
+
+                                                        try {
+                                                            return $includeTime
+                                                                ? \Carbon\Carbon::parse($value)->format('d/m/Y H:i')
+                                                                : \Carbon\Carbon::parse($value)->format('d/m/Y');
+                                                        } catch (\Throwable $e) {
+                                                            return $value;
+                                                        }
+                                                    };
+
+                                                    if ($source === 'leave') {
+                                                        $title = match ($context) {
+                                                            'submitted' => localize('leave_request_submitted', 'សំណើសុំច្បាប់បានដាក់រួច'),
+                                                            'forwarded' => localize('leave_request_forwarded', 'សំណើសុំច្បាប់ត្រូវបានបញ្ជូនបន្ត'),
+                                                            'approved' => localize('leave_request_approved', 'សំណើសុំច្បាប់ត្រូវបានអនុម័ត'),
+                                                            'rejected' => localize('leave_request_rejected', 'សំណើសុំច្បាប់ត្រូវបានបដិសេធ'),
+                                                            'pending_review' => localize('leave_request_waiting_for_you', 'មានសំណើសុំច្បាប់រង់ចាំអ្នក'),
+                                                            'handover_assigned' => localize('handover_leave_notification_title', 'អ្នកត្រូវបានកំណត់ជាអ្នកទទួលការងារជំនួស'),
+                                                            default => $title,
+                                                        };
+                                                        $message = match ($context) {
+                                                            'submitted' => localize('leave_request_submitted_message', 'សំណើសុំច្បាប់របស់អ្នកបានដាក់រួច និងកំពុងរង់ចាំការពិនិត្យតាមលំហូរការងារ។'),
+                                                            'forwarded' => localize('leave_request_forwarded_message', 'សំណើសុំច្បាប់របស់អ្នកត្រូវបានពិនិត្យរួច ហើយបញ្ជូនទៅអ្នកអនុម័តបន្ទាប់។'),
+                                                            'approved' => localize('leave_request_approved_message', 'សំណើសុំច្បាប់របស់អ្នកត្រូវបានអនុម័តរួច។'),
+                                                            'rejected' => localize('leave_request_rejected_message', 'សំណើសុំច្បាប់របស់អ្នកត្រូវបានបដិសេធ។'),
+                                                            'pending_review' => localize('leave_request_waiting_for_you_message', 'មានសំណើសុំច្បាប់មួយកំពុងរង់ចាំការពិនិត្យ ឬអនុម័តពីអ្នក។'),
+                                                            default => $message,
+                                                        };
+                                                        $typeLabel = localize('leave_workflow_short', 'សុំច្បាប់');
+                                                        $typeDotStyle = 'background:#3b82f6;';
+                                                        $iconClass = match ($context) {
+                                                            'submitted' => 'fa-paper-plane',
+                                                            'forwarded' => 'fa-share',
+                                                            'approved' => 'fa-check',
+                                                            'rejected' => 'fa-times',
+                                                            'pending_review' => 'fa-hourglass-half',
+                                                            'handover_assigned' => 'fa-user-plus',
+                                                            default => 'fa-bell',
+                                                        };
+                                                        $iconStyle = match ($context) {
+                                                            'submitted' => 'color:#0d6efd;background:#e7f1ff;',
+                                                            'forwarded' => 'color:#0891b2;background:#ecfeff;',
+                                                            'approved' => 'color:#198754;background:#e9f7ef;',
+                                                            'rejected' => 'color:#dc3545;background:#fdecef;',
+                                                            'pending_review' => 'color:#f97316;background:#fff1e6;',
+                                                            'handover_assigned' => 'color:#7c3aed;background:#f3e8ff;',
+                                                            default => 'color:#6c757d;background:#f1f3f5;',
+                                                        };
+                                                        $metaSecondary = trim((string) ($data['leave_type_name'] ?? ''));
+                                                        $fromDateText = $formatNotificationDate((string) ($data['from_date'] ?? ''));
+                                                        $toDateText = $formatNotificationDate((string) ($data['to_date'] ?? ''));
+                                                        $dateText = trim($fromDateText . ' - ' . $toDateText, ' -');
+                                                    } elseif ($source === 'attendance') {
+                                                        $title = match ($context) {
+                                                            'submitted' => localize('attendance_adjustment_submitted', 'សំណើកែប្រែវត្តមានបានដាក់រួច'),
+                                                            'pending_review' => localize('attendance_adjustment_waiting_for_you', 'មានសំណើកែប្រែវត្តមានរង់ចាំអ្នក'),
+                                                            default => $title,
+                                                        };
+                                                        $message = match ($context) {
+                                                            'submitted' => localize('attendance_adjustment_submitted_message', 'សំណើកែប្រែវត្តមានរបស់អ្នកបានដាក់រួច និងកំពុងរង់ចាំការពិនិត្យតាមលំហូរការងារ។'),
+                                                            'pending_review' => localize('attendance_adjustment_waiting_for_you_message', 'មានសំណើកែប្រែវត្តមានថ្មីមួយកំពុងរង់ចាំការពិនិត្យ ឬអនុម័តពីអ្នក។'),
+                                                            default => $message,
+                                                        };
+                                                        $typeLabel = localize('attendance_workflow_short', 'វត្តមាន');
+                                                        $typeDotStyle = 'background:#f59e0b;';
+                                                        $iconClass = match ($context) {
+                                                            'submitted' => 'fa-paper-plane',
+                                                            'pending_review' => 'fa-hourglass-half',
+                                                            default => 'fa-clock-o',
+                                                        };
+                                                        $iconStyle = match ($context) {
+                                                            'submitted' => 'color:#0d6efd;background:#e7f1ff;',
+                                                            'pending_review' => 'color:#f97316;background:#fff1e6;',
+                                                            default => 'color:#6c757d;background:#f1f3f5;',
+                                                        };
+                                                        $dateText = $formatNotificationDate((string) ($data['attendance_date'] ?? ''));
+                                                    } else {
+                                                        $letterType = trim((string) ($data['letter_type'] ?? ''));
+                                                        $subject = trim((string) ($data['subject'] ?? ''));
+                                                        $title = match (true) {
+                                                            $context === 'delegated' => localize('correspondence_notification_delegated', 'លិខិតត្រូវបានចាត់តាំងមកអ្នក'),
+                                                            $context === 'office_commented' => localize('correspondence_notification_office_commented', 'អង្គភាពបានផ្តល់យោបល់រួច សូមអនុប្រធានពិនិត្យបន្ត'),
+                                                            $context === 'deputy_reviewed' => localize('correspondence_notification_deputy_reviewed', 'អនុប្រធានបានពិនិត្យរួច សូមប្រធានមន្ទីរសម្រេច'),
+                                                            $letterType === 'outgoing' && $context === 'distributed' => localize('correspondence_notification_outgoing', 'លិខិតចេញមកដល់អ្នក ត្រូវចុចទទួល'),
+                                                            $context === 'distributed' => localize('correspondence_notification_distributed', 'មានលិខិតត្រូវអនុវត្ត'),
+                                                            default => localize('correspondence_notifications', 'ជូនដំណឹងលិខិតរដ្ឋបាល'),
+                                                        };
+                                                        $message = $subject !== '' ? $subject : trim((string) ($data['registry_no'] ?? ''));
+                                                        $typeLabel = localize('correspondence_short', 'លិខិត');
+                                                        $typeDotStyle = 'background:#10b981;';
+                                                        $iconClass = 'fa-envelope-open-o';
+                                                        $iconStyle = 'color:#059669;background:#ecfdf3;';
+                                                        $dateText = $formatNotificationDate((string) ($data['assigned_at'] ?? $data['created_at'] ?? ''), true);
+                                                    }
+                                                    $createdAtText = optional($notification->created_at)->format('d/m/Y H:i');
+                                                @endphp
+                                                <a href="{{ $entry['link'] }}"
+                                                    class="list-group-item list-group-item-action py-3 {{ $notification->read_at ? 'bg-light text-muted' : '' }}">
+                                                    <div class="workflow-notification-row">
+                                                        <span class="workflow-notification-icon" style="{{ $iconStyle }}">
+                                                            <i class="fa {{ $iconClass }}"></i>
+                                                        </span>
+                                                        <div class="workflow-notification-content">
+                                                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                                                <div class="fw-semi-bold mb-1">{{ $title }}</div>
+                                                                <div class="workflow-notification-status {{ $notification->read_at ? 'read' : 'unread' }}">
+                                                                    <span class="workflow-notification-status-dot"></span>{{ $notification->read_at ? localize('read_status', 'បានអាន') : localize('unread_status', 'មិនទាន់អាន') }}
+                                                                </div>
+                                                            </div>
+                                                            @if ($message !== '')
+                                                                <div class="small text-dark mb-1">{{ $message }}</div>
+                                                            @endif
+                                                            <div class="workflow-notification-meta">
+                                                                <span class="workflow-notification-type"><span class="workflow-notification-type-dot" style="{{ $typeDotStyle }}"></span>{{ $typeLabel }}</span>
+                                                                @if ($metaPrimary !== '')
+                                                                    <span>{{ $metaPrimary }}</span>
+                                                                @endif
+                                                                @if ($metaSecondary !== '')
+                                                                    <span>{{ $metaSecondary }}</span>
+                                                                @endif
+                                                                @if ($dateText !== '')
+                                                                    <span>{{ $dateText }}</span>
+                                                                @endif
+                                                                @if ($createdAtText !== '')
+                                                                    <span>{{ $createdAtText }}</span>
+                                                                @endif
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                            @empty
+                                                <div class="list-group-item small text-muted py-3">
+                                                    {{ localize('no_notifications_available', 'មិនទាន់មានការជូនដំណឹងថ្មី') }}
+                                                </div>
+                                            @endforelse
+                                            @if (false)
+                                                <div class="list-group-item py-3">
+                                                    <div class="d-flex justify-content-between align-items-start gap-3">
+                                                        <div>
+                                                            <div class="fw-semi-bold">{{ localize('leave_workflow_notifications', 'ដំណឹងលំហូរការងារសុំច្បាប់') }}</div>
+                                                            <div class="small text-muted">{{ localize('unread_total', 'Unread total') }}: {{ $leaveWorkflowUnreadCount }}</div>
+                                                            <div class="workflow-notification-status {{ $leaveWorkflowUnreadCount > 0 ? 'unread' : 'read' }}"><span class="workflow-notification-status-dot"></span>{{ $leaveWorkflowUnreadCount > 0 ? localize('unread_status', 'មិនទាន់អាន') : localize('read_status', 'បានអាន') }}</div>
+                                                        </div>
+                                                        <a href="{{ route('leave.index') }}" class="btn btn-sm btn-outline-primary">{{ localize('view_all', 'មើលទាំងអស់') }}</a>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                            @if (false)
+                                                <div class="list-group-item py-3">
+                                                    <div class="d-flex justify-content-between align-items-start gap-3">
+                                                        <div>
+                                                            <div class="fw-semi-bold">{{ localize('attendance_workflow_notifications', 'ដំណឹងលំហូរការងារវត្តមាន') }}</div>
+                                                            <div class="small text-muted">{{ localize('unread_total', 'Unread total') }}: {{ $attendanceWorkflowUnreadCount }}</div>
+                                                            <div class="workflow-notification-status {{ $attendanceWorkflowUnreadCount > 0 ? 'unread' : 'read' }}"><span class="workflow-notification-status-dot"></span>{{ $attendanceWorkflowUnreadCount > 0 ? localize('unread_status', 'មិនទាន់អាន') : localize('read_status', 'បានអាន') }}</div>
+                                                        </div>
+                                                        <a href="{{ route('attendance-adjustments.index') }}" class="btn btn-sm btn-outline-primary">{{ localize('view_all', 'មើលទាំងអស់') }}</a>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                            @if (false)
+                                                <div class="list-group-item py-3">
+                                                    <div class="d-flex justify-content-between align-items-start gap-3">
+                                                        <div>
+                                                            <div class="fw-semi-bold">{{ localize('correspondence_notifications', 'Correspondence notifications') }}</div>
+                                                            <div class="small text-muted">{{ localize('unread_total', 'Unread total') }}: {{ $correspondenceUnreadCount }}</div>
+                                                            <div class="workflow-notification-status {{ $correspondenceUnreadCount > 0 ? 'unread' : 'read' }}"><span class="workflow-notification-status-dot"></span>{{ $correspondenceUnreadCount > 0 ? localize('unread_status', 'មិនទាន់អាន') : localize('read_status', 'បានអាន') }}</div>
+                                                        </div>
+                                                        <a href="{{ route('correspondence.index') }}" class="btn btn-sm btn-outline-primary">{{ localize('view_all', 'មើលទាំងអស់') }}</a>
+                                                    </div>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        @if (false)
+                                        <div class="workflow-notification-footer">
+                                            <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center">
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    @if ($hasLeaveNotifications)
+                                                        <a href="{{ route('leave.index') }}" class="btn btn-sm btn-outline-primary">{{ localize('leave_workflow_short', 'សុំច្បាប់') }}</a>
+                                                    @endif
+                                                    @if ($hasAttendanceNotifications)
+                                                        <a href="{{ route('attendance-adjustments.index') }}" class="btn btn-sm btn-outline-primary">{{ localize('attendance_workflow_short', 'វត្តមាន') }}</a>
+                                                    @endif
+                                                    @if ($hasCorrespondenceNotifications)
+                                                        <a href="{{ route('correspondence.index') }}" class="btn btn-sm btn-outline-primary">{{ localize('correspondence_short', 'លិខិត') }}</a>
+                                                    @endif
+                                                </div>
+                                                <div class="d-flex flex-wrap gap-2">
+                                                    @if ($leaveWorkflowNotifications->isNotEmpty() && \Illuminate\Support\Facades\Route::has('leave.notifications.clear'))
+                                                        <form method="POST" action="{{ route('leave.notifications.clear') }}">
+                                                            @csrf
+                                                            <button class="btn btn-sm btn-outline-secondary" type="submit">{{ localize('clear_leave_notifications', 'Clear ច្បាប់') }}</button>
+                                                        </form>
+                                                    @endif
+                                                    @if ($attendanceWorkflowNotifications->isNotEmpty() && \Illuminate\Support\Facades\Route::has('attendance-adjustments.notifications.clear'))
+                                                        <form method="POST" action="{{ route('attendance-adjustments.notifications.clear') }}">
+                                                            @csrf
+                                                            <button class="btn btn-sm btn-outline-secondary" type="submit">{{ localize('clear_attendance_notifications', 'Clear វត្តមាន') }}</button>
+                                                        </form>
+                                                    @endif
+                                                </div>
+                                            </div>
+                                        </div>
+                                        @endif
+                                        <div class="workflow-notification-footer">
+                                            <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
+                                                @if (\Illuminate\Support\Facades\Route::has('attendance-adjustments.notifications.make_unread'))
+                                                    <form method="POST" action="{{ route('attendance-adjustments.notifications.make_unread') }}">
+                                                        @csrf
+                                                        <button class="btn btn-sm btn-outline-primary" type="submit">{{ localize('make_unread_again', 'មិនទាន់អានវិញ') }}</button>
+                                                    </form>
+                                                @endif
+                                                @if (\Illuminate\Support\Facades\Route::has('attendance-adjustments.notifications.clear_all'))
+                                                    <form method="POST" action="{{ route('attendance-adjustments.notifications.clear_all') }}">
+                                                        @csrf
+                                                        <button class="btn btn-sm btn-outline-danger" type="submit">{{ localize('delete_all_notifications', 'លុបទាំងអស់') }}</button>
+                                                    </form>
+                                                @endif
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                            @endif
+                            @if (false && auth()->check() && \Illuminate\Support\Facades\Route::has('correspondence.index'))
                                 <li class="nav-item dropdown">
                                     <a class="position-relative d-inline-flex align-items-center text-dark" href="#"
                                         role="button" data-bs-toggle="dropdown" aria-expanded="false"
                                         title="{{ localize('correspondence_notifications', 'Correspondence notifications') }}">
                                         <i class="fa fa-envelope-o fs-4"></i>
-                                        @if ($correspondenceUnreadCount > 0)
-                                            <span
-                                                class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                                                {{ $correspondenceUnreadCount > 99 ? '99+' : $correspondenceUnreadCount }}
-                                            </span>
-                                        @endif
+                                        <span
+                                            class="position-absolute top-0 start-100 translate-middle badge rounded-pill {{ $correspondenceUnreadCount > 0 ? 'bg-danger' : 'bg-secondary' }}">
+                                            {{ $correspondenceUnreadCount > 99 ? '99+' : $correspondenceUnreadCount }}
+                                        </span>
                                     </a>
-                                    <div class="dropdown-menu dropdown-menu-end shadow p-0" style="min-width: 360px;">
+                                    <div class="dropdown-menu dropdown-menu-end shadow p-0 workflow-notification-menu">
                                         <div class="px-3 py-2 border-bottom">
                                             <div class="fw-bold">
                                                 {{ localize('correspondence_notifications', 'Correspondence notifications') }}
@@ -200,7 +735,8 @@
                                                     };
                                                     $link = route('correspondence.notifications.open', $notification->id);
                                                 @endphp
-                                                <a href="{{ $link }}" class="list-group-item list-group-item-action py-2">
+                                                <a href="{{ $link }}"
+                                                    class="list-group-item list-group-item-action py-2 {{ $notification->read_at ? 'bg-light text-muted' : '' }}">
                                                     <div class="fw-semi-bold mb-1">
                                                         {{ $notificationTitle }}
                                                     </div>
@@ -244,10 +780,225 @@
                                                     {{ localize('mark_all_read', 'Mark all read') }}
                                                 </button>
                                             </form>
-                                            <a href="{{ route('correspondence.index') }}"
-                                                class="btn btn-sm btn-outline-primary">
-                                                {{ localize('view_all', 'View all') }}
-                                            </a>
+                                            <div class="d-flex gap-2">
+                                                @if (\Illuminate\Support\Facades\Route::has('correspondence.notifications.clear'))
+                                                    <form method="POST" action="{{ route('correspondence.notifications.clear') }}">
+                                                        @csrf
+                                                        <button class="btn btn-sm btn-outline-secondary" type="submit">
+                                                            {{ localize('clear_notifications', 'Clear') }}
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                                <a href="{{ route('correspondence.index') }}"
+                                                    class="btn btn-sm btn-outline-primary">
+                                                    {{ localize('view_all', 'View all') }}
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                            @endif
+                            @if (false && auth()->check() && \Illuminate\Support\Facades\Route::has('leave.notifications.open'))
+                                <li class="nav-item dropdown">
+                                    <a class="position-relative d-inline-flex align-items-center text-dark" href="#"
+                                        role="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                        title="{{ localize('leave_workflow_notifications', 'ដំណឹងលំហូរការងារសុំច្បាប់') }}">
+                                        <i class="fa fa-bell-o fs-4"></i>
+                                        <span
+                                            class="position-absolute top-0 start-100 translate-middle badge rounded-pill {{ $leaveWorkflowUnreadCount > 0 ? 'bg-danger' : 'bg-secondary' }}">
+                                            {{ $leaveWorkflowUnreadCount > 99 ? '99+' : $leaveWorkflowUnreadCount }}
+                                        </span>
+                                    </a>
+                                    <div class="dropdown-menu dropdown-menu-end shadow p-0 workflow-notification-menu">
+                                        <div class="px-3 py-2 border-bottom">
+                                            <div class="fw-bold">
+                                                {{ localize('leave_workflow_notifications', 'ដំណឹងលំហូរការងារសុំច្បាប់') }}
+                                            </div>
+                                            <div class="small text-muted">
+                                                {{ localize('unread_total', 'Unread total') }}:
+                                                {{ $leaveWorkflowUnreadCount }}
+                                            </div>
+                                        </div>
+                                        <div class="list-group list-group-flush">
+                                            @forelse ($leaveWorkflowNotifications as $notification)
+                                                @php
+                                                    $data = $notification->data ?? [];
+                                                    $title = trim((string) ($data['title'] ?? localize('leave_workflow', 'លំហូរការងារសុំច្បាប់')));
+                                                    $message = trim((string) ($data['message'] ?? ''));
+                                                    $context = trim((string) ($data['context'] ?? ''));
+                                                    $title = match ($context) {
+                                                        'submitted' => localize('leave_request_submitted', 'សំណើសុំច្បាប់បានដាក់រួច'),
+                                                        'forwarded' => localize('leave_request_forwarded', 'សំណើសុំច្បាប់ត្រូវបានបញ្ជូនបន្ត'),
+                                                        'approved' => localize('leave_request_approved', 'សំណើសុំច្បាប់ត្រូវបានអនុម័ត'),
+                                                        'rejected' => localize('leave_request_rejected', 'សំណើសុំច្បាប់ត្រូវបានបដិសេធ'),
+                                                        'pending_review' => localize('leave_request_waiting_for_you', 'មានសំណើសុំច្បាប់រង់ចាំអ្នក'),
+                                                        'handover_assigned' => localize('handover_leave_notification_title', 'អ្នកត្រូវបានកំណត់ជាអ្នកទទួលការងារជំនួស'),
+                                                        default => $title,
+                                                    };
+                                                    $message = match ($context) {
+                                                        'submitted' => localize('leave_request_submitted_message', 'សំណើសុំច្បាប់របស់អ្នកបានដាក់រួច និងកំពុងរង់ចាំការពិនិត្យតាមលំហូរការងារ។'),
+                                                        'forwarded' => localize('leave_request_forwarded_message', 'សំណើសុំច្បាប់របស់អ្នកត្រូវបានពិនិត្យរួច ហើយបញ្ជូនទៅអ្នកអនុម័តបន្ទាប់។'),
+                                                        'approved' => localize('leave_request_approved_message', 'សំណើសុំច្បាប់របស់អ្នកត្រូវបានអនុម័តរួច។ សូមបោះពុម្ព និងដាក់ឯកសារជូនរដ្ឋបាល។'),
+                                                        'rejected' => localize('leave_request_rejected_message', 'សំណើសុំច្បាប់របស់អ្នកត្រូវបានបដិសេធ។ សូមបើកសំណើដើម្បីមើលមតិយោបល់។'),
+                                                        'pending_review' => localize('leave_request_waiting_for_you_message', 'មានសំណើសុំច្បាប់មួយកំពុងរង់ចាំការពិនិត្យ ឬអនុម័តពីអ្នក។'),
+                                                        default => $message,
+                                                    };
+                                                    $iconClass = match ($context) {
+                                                        'submitted' => 'fa-paper-plane',
+                                                        'forwarded' => 'fa-share',
+                                                        'approved' => 'fa-check',
+                                                        'rejected' => 'fa-times',
+                                                        'pending_review' => 'fa-hourglass-half',
+                                                        'handover_assigned' => 'fa-user-plus',
+                                                        default => 'fa-bell',
+                                                    };
+                                                    $iconStyle = match ($context) {
+                                                        'submitted' => 'color:#0d6efd;background:#e7f1ff;',
+                                                        'forwarded' => 'color:#0dcaf0;background:#e8fbff;',
+                                                        'approved' => 'color:#198754;background:#e9f7ef;',
+                                                        'rejected' => 'color:#dc3545;background:#fdecef;',
+                                                        'pending_review' => 'color:#fd7e14;background:#fff1e6;',
+                                                        'handover_assigned' => 'color:#0d6efd;background:#eef4ff;',
+                                                        default => 'color:#6c757d;background:#f1f3f5;',
+                                                    };
+                                                    $leaveTypeName = trim((string) ($data['leave_type_name'] ?? ''));
+                                                    $dateRange = trim((string) (($data['from_date'] ?? '') . ' - ' . ($data['to_date'] ?? '')));
+                                                    $link = route('leave.notifications.open', $notification->id);
+                                                @endphp
+                                                <a href="{{ $link }}"
+                                                    class="list-group-item list-group-item-action py-2 {{ $notification->read_at ? 'bg-light text-muted' : '' }}">
+                                                    <div class="workflow-notification-row">
+                                                        <span class="workflow-notification-icon" style="{{ $iconStyle }}">
+                                                            <i class="fa {{ $iconClass }}"></i>
+                                                        </span>
+                                                        <div class="workflow-notification-content">
+                                                            <div class="fw-semi-bold mb-1">{{ $title }}</div>
+                                                            @if ($message !== '')
+                                                                <div class="small text-dark mb-1">{{ $message }}</div>
+                                                            @endif
+                                                            <div class="small text-muted">
+                                                                {{ trim((string) ($data['employee_name'] ?? '-')) }}
+                                                                @if ($leaveTypeName !== '')
+                                                                    <span class="mx-1">|</span>{{ $leaveTypeName }}
+                                                                @endif
+                                                            </div>
+                                                            @if (trim($dateRange, ' -') !== '')
+                                                                <div class="small text-muted mt-1">{{ $dateRange }}</div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                            @empty
+                                                <div class="list-group-item small text-muted">
+                                                    {{ localize('no_leave_workflow_notifications', 'មិនទាន់មានដំណឹងលំហូរការងារសុំច្បាប់ថ្មី។') }}
+                                                </div>
+                                            @endforelse
+                                        </div>
+                                        <div class="p-2 border-top d-flex justify-content-between gap-2">
+                                                <a href="{{ route('leave.index') }}" class="btn btn-sm btn-outline-primary">
+                                                    {{ localize('view_all', 'មើលទាំងអស់') }}
+                                                </a>
+                                                @if ($leaveWorkflowNotifications->isNotEmpty() && \Illuminate\Support\Facades\Route::has('leave.notifications.clear'))
+                                                    <form method="POST" action="{{ route('leave.notifications.clear') }}">
+                                                        @csrf
+                                                        <button class="btn btn-sm btn-outline-secondary" type="submit">
+                                                            {{ localize('clear_notifications', 'Clear') }}
+                                                        </button>
+                                                    </form>
+                                                @endif
+                                        </div>
+                                    </div>
+                                </li>
+                            @endif
+                            @if (false && auth()->check() && \Illuminate\Support\Facades\Route::has('attendance-adjustments.notifications.open'))
+                                <li class="nav-item dropdown">
+                                    <a class="position-relative d-inline-flex align-items-center text-dark" href="#"
+                                        role="button" data-bs-toggle="dropdown" aria-expanded="false"
+                                        title="{{ localize('attendance_workflow_notifications', 'ដំណឹងលំហូរការងារវត្តមាន') }}">
+                                        <i class="fa fa-clock-o fs-4"></i>
+                                        <span
+                                            class="position-absolute top-0 start-100 translate-middle badge rounded-pill {{ $attendanceWorkflowUnreadCount > 0 ? 'bg-danger' : 'bg-secondary' }}">
+                                            {{ $attendanceWorkflowUnreadCount > 99 ? '99+' : $attendanceWorkflowUnreadCount }}
+                                        </span>
+                                    </a>
+                                    <div class="dropdown-menu dropdown-menu-end shadow p-0 workflow-notification-menu">
+                                        <div class="px-3 py-2 border-bottom">
+                                            <div class="fw-bold">
+                                                {{ localize('attendance_workflow_notifications', 'ដំណឹងលំហូរការងារវត្តមាន') }}
+                                            </div>
+                                            <div class="small text-muted">
+                                                {{ localize('unread_total', 'Unread total') }}:
+                                                {{ $attendanceWorkflowUnreadCount }}
+                                            </div>
+                                        </div>
+                                        <div class="list-group list-group-flush">
+                                            @forelse ($attendanceWorkflowNotifications as $notification)
+                                                @php
+                                                    $data = $notification->data ?? [];
+                                                    $title = trim((string) ($data['title'] ?? localize('attendance_workflow', 'លំហូរការងារវត្តមាន')));
+                                                    $message = trim((string) ($data['message'] ?? ''));
+                                                    $context = trim((string) ($data['context'] ?? ''));
+                                                    $title = match ($context) {
+                                                        'submitted' => localize('attendance_adjustment_submitted', 'សំណើកែប្រែវត្តមានបានដាក់រួច'),
+                                                        'pending_review' => localize('attendance_adjustment_waiting_for_you', 'មានសំណើកែប្រែវត្តមានរង់ចាំអ្នក'),
+                                                        default => $title,
+                                                    };
+                                                    $message = match ($context) {
+                                                        'submitted' => localize('attendance_adjustment_submitted_message', 'សំណើកែប្រែវត្តមានរបស់អ្នកបានដាក់រួច និងកំពុងរង់ចាំការពិនិត្យតាមលំហូរការងារ។'),
+                                                        'pending_review' => localize('attendance_adjustment_waiting_for_you_message', 'មានសំណើកែប្រែវត្តមានថ្មីមួយកំពុងរង់ចាំការពិនិត្យ ឬអនុម័តពីអ្នក។'),
+                                                        default => $message,
+                                                    };
+                                                    $iconClass = match ($context) {
+                                                        'submitted' => 'fa-paper-plane',
+                                                        'pending_review' => 'fa-hourglass-half',
+                                                        default => 'fa-clock-o',
+                                                    };
+                                                    $iconStyle = match ($context) {
+                                                        'submitted' => 'color:#0d6efd;background:#e7f1ff;',
+                                                        'pending_review' => 'color:#fd7e14;background:#fff1e6;',
+                                                        default => 'color:#6c757d;background:#f1f3f5;',
+                                                    };
+                                                    $attendanceDate = trim((string) ($data['attendance_date'] ?? ''));
+                                                    $link = route('attendance-adjustments.notifications.open', $notification->id);
+                                                @endphp
+                                                <a href="{{ $link }}"
+                                                    class="list-group-item list-group-item-action py-2 {{ $notification->read_at ? 'bg-light text-muted' : '' }}">
+                                                    <div class="workflow-notification-row">
+                                                        <span class="workflow-notification-icon" style="{{ $iconStyle }}">
+                                                            <i class="fa {{ $iconClass }}"></i>
+                                                        </span>
+                                                        <div class="workflow-notification-content">
+                                                            <div class="fw-semi-bold mb-1">{{ $title }}</div>
+                                                            @if ($message !== '')
+                                                                <div class="small text-dark mb-1">{{ $message }}</div>
+                                                            @endif
+                                                            <div class="small text-muted">
+                                                                {{ trim((string) ($data['employee_name'] ?? '-')) }}
+                                                            </div>
+                                                            @if ($attendanceDate !== '')
+                                                                <div class="small text-muted mt-1">{{ $attendanceDate }}</div>
+                                                            @endif
+                                                        </div>
+                                                    </div>
+                                                </a>
+                                            @empty
+                                                <div class="list-group-item small text-muted">
+                                                    {{ localize('no_attendance_workflow_notifications', 'មិនទាន់មានដំណឹងលំហូរការងារវត្តមានថ្មី។') }}
+                                                </div>
+                                            @endforelse
+                                        </div>
+                                        <div class="p-2 border-top d-flex justify-content-between gap-2">
+                                                <a href="{{ route('attendance-adjustments.index') }}" class="btn btn-sm btn-outline-primary">
+                                                    {{ localize('view_all', 'មើលទាំងអស់') }}
+                                                </a>
+                                                @if ($attendanceWorkflowNotifications->isNotEmpty() && \Illuminate\Support\Facades\Route::has('attendance-adjustments.notifications.clear'))
+                                                    <form method="POST" action="{{ route('attendance-adjustments.notifications.clear') }}">
+                                                        @csrf
+                                                        <button class="btn btn-sm btn-outline-secondary" type="submit">
+                                                            {{ localize('clear_notifications', 'Clear') }}
+                                                        </button>
+                                                    </form>
+                                                @endif
                                         </div>
                                     </div>
                                 </li>

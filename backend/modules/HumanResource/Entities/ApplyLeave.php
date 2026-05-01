@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
+use App\Models\User;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\LeaveType;
 
@@ -21,6 +22,7 @@ class ApplyLeave extends Model
         'id',
         'uuid',
         'employee_id',
+        'handover_employee_id',
         'leave_type_id',
         'academic_year_id',
         'leave_apply_start_date',
@@ -100,6 +102,16 @@ class ApplyLeave extends Model
     public function workflowInstance()
     {
         return $this->belongsTo(WorkflowInstance::class, 'workflow_instance_id');
+    }
+
+    public function handoverEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'handover_employee_id');
+    }
+
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
 }

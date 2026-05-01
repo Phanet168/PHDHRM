@@ -98,18 +98,40 @@ class ApiService {
     final totalWatch = Stopwatch()..start();
 
     final baseCandidates = _orderedBaseUrls(ApiConfig.baseUrls);
-    await _warmPreferredBaseIfNeeded(baseCandidates, headers);
+    if (_shouldAwaitWarmupForRequest(
+      method: method,
+      path: path,
+      requiresAuth: requiresAuth,
+    )) {
+      await _warmPreferredBaseIfNeeded(baseCandidates, headers);
+    } else {
+      unawaited(_warmPreferredBaseIfNeeded(baseCandidates, headers));
+    }
     final orderedCandidates = _orderedBaseUrls(ApiConfig.baseUrls);
+    final activeCandidates = _limitCandidatesForRequest(
+      orderedCandidates,
+      method: method,
+      path: path,
+      requiresAuth: requiresAuth,
+    ).toList(growable: true);
     final attemptedUris = <String>[];
+    final attemptedBases = <String>{};
     ApiException? lastNetworkError;
 
-    for (var i = 0; i < orderedCandidates.length; i++) {
-      final base = orderedCandidates[i];
+    for (var i = 0; i < activeCandidates.length; i++) {
+      final base = activeCandidates[i];
+      attemptedBases.add(base);
       final uri = ApiConfig.buildUriForBase(base, path, queryParameters);
-      final isLastCandidate = i == orderedCandidates.length - 1;
+      final isLastCandidate = i == activeCandidates.length - 1;
       attemptedUris.add(uri.toString());
       final attemptWatch = Stopwatch()..start();
-      final timeout = _timeoutForAttempt(base: base, attemptIndex: i);
+      final timeout = _timeoutForAttempt(
+        base: base,
+        attemptIndex: i,
+        method: method,
+        path: path,
+        requiresAuth: requiresAuth,
+      );
 
       try {
         final http.Response? response;
@@ -165,8 +187,43 @@ class ApiService {
               '$method $path failed in ${totalWatch.elapsedMilliseconds}ms '
               '[timeout after ${attemptedUris.length} attempt(s)]',
             );
+            if (!throwOnError) {
+              return <String, dynamic>{};
+            }
             throw lastNetworkError;
           }
+          continue;
+        }
+
+        if (!isLastCandidate && _isRetryableStatusCode(response.statusCode)) {
+          attemptWatch.stop();
+          _registerFailure(base);
+          _perfLog(
+            '$method $path got ${response.statusCode} in '
+            '${attemptWatch.elapsedMilliseconds}ms '
+            '[base: $base, trying next base]',
+          );
+          _prioritizePreferredCandidate(
+            activeCandidates,
+            currentIndex: i,
+            attemptedBases: attemptedBases,
+          );
+          continue;
+        }
+
+        if (!isLastCandidate && !_isJsonLikeHttpResponse(response)) {
+          attemptWatch.stop();
+          _registerFailure(base);
+          _perfLog(
+            '$method $path got non-JSON response in '
+            '${attemptWatch.elapsedMilliseconds}ms '
+            '[base: $base, trying next base]',
+          );
+          _prioritizePreferredCandidate(
+            activeCandidates,
+            currentIndex: i,
+            attemptedBases: attemptedBases,
+          );
           continue;
         }
 
@@ -206,6 +263,11 @@ class ApiService {
             message: '${error.message}. Tried: ${attemptedUris.join(' | ')}',
             statusCode: error.statusCode,
           );
+          _prioritizePreferredCandidate(
+            activeCandidates,
+            currentIndex: i,
+            attemptedBases: attemptedBases,
+          );
           continue;
         }
 
@@ -213,6 +275,10 @@ class ApiService {
           '$method $path api error ${error.statusCode} in '
           '${attemptWatch.elapsedMilliseconds}ms [base: $base]',
         );
+        if (!throwOnError) {
+          totalWatch.stop();
+          return <String, dynamic>{};
+        }
         rethrow;
       } on TimeoutException {
         attemptWatch.stop();
@@ -228,8 +294,16 @@ class ApiService {
             '$method $path failed in ${totalWatch.elapsedMilliseconds}ms '
             '[timeout after ${attemptedUris.length} attempt(s)]',
           );
+          if (!throwOnError) {
+            return <String, dynamic>{};
+          }
           throw lastNetworkError;
         }
+        _prioritizePreferredCandidate(
+          activeCandidates,
+          currentIndex: i,
+          attemptedBases: attemptedBases,
+        );
       } on http.ClientException catch (error) {
         attemptWatch.stop();
         _registerFailure(base);
@@ -245,8 +319,16 @@ class ApiService {
             '$method $path failed in ${totalWatch.elapsedMilliseconds}ms '
             '[client error after ${attemptedUris.length} attempt(s)]',
           );
+          if (!throwOnError) {
+            return <String, dynamic>{};
+          }
           throw lastNetworkError;
         }
+        _prioritizePreferredCandidate(
+          activeCandidates,
+          currentIndex: i,
+          attemptedBases: attemptedBases,
+        );
       } catch (error) {
         attemptWatch.stop();
         if (!isNetworkErrorMessage(error.toString())) {
@@ -265,8 +347,16 @@ class ApiService {
             '$method $path failed in ${totalWatch.elapsedMilliseconds}ms '
             '[network error after ${attemptedUris.length} attempt(s)]',
           );
+          if (!throwOnError) {
+            return <String, dynamic>{};
+          }
           throw lastNetworkError;
         }
+        _prioritizePreferredCandidate(
+          activeCandidates,
+          currentIndex: i,
+          attemptedBases: attemptedBases,
+        );
       }
     }
 
@@ -276,13 +366,28 @@ class ApiService {
       '[no successful candidate]',
     );
 
+    if (!throwOnError) {
+      return <String, dynamic>{};
+    }
+
     throw lastNetworkError ?? NetworkException();
   }
 
   Duration _timeoutForAttempt({
     required String base,
     required int attemptIndex,
+    required String method,
+    required String path,
+    required bool requiresAuth,
   }) {
+    if (_isLightBootstrapRequest(
+      method: method,
+      path: path,
+      requiresAuth: requiresAuth,
+    )) {
+      return ApiConfig.fallbackConnectTimeout;
+    }
+
     final isPreferred = _preferredBaseUrl == base;
     if (isPreferred) {
       return ApiConfig.connectTimeout;
@@ -293,6 +398,87 @@ class ApiService {
     }
 
     return ApiConfig.fallbackConnectTimeout;
+  }
+
+  List<String> _limitCandidatesForRequest(
+    List<String> orderedCandidates, {
+    required String method,
+    required String path,
+    required bool requiresAuth,
+  }) {
+    if (!_isLightBootstrapRequest(
+          method: method,
+          path: path,
+          requiresAuth: requiresAuth,
+        ) ||
+        orderedCandidates.length <= 1) {
+      return orderedCandidates;
+    }
+
+    // Language has local Khmer fallback, so avoid expensive multi-base retries.
+    // Pick a likely healthy candidate first to reduce startup waiting time.
+    final preferred = _pickBootstrapLanguageBase(orderedCandidates);
+    return <String>[preferred];
+  }
+
+  String _pickBootstrapLanguageBase(List<String> candidates) {
+    final preferred = _preferredBaseUrl;
+    if (preferred != null && candidates.contains(preferred)) {
+      return preferred;
+    }
+
+    // Respect configured ordering for bootstrap requests.
+    // This avoids forcing emulator hosts (10.0.2.2) on physical devices.
+    return candidates.first;
+  }
+
+  bool _isLightBootstrapRequest({
+    required String method,
+    required String path,
+    required bool requiresAuth,
+  }) {
+    if (method != 'GET' || requiresAuth) {
+      return false;
+    }
+
+    final normalizedPath = path.trim();
+    return normalizedPath == '/language' || normalizedPath == 'language';
+  }
+
+  bool _shouldAwaitWarmupForRequest({
+    required String method,
+    required String path,
+    required bool requiresAuth,
+  }) {
+    if (requiresAuth || method != 'POST') {
+      return false;
+    }
+
+    final normalizedPath = path.trim();
+    return normalizedPath == '/auth/login' || normalizedPath == 'auth/login';
+  }
+
+  void _prioritizePreferredCandidate(
+    List<String> candidates, {
+    required int currentIndex,
+    required Set<String> attemptedBases,
+  }) {
+    final preferred = _preferredBaseUrl;
+    if (preferred == null || attemptedBases.contains(preferred)) {
+      return;
+    }
+
+    final targetIndex = currentIndex + 1;
+    final existingIndex = candidates.indexOf(preferred);
+    if (existingIndex == -1) {
+      candidates.insert(targetIndex, preferred);
+      return;
+    }
+
+    if (existingIndex > targetIndex) {
+      candidates.removeAt(existingIndex);
+      candidates.insert(targetIndex, preferred);
+    }
   }
 
   Future<http.Response?> _requestWithTimeout(
@@ -314,7 +500,6 @@ class ApiService {
 
     final existingFuture = _warmingBaseFuture;
     if (existingFuture != null) {
-      await existingFuture;
       return;
     }
 
@@ -349,11 +534,11 @@ class ApiService {
 
         final code = response.statusCode;
         final isHealthy =
-            (code >= 200 && code < 400) ||
-            code == 401 ||
-            code == 403 ||
-            code == 405 ||
-            code == 422;
+            _isJsonLikeHttpResponse(response) &&
+            ((code >= 200 && code < 400) ||
+                code == 401 ||
+                code == 403 ||
+                code == 422);
 
         if (isHealthy) {
           _registerSuccess(base);
@@ -552,6 +737,21 @@ class ApiService {
         normalized.startsWith('<!doctype');
   }
 
+  bool _isJsonHttpResponse(http.Response response) {
+    final contentType = response.headers['content-type']?.toLowerCase() ?? '';
+    return contentType.contains('application/json') ||
+        contentType.contains('+json');
+  }
+
+  bool _isJsonLikeHttpResponse(http.Response response) {
+    if (_isJsonHttpResponse(response)) {
+      return true;
+    }
+
+    final body = response.body.trimLeft();
+    return _looksLikeJsonPayload(body);
+  }
+
   String _buildHttpErrorMessage({
     required int statusCode,
     required String requestUri,
@@ -645,5 +845,9 @@ class ApiService {
     }
 
     return null;
+  }
+
+  bool _isRetryableStatusCode(int statusCode) {
+    return statusCode == 404 || statusCode == 419 || statusCode >= 500;
   }
 }

@@ -3,6 +3,8 @@
 namespace Modules\HumanResource\Support;
 
 use App\Models\User;
+use Carbon\Carbon;
+use Modules\HumanResource\Entities\ApplyLeave;
 use Modules\HumanResource\Entities\Department;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\ResponsibilityTemplate;
@@ -17,6 +19,11 @@ class WorkflowActorResolverService
 {
     public function __construct(private readonly OrgUnitRuleService $orgUnitRuleService)
     {
+    }
+
+    public function resolveActorUserIdForWorkflow(int $userId): int
+    {
+        return $this->resolveEffectiveActorUserId($userId);
     }
 
     public function previewPlan(array $plan, array $context = []): array
@@ -71,7 +78,7 @@ class WorkflowActorResolverService
 
         return match ($actorType) {
             WorkflowDefinitionStep::ACTOR_TYPE_SPECIFIC_USER
-                => (int) $step->actor_user_id === (int) $user->id,
+                => $this->canSpecificUserActOnStep($user, $step, $sourceDepartmentId, $moduleKey),
 
             WorkflowDefinitionStep::ACTOR_TYPE_POSITION
                 => $this->userHasMatchingAssignment(
@@ -89,6 +96,19 @@ class WorkflowActorResolverService
 
             default => false,
         };
+    }
+
+    protected function canSpecificUserActOnStep(
+        User $user,
+        WorkflowDefinitionStep $step,
+        int $sourceDepartmentId,
+        string $moduleKey = ''
+    ): bool
+    {
+        $effectiveUserId = $this->resolveEffectiveActorUserId((int) $step->actor_user_id);
+        return $effectiveUserId > 0
+            ? $effectiveUserId === (int) $user->id
+            : (int) $step->actor_user_id === (int) $user->id;
     }
 
     protected function resolveStepActorTypeFromArray(array $step): string
@@ -159,9 +179,12 @@ class WorkflowActorResolverService
             return [];
         }
 
+        $effectiveUserId = $this->resolveEffectiveActorUserId($userId);
+        $resolvedUserId = $effectiveUserId > 0 ? $effectiveUserId : $userId;
+
         $user = User::query()
             ->withoutGlobalScope('sortByLatest')
-            ->find($userId, ['id', 'full_name', 'email']);
+            ->find($resolvedUserId, ['id', 'full_name', 'email']);
 
         if (!$user) {
             return [];
@@ -171,6 +194,7 @@ class WorkflowActorResolverService
             'user_id' => (int) $user->id,
             'full_name' => (string) $user->full_name,
             'email' => (string) ($user->email ?? ''),
+            'delegated_from_user_id' => $resolvedUserId !== $userId ? $userId : null,
             'source' => WorkflowDefinitionStep::ACTOR_TYPE_SPECIFIC_USER,
         ]];
     }
@@ -208,14 +232,25 @@ class WorkflowActorResolverService
                 continue;
             }
 
+            $effectiveUserId = $this->resolveEffectiveActorUserId((int) $assignment->user_id);
+            $resolvedUserId = $effectiveUserId > 0 ? $effectiveUserId : (int) $assignment->user_id;
+            $resolvedUser = $resolvedUserId === (int) $assignment->user_id
+                ? $assignment->user
+                : User::query()->withoutGlobalScope('sortByLatest')->find($resolvedUserId, ['id', 'full_name', 'email']);
+            if (!$resolvedUser) {
+                continue;
+            }
+
             $results[] = [
-                'user_id' => (int) $assignment->user_id,
-                'full_name' => (string) ($assignment->user->full_name ?? ''),
-                'email' => (string) ($assignment->user->email ?? ''),
+                'user_id' => (int) $resolvedUserId,
+                'full_name' => (string) ($resolvedUser->full_name ?? ''),
+                'email' => (string) ($resolvedUser->email ?? ''),
+                'delegated_from_user_id' => $resolvedUserId !== (int) $assignment->user_id ? (int) $assignment->user_id : null,
                 'department_id' => (int) ($assignment->department_id ?? 0),
                 'department_name' => (string) ($assignment->department->department_name ?? ''),
                 'position_id' => (int) ($assignment->position_id ?? 0),
-                'position_name' => (string) ($assignment->position->position_name_km ?: ($assignment->position->position_name ?? '')),
+                'position_name' => (string) (($assignment->position?->position_name_km)
+                    ?: ($assignment->position?->position_name ?? '')),
                 'responsibility_id' => (int) ($assignment->responsibility_id ?? 0),
                 'responsibility_code' => (string) ($assignment->responsibility->code ?? ''),
                 'template_id' => !empty($assignment->responsibility_template_id) ? (int) $assignment->responsibility_template_id : null,
@@ -309,7 +344,12 @@ class WorkflowActorResolverService
             if ($sourceDepartmentId > 0 && !$this->assignmentScopeIncludesDepartment($assignment, $sourceDepartmentId)) {
                 continue;
             }
-            return true;
+
+            $effectiveUserId = $this->resolveEffectiveActorUserId((int) $assignment->user_id);
+            $resolvedUserId = $effectiveUserId > 0 ? $effectiveUserId : (int) $assignment->user_id;
+            if ($resolvedUserId === (int) $user->id) {
+                return true;
+            }
         }
 
         return false;
@@ -414,6 +454,59 @@ class WorkflowActorResolverService
         };
     }
 
+    protected function resolveEffectiveActorUserId(int $userId, array $visited = []): int
+    {
+        if ($userId <= 0) {
+            return 0;
+        }
+
+        if (in_array($userId, $visited, true) || count($visited) >= 5) {
+            return $userId;
+        }
+
+        $visited[] = $userId;
+        $user = User::query()
+            ->withoutGlobalScope('sortByLatest')
+            ->find($userId, ['id']);
+        if (!$user || !method_exists($user, 'employee')) {
+            return $userId;
+        }
+
+        $employee = $user->employee()->first(['id', 'user_id']);
+        if (!$employee) {
+            return $userId;
+        }
+
+        $today = Carbon::today()->toDateString();
+        $activeLeave = ApplyLeave::query()
+            ->with('handoverEmployee:id,user_id')
+            ->where('employee_id', (int) $employee->id)
+            ->where(function ($query) {
+                $query->where('is_approved', 1)
+                    ->orWhere('workflow_status', 'approved');
+            })
+            ->where(function ($query) use ($today) {
+                $query->where(function ($inner) use ($today) {
+                    $inner->whereNotNull('leave_approved_start_date')
+                        ->whereNotNull('leave_approved_end_date')
+                        ->whereDate('leave_approved_start_date', '<=', $today)
+                        ->whereDate('leave_approved_end_date', '>=', $today);
+                })->orWhere(function ($inner) use ($today) {
+                    $inner->whereDate('leave_apply_start_date', '<=', $today)
+                        ->whereDate('leave_apply_end_date', '>=', $today);
+                });
+            })
+            ->orderByDesc('id')
+            ->first();
+
+        $handoverUserId = (int) ($activeLeave?->handoverEmployee?->user_id ?? 0);
+        if ($handoverUserId <= 0 || $handoverUserId === $userId) {
+            return $userId;
+        }
+
+        return $this->resolveEffectiveActorUserId($handoverUserId, $visited);
+    }
+
     protected function legacyScopeDepartmentIds(UserOrgRole $legacyRole): array
     {
         $departmentId = (int) ($legacyRole->department_id ?? 0);
@@ -476,7 +569,7 @@ class WorkflowActorResolverService
 
         $employee = Employee::query()
             ->withoutGlobalScopes()
-            ->with(['primaryUnitPosting:id,employee_id,department_id'])
+            ->with(['primaryUnitPosting:employee_unit_postings.id,employee_unit_postings.employee_id,employee_unit_postings.department_id'])
             ->find($employeeId, ['id', 'department_id', 'sub_department_id']);
 
         if (!$employee) {

@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
@@ -38,6 +40,40 @@ class HomeLeaveService {
       } else if (item is Map) {
         rows.add(
           LeaveTypeOption.fromMap(
+            item.map((key, value) => MapEntry(key.toString(), value)),
+          ),
+        );
+      }
+    }
+
+    return rows;
+  }
+
+  Future<List<HandoverEmployeeOption>> fetchHandoverEmployees(
+    AuthUser user,
+  ) async {
+    _ensureSession(user);
+
+    final response = _responseMap(
+      await _apiService.get('/v1/leave-handover-employees'),
+    );
+    final status = (response['status'] ?? '').toString().toLowerCase();
+    if (status != 'ok') {
+      return <HandoverEmployeeOption>[];
+    }
+
+    final payload = response['data'];
+    if (payload is! List) {
+      return <HandoverEmployeeOption>[];
+    }
+
+    final rows = <HandoverEmployeeOption>[];
+    for (final item in payload) {
+      if (item is Map<String, dynamic>) {
+        rows.add(HandoverEmployeeOption.fromMap(item));
+      } else if (item is Map) {
+        rows.add(
+          HandoverEmployeeOption.fromMap(
             item.map((key, value) => MapEntry(key.toString(), value)),
           ),
         );
@@ -136,7 +172,7 @@ class HomeLeaveService {
     return requests;
   }
 
-  Future<void> reviewRequest({
+  Future<String> reviewRequest({
     required AuthUser user,
     required int requestId,
     required String action,
@@ -144,18 +180,27 @@ class HomeLeaveService {
   }) async {
     _ensureSession(user);
 
-    await _apiService.post(
+    final raw = await _apiService.post(
       '/v1/leave-requests/$requestId/review',
       body: <String, dynamic>{
         'action': action,
         if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
       },
     );
+
+    final response = _responseMap(raw);
+    final message = (response['message'] ?? '').toString().trim();
+    return message.isEmpty
+        ? (action == 'approve'
+            ? 'Approved successfully'
+            : 'Rejected successfully')
+        : message;
   }
 
-  Future<void> submitRequest({
+  Future<String> submitRequest({
     required AuthUser user,
     required int leaveTypeId,
+    required int handoverEmployeeId,
     required DateTime startDate,
     required DateTime endDate,
     required String reason,
@@ -171,21 +216,25 @@ class HomeLeaveService {
         (attachmentBytes != null && attachmentBytes.isNotEmpty);
 
     if (!hasAttachment) {
-      await _apiService.post(
+      final raw = await _apiService.post(
         '/v1/leave-requests',
         body: <String, dynamic>{
           'leave_type_id': leaveTypeId,
+          'handover_employee_id': handoverEmployeeId,
           'start_date': _formatDateOnly(startDate),
           'end_date': _formatDateOnly(endDate),
           'reason': reason.trim(),
           if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
         },
       );
-      return;
+      final response = _responseMap(raw);
+      final message = (response['message'] ?? '').toString().trim();
+      return message.isEmpty ? 'Leave request submitted successfully' : message;
     }
 
-    await _submitMultipartRequest(
+    return _submitMultipartRequest(
       leaveTypeId: leaveTypeId,
+      handoverEmployeeId: handoverEmployeeId,
       startDate: startDate,
       endDate: endDate,
       reason: reason,
@@ -196,8 +245,9 @@ class HomeLeaveService {
     );
   }
 
-  Future<void> _submitMultipartRequest({
+  Future<String> _submitMultipartRequest({
     required int leaveTypeId,
+    required int handoverEmployeeId,
     required DateTime startDate,
     required DateTime endDate,
     required String reason,
@@ -211,61 +261,84 @@ class HomeLeaveService {
 
     for (final base in ApiConfig.baseUrls) {
       final uri = ApiConfig.buildUriForBase(base, '/v1/leave-requests');
-      final request =
-          http.MultipartRequest('POST', uri)
-            ..headers['Accept'] = 'application/json'
-            ..fields['leave_type_id'] = leaveTypeId.toString()
-            ..fields['start_date'] = _formatDateOnly(startDate)
-            ..fields['end_date'] = _formatDateOnly(endDate)
-            ..fields['reason'] = reason.trim();
-      if (note != null && note.trim().isNotEmpty) {
-        request.fields['note'] = note.trim();
-      }
-
-      if (token != null && token.isNotEmpty) {
-        request.headers['Authorization'] = 'Bearer $token';
-      }
-
-      if (attachmentBytes != null && attachmentBytes.isNotEmpty) {
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'attachment',
-            attachmentBytes,
-            filename:
-                (attachmentName == null || attachmentName.trim().isEmpty)
-                    ? 'attachment.bin'
-                    : attachmentName.trim(),
-          ),
-        );
-      } else if (attachmentPath != null && attachmentPath.trim().isNotEmpty) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'attachment',
-            attachmentPath.trim(),
-            filename:
-                (attachmentName == null || attachmentName.trim().isEmpty)
-                    ? null
-                    : attachmentName.trim(),
-          ),
-        );
-      }
-
       try {
+        final request =
+            http.MultipartRequest('POST', uri)
+              ..headers['Accept'] = 'application/json'
+              ..fields['leave_type_id'] = leaveTypeId.toString()
+              ..fields['handover_employee_id'] = handoverEmployeeId.toString()
+              ..fields['start_date'] = _formatDateOnly(startDate)
+              ..fields['end_date'] = _formatDateOnly(endDate)
+              ..fields['reason'] = reason.trim();
+        if (note != null && note.trim().isNotEmpty) {
+          request.fields['note'] = note.trim();
+        }
+
+        if (token != null && token.isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer $token';
+        }
+
+        if (attachmentBytes != null && attachmentBytes.isNotEmpty) {
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'attachment',
+              attachmentBytes,
+              filename:
+                  (attachmentName == null || attachmentName.trim().isEmpty)
+                      ? 'attachment.bin'
+                      : attachmentName.trim(),
+            ),
+          );
+        } else if (attachmentPath != null && attachmentPath.trim().isNotEmpty) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'attachment',
+              attachmentPath.trim(),
+              filename:
+                  (attachmentName == null || attachmentName.trim().isEmpty)
+                      ? null
+                      : attachmentName.trim(),
+            ),
+          );
+        }
+
         final streamed = await request.send().timeout(ApiConfig.connectTimeout);
         final response = await http.Response.fromStream(streamed);
         final body = _tryDecodeMap(response.body);
 
         if (response.statusCode >= 200 && response.statusCode < 300) {
-          return;
+          final responseMap = _responseMap(body);
+          final message = (responseMap['message'] ?? '').toString().trim();
+          return message.isEmpty
+              ? 'Leave request submitted successfully'
+              : message;
         }
 
         lastError = ApiException(
           message: _extractMessage(body, fallback: 'Request failed'),
           statusCode: response.statusCode,
         );
-      } catch (_) {
+      } on TimeoutException {
         lastError = ApiException(
           message: 'Connection timeout. Please try again.',
+        );
+      } on SocketException {
+        lastError = NetworkException();
+      } on http.ClientException catch (error) {
+        lastError = isNetworkErrorMessage(error.message)
+            ? NetworkException()
+            : ApiException(message: error.message);
+      } catch (error) {
+        final message = error.toString().trim();
+        if (isNetworkErrorMessage(message)) {
+          lastError = NetworkException();
+          continue;
+        }
+
+        throw ApiException(
+          message: message.isEmpty
+              ? 'Unable to prepare attachment for upload.'
+              : message,
         );
       }
     }

@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'core/config/app_routes.dart';
+import 'core/localization/laravel_language_service.dart';
 import 'core/theme/app_design_system.dart';
 import 'features/auth/controllers/auth_controller.dart';
 import 'features/auth/pages/login_page.dart';
@@ -27,6 +30,9 @@ class _StaffMobileAppState extends State<StaffMobileApp> {
     _ownsAuthController = widget.authController == null;
     _authController = widget.authController ?? AuthController();
 
+    // Prewarm language cache without blocking first frame rendering.
+    unawaited(LaravelLanguageService.instance.load());
+
     if (_ownsAuthController) {
       _authController.restoreSession();
     }
@@ -46,7 +52,7 @@ class _StaffMobileAppState extends State<StaffMobileApp> {
       animation: _authController,
       builder: (context, _) {
         return MaterialApp(
-          title: 'Staff Mobile App',
+          title: 'PHDHRMS',
           debugShowCheckedModeBanner: false,
           theme: AppDesignSystem.lightTheme(),
           onGenerateRoute: (settings) {

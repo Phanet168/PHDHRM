@@ -26,6 +26,7 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
   Future<Map<String, dynamic>>? _dashboardFuture;
   bool _canCreateIncoming = false;
   bool _canCreateOutgoing = false;
+  String _period = 'all';
   DateTime? _startDate;
   DateTime? _endDate;
 
@@ -49,6 +50,8 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
       _incomingFuture = null;
     }
     return _incomingFuture ??= _service.fetchIncomingLetters(
+      period: _period,
+      forceRefresh: forceRefresh,
       startDate: _startDate,
       endDate: _endDate,
     );
@@ -61,6 +64,8 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
       _outgoingFuture = null;
     }
     return _outgoingFuture ??= _service.fetchOutgoingLetters(
+      period: _period,
+      forceRefresh: forceRefresh,
       startDate: _startDate,
       endDate: _endDate,
     );
@@ -68,6 +73,7 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
 
   Future<Map<String, dynamic>> _loadDashboard() {
     return _dashboardFuture ??= _service.fetchDashboard(
+      period: _period,
       startDate: _startDate,
       endDate: _endDate,
     );
@@ -99,6 +105,8 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
       _incomingFuture = _loadIncoming(forceRefresh: true);
       _outgoingFuture = _loadOutgoing(forceRefresh: true);
       _dashboardFuture = _service.fetchDashboard(
+        period: _period,
+        forceRefresh: true,
         startDate: _startDate,
         endDate: _endDate,
       );
@@ -133,6 +141,10 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
   }
 
   String _filterSummary(Map<String, String> language) {
+    if (_period != 'custom') {
+      return _periodLabel(_period, language);
+    }
+
     if (_startDate == null && _endDate == null) {
       return _tr(language, 'all_date', 'គ្រប់កាលបរិច្ឆេទ');
     }
@@ -146,6 +158,24 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
     }
 
     return '${_tr(language, 'to_date', 'ដល់ថ្ងៃ')} ${_formatDate(_endDate)}';
+  }
+
+  String _periodLabel(String period, Map<String, String> language) {
+    switch (period) {
+      case 'today':
+        return _tr(language, 'today', 'ថ្ងៃនេះ');
+      case 'yesterday':
+        return _tr(language, 'yesterday', 'ម្សិលមិញ');
+      case 'this_week':
+        return _tr(language, 'this_week', 'សប្ដាហ៍នេះ');
+      case 'this_month':
+        return _tr(language, 'this_month', 'ខែនេះ');
+      case 'custom':
+        return _tr(language, 'custom', 'កំណត់ដោយខ្លួនឯង');
+      case 'all':
+      default:
+        return _tr(language, 'all_date', 'គ្រប់កាលបរិច្ឆេទ');
+    }
   }
 
   Future<DateTime?> _pickFilterDate(DateTime? current) async {
@@ -176,6 +206,7 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
       builder: (context) {
         return _DateRangeFilterSheet(
           language: language,
+          initialPeriod: _period,
           initialStartDate: _startDate,
           initialEndDate: _endDate,
           formatDate: _formatDate,
@@ -189,17 +220,21 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
     }
 
     setState(() {
+      _period = selected.period;
       _startDate = selected.startDate;
       _endDate = selected.endDate;
       _incomingFuture = _service.fetchIncomingLetters(
+        period: _period,
         startDate: _startDate,
         endDate: _endDate,
       );
       _outgoingFuture = _service.fetchOutgoingLetters(
+        period: _period,
         startDate: _startDate,
         endDate: _endDate,
       );
       _dashboardFuture = _service.fetchDashboard(
+        period: _period,
         startDate: _startDate,
         endDate: _endDate,
       );
@@ -210,11 +245,12 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
 
   void _clearDateFilter() {
     setState(() {
+      _period = 'all';
       _startDate = null;
       _endDate = null;
-      _incomingFuture = _service.fetchIncomingLetters();
-      _outgoingFuture = _service.fetchOutgoingLetters();
-      _dashboardFuture = _service.fetchDashboard();
+      _incomingFuture = _service.fetchIncomingLetters(period: _period);
+      _outgoingFuture = _service.fetchOutgoingLetters(period: _period);
+      _dashboardFuture = _service.fetchDashboard(period: _period);
     });
 
     _dashboardFuture?.then(_syncCreatePermissions).catchError((_) {});
@@ -292,8 +328,8 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
     );
   }
 
-  void _openLetterDetail(CorrespondenceLetter letter) {
-    Navigator.of(context).push(
+  Future<void> _openLetterDetail(CorrespondenceLetter letter) async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder:
             (context) => CorrespondenceDetailPage(
@@ -303,6 +339,12 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
             ),
       ),
     );
+
+    if (!mounted) {
+      return;
+    }
+
+    await _refresh();
   }
 
   Future<void> _createNewLetter() async {
@@ -562,12 +604,57 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
         }
 
         final data = snapshot.data ?? <String, dynamic>{};
+        final permissions =
+            data['permissions'] is Map<String, dynamic>
+                ? data['permissions'] as Map<String, dynamic>
+                : const <String, dynamic>{};
+        final levelLabel =
+            (permissions['corr_level_label'] ?? '').toString().trim();
+        final departmentName =
+            (permissions['corr_department_name'] ?? '').toString().trim();
+        final hasPermissionInfo =
+            levelLabel.isNotEmpty || departmentName.isNotEmpty;
 
         return RefreshIndicator(
           onRefresh: _refresh,
           child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              if (hasPermissionInfo) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFA7F3D0)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (levelLabel.isNotEmpty)
+                        Text(
+                          '${_tr(language, 'level', 'កម្រិត')}: $levelLabel',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF065F46),
+                          ),
+                        ),
+                      if (departmentName.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          '${_tr(language, 'department', 'អង្គភាព')}: $departmentName',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF047857),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               // Summary cards
               _SummaryCard(
                 title: _tr(language, 'incoming_total', 'លិខិតចូលសរុប'),
@@ -591,6 +678,12 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
                 title: _tr(language, 'in_progress', 'កំពុងដំណើរការ'),
                 count: (data['in_progress_count'] as num?)?.toInt() ?? 0,
                 color: const Color(0xFF5D79C8),
+              ),
+              const SizedBox(height: 12),
+              _SummaryCard(
+                title: _tr(language, 'completed', 'បានបញ្ចប់'),
+                count: (data['completed_count'] as num?)?.toInt() ?? 0,
+                color: const Color(0xFF0F766E),
               ),
             ],
           ),
@@ -718,7 +811,7 @@ class _CorrespondenceCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
-                      'ដ급',
+                      'បន្ទាន់',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -827,8 +920,13 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _DateRangeSelection {
-  const _DateRangeSelection({this.startDate, this.endDate});
+  const _DateRangeSelection({
+    required this.period,
+    this.startDate,
+    this.endDate,
+  });
 
+  final String period;
   final DateTime? startDate;
   final DateTime? endDate;
 }
@@ -836,6 +934,7 @@ class _DateRangeSelection {
 class _DateRangeFilterSheet extends StatefulWidget {
   const _DateRangeFilterSheet({
     required this.language,
+    required this.initialPeriod,
     required this.initialStartDate,
     required this.initialEndDate,
     required this.formatDate,
@@ -843,6 +942,7 @@ class _DateRangeFilterSheet extends StatefulWidget {
   });
 
   final Map<String, String> language;
+  final String initialPeriod;
   final DateTime? initialStartDate;
   final DateTime? initialEndDate;
   final String Function(DateTime?) formatDate;
@@ -853,12 +953,26 @@ class _DateRangeFilterSheet extends StatefulWidget {
 }
 
 class _DateRangeFilterSheetState extends State<_DateRangeFilterSheet> {
+  static const List<String> _periodOptions = <String>[
+    'all',
+    'today',
+    'yesterday',
+    'this_week',
+    'this_month',
+    'custom',
+  ];
+
+  late String _period;
   DateTime? _startDate;
   DateTime? _endDate;
 
   @override
   void initState() {
     super.initState();
+    _period =
+        _periodOptions.contains(widget.initialPeriod)
+            ? widget.initialPeriod
+            : 'all';
     _startDate = widget.initialStartDate;
     _endDate = widget.initialEndDate;
   }
@@ -866,6 +980,24 @@ class _DateRangeFilterSheetState extends State<_DateRangeFilterSheet> {
   String _tr(String key, String fallback) {
     final value = widget.language[key]?.trim();
     return value == null || value.isEmpty ? fallback : value;
+  }
+
+  String _periodLabel(String value) {
+    switch (value) {
+      case 'today':
+        return _tr('today', 'ថ្ងៃនេះ');
+      case 'yesterday':
+        return _tr('yesterday', 'ម្សិលមិញ');
+      case 'this_week':
+        return _tr('this_week', 'សប្ដាហ៍នេះ');
+      case 'this_month':
+        return _tr('this_month', 'ខែនេះ');
+      case 'custom':
+        return _tr('custom', 'កំណត់ដោយខ្លួនឯង');
+      case 'all':
+      default:
+        return _tr('all_date', 'គ្រប់កាលបរិច្ឆេទ');
+    }
   }
 
   Future<void> _chooseStartDate() async {
@@ -915,16 +1047,40 @@ class _DateRangeFilterSheetState extends State<_DateRangeFilterSheet> {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 12),
-            _DateFieldTile(
-              label: _tr('from_date', 'ពីថ្ងៃ'),
-              value: widget.formatDate(_startDate),
-              onTap: _chooseStartDate,
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children:
+                  _periodOptions.map((option) {
+                    final selected = _period == option;
+                    return ChoiceChip(
+                      label: Text(_periodLabel(option)),
+                      selected: selected,
+                      onSelected: (_) {
+                        setState(() {
+                          _period = option;
+                          if (_period != 'custom') {
+                            _startDate = null;
+                            _endDate = null;
+                          }
+                        });
+                      },
+                    );
+                  }).toList(),
             ),
-            _DateFieldTile(
-              label: _tr('to_date', 'ដល់ថ្ងៃ'),
-              value: widget.formatDate(_endDate),
-              onTap: _chooseEndDate,
-            ),
+            if (_period == 'custom') ...[
+              const SizedBox(height: 12),
+              _DateFieldTile(
+                label: _tr('from_date', 'ពីថ្ងៃ'),
+                value: widget.formatDate(_startDate),
+                onTap: _chooseStartDate,
+              ),
+              _DateFieldTile(
+                label: _tr('to_date', 'ដល់ថ្ងៃ'),
+                value: widget.formatDate(_endDate),
+                onTap: _chooseEndDate,
+              ),
+            ],
             const SizedBox(height: 8),
             Row(
               children: [
@@ -932,6 +1088,7 @@ class _DateRangeFilterSheetState extends State<_DateRangeFilterSheet> {
                   child: OutlinedButton(
                     onPressed: () {
                       setState(() {
+                        _period = 'all';
                         _startDate = null;
                         _endDate = null;
                       });
@@ -943,10 +1100,18 @@ class _DateRangeFilterSheetState extends State<_DateRangeFilterSheet> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
+                      var period = _period;
+                      if (period == 'custom' &&
+                          _startDate == null &&
+                          _endDate == null) {
+                        period = 'all';
+                      }
+
                       Navigator.of(context).pop(
                         _DateRangeSelection(
-                          startDate: _startDate,
-                          endDate: _endDate,
+                          period: period,
+                          startDate: period == 'custom' ? _startDate : null,
+                          endDate: period == 'custom' ? _endDate : null,
                         ),
                       );
                     },

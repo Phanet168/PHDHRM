@@ -30,8 +30,8 @@ class HomeNotificationService {
     return HomeNotificationPageData(items: items, unreadCount: unreadCount);
   }
 
-  Future<void> markAsRead(int deliveryId) async {
-    final raw = await _apiService.post('/v1/notifications/$deliveryId/read');
+  Future<void> markAsRead(String notificationId) async {
+    final raw = await _apiService.post('/v1/notifications/$notificationId/read');
     _asResponse(raw);
   }
 
@@ -68,17 +68,65 @@ class HomeNotificationService {
     final noticeBy = (row['notice_by'] ?? '').toString().trim();
 
     return HomeNotificationItem(
-      id: (row['id'] as num?)?.toInt() ?? 0,
+      id: (row['notification_id'] ?? row['id'] ?? '').toString().trim(),
       title: title.isEmpty ? 'Notification' : title,
       description: description.isEmpty ? '-' : description,
-      meta: _buildMeta(noticeDateRaw, sentAtRaw, noticeBy),
+      meta: _buildMeta(
+        noticeDateRaw,
+        sentAtRaw,
+        noticeBy,
+        (row['meta'] ?? '').toString().trim(),
+      ),
       isUnread: row['is_unread'] == true || row['read_at'] == null,
+      source: (row['source'] ?? 'notice').toString().trim(),
+      typeLabel: (row['type_label'] ?? _defaultTypeLabel(row['source'])).toString().trim(),
+      dateLabel: _formatDateLabel(
+        (row['date_display'] ?? '').toString().trim(),
+        noticeDateRaw,
+        sentAtRaw,
+      ),
       sentAt: sentAtRaw.isEmpty ? null : sentAtRaw,
       readAt: (row['read_at'] as String?)?.trim(),
+      link: (row['link'] as String?)?.trim(),
     );
   }
 
-  String _buildMeta(String noticeDateRaw, String sentAtRaw, String noticeBy) {
+  String _defaultTypeLabel(Object? source) {
+    switch ((source ?? '').toString().trim()) {
+      case 'leave_workflow':
+        return 'សុំច្បាប់';
+      case 'attendance_workflow':
+        return 'វត្តមាន';
+      case 'correspondence_workflow':
+        return 'លិខិត';
+      default:
+        return 'ជូនដំណឹង';
+    }
+  }
+
+  String _formatDateLabel(
+    String explicit,
+    String noticeDateRaw,
+    String sentAtRaw,
+  ) {
+    if (explicit.isNotEmpty) {
+      return explicit;
+    }
+
+    final primary = noticeDateRaw.isNotEmpty ? noticeDateRaw : sentAtRaw;
+    return _formatDate(primary);
+  }
+
+  String _buildMeta(
+    String noticeDateRaw,
+    String sentAtRaw,
+    String noticeBy,
+    String explicitMeta,
+  ) {
+    if (explicitMeta.isNotEmpty) {
+      return explicitMeta;
+    }
+
     final dateLabel = _formatDate(
       noticeDateRaw.isNotEmpty ? noticeDateRaw : sentAtRaw,
     );

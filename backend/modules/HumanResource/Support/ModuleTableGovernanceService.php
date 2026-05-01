@@ -10,7 +10,10 @@ use Modules\HumanResource\Entities\UserAssignment;
 
 class ModuleTableGovernanceService
 {
-    public function __construct(private readonly OrgUnitRuleService $orgUnitRuleService)
+    public function __construct(
+        private readonly OrgUnitRuleService $orgUnitRuleService,
+        private readonly WorkflowActorResolverService $workflowActorResolverService
+    )
     {
     }
 
@@ -38,7 +41,6 @@ class ModuleTableGovernanceService
         $targetDepartmentId = (int) ($targetDepartmentId ?? 0);
         $rows = DB::table($tables['assignments'] . ' as a')
             ->join($tables['templates'] . ' as t', 't.id', '=', 'a.template_id')
-            ->where('a.user_id', (int) $user->id)
             ->where('a.is_active', 1)
             ->where('t.is_active', 1)
             ->whereNull('a.deleted_at')
@@ -52,6 +54,7 @@ class ModuleTableGovernanceService
                 $query->whereNull('a.effective_to')->orWhereDate('a.effective_to', '>=', $today);
             })
             ->get([
+                'a.user_id',
                 'a.department_id',
                 'a.scope_type',
                 't.actions_json',
@@ -59,6 +62,10 @@ class ModuleTableGovernanceService
             ]);
 
         foreach ($rows as $row) {
+            if (!$this->assignmentAppliesToUser((int) ($row->user_id ?? 0), (int) $user->id)) {
+                continue;
+            }
+
             $actions = $this->decodeJsonList($row->actions_json);
             if (!in_array($actionKey, $actions, true)) {
                 continue;
@@ -80,6 +87,20 @@ class ModuleTableGovernanceService
         }
 
         return false;
+    }
+
+    protected function assignmentAppliesToUser(int $assignedUserId, int $actingUserId): bool
+    {
+        if ($assignedUserId <= 0 || $actingUserId <= 0) {
+            return false;
+        }
+
+        $effectiveUserId = $this->workflowActorResolverService
+            ->resolveActorUserIdForWorkflow($assignedUserId);
+
+        return $effectiveUserId > 0
+            ? $effectiveUserId === $actingUserId
+            : $assignedUserId === $actingUserId;
     }
 
     public function actionMap(): array

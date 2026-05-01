@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 // ignore_for_file: deprecated_member_use
 
@@ -54,8 +56,6 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
     'incoming_office_comment',
     'incoming_deputy_review',
     'incoming_director_decision',
-    'incoming_distributed',
-    'closed',
   ];
 
   static const List<String> _outgoingStepOrder = [
@@ -113,6 +113,30 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
   /// Returns workflow actions the current user may perform,
   /// aligned with Laravel's permission rules.
   List<_CorrAction> _availableActions(CorrespondenceLetter letter) {
+    final permissions = letter.permissions;
+    if (permissions != null) {
+      final result = <_CorrAction>[];
+      if (permissions.canDelegate) {
+        result.add(_CorrAction.delegate);
+      }
+      if (permissions.canOfficeComment) {
+        result.add(_CorrAction.officeComment);
+      }
+      if (permissions.canDeputyReview) {
+        result.add(_CorrAction.deputyReview);
+      }
+      if (permissions.canDirectorDecision) {
+        result.add(_CorrAction.directorDecision);
+      }
+      if (permissions.canDistribute) {
+        result.add(_CorrAction.distribute);
+      }
+      if (permissions.canClose) {
+        result.add(_CorrAction.close);
+      }
+      return result;
+    }
+
     final result = <_CorrAction>[];
     final step = letter.currentStep;
     final isHandler = _isCurrentHandler(letter);
@@ -171,17 +195,82 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
     return result;
   }
 
+  bool _canDelegateAtCurrentStep(CorrespondenceLetter letter) {
+    return letter.isIncoming &&
+        (letter.currentStep == 'incoming_received' ||
+            letter.currentStep == 'incoming_delegated') &&
+        _isCurrentHandler(letter);
+  }
+
+  bool _canOfficeCommentAtCurrentStep(CorrespondenceLetter letter) {
+    if (!letter.isIncoming) {
+      return false;
+    }
+
+    final isHandler = _isCurrentHandler(letter);
+    final isRelated = _isRelatedOfficeCommentUser(letter);
+    final step = letter.currentStep;
+
+    if (step == 'incoming_office_comment') {
+      return isHandler || isRelated;
+    }
+
+    if (step == 'incoming_deputy_review') {
+      return !isHandler && isRelated;
+    }
+
+    return false;
+  }
+
+  bool _canDeputyReviewAtCurrentStep(CorrespondenceLetter letter) {
+    return letter.isIncoming &&
+        letter.currentStep == 'incoming_deputy_review' &&
+        _isCurrentHandler(letter);
+  }
+
+  bool _canDirectorDecisionAtCurrentStep(CorrespondenceLetter letter) {
+    return letter.isIncoming &&
+        letter.currentStep == 'incoming_director_decision' &&
+        _isCurrentHandler(letter);
+  }
+
+  bool _canDistributeAtCurrentStep(CorrespondenceLetter letter) {
+    final step = letter.currentStep;
+    if (letter.isIncoming) {
+      return step == 'incoming_director_decision' &&
+          letter.decision == 'approved' &&
+          _isCurrentHandler(letter);
+    }
+
+    return (step == 'outgoing_draft' || step == 'outgoing_distributed') &&
+        (_isCurrentHandler(letter) || _isCreatedBy(letter));
+  }
+
+  bool _canCloseAtCurrentStep(CorrespondenceLetter letter) {
+    final step = letter.currentStep;
+    if (letter.isIncoming) {
+      return false;
+    }
+
+    return step != 'closed' &&
+        step != 'outgoing_draft' &&
+        (_isCurrentHandler(letter) || _isCreatedBy(letter));
+  }
+
   bool _canSendParentFeedback(CorrespondenceLetter letter) =>
-      letter.parentLetterId != null &&
-      letter.currentStep != 'closed' &&
-      (_isCurrentHandler(letter) || _isCreatedBy(letter));
+      letter.permissions?.canSendParentFeedback ??
+      ((letter.sourceDistributionId ?? 0) > 0 &&
+          letter.currentStep != 'closed' &&
+          (_isCurrentHandler(letter) || _isCreatedBy(letter)));
 
   bool _canAcknowledge(CorrespondenceLetterDistribution dist) =>
-      dist.isPendingAck && dist.targetUserId == _currentUserId;
+      dist.canAcknowledge ??
+      (dist.isPendingAck && dist.targetUserId == _currentUserId);
 
   bool _canFeedback(CorrespondenceLetterDistribution dist) =>
-      (dist.isAcknowledged || dist.isFeedbackSent) &&
-      dist.targetUserId == _currentUserId;
+      dist.canFeedback ??
+      ((dist.isAcknowledged || dist.isFeedbackSent) &&
+          dist.targetUserId == _currentUserId);
 
   // ─── Action Handlers ──────────────────────────────────────────────────────
 
@@ -314,14 +403,24 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
             letter.isIncoming && result.toDeptIds.isNotEmpty
                 ? result.toDeptIds
                 : null,
+        targetUserId:
+            letter.isIncoming && result.toUserIds.isNotEmpty
+                ? result.toUserIds.first
+                : null,
         // Outgoing uses to_department_ids / cc_department_ids
         toDepartmentIds:
             !letter.isIncoming && result.toDeptIds.isNotEmpty
                 ? result.toDeptIds
                 : null,
         ccDepartmentIds: result.ccDeptIds.isNotEmpty ? result.ccDeptIds : null,
-        toUserIds: result.toUserIds.isNotEmpty ? result.toUserIds : null,
-        ccUserIds: result.ccUserIds.isNotEmpty ? result.ccUserIds : null,
+        toUserIds:
+            !letter.isIncoming && result.toUserIds.isNotEmpty
+                ? result.toUserIds
+                : null,
+        ccUserIds:
+            !letter.isIncoming && result.ccUserIds.isNotEmpty
+                ? result.ccUserIds
+                : null,
         note: result.note.isNotEmpty ? result.note : null,
       );
       _reload();
@@ -430,6 +529,80 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
     );
   }
 
+  Future<void> _openAttachment(
+    CorrespondenceLetter letter,
+    int attachmentIndex,
+    String extension,
+  ) async {
+    if (_isActing) {
+      return;
+    }
+
+    setState(() => _isActing = true);
+    try {
+      final normalizedExt = extension.trim().toLowerCase();
+      final canPreviewInApp = <String>{
+        'pdf',
+        'png',
+        'jpg',
+        'jpeg',
+        'gif',
+        'webp',
+        'svg',
+      }.contains(normalizedExt);
+
+      final signedUrl = await widget.service.fetchAttachmentSignedUrl(
+        letterId: letter.id,
+        attachmentIndex: attachmentIndex,
+        download: !canPreviewInApp,
+      );
+
+      final filePath =
+          (letter.attachments ?? const <String>[])[attachmentIndex];
+      final fileName = _attachmentFileName(filePath);
+
+      if (canPreviewInApp) {
+        if (!mounted) {
+          return;
+        }
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder:
+                (context) => _AttachmentViewerPage(
+                  url: signedUrl,
+                  fileName: fileName,
+                  extension: normalizedExt,
+                ),
+          ),
+        );
+        return;
+      }
+
+      final uri = Uri.tryParse(signedUrl);
+      if (uri == null) {
+        _showError('មិនអាចបើកឯកសារបានទេ');
+        return;
+      }
+
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+
+      if (!launched) {
+        _showError('មិនអាចបើកឯកសារបានទេ');
+      }
+    } catch (e) {
+      if (mounted) {
+        _showError(extractApiErrorMessage(e));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isActing = false);
+      }
+    }
+  }
+
   // ─── Build ────────────────────────────────────────────────────────────────
 
   @override
@@ -506,6 +679,11 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
               _buildHeaderCard(letter, lang),
               const SizedBox(height: 12),
               _buildInfoCard(letter, lang),
+              if (letter.attachments != null &&
+                  letter.attachments!.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildAttachmentsCard(letter),
+              ],
               const SizedBox(height: 12),
               _buildWorkflowCard(letter, lang),
               const SizedBox(height: 12),
@@ -701,6 +879,132 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
     );
   }
 
+  Widget _buildAttachmentsCard(CorrespondenceLetter letter) {
+    final attachments = letter.attachments ?? const <String>[];
+
+    return _SectionCard(
+      title: 'ឯកសារពាក់ព័ន្ធ (${attachments.length})',
+      child: Column(
+        children: List.generate(attachments.length, (index) {
+          final rawPath = attachments[index].trim();
+          final fileName = _attachmentFileName(rawPath);
+          final ext = _attachmentExtension(fileName);
+
+          return Container(
+            margin: EdgeInsets.only(
+              bottom: index == attachments.length - 1 ? 0 : 8,
+            ),
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () => _openAttachment(letter, index, ext),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        _fileIconFor(ext),
+                        size: 18,
+                        color: const Color(0xFF1D4F91),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          fileName,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF10211B),
+                          ),
+                        ),
+                      ),
+                      if (ext.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1D4F91).withAlpha(24),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            ext.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1D4F91),
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.open_in_new_rounded,
+                        size: 16,
+                        color: Color(0xFF64748B),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  String _attachmentFileName(String path) {
+    if (path.isEmpty) {
+      return 'Unknown file';
+    }
+    final normalized = path.replaceAll('\\', '/');
+    final segments = normalized
+        .split('/')
+        .where((part) => part.trim().isNotEmpty);
+    return segments.isNotEmpty ? segments.last : path;
+  }
+
+  String _attachmentExtension(String fileName) {
+    final dotIndex = fileName.lastIndexOf('.');
+    if (dotIndex <= 0 || dotIndex == fileName.length - 1) {
+      return '';
+    }
+    return fileName.substring(dotIndex + 1).trim().toLowerCase();
+  }
+
+  IconData _fileIconFor(String extension) {
+    switch (extension) {
+      case 'pdf':
+        return Icons.picture_as_pdf_outlined;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+      case 'webp':
+      case 'svg':
+        return Icons.image_outlined;
+      case 'doc':
+      case 'docx':
+        return Icons.description_outlined;
+      case 'xls':
+      case 'xlsx':
+      case 'csv':
+        return Icons.table_chart_outlined;
+      default:
+        return Icons.insert_drive_file_outlined;
+    }
+  }
+
   // ─── Workflow step progress ────────────────────────────────────────────────
 
   Widget _buildWorkflowCard(
@@ -708,7 +1012,11 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
     Map<String, String> lang,
   ) {
     final steps = letter.isIncoming ? _incomingStepOrder : _outgoingStepOrder;
-    final currentIndex = steps.indexOf(letter.currentStep);
+    final rawCurrentIndex = steps.indexOf(letter.currentStep);
+    final currentIndex =
+        rawCurrentIndex >= 0
+            ? rawCurrentIndex
+            : _fallbackWorkflowIndex(letter, steps);
 
     return _SectionCard(
       title: 'ដំណើរការ Workflow',
@@ -726,6 +1034,22 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
         }),
       ),
     );
+  }
+
+  int _fallbackWorkflowIndex(CorrespondenceLetter letter, List<String> steps) {
+    if (steps.isEmpty) {
+      return -1;
+    }
+
+    if (letter.isIncoming) {
+      if (letter.currentStep == 'incoming_distributed' ||
+          letter.currentStep == 'closed') {
+        return steps.length - 1;
+      }
+      return -1;
+    }
+
+    return -1;
   }
 
   // ─── Available workflow actions ────────────────────────────────────────────
@@ -1480,9 +1804,111 @@ class _SmallActionButton extends StatelessWidget {
         foregroundColor: color,
         side: BorderSide(color: color),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        minimumSize: const Size(0, 36),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
       ),
+    );
+  }
+}
+
+class _AttachmentViewerPage extends StatefulWidget {
+  const _AttachmentViewerPage({
+    required this.url,
+    required this.fileName,
+    required this.extension,
+  });
+
+  final String url;
+  final String fileName;
+  final String extension;
+
+  @override
+  State<_AttachmentViewerPage> createState() => _AttachmentViewerPageState();
+}
+
+class _AttachmentViewerPageState extends State<_AttachmentViewerPage> {
+  late final WebViewController _controller;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller =
+        WebViewController()
+          ..setJavaScriptMode(JavaScriptMode.unrestricted)
+          ..setNavigationDelegate(
+            NavigationDelegate(
+              onPageFinished: (_) {
+                if (!mounted) {
+                  return;
+                }
+                setState(() => _loading = false);
+              },
+              onWebResourceError: (_) {
+                if (!mounted) {
+                  return;
+                }
+                setState(() => _loading = false);
+              },
+            ),
+          )
+          ..loadRequest(Uri.parse(widget.url));
+  }
+
+  bool get _isImage {
+    final ext = widget.extension.trim().toLowerCase();
+    return <String>{'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'}.contains(ext);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          widget.fileName,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      body:
+          _isImage
+              ? Container(
+                color: Colors.black,
+                child: InteractiveViewer(
+                  minScale: 1,
+                  maxScale: 4,
+                  child: Center(
+                    child: Image.network(
+                      widget.url,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, progress) {
+                        if (progress == null) {
+                          return child;
+                        }
+                        return const Center(child: CircularProgressIndicator());
+                      },
+                      errorBuilder:
+                          (context, error, stack) => const Center(
+                            child: Text(
+                              'មិនអាចបង្ហាញរូបភាពបាន',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                    ),
+                  ),
+                ),
+              )
+              : Stack(
+                children: [
+                  WebViewWidget(controller: _controller),
+                  if (_loading)
+                    const Positioned.fill(
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                ],
+              ),
     );
   }
 }
@@ -1717,11 +2143,16 @@ class _DistributeSheetState extends State<_DistributeSheet> {
     if (result != null && mounted) setState(() => onSelected(result));
   }
 
-  bool get _isValid =>
-      _toDepts.isNotEmpty ||
-      _ccDepts.isNotEmpty ||
-      _toUsers.isNotEmpty ||
-      _ccUsers.isNotEmpty;
+  bool get _isValid {
+    if (widget.isIncoming) {
+      return _toDepts.isNotEmpty || _ccDepts.isNotEmpty || _toUsers.isNotEmpty;
+    }
+
+    return _toDepts.isNotEmpty ||
+        _ccDepts.isNotEmpty ||
+        _toUsers.isNotEmpty ||
+        _ccUsers.isNotEmpty;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1772,7 +2203,10 @@ class _DistributeSheetState extends State<_DistributeSheet> {
               if (_ccDepts.isNotEmpty) _ChipRow(items: _ccDepts),
               const SizedBox(height: 10),
               _SheetFieldTile(
-                label: 'បុគ្គល TO',
+                label:
+                    widget.isIncoming
+                        ? 'បុគ្គល TO (ជ្រើស ១ នាក់)'
+                        : 'បុគ្គល TO',
                 value:
                     _toUsers.isEmpty
                         ? 'ជ្រើសរើស...'
@@ -1784,20 +2218,22 @@ class _DistributeSheetState extends State<_DistributeSheet> {
                     }),
               ),
               if (_toUsers.isNotEmpty) _ChipRow(items: _toUsers),
-              const SizedBox(height: 10),
-              _SheetFieldTile(
-                label: 'បុគ្គល CC',
-                value:
-                    _ccUsers.isEmpty
-                        ? 'ជ្រើសរើស...'
-                        : '${_ccUsers.length} នាក់',
-                icon: Icons.person_search_outlined,
-                onTap:
-                    () => _pickUsers('CC – បុគ្គល', _ccUsers, (v) {
-                      _ccUsers = v;
-                    }),
-              ),
-              if (_ccUsers.isNotEmpty) _ChipRow(items: _ccUsers),
+              if (!widget.isIncoming) ...[
+                const SizedBox(height: 10),
+                _SheetFieldTile(
+                  label: 'បុគ្គល CC',
+                  value:
+                      _ccUsers.isEmpty
+                          ? 'ជ្រើសរើស...'
+                          : '${_ccUsers.length} នាក់',
+                  icon: Icons.person_search_outlined,
+                  onTap:
+                      () => _pickUsers('CC – បុគ្គល', _ccUsers, (v) {
+                        _ccUsers = v;
+                      }),
+                ),
+                if (_ccUsers.isNotEmpty) _ChipRow(items: _ccUsers),
+              ],
               const SizedBox(height: 10),
               TextField(
                 controller: _noteController,
@@ -2224,6 +2660,7 @@ class _UserSearchSingleSelectSheetState
   List<CorrespondenceLookupOption> _results = const [];
   bool _loading = false;
   Timer? _debounce;
+  int _searchNonce = 0;
 
   @override
   void dispose() {
@@ -2234,19 +2671,26 @@ class _UserSearchSingleSelectSheetState
 
   void _onChanged(String q) {
     _debounce?.cancel();
-    if (q.trim().isEmpty) {
-      setState(() => _results = const []);
+    final trimmed = q.trim();
+    if (trimmed.length < 2) {
+      setState(() {
+        _results = const [];
+        _loading = false;
+      });
       return;
     }
+    final currentNonce = ++_searchNonce;
     _debounce = Timer(const Duration(milliseconds: 400), () async {
       if (!mounted) return;
       setState(() => _loading = true);
       try {
-        final rows = await widget.service.searchUserOptions(q.trim());
-        if (mounted) setState(() => _results = rows);
+        final rows = await widget.service.searchUserOptions(trimmed);
+        if (!mounted || currentNonce != _searchNonce) return;
+        setState(() => _results = rows.take(30).toList(growable: false));
       } catch (_) {
       } finally {
-        if (mounted) setState(() => _loading = false);
+        if (!mounted || currentNonce != _searchNonce) return;
+        setState(() => _loading = false);
       }
     });
   }
@@ -2271,7 +2715,7 @@ class _UserSearchSingleSelectSheetState
             const SizedBox(height: 12),
             TextField(
               controller: _searchController,
-              autofocus: true,
+              autofocus: false,
               decoration: InputDecoration(
                 hintText: 'ស្វែងរកឈ្មោះ...',
                 border: const OutlineInputBorder(),
@@ -2345,6 +2789,7 @@ class _UserSearchMultiSelectSheetState
   late List<CorrespondenceLookupOption> _selected;
   bool _loading = false;
   Timer? _debounce;
+  int _searchNonce = 0;
 
   @override
   void initState() {
@@ -2361,19 +2806,26 @@ class _UserSearchMultiSelectSheetState
 
   void _onChanged(String q) {
     _debounce?.cancel();
-    if (q.trim().isEmpty) {
-      setState(() => _results = const []);
+    final trimmed = q.trim();
+    if (trimmed.length < 2) {
+      setState(() {
+        _results = const [];
+        _loading = false;
+      });
       return;
     }
+    final currentNonce = ++_searchNonce;
     _debounce = Timer(const Duration(milliseconds: 400), () async {
       if (!mounted) return;
       setState(() => _loading = true);
       try {
-        final rows = await widget.service.searchUserOptions(q.trim());
-        if (mounted) setState(() => _results = rows);
+        final rows = await widget.service.searchUserOptions(trimmed);
+        if (!mounted || currentNonce != _searchNonce) return;
+        setState(() => _results = rows.take(30).toList(growable: false));
       } catch (_) {
       } finally {
-        if (mounted) setState(() => _loading = false);
+        if (!mounted || currentNonce != _searchNonce) return;
+        setState(() => _loading = false);
       }
     });
   }
@@ -2411,7 +2863,7 @@ class _UserSearchMultiSelectSheetState
             const SizedBox(height: 8),
             TextField(
               controller: _searchController,
-              autofocus: true,
+              autofocus: false,
               decoration: InputDecoration(
                 hintText: 'ស្វែងរកឈ្មោះ...',
                 border: const OutlineInputBorder(),
@@ -2496,7 +2948,12 @@ class _SheetFieldTile extends StatelessWidget {
           suffixIcon: const Icon(Icons.expand_more_rounded),
           isDense: true,
         ),
-        child: Text(value, style: const TextStyle(fontSize: 13)),
+        child: Text(
+          value,
+          style: const TextStyle(fontSize: 13),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }

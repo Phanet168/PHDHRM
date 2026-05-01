@@ -12,10 +12,10 @@ class DeviceHeartbeatService {
     ApiService? apiService,
     MachineNumberStorageService? machineNumberStorageService,
     Duration? heartbeatInterval,
-  })  : _apiService = apiService ?? ApiService(),
-        _machineNumberStorageService =
-            machineNumberStorageService ?? MachineNumberStorageService(),
-        _heartbeatInterval = heartbeatInterval ?? const Duration(minutes: 5);
+  }) : _apiService = apiService ?? ApiService(),
+       _machineNumberStorageService =
+           machineNumberStorageService ?? MachineNumberStorageService(),
+       _heartbeatInterval = heartbeatInterval ?? const Duration(minutes: 5);
 
   final ApiService _apiService;
   final MachineNumberStorageService _machineNumberStorageService;
@@ -23,6 +23,7 @@ class DeviceHeartbeatService {
 
   Timer? _heartbeatTimer;
   bool _isRunning = false;
+  bool _isSending = false;
 
   bool get isRunning => _isRunning;
 
@@ -34,15 +35,17 @@ class DeviceHeartbeatService {
     _isRunning = true;
 
     // Send heartbeat immediately on start
-    await _sendHeartbeat();
+    unawaited(_sendHeartbeat());
 
     // Schedule periodic heartbeats
-    _heartbeatTimer = Timer.periodic(_heartbeatInterval, (_) async {
-      await _sendHeartbeat();
+    _heartbeatTimer = Timer.periodic(_heartbeatInterval, (_) {
+      unawaited(_sendHeartbeat());
     });
 
     if (kDebugMode) {
-      print('[DeviceHeartbeat] Started (every ${_heartbeatInterval.inMinutes}min)');
+      print(
+        '[DeviceHeartbeat] Started (every ${_heartbeatInterval.inMinutes}min)',
+      );
     }
   }
 
@@ -61,6 +64,11 @@ class DeviceHeartbeatService {
 
   /// Send a single heartbeat to the backend using the stored machine number.
   Future<void> _sendHeartbeat() async {
+    if (!_isRunning || _isSending) {
+      return;
+    }
+
+    _isSending = true;
     try {
       final deviceId = await _machineNumberStorageService.getMachineNumber();
       final platform = kIsWeb ? 'web' : _getPlatformName();
@@ -76,13 +84,15 @@ class DeviceHeartbeatService {
       );
 
       if (kDebugMode) {
-        print('[DeviceHeartbeat] Sent OK (device: $deviceId)');
+        debugPrint('[DeviceHeartbeat] Sent OK (device: $deviceId)');
       }
     } catch (error) {
       // Silently ignore - heartbeat failures must not crash the app
       if (kDebugMode) {
-        print('[DeviceHeartbeat] Failed (will retry): $error');
+        debugPrint('[DeviceHeartbeat] Failed (will retry): $error');
       }
+    } finally {
+      _isSending = false;
     }
   }
 

@@ -371,6 +371,10 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
             Route::get('/leaves/{leave:uuid}/edit', 'edit')->name('edit');
             Route::put('/update/leaves/{leave:uuid}', 'update')->name('update');
             Route::get('/leaves/approved/{leave:uuid}', 'showApproveLeaveApplication')->name('show_approve_leave_application');
+            Route::get('/leaves/review/{leave:uuid}', 'reviewForm')->name('review-form');
+            Route::get('/leaves/print/{leave:uuid}', 'print')->name('print');
+            Route::get('/leaves/notifications/{notification}', 'openNotification')->name('notifications.open');
+            Route::post('/leaves/notifications/clear', 'clearNotifications')->name('notifications.clear');
             Route::put('/update/leaves/approved/{leave:uuid}', 'approved')->name('approved');
             Route::put('/update/leaves/rejected/{leave:uuid}', 'reject')->name('reject');
             Route::delete('delete/leaves/{leave:uuid}', 'destroy')->name('destroy');
@@ -389,6 +393,12 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
 
         Route::controller(ManualAttendanceController::class)->group(function () {
             Route::get('/attendances/workflow', 'workflow')->name('workflow');
+            Route::post('/attendances/workflow/policies', 'storeWorkflowPolicy')
+                ->name('workflow_policies.store');
+            Route::put('/attendances/workflow/policies/{policyId}', 'updateWorkflowPolicy')
+                ->name('workflow_policies.update');
+            Route::delete('/attendances/workflow/policies/{policyId}', 'destroyWorkflowPolicy')
+                ->name('workflow_policies.destroy');
             Route::get('/attendances/index', 'index')->name('index');
             Route::post('/attendances/store', 'store')->name('store');
             Route::get('/attendances/create', 'create')->name('create');
@@ -452,6 +462,14 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
             ->name('index');
         Route::post('/attendance-adjustments', 'store')
             ->name('store');
+        Route::post('/workflow-notifications/clear-all', 'clearUnifiedNotifications')
+            ->name('notifications.clear_all');
+        Route::post('/workflow-notifications/make-unread', 'makeUnifiedNotificationsUnread')
+            ->name('notifications.make_unread');
+        Route::get('/attendance-adjustments/notifications/{notification}', 'openNotification')
+            ->name('notifications.open');
+        Route::post('/attendance-adjustments/notifications/clear', 'clearNotifications')
+            ->name('notifications.clear');
     });
 
     Route::name('attendance-snapshots.')->controller(AttendanceSnapshotController::class)->group(function () {

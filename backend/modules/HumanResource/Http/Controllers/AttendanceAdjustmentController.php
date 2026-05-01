@@ -2,8 +2,13 @@
 
 namespace Modules\HumanResource\Http\Controllers;
 
+use App\Notifications\AttendanceWorkflowNotification;
+use App\Notifications\CorrespondenceAssignedNotification;
+use App\Notifications\LeaveWorkflowNotification;
+use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
 use Modules\HumanResource\Entities\AttendanceAdjustment;
@@ -43,7 +48,11 @@ class AttendanceAdjustmentController extends Controller
         }
 
         $adjustments = $query->paginate(20);
-        $employees = Employee::query()->where('is_active', 1)->orderBy('full_name')->get(['id', 'full_name', 'employee_id']);
+        $employees = Employee::query()
+            ->where('is_active', 1)
+            ->orderBy('last_name')
+            ->orderBy('first_name')
+            ->get(['id', 'first_name', 'last_name', 'employee_id']);
 
         return view('humanresource::attendance.adjustments', compact('adjustments', 'employees'));
     }
@@ -77,6 +86,88 @@ class AttendanceAdjustmentController extends Controller
         }
 
         return redirect()->back()->withErrors(['error' => $result['message'] ?? 'Error'])->withInput();
+    }
+
+    public function openNotification(string $notification)
+    {
+        $user = Auth::user();
+        abort_unless($user, 403);
+
+        /** @var DatabaseNotification|null $record */
+        $record = $user->notifications()
+            ->where('type', AttendanceWorkflowNotification::class)
+            ->where('id', $notification)
+            ->first();
+        abort_unless($record, 404);
+
+        if ($record->read_at === null) {
+            $record->markAsRead();
+        }
+
+        $link = trim((string) data_get($record->data, 'link', route('attendance-adjustments.index')));
+
+        return redirect()->to($link !== '' ? $link : route('attendance-adjustments.index'));
+    }
+
+    public function clearNotifications()
+    {
+        $user = Auth::user();
+        abort_unless($user, 403);
+
+        $deleted = $user->notifications()
+            ->where('type', AttendanceWorkflowNotification::class)
+            ->delete();
+
+        Toastr::success(
+            localize('attendance_notifications_cleared', 'បានលុបការជូនដំណឹងវត្តមានរួចរាល់។'),
+            localize('success', 'ជោគជ័យ')
+        );
+
+        return back()->with('attendance_notifications_cleared_count', (int) $deleted);
+    }
+
+    public function clearUnifiedNotifications()
+    {
+        $user = Auth::user();
+        abort_unless($user, 403);
+
+        $deleted = $user->notifications()
+            ->whereIn('type', $this->unifiedNotificationTypes())
+            ->delete();
+
+        Toastr::success(
+            localize('notifications_cleared', 'បានលុបការជូនដំណឹងទាំងអស់រួចរាល់។'),
+            localize('success', 'ជោគជ័យ')
+        );
+
+        return back()->with('workflow_notifications_cleared_count', (int) $deleted);
+    }
+
+    public function makeUnifiedNotificationsUnread()
+    {
+        $user = Auth::user();
+        abort_unless($user, 403);
+
+        $updated = $user->notifications()
+            ->whereIn('type', $this->unifiedNotificationTypes())
+            ->whereNotNull('read_at')
+            ->update(['read_at' => null]);
+
+        Toastr::success(
+            localize('notifications_marked_unread', 'បានបង្កើតការជូនដំណឹងមិនទាន់អានវិញរួចរាល់។'),
+            localize('success', 'ជោគជ័យ')
+        );
+
+        return back()->with('workflow_notifications_marked_unread_count', (int) $updated);
+    }
+
+    protected function unifiedNotificationTypes(): array
+    {
+        return [
+            LeaveWorkflowNotification::class,
+            AttendanceWorkflowNotification::class,
+            CorrespondenceAssignedNotification::class,
+        ];
     }
 
     protected function canManageAttendanceAction(string $actionKey, ?int $departmentId = null): bool

@@ -124,6 +124,10 @@ class WorkflowPolicyService
             return false;
         }
 
+        if (!$this->matchDepartmentCondition($condition, $context)) {
+            return false;
+        }
+
         if (!$this->matchListCondition($condition, $context, 'employee_type_id', 'employee_type_ids')) {
             return false;
         }
@@ -172,6 +176,31 @@ class WorkflowPolicyService
             : trim(mb_strtolower((string) $actual));
 
         return in_array($actualNormalized, $allowed, true);
+    }
+
+    protected function matchDepartmentCondition(array $condition, array $context): bool
+    {
+        if (!array_key_exists('department_ids', $condition)) {
+            return true;
+        }
+
+        $allowed = collect((array) Arr::get($condition, 'department_ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($allowed)) {
+            return true;
+        }
+
+        $actualDepartmentId = (int) (Arr::get($context, 'department_id') ?? 0);
+        if ($actualDepartmentId <= 0) {
+            return false;
+        }
+
+        return in_array($actualDepartmentId, $allowed, true);
     }
 
     protected function toNumeric($value): ?float

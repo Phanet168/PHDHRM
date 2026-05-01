@@ -1,4 +1,6 @@
-﻿import 'package:file_picker/file_picker.dart';
+﻿import 'dart:async';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
@@ -52,6 +54,9 @@ class _CorrespondenceCreatePageState extends State<CorrespondenceCreatePage> {
   @override
   void initState() {
     super.initState();
+    if (!widget.canCreateIncoming && widget.canCreateOutgoing) {
+      _letterType = 'outgoing';
+    }
     _orgUnitsFuture = widget.service.fetchOrgUnits().then((value) {
       _orgUnits = value;
       return value;
@@ -237,6 +242,15 @@ class _CorrespondenceCreatePageState extends State<CorrespondenceCreatePage> {
     Map<String, String> language, {
     required String sendAction,
   }) async {
+    if (_letterType == 'incoming' && !widget.canCreateIncoming) {
+      _showMessage('អ្នកមិនមានសិទ្ធិបង្កើតលិខិតចូល', isError: true);
+      return;
+    }
+    if (_letterType == 'outgoing' && !widget.canCreateOutgoing) {
+      _showMessage('អ្នកមិនមានសិទ្ធិបង្កើតលិខិតចេញ', isError: true);
+      return;
+    }
+
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
@@ -346,15 +360,17 @@ class _CorrespondenceCreatePageState extends State<CorrespondenceCreatePage> {
                         children: [
                           DropdownButtonFormField<String>(
                             initialValue: _letterType,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'incoming',
-                                child: Text('លិខិតចូល'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'outgoing',
-                                child: Text('លិខិតចេញ'),
-                              ),
+                            items: [
+                              if (widget.canCreateIncoming)
+                                const DropdownMenuItem(
+                                  value: 'incoming',
+                                  child: Text('លិខិតចូល'),
+                                ),
+                              if (widget.canCreateOutgoing)
+                                const DropdownMenuItem(
+                                  value: 'outgoing',
+                                  child: Text('លិខិតចេញ'),
+                                ),
                             ],
                             decoration: InputDecoration(
                               labelText: _tr(
@@ -364,11 +380,15 @@ class _CorrespondenceCreatePageState extends State<CorrespondenceCreatePage> {
                               ),
                               border: const OutlineInputBorder(),
                             ),
-                            onChanged: (value) {
-                              if (value != null) {
-                                _onLetterTypeChanged(value);
-                              }
-                            },
+                            onChanged:
+                                (!widget.canCreateIncoming &&
+                                        !widget.canCreateOutgoing)
+                                    ? null
+                                    : (value) {
+                                      if (value != null) {
+                                        _onLetterTypeChanged(value);
+                                      }
+                                    },
                           ),
                           const SizedBox(height: 12),
                           TextFormField(
@@ -925,10 +945,23 @@ class _LookupSingleSelectSheet extends StatefulWidget {
 
 class _LookupSingleSelectSheetState extends State<_LookupSingleSelectSheet> {
   final _searchController = TextEditingController();
+  Timer? _searchDebounce;
   String _query = '';
+  static const int _maxRenderedItems = 80;
+
+  void _onQueryChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _query = value.trim());
+    });
+  }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -936,14 +969,17 @@ class _LookupSingleSelectSheetState extends State<_LookupSingleSelectSheet> {
   @override
   Widget build(BuildContext context) {
     final filtered =
-        widget.options.where((item) {
-          if (_query.trim().isEmpty) {
-            return true;
-          }
-          final query = _query.toLowerCase();
-          return item.text.toLowerCase().contains(query) ||
-              (item.subtitle?.toLowerCase().contains(query) ?? false);
-        }).toList();
+        widget.options
+            .where((item) {
+              if (_query.trim().isEmpty) {
+                return true;
+              }
+              final query = _query.toLowerCase();
+              return item.text.toLowerCase().contains(query) ||
+                  (item.subtitle?.toLowerCase().contains(query) ?? false);
+            })
+            .take(_maxRenderedItems)
+            .toList();
 
     return SafeArea(
       child: Padding(
@@ -968,7 +1004,7 @@ class _LookupSingleSelectSheetState extends State<_LookupSingleSelectSheet> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.search),
               ),
-              onChanged: (value) => setState(() => _query = value),
+              onChanged: _onQueryChanged,
             ),
             const SizedBox(height: 12),
             Flexible(
@@ -1021,8 +1057,20 @@ class _LookupMultiSelectSheet extends StatefulWidget {
 
 class _LookupMultiSelectSheetState extends State<_LookupMultiSelectSheet> {
   final _searchController = TextEditingController();
+  Timer? _searchDebounce;
   late List<CorrespondenceLookupOption> _selected;
   String _query = '';
+  static const int _maxRenderedItems = 80;
+
+  void _onQueryChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _query = value.trim());
+    });
+  }
 
   @override
   void initState() {
@@ -1032,6 +1080,7 @@ class _LookupMultiSelectSheetState extends State<_LookupMultiSelectSheet> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -1039,14 +1088,17 @@ class _LookupMultiSelectSheetState extends State<_LookupMultiSelectSheet> {
   @override
   Widget build(BuildContext context) {
     final filtered =
-        widget.options.where((item) {
-          if (_query.trim().isEmpty) {
-            return true;
-          }
-          final query = _query.toLowerCase();
-          return item.text.toLowerCase().contains(query) ||
-              (item.subtitle?.toLowerCase().contains(query) ?? false);
-        }).toList();
+        widget.options
+            .where((item) {
+              if (_query.trim().isEmpty) {
+                return true;
+              }
+              final query = _query.toLowerCase();
+              return item.text.toLowerCase().contains(query) ||
+                  (item.subtitle?.toLowerCase().contains(query) ?? false);
+            })
+            .take(_maxRenderedItems)
+            .toList();
 
     return SafeArea(
       child: Padding(
@@ -1071,7 +1123,7 @@ class _LookupMultiSelectSheetState extends State<_LookupMultiSelectSheet> {
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.search),
               ),
-              onChanged: (value) => setState(() => _query = value),
+              onChanged: _onQueryChanged,
             ),
             const SizedBox(height: 12),
             Flexible(

@@ -5,9 +5,15 @@ namespace Modules\HumanResource\Services;
 use Illuminate\Support\Facades\Auth;
 use Modules\HumanResource\Entities\Attendance;
 use Modules\HumanResource\Entities\AttendanceAdjustment;
+use Modules\HumanResource\Support\AttendanceWorkflowNotificationService;
 
 class AttendanceAdjustmentService
 {
+    public function __construct(
+        private readonly AttendanceWorkflowNotificationService $attendanceWorkflowNotificationService
+    ) {
+    }
+
     public function request(array $payload): array
     {
         $employeeId = (int) ($payload['employee_id'] ?? 0);
@@ -43,6 +49,8 @@ class AttendanceAdjustmentService
                 'source' => 'attendance_adjustment_service',
             ],
         ]);
+
+        $this->attendanceWorkflowNotificationService->notifySubmitted($adjustment);
 
         return [
             'status' => 'ok',

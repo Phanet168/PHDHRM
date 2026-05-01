@@ -1,6 +1,7 @@
 {
   "version": "0.2.0",
   "configurations": [
+  
     
 
 
@@ -18,7 +19,8 @@
       "type": "dart",
       "request": "launch",
       "program": "${workspaceFolder}/mobile/lib/main.dart",
-      "cwd": "${workspaceFolder}/mobile"
+      "cwd": "${workspaceFolder}/mobile",
+      "exceptionPauseMode": "Unhandled"
     }
   ]
 }

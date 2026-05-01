@@ -11,13 +11,11 @@ $(document).ready(function () {
       return null;
     }
 
-    // yyyy-mm-dd
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       const parts = value.split('-');
       return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
     }
 
-    // dd/mm/yyyy
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
       const parts = value.split('/');
       return new Date(parseInt(parts[2], 10), parseInt(parts[1], 10) - 1, parseInt(parts[0], 10));
@@ -68,7 +66,15 @@ $(document).ready(function () {
 
     const $form = $select.closest('form');
     const $hintBox = $form.find('.leave-policy-hint').first();
-    const $selectedOption = $select.find('option:selected');
+    let $selectedOption = $select.find('option:selected');
+
+    if ((!$selectedOption.length || !$selectedOption.val()) && !$select.is('select')) {
+      const selectedValue = ($select.val() || '').toString();
+      const $metaSelect = $form.find('.leave-type-meta').first();
+      if ($metaSelect.length) {
+        $selectedOption = $metaSelect.find('option[value="' + selectedValue + '"]').first();
+      }
+    }
 
     if (!$hintBox.length || !$selectedOption.length || !$selectedOption.val()) {
       return;
@@ -83,25 +89,52 @@ $(document).ready(function () {
     const requiresAttachment = parseInt($selectedOption.data('requires-attachment'), 10) === 1;
     const requiresMedical = parseInt($selectedOption.data('requires-medical'), 10) === 1;
 
-    let lines = [];
-    lines.push(`<strong>${policyLabel}</strong>`);
+    const cards = [];
 
     if (entitlementValue !== undefined && entitlementValue !== null && String(entitlementValue) !== '') {
-      lines.push(`សិទ្ធិច្បាប់៖ ${entitlementValue} ${entitlementUnit} / ${entitlementScope}`);
+      cards.push(`
+        <div class="leave-note-item">
+          <span class="leave-note-label">សិទ្ធិច្បាប់</span>
+          <strong class="leave-note-value">${entitlementValue} ${entitlementUnit}</strong>
+        </div>
+      `);
     }
 
     if (maxPerRequest !== undefined && maxPerRequest !== null && String(maxPerRequest) !== '') {
-      lines.push(`អតិបរមាក្នុងមួយសំណើ៖ ${maxPerRequest} ${entitlementUnit}`);
+      cards.push(`
+        <div class="leave-note-item">
+          <span class="leave-note-label">អតិបរមា/សំណើ</span>
+          <strong class="leave-note-value">${maxPerRequest} ${entitlementUnit}</strong>
+        </div>
+      `);
     }
 
-    lines.push(`បៀវត្ស៖ ${isPaid ? 'មានបៀវត្ស' : 'គ្មានបៀវត្ស'}`);
-    lines.push(`ឯកសារភ្ជាប់៖ ${(requiresAttachment || requiresMedical) ? 'ត្រូវភ្ជាប់' : 'មិនតម្រូវ'}`);
+    cards.push(`
+      <div class="leave-note-item">
+        <span class="leave-note-label">ប្រាក់បៀវត្ស</span>
+        <strong class="leave-note-value">${isPaid ? 'មានប្រាក់បៀវត្ស' : 'គ្មានប្រាក់បៀវត្ស'}</strong>
+      </div>
+    `);
 
+    cards.push(`
+      <div class="leave-note-item">
+        <span class="leave-note-label">ឯកសារភ្ជាប់</span>
+        <strong class="leave-note-value">${(requiresAttachment || requiresMedical) ? 'ត្រូវភ្ជាប់' : 'មិនតម្រូវ'}</strong>
+      </div>
+    `);
+
+    const metaLines = [`គោលការណ៍: ${policyLabel}`, `សុពលភាព: ${entitlementScope}`];
     if (requiresMedical) {
-      lines.push('តម្រូវវិញ្ញាបនបត្រពេទ្យ');
+      metaLines.push('តម្រូវវិញ្ញាបនបត្រពេទ្យ');
     }
 
-    $hintBox.html(lines.join(' | '));
+    $hintBox.html(`
+      <div class="leave-note-head">
+        <strong class="leave-note-title">${policyLabel}</strong>
+      </div>
+      <div class="leave-note-grid">${cards.join('')}</div>
+      <div class="leave-note-meta">${metaLines.join(' • ')}</div>
+    `);
 
     const $attachmentInput = $form.find('.leave-attachment-input').first();
     const $attachmentRequired = $form.find('.leave-attachment-required').first();
@@ -127,7 +160,7 @@ $(document).ready(function () {
       $hintBox
         .removeClass('alert-secondary alert-success alert-warning alert-danger')
         .addClass('alert-info')
-        .html('Loading leave balance...');
+        .html('កំពុងទាញយកព័ត៌មានថ្ងៃឈប់សម្រាក...');
       return;
     }
 
@@ -135,7 +168,7 @@ $(document).ready(function () {
       $hintBox
         .removeClass('alert-info alert-success alert-warning alert-danger')
         .addClass('alert-secondary')
-        .html('Please select employee and leave type to view balance.');
+        .html('សូមជ្រើសបុគ្គលិក និងប្រភេទច្បាប់ ដើម្បីមើលថ្ងៃនៅសល់។');
       return;
     }
 
@@ -150,30 +183,65 @@ $(document).ready(function () {
     const maxPerRequest = (payload.max_per_request === null || payload.max_per_request === undefined || payload.max_per_request === '')
       ? null
       : Number(payload.max_per_request);
-    const yearText = payload.financial_year_label ? ` | Year: ${payload.financial_year_label}` : '';
 
-    let lines = [];
-    lines.push(`<strong>${scopeLabel}</strong>${yearText}`);
-    lines.push(`Entitled: ${entitled} ${unitLabel}`);
+    const metrics = [
+      {
+        label: 'សិទ្ធិសរុប',
+        value: `${entitled} ${unitLabel}`,
+      },
+      {
+        label: 'បានអនុម័ត',
+        value: `${Number.isNaN(approvedTaken) ? 0 : approvedTaken} ${unitLabel}`,
+      },
+      {
+        label: 'កំពុងរង់ចាំ',
+        value: `${Number.isNaN(pendingReserved) ? 0 : pendingReserved} ${unitLabel}`,
+      }
+    ];
 
-    if (!Number.isNaN(approvedTaken)) {
-      lines.push(`Approved: ${approvedTaken} ${unitLabel}`);
-    }
-    if (!Number.isNaN(pendingReserved)) {
-      lines.push(`Pending: ${pendingReserved} ${unitLabel}`);
-    }
     if (remaining !== null && !Number.isNaN(remaining)) {
-      lines.push(`Remaining: <strong>${remaining}</strong> ${unitLabel}`);
+      metrics.push({
+        label: 'នៅសល់',
+        value: `${remaining} ${unitLabel}`,
+        emphasis: true,
+      });
     }
+
     if (maxPerRequest !== null && !Number.isNaN(maxPerRequest) && maxPerRequest > 0) {
-      lines.push(`Max per request: ${maxPerRequest} ${unitLabel}`);
+      metrics.push({
+        label: 'អតិបរមា/សំណើ',
+        value: `${maxPerRequest} ${unitLabel}`,
+      });
+    }
+
+    const metricHtml = metrics.map(function (metric) {
+      return `
+        <div class="leave-note-item${metric.emphasis ? ' leave-note-item-highlight' : ''}">
+          <span class="leave-note-label">${metric.label}</span>
+          <strong class="leave-note-value">${metric.value}</strong>
+        </div>
+      `;
+    }).join('');
+
+    const meta = [];
+    if (scopeLabel) {
+      meta.push(`សិទ្ធិ: ${scopeLabel}`);
+    }
+    if (payload.financial_year_label) {
+      meta.push(`ឆ្នាំ: ${payload.financial_year_label}`);
     }
 
     const isLow = remaining !== null && !Number.isNaN(remaining) && remaining <= 0;
     $hintBox
       .removeClass('alert-info alert-secondary alert-success alert-warning alert-danger')
       .addClass(isLow ? 'alert-warning' : 'alert-success')
-      .html(lines.join(' | '));
+      .html(`
+        <div class="leave-note-head">
+          <strong class="leave-note-title">សមតុល្យច្បាប់</strong>
+        </div>
+        <div class="leave-note-grid">${metricHtml}</div>
+        <div class="leave-note-meta">${meta.join(' • ')}</div>
+      `);
   }
 
   function fetchLeaveBalance($form) {
@@ -224,6 +292,43 @@ $(document).ready(function () {
     });
   }
 
+  function initLeaveFormSelects($context) {
+    if (!$context || !$context.length || typeof $.fn.select2 !== 'function') {
+      return;
+    }
+
+    $context.find('.leave-search-select').each(function () {
+      const $select = $(this);
+      const $modal = $select.closest('.modal');
+
+      if ($select.hasClass('select2-hidden-accessible')) {
+        $select.select2('destroy');
+      }
+
+      $select.select2({
+        width: '100%',
+        placeholder: $select.find('option:first').text() || 'Select option',
+        allowClear: true,
+        minimumResultsForSearch: 0,
+        dropdownAutoWidth: true,
+        dropdownParent: $modal.length ? $modal : $(document.body)
+      });
+
+      $select.off('select2:open.leaveSearch').on('select2:open.leaveSearch', function () {
+        const searchField = document.querySelector('.select2-container--open .select2-search__field');
+        if (searchField) {
+          window.setTimeout(function () {
+            searchField.focus();
+            searchField.click();
+          }, 0);
+        }
+      });
+    });
+  }
+
+  window.initLeaveFormSelects = initLeaveFormSelects;
+  initLeaveFormSelects($(document));
+
   $(document).on('change', '.leave-start-date, .leave-end-date', function () {
     const $form = $(this).closest('form');
     updateLeaveTotalDays($form);
@@ -250,6 +355,7 @@ $(document).ready(function () {
 
   $(document).on('shown.bs.modal', '#addLeaveApplication, #edit-application', function () {
     const $modal = $(this);
+    initLeaveFormSelects($modal);
     $modal.find('.leave-application-form .leave-type-select').each(function () {
       renderLeavePolicyHint($(this));
     });
@@ -261,7 +367,6 @@ $(document).ready(function () {
   });
 
   $("#approved_end_date").change(function () {
-
     var start = $('#approved_start_date').val();
     var end = $('#approved_end_date').val();
     var startDay = new Date(start);
@@ -273,11 +378,10 @@ $(document).ready(function () {
     var totalDays = Math.floor(days);
     console.log(totalDays);
     if (totalDays < 0) {
-      alert('Start Days Cannot be Grater than End Date')
+      alert('Start Days Cannot be Grater than End Date');
     } else {
       $('#approved_total_day').val(totalDays + 1);
     }
-
   });
 
   $(document).on('click', '#create_submit', function (e) {
@@ -337,14 +441,13 @@ $(document).on('click', '.statusChange', function () {
               title: 'Aplication Rejected',
               showConfirmButton: false,
               timer: 500
-            })
+            });
             location.reload();
           }
         }
       });
     }
-  })
-
+  });
 });
 
 $(document).on('click', '.edit-application', function () {
@@ -354,6 +457,7 @@ $(document).on('click', '.edit-application', function () {
     type: "GET",
     success: function (response) {
       $('#editLeaveApplication').html(response);
+      initLeaveFormSelects($('#editLeaveApplication'));
       $('#edit-application').modal('show');
     }
   });
@@ -372,26 +476,29 @@ $(document).on('click', '.approve-application', function () {
   });
 });
 
-$(document).ready(function() {
+$(document).ready(function () {
+  function reloadLeaveApplicationTable() {
+    const $table = $('#leave-application-table');
+    if (!$table.length || !$.fn.DataTable.isDataTable($table)) {
+      return;
+    }
 
-  $('#leave-application-filter').click(function() {
-      var table = $('#leave-application-table');
-      table.on('preXhr.dt', function(e, settings, data) {
-          data.employee_id = $('#employee_name').val();
-      });
-      table.DataTable().ajax.reload();
+    const dataTable = $table.DataTable();
+    const currentUrl = (typeof dataTable.ajax.url === 'function' && dataTable.ajax.url()) || '';
+    const baseUrl = ($table.data('ajaxBaseUrl') || String(currentUrl).split('?')[0] || window.location.href);
+    const employeeId = ($('#employee_name').val() || '').toString().trim();
+    const nextUrl = employeeId ? `${baseUrl}?employee_id=${encodeURIComponent(employeeId)}` : baseUrl;
+
+    $table.data('ajaxBaseUrl', baseUrl);
+    dataTable.ajax.url(nextUrl).load();
+  }
+
+  $('#leave-application-filter').on('click', function () {
+    reloadLeaveApplicationTable();
   });
 
-  $('#leave-application-search-reset').click(function() {
-      $('#employee_name').val('').trigger('change');
-      var table = $('#leave-application-table');
-      table.on('preXhr.dt', function(e, settings, data) {
-          data.employee_id = '';
-
-          $("#employee_name").select2({
-              placeholder: "All Employees"
-          });
-      });
-      table.DataTable().ajax.reload();
+  $('#leave-application-search-reset').on('click', function () {
+    $('#employee_name').val('').trigger('change');
+    reloadLeaveApplicationTable();
   });
 });

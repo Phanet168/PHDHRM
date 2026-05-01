@@ -1,8 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:motion_tab_bar_v2/motion-tab-bar.dart';
 
-import '../../../core/config/app_routes.dart';
 import '../../auth/models/auth_user.dart';
 import '../models/attendance_day_record.dart';
+import 'attendance_scan_page.dart';
 import '../services/home_attendance_service.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
@@ -73,6 +74,39 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
       fromDate: fromDate,
       toDate: toDate,
     );
+  }
+
+  Future<void> _openAttendanceScanner() async {
+    if (!widget.user.hasEmployee) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'គណនីនេះមិនទាន់ភ្ជាប់ប្រវត្តិបុគ្គលិក ដូច្នេះមិនអាចស្កេនវត្តមានបានទេ។',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final shouldRefresh = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder:
+            (_) => AttendanceScanPage(
+              user: widget.user,
+              attendanceService: widget.attendanceService,
+              language: widget.language,
+            ),
+      ),
+    );
+
+    if (shouldRefresh == true && mounted) {
+      setState(() {
+        _recordsFuture = _loadRecords();
+      });
+    }
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -702,8 +736,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
       ),
       bottomNavigationBar: _CalendarBottomNav(
         onHomeTap: () => Navigator.of(context).maybePop(),
-        onSettingsTap:
-            () => Navigator.of(context).pushNamed(AppRoutes.systemSettings),
+        onScanTap: _openAttendanceScanner,
       ),
     );
   }
@@ -833,11 +866,7 @@ class _LegendRow extends StatelessWidget {
           _LegendDot(color: _kMissionText, label: 'បេសកកម្ម'),
           _LegendDot(color: _kOnTimeDot, label: 'ទាន់ពេល'),
           _LegendDot(color: _kLateDot, label: 'យឺត'),
-          _LegendDot(
-            color: _kTodayDot,
-            label: 'ថ្ងៃនេះ',
-            outlined: true,
-          ),
+          _LegendDot(color: _kTodayDot, label: 'ថ្ងៃនេះ', outlined: true),
         ],
       ),
     );
@@ -888,15 +917,7 @@ class _WeekdayHeader extends StatelessWidget {
   const _WeekdayHeader();
 
   // Sun … Sat display labels
-  static const _labels = [
-    'អា',
-    'ចន្ទ',
-    'អង្',
-    'ពុ',
-    'ព្រ',
-    'សុ',
-    'សៅ',
-  ];
+  static const _labels = ['អា', 'ចន្ទ', 'អង្', 'ពុ', 'ព្រ', 'សុ', 'សៅ'];
 
   @override
   Widget build(BuildContext context) {
@@ -1763,14 +1784,8 @@ class _DetailSheet extends StatelessWidget {
             children: [
               _SheetRow(label: 'ម៉ោងចូល', value: timeIn),
               _SheetRow(label: 'ម៉ោងចេញ', value: timeOut),
-              _SheetRow(
-                label: 'ម៉ោងធ្វើការ',
-                value: totalHours,
-              ),
-              _SheetRow(
-                label: 'ចំនួនស្កេន',
-                value: '$punchCount ដង',
-              ),
+              _SheetRow(label: 'ម៉ោងធ្វើការ', value: totalHours),
+              _SheetRow(label: 'ចំនួនស្កេន', value: '$punchCount ដង'),
               if (lateMinutes > 0)
                 _SheetRow(
                   label: 'ពន្យារ',
@@ -1855,108 +1870,46 @@ class _SheetRow extends StatelessWidget {
 
 // ─── Bottom navigation ────────────────────────────────────────────────────────
 class _CalendarBottomNav extends StatelessWidget {
-  const _CalendarBottomNav({
-    required this.onHomeTap,
-    required this.onSettingsTap,
-  });
+  const _CalendarBottomNav({required this.onHomeTap, required this.onScanTap});
 
   final VoidCallback onHomeTap;
-  final VoidCallback onSettingsTap;
+  final VoidCallback onScanTap;
 
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).padding.bottom;
+    const labels = ['ព័ត៌មាន', 'ស្កេន', 'វត្តមាន'];
 
-    return Container(
-      height: 62 + bottomPad,
-      decoration: const BoxDecoration(
-        color: _kCardBg,
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 18,
-            offset: Offset(0, -4),
-          ),
-        ],
-      ),
+    return SafeArea(
+      top: false,
       child: Padding(
-        padding: EdgeInsets.only(bottom: bottomPad),
-        child: Row(
-          children: [
-            _BottomNavItem(
-              icon: Icons.home_outlined,
-              label: 'គេហទំព័រ',
-              active: false,
-              onTap: onHomeTap,
-            ),
-            const _BottomNavItem(
-              icon: Icons.calendar_month_rounded,
-              label: 'ប្រតិទិន',
-              active: true,
-            ),
-            const _BottomNavItem(
-              icon: Icons.notifications_outlined,
-              label: 'ជូនដំណឹង',
-              active: false,
-            ),
-            _BottomNavItem(
-              icon: Icons.settings_outlined,
-              label: 'ការកំណត់',
-              active: false,
-              onTap: onSettingsTap,
-            ),
+        padding: EdgeInsets.fromLTRB(0, 0, 0, bottomPad > 0 ? 6 : 10),
+        child: MotionTabBar(
+          initialSelectedTab: labels[2],
+          labels: labels,
+          icons: const [
+            Icons.newspaper_outlined,
+            Icons.qr_code_scanner_rounded,
+            Icons.calendar_month_outlined,
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomNavItem extends StatelessWidget {
-  const _BottomNavItem({
-    required this.icon,
-    required this.label,
-    required this.active,
-    this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool active;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    const activeColor = Color(0xFF1565C0);
-    const inactiveColor = Color(0xFF94A3B8);
-
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 24, color: active ? activeColor : inactiveColor),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                color: active ? activeColor : inactiveColor,
-              ),
-            ),
-            if (active)
-              Container(
-                width: 24,
-                height: 3,
-                margin: const EdgeInsets.only(top: 3),
-                decoration: BoxDecoration(
-                  color: activeColor,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-          ],
+          tabSize: 52,
+          tabBarHeight: 60,
+          textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+          tabIconSize: 22,
+          tabIconSelectedSize: 26,
+          tabSelectedColor: const Color(0xFF16A34A),
+          tabIconSelectedColor: Colors.white,
+          tabIconColor: const Color(0xFF9CA3AF),
+          tabBarColor: Colors.white,
+          onTabItemSelected: (index) {
+            if (index == 0) {
+              onHomeTap();
+              return;
+            }
+            if (index == 1) {
+              onScanTap();
+            }
+          },
         ),
       ),
     );

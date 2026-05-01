@@ -27,6 +27,8 @@ Route::group(['prefix' => 'correspondence', 'middleware' => ['web', 'auth']], fu
         ->name('correspondence.attachments.file');
     Route::get('/notifications/open/{notification}', [CorrespondenceController::class, 'openNotification'])
         ->name('correspondence.notifications.open');
+    Route::post('/notifications/clear', [CorrespondenceController::class, 'clearNotifications'])
+        ->name('correspondence.notifications.clear');
     Route::get('/{letter}', [CorrespondenceController::class, 'show'])->name('correspondence.show');
     Route::post('/{letter}/progress', [CorrespondenceController::class, 'progress'])->name('correspondence.progress');
     Route::post('/{letter}/distribute', [CorrespondenceController::class, 'distribute'])->name('correspondence.distribute');
@@ -35,3 +37,8 @@ Route::group(['prefix' => 'correspondence', 'middleware' => ['web', 'auth']], fu
     Route::post('/distribution/{distribution}/acknowledge', [CorrespondenceController::class, 'acknowledge'])->name('correspondence.acknowledge');
     Route::post('/distribution/{distribution}/feedback', [CorrespondenceController::class, 'feedback'])->name('correspondence.feedback');
 });
+
+Route::get('/correspondence/attachments/signed/{letter}/{index}/file', [CorrespondenceController::class, 'attachmentFileSigned'])
+    ->middleware(['web', 'signed'])
+    ->whereNumber('index')
+    ->name('correspondence.attachments.file.signed');

@@ -6,6 +6,7 @@ use App\Models\User;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -22,6 +23,7 @@ use Modules\HumanResource\Entities\WeekHoliday;
 use Modules\HumanResource\Entities\WorkflowInstance;
 use Modules\HumanResource\Entities\WorkflowInstanceAction;
 use Modules\HumanResource\Support\EmployeeServiceHistoryService;
+use Modules\HumanResource\Support\LeaveWorkflowNotificationService;
 use Modules\HumanResource\Support\OrgHierarchyAccessService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
 use Modules\HumanResource\Support\WorkflowActorResolverService;
@@ -147,8 +149,30 @@ class LeaveController extends Controller
     public function index(LeaveApplicationDataTable $dataTable)
     {
         $leaveTypes = LeaveType::all();
-        $employees = Employee::where('is_active', 1)->get();
-        return $dataTable->render('humanresource::leave.leaveapplication', compact('employees', 'leaveTypes'));
+        $currentUser = Auth::user();
+        $isSystemAdmin = $currentUser ? $this->orgHierarchyAccessService()->isSystemAdmin($currentUser) : false;
+        $currentEmployeeId = (int) ($currentUser?->employee?->id ?? 0);
+
+        $employeesQuery = Employee::query()->where('is_active', 1);
+        if (!$isSystemAdmin && $currentEmployeeId > 0) {
+            $employeesQuery->where('id', $currentEmployeeId);
+        }
+
+        $employees = $employeesQuery->get();
+        $handoverEmployees = Employee::query()
+            ->where('is_active', 1)
+            ->whereNotNull('user_id')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+
+        return $dataTable->render('humanresource::leave.leaveapplication', compact(
+            'employees',
+            'leaveTypes',
+            'handoverEmployees',
+            'isSystemAdmin',
+            'currentEmployeeId'
+        ));
     }
 
     public function leaveBalance(Request $request)
@@ -228,14 +252,14 @@ class LeaveController extends Controller
             'ok' => true,
             'scope' => $scope,
             'scope_label' => $this->leaveScopeLabel($scope),
-            'unit' => (string) ($leaveType->entitlement_unit ?? 'day'),
-            'unit_label' => $this->leaveUnitLabel((string) ($leaveType->entitlement_unit ?? 'day')),
+            'unit' => $this->normalizedLeaveBalanceUnit($leaveType),
+            'unit_label' => $this->leaveUnitLabel($this->normalizedLeaveBalanceUnit($leaveType)),
             'entitled' => $entitled,
             'approved_taken' => $approvedTaken,
             'pending_reserved' => $pendingReserved,
             'remaining' => $remaining,
             'max_per_request' => $leaveType->max_per_request !== null
-                ? (float) $leaveType->max_per_request
+                ? $this->normalizeLeaveAmountToDays($leaveType, (float) $leaveType->max_per_request)
                 : null,
             'financial_year_id' => $financialYearId,
             'financial_year_label' => $financialYearLabel,
@@ -245,9 +269,13 @@ class LeaveController extends Controller
     public function store(Request $request)
     {
         $path = '';
+        $currentUser = Auth::user();
+        $isSystemAdmin = $currentUser ? $this->orgHierarchyAccessService()->isSystemAdmin($currentUser) : false;
+        $currentEmployeeId = (int) ($currentUser?->employee?->id ?? 0);
 
         $validated = $request->validate([
-            'employee_id' => 'required',
+            'employee_id' => 'required|integer|exists:employees,id',
+            'handover_employee_id' => 'required|integer|exists:employees,id',
             'leave_type_id' => 'required',
             'leave_apply_start_date' => 'required',
             'leave_apply_end_date' => 'required',
@@ -256,6 +284,16 @@ class LeaveController extends Controller
             'location' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,txt,rtf,jpeg,jpg,png,gif,svg|max:51200',
 
         ]);
+
+        if (!$isSystemAdmin) {
+            if ($currentEmployeeId <= 0) {
+                return redirect()->back()
+                    ->withErrors(['employee_id' => localize('employee_profile_required', 'Your user account must be linked to an employee profile.')])
+                    ->withInput();
+            }
+
+            $validated['employee_id'] = $currentEmployeeId;
+        }
 
         $leaveType = LeaveType::find((int) $validated['leave_type_id']);
         if (!$leaveType) {
@@ -266,6 +304,21 @@ class LeaveController extends Controller
 
         $requiresAttachment = (bool) ($leaveType->requires_attachment ?? false)
             || (bool) ($leaveType->requires_medical_certificate ?? false);
+
+        $handoverEmployee = Employee::query()
+            ->where('is_active', 1)
+            ->whereNotNull('user_id')
+            ->find((int) $validated['handover_employee_id']);
+        if (!$handoverEmployee) {
+            return redirect()->back()
+                ->withErrors(['handover_employee_id' => localize('invalid_handover_employee', 'Replacement employee must have an active user account.')])
+                ->withInput();
+        }
+        if ((int) $handoverEmployee->id === (int) $validated['employee_id']) {
+            return redirect()->back()
+                ->withErrors(['handover_employee_id' => localize('handover_employee_must_be_different', 'Replacement employee must be different from the requester.')])
+                ->withInput();
+        }
 
         if ($requiresAttachment && !$request->hasFile('location')) {
             return redirect()->back()
@@ -379,6 +432,7 @@ class LeaveController extends Controller
 
         $leave = ApplyLeave::create($validated);
         $this->initializeLeaveWorkflow($leave, Auth::id());
+        $this->leaveWorkflowNotificationService()->notifySubmitted($leave->fresh());
 
         return redirect()->route('leave.index')->with('success', localize('data_save'));
     }
@@ -386,9 +440,30 @@ class LeaveController extends Controller
     public function leaveApplicationEdit($id)
     {
         $row = ApplyLeave::findOrFail($id);
+        $currentUser = Auth::user();
+        $isSystemAdmin = $currentUser ? $this->orgHierarchyAccessService()->isSystemAdmin($currentUser) : false;
+        $currentEmployeeId = (int) ($currentUser?->employee?->id ?? 0);
         $leaveTypes = LeaveType::all();
-        $employees = Employee::where('is_active', 1)->get();
-        return response()->view('humanresource::leave.livedit', compact('row', 'employees', 'leaveTypes'));
+        $employeesQuery = Employee::query()->where('is_active', 1);
+        if (!$isSystemAdmin && $currentEmployeeId > 0) {
+            $employeesQuery->where('id', $currentEmployeeId);
+        }
+        $employees = $employeesQuery->get();
+        $handoverEmployees = Employee::query()
+            ->where('is_active', 1)
+            ->whereNotNull('user_id')
+            ->orderBy('first_name')
+            ->orderBy('last_name')
+            ->get();
+
+        return response()->view('humanresource::leave.livedit', compact(
+            'row',
+            'employees',
+            'leaveTypes',
+            'handoverEmployees',
+            'isSystemAdmin',
+            'currentEmployeeId'
+        ));
     }
 
     public function showApproveLeaveApplication($id)
@@ -397,12 +472,90 @@ class LeaveController extends Controller
         return response()->view('humanresource::leave.approveleave', compact('row'));
     }
 
+    public function reviewForm(ApplyLeave $leave)
+    {
+        $leave->load([
+            'employee.primaryUnitPosting.department',
+            'leaveType',
+            'handoverEmployee',
+            'workflowInstance.definition.steps.systemRole',
+        ]);
+
+        if (!$this->canCurrentUserActOnLeave($leave, Auth::user())) {
+            abort(403, localize('permission_denied', 'Permission denied.'));
+        }
+
+        return view('humanresource::leave.review', compact('leave'));
+    }
+
+    public function print(ApplyLeave $leave)
+    {
+        $leave->load(['employee', 'leaveType', 'handoverEmployee', 'approvedBy']);
+
+        $user = Auth::user();
+        $requesterUserId = (int) ($leave->employee?->user_id ?? 0);
+        $canAccess = $user
+            && (
+                (int) $user->id === $requesterUserId
+                || $user->can('read_leave_approval')
+                || $user->can('create_leave_approval')
+                || $this->orgHierarchyAccessService()->isSystemAdmin($user)
+            );
+
+        abort_unless($canAccess, 403, localize('permission_denied', 'Permission denied.'));
+
+        if ((string) ($leave->workflow_status ?? '') !== 'approved' && (int) ($leave->is_approved ?? 0) !== 1) {
+            Toastr::warning(localize('leave_not_finalized_for_print', 'This leave request is not approved yet.'));
+            return redirect()->route('leave.index');
+        }
+
+        return view('humanresource::leave.print', compact('leave'));
+    }
+
+    public function openNotification(string $notification)
+    {
+        $user = Auth::user();
+        abort_unless($user, 403);
+
+        /** @var DatabaseNotification|null $record */
+        $record = $user->notifications()->where('id', $notification)->first();
+        abort_unless($record, 404);
+
+        if ($record->read_at === null) {
+            $record->markAsRead();
+        }
+
+        $link = trim((string) data_get($record->data, 'link', route('leave.index')));
+        return redirect()->to($link !== '' ? $link : route('leave.index'));
+    }
+
+    public function clearNotifications()
+    {
+        $user = Auth::user();
+        abort_unless($user, 403);
+
+        $deleted = $user->notifications()
+            ->where('type', \App\Notifications\LeaveWorkflowNotification::class)
+            ->delete();
+
+        Toastr::success(
+            localize('leave_notifications_cleared', 'Leave notifications cleared successfully.'),
+            'Success'
+        );
+
+        return back()->with('leave_notifications_cleared_count', (int) $deleted);
+    }
+
     public function update(Request $request, ApplyLeave $leave)
     {
         $path = '';
+        $currentUser = Auth::user();
+        $isSystemAdmin = $currentUser ? $this->orgHierarchyAccessService()->isSystemAdmin($currentUser) : false;
+        $currentEmployeeId = (int) ($currentUser?->employee?->id ?? 0);
 
         $validated = $request->validate([
-            'employee_id' => 'required',
+            'employee_id' => 'required|integer|exists:employees,id',
+            'handover_employee_id' => 'required|integer|exists:employees,id',
             'leave_type_id' => 'required',
             'leave_apply_start_date' => 'required',
             'leave_apply_end_date' => 'required',
@@ -411,6 +564,16 @@ class LeaveController extends Controller
             'location' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,txt,rtf,jpeg,jpg,png,gif,svg|max:51200',
 
         ]);
+
+        if (!$isSystemAdmin) {
+            if ($currentEmployeeId <= 0) {
+                return redirect()->back()
+                    ->withErrors(['employee_id' => localize('employee_profile_required', 'Your user account must be linked to an employee profile.')])
+                    ->withInput();
+            }
+
+            $validated['employee_id'] = $currentEmployeeId;
+        }
 
         $leaveType = LeaveType::find((int) $validated['leave_type_id']);
         if (!$leaveType) {
@@ -423,6 +586,21 @@ class LeaveController extends Controller
             || (bool) ($leaveType->requires_medical_certificate ?? false);
 
         $hasAttachment = $request->hasFile('location') || !empty($request->oldlocation);
+        $handoverEmployee = Employee::query()
+            ->where('is_active', 1)
+            ->whereNotNull('user_id')
+            ->find((int) $validated['handover_employee_id']);
+        if (!$handoverEmployee) {
+            return redirect()->back()
+                ->withErrors(['handover_employee_id' => localize('invalid_handover_employee', 'Replacement employee must have an active user account.')])
+                ->withInput();
+        }
+        if ((int) $handoverEmployee->id === (int) $validated['employee_id']) {
+            return redirect()->back()
+                ->withErrors(['handover_employee_id' => localize('handover_employee_must_be_different', 'Replacement employee must be different from the requester.')])
+                ->withInput();
+        }
+
         if ($requiresAttachment && !$hasAttachment) {
             return redirect()->back()
                 ->withErrors(['location' => localize('attachment_required', 'Attachment is required for this leave type.')])
@@ -794,6 +972,7 @@ class LeaveController extends Controller
             'leave_request',
             $this->buildLeaveWorkflowContext($leave)
         );
+        $plan = $this->normalizeLeaveWorkflowPlan($plan, $leave);
 
         if (!$plan || empty($plan['steps'])) {
             $leave->update([
@@ -886,6 +1065,8 @@ class LeaveController extends Controller
                         : (!empty($validated['description']) ? Str::limit((string) $validated['description'], 250, '') : null),
                 ]);
 
+                $this->leaveWorkflowNotificationService()->notifyRejected($leave->fresh());
+
                 return [
                     'ok' => true,
                     'final' => true,
@@ -909,6 +1090,7 @@ class LeaveController extends Controller
 
             $this->updateLeaveEntitlementTaken($leave, (int) ($validated['total_approved_day'] ?? 0));
             $this->logLeaveApprovalHistory($leave, $validated);
+            $this->leaveWorkflowNotificationService()->notifyApproved($leave->fresh());
 
             return [
                 'ok' => true,
@@ -980,6 +1162,8 @@ class LeaveController extends Controller
                     'manager_approved_description' => !empty($note) ? Str::limit((string) $note, 250, '') : null,
                 ]);
             });
+
+            $this->leaveWorkflowNotificationService()->notifyRejected($leave->fresh());
 
             return [
                 'ok' => true,
@@ -1095,6 +1279,9 @@ class LeaveController extends Controller
             $leave = $leave->fresh(['leaveType']);
             $this->updateLeaveEntitlementTaken($leave, (int) ($validated['total_approved_day'] ?? 0));
             $this->logLeaveApprovalHistory($leave, $validated);
+            $this->leaveWorkflowNotificationService()->notifyApproved($leave->fresh());
+        } else {
+            $this->leaveWorkflowNotificationService()->notifyForwarded($leave->fresh());
         }
 
         return [
@@ -1286,10 +1473,61 @@ class LeaveController extends Controller
         ];
     }
 
+    protected function normalizeLeaveWorkflowPlan(?array $plan, ApplyLeave $leave): ?array
+    {
+        if (!$plan || empty($plan['steps'])) {
+            return $plan;
+        }
+
+        $requesterUserId = (int) ($leave->employee()->value('user_id') ?? 0);
+        if ($requesterUserId <= 0) {
+            return $plan;
+        }
+
+        $previewPlan = $this->workflowActorResolverService()->previewPlan(
+            $plan,
+            $this->buildLeaveWorkflowContext($leave)
+        );
+
+        $steps = collect((array) ($previewPlan['steps'] ?? []))->values();
+        while ($steps->isNotEmpty()) {
+            $firstStep = (array) $steps->first();
+            $candidateUserIds = collect((array) ($firstStep['resolved_candidates'] ?? []))
+                ->pluck('user_id')
+                ->map(fn ($id) => (int) $id)
+                ->filter(fn ($id) => $id > 0)
+                ->unique()
+                ->values();
+
+            if (!$candidateUserIds->contains($requesterUserId)) {
+                break;
+            }
+
+            $steps = $steps->slice(1)->values();
+        }
+
+        if ($steps->isEmpty()) {
+            return null;
+        }
+
+        $normalizedSteps = $steps->values()->map(function (array $step, int $index) use ($steps) {
+            $isFinal = $index === ($steps->count() - 1);
+            $step['step_order'] = $index + 1;
+            $step['is_final_approval'] = $isFinal;
+            if ($isFinal) {
+                $step['action_type'] = 'approve';
+            }
+            return $step;
+        })->all();
+
+        $plan['steps'] = $normalizedSteps;
+        return $plan;
+    }
+
     protected function resolveLeaveSourceDepartmentId(ApplyLeave $leave): int
     {
         $employee = $leave->employee()
-            ->with('primaryUnitPosting:id,employee_id,department_id')
+            ->with('primaryUnitPosting:employee_unit_postings.id,employee_unit_postings.employee_id,employee_unit_postings.department_id')
             ->first();
 
         if (!$employee) {
@@ -1413,7 +1651,21 @@ class LeaveController extends Controller
             $value = $leaveType->leave_days;
         }
 
-        return max((int) round((float) $value), 0);
+        return $this->normalizeLeaveAmountToDays($leaveType, (float) $value);
+    }
+
+    protected function normalizeLeaveAmountToDays(LeaveType $leaveType, float $value): int
+    {
+        $normalized = (string) ($leaveType->entitlement_unit ?? 'day') === 'month'
+            ? $value * 30
+            : $value;
+
+        return max((int) round($normalized), 0);
+    }
+
+    protected function normalizedLeaveBalanceUnit(LeaveType $leaveType): string
+    {
+        return 'day';
     }
 
     protected function requiresUpperReview(?LeaveType $leaveType, int $days): bool
@@ -1422,7 +1674,7 @@ class LeaveController extends Controller
             return false;
         }
 
-        $maxPerRequest = (float) ($leaveType->max_per_request ?? 0);
+        $maxPerRequest = $this->normalizeLeaveAmountToDays($leaveType, (float) ($leaveType->max_per_request ?? 0));
         if ($maxPerRequest <= 0) {
             return false;
         }
@@ -1477,12 +1729,26 @@ class LeaveController extends Controller
         int $academicYearId,
         ?int $excludeLeaveId = null
     ): int {
+        [$rangeStart, $rangeEnd] = $this->resolveFinancialYearRange($academicYearId);
+
         $query = ApplyLeave::query()
             ->withoutGlobalScopes()
             ->where('employee_id', $employeeId)
             ->where('leave_type_id', $leaveTypeId)
-            ->where('academic_year_id', $academicYearId)
             ->whereNull('deleted_at')
+            ->where(function ($q) use ($academicYearId, $rangeStart, $rangeEnd) {
+                $q->where('academic_year_id', $academicYearId);
+
+                if ($rangeStart && $rangeEnd) {
+                    $q->orWhere(function ($legacy) use ($rangeStart, $rangeEnd) {
+                        $legacy->whereNull('academic_year_id')
+                            ->whereRaw(
+                                'DATE(COALESCE(leave_approved_start_date, leave_apply_start_date)) BETWEEN ? AND ?',
+                                [$rangeStart, $rangeEnd]
+                            );
+                    });
+                }
+            })
             ->where(function ($q) {
                 $q->where('is_approved', 1)
                     ->orWhere('workflow_status', 'approved');
@@ -1502,12 +1768,23 @@ class LeaveController extends Controller
         int $academicYearId,
         ?int $excludeLeaveId = null
     ): int {
+        [$rangeStart, $rangeEnd] = $this->resolveFinancialYearRange($academicYearId);
+
         $query = ApplyLeave::query()
             ->withoutGlobalScopes()
             ->where('employee_id', $employeeId)
             ->where('leave_type_id', $leaveTypeId)
-            ->where('academic_year_id', $academicYearId)
             ->whereNull('deleted_at')
+            ->where(function ($q) use ($academicYearId, $rangeStart, $rangeEnd) {
+                $q->where('academic_year_id', $academicYearId);
+
+                if ($rangeStart && $rangeEnd) {
+                    $q->orWhere(function ($legacy) use ($rangeStart, $rangeEnd) {
+                        $legacy->whereNull('academic_year_id')
+                            ->whereRaw('DATE(leave_apply_start_date) BETWEEN ? AND ?', [$rangeStart, $rangeEnd]);
+                    });
+                }
+            })
             ->where('is_approved', 0)
             ->where(function ($q) {
                 $q->whereIn('workflow_status', ['pending', 'draft'])
@@ -1572,10 +1849,10 @@ class LeaveController extends Controller
     protected function leaveScopeLabel(string $scope): string
     {
         return match ($scope) {
-            'per_year' => localize('scope_per_year', 'Per year'),
-            'per_request' => localize('scope_per_request', 'Per request'),
-            'per_service_lifetime' => localize('scope_per_service_lifetime', 'Per service lifetime'),
-            'manual' => localize('scope_manual', 'Manual'),
+            'per_year' => localize('scope_per_year', 'ក្នុងមួយឆ្នាំ'),
+            'per_request' => localize('scope_per_request', 'ក្នុងមួយសំណើ'),
+            'per_service_lifetime' => localize('scope_per_service_lifetime', 'ពេញរយៈពេលបម្រើការងារ'),
+            'manual' => localize('scope_manual', 'កំណត់ដោយដៃ'),
             default => $scope,
         };
     }
@@ -1583,9 +1860,26 @@ class LeaveController extends Controller
     protected function leaveUnitLabel(string $unit): string
     {
         return match ($unit) {
-            'month' => localize('month', 'month'),
-            default => localize('day', 'day'),
+            'month' => localize('month', 'ខែ'),
+            default => localize('day', 'ថ្ងៃ'),
         };
+    }
+
+    protected function resolveFinancialYearRange(int $academicYearId): array
+    {
+        $financialYear = FinancialYear::query()->find($academicYearId);
+        if (!$financialYear) {
+            return [null, null];
+        }
+
+        $rangeStart = !empty($financialYear->start_date)
+            ? Carbon::parse($financialYear->start_date)->toDateString()
+            : null;
+        $rangeEnd = !empty($financialYear->end_date)
+            ? Carbon::parse($financialYear->end_date)->toDateString()
+            : null;
+
+        return [$rangeStart, $rangeEnd];
     }
 
     protected function findOverlappingLeave(
@@ -1640,6 +1934,11 @@ class LeaveController extends Controller
     protected function workflowActorResolverService(): WorkflowActorResolverService
     {
         return app(WorkflowActorResolverService::class);
+    }
+
+    protected function leaveWorkflowNotificationService(): LeaveWorkflowNotificationService
+    {
+        return app(LeaveWorkflowNotificationService::class);
     }
 
     protected function isLeaveWithoutPay(?LeaveType $leaveType): bool

@@ -8,6 +8,8 @@ class LaravelLanguageService {
   final ApiService _apiService = ApiService();
   Map<String, String>? _cache;
   Future<Map<String, String>>? _inFlight;
+  DateTime? _lastFetchAttemptAt;
+  static const Duration _refreshInterval = Duration(minutes: 10);
   static final RegExp _khmerRegex = RegExp(r'[\u1780-\u17FF]');
 
   static const Map<String, String> _khmerFallbacks = <String, String>{
@@ -78,27 +80,35 @@ class LaravelLanguageService {
     'employees': 'បុគ្គលិក',
     'refresh': 'ធ្វើបច្ចុប្បន្នភាព',
     'menu': 'ម៉ឺនុយ',
+    'unread': 'មិនទាន់អាន',
+    'mark_all_read': 'សម្គាល់ថាបានអានទាំងអស់',
+    'mark_as_read': 'សម្គាល់ថាបានអាន',
   };
 
   Future<Map<String, String>> load({bool forceRefresh = false}) {
-    if (!forceRefresh && _cache != null) {
-      return Future<Map<String, String>>.value(_cache);
+    if (forceRefresh || _cache == null) {
+      _cache = Map<String, String>.from(_khmerFallbacks);
     }
 
-    final pending = forceRefresh ? null : _inFlight;
-    if (pending != null) {
-      return pending;
+    final shouldFetchRemote = forceRefresh || _isFetchStale();
+    if (shouldFetchRemote) {
+      _inFlight ??= _fetch();
     }
 
-    if (forceRefresh) {
-      _cache = null;
+    return Future<Map<String, String>>.value(_cache);
+  }
+
+  bool _isFetchStale() {
+    final lastAttempt = _lastFetchAttemptAt;
+    if (lastAttempt == null) {
+      return true;
     }
 
-    _inFlight = _fetch();
-    return _inFlight!;
+    return DateTime.now().difference(lastAttempt) >= _refreshInterval;
   }
 
   Future<Map<String, String>> _fetch() async {
+    _lastFetchAttemptAt = DateTime.now();
     try {
       final raw = await _apiService.get(
         '/language',

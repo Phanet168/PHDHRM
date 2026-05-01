@@ -1,4 +1,54 @@
-<form id="leadForm" action="{{ route('leave.approved', $row->uuid) }}" method="POST" enctype="multipart/form-data">
+<style>
+    .leave-approve-form .modal-body {
+        max-height: calc(100vh - 220px);
+        overflow-y: auto;
+        background: linear-gradient(180deg, #f4f8fc 0%, #fbfdff 100%);
+        padding: 1.25rem 1.5rem;
+    }
+
+    .leave-approve-form .modal-footer {
+        background: #fff;
+        border-top: 1px solid #e2e8f0;
+        gap: 0.75rem;
+        padding: 1rem 1.5rem 1.25rem;
+    }
+
+    .leave-approve-form .form-control {
+        min-height: 46px;
+        border-radius: 12px;
+    }
+
+    .leave-approve-form textarea.form-control {
+        min-height: 120px;
+    }
+
+    @media (max-width: 991.98px) {
+        .leave-approve-form .modal-body {
+            max-height: calc(100vh - 170px);
+        }
+    }
+
+    @media (max-width: 767.98px) {
+        .leave-approve-form .modal-body {
+            max-height: none;
+            padding: 1rem;
+        }
+
+        .leave-approve-form .modal-footer {
+            position: sticky;
+            bottom: 0;
+            z-index: 2;
+            padding: 0.9rem 1rem max(0.9rem, env(safe-area-inset-bottom));
+        }
+
+        .leave-approve-form .modal-footer .btn {
+            width: 100%;
+            min-height: 46px;
+        }
+    }
+</style>
+
+<form id="leadForm" class="leave-approve-form" action="{{ route('leave.approved', $row->uuid) }}" method="POST" enctype="multipart/form-data">
     @csrf
     @method('PUT')
     <div class="modal-body">

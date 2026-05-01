@@ -27,11 +27,14 @@ bool isNetworkErrorMessage(String message) {
       normalized.contains('timeout') ||
       normalized.contains('failed host lookup') ||
       normalized.contains('connection refused') ||
+      normalized.contains('connection closed') ||
+      normalized.contains('closed before full header') ||
       normalized.contains('connection reset') ||
       normalized.contains('network is unreachable') ||
       normalized.contains('network unreachable') ||
       normalized.contains('no route to host') ||
       normalized.contains('software caused connection abort') ||
+      normalized.contains('httpexception') ||
       normalized.contains('clientexception') ||
       normalized.contains('socketexception') ||
       normalized.contains('xmlhttprequest') ||
@@ -42,6 +45,10 @@ bool isNetworkErrorMessage(String message) {
 
 String extractApiErrorMessage(Object error) {
   if (error is ApiException) {
+    if (error.statusCode != null && error.statusCode! >= 400) {
+      return error.message;
+    }
+
     return isNetworkErrorMessage(error.message)
         ? NetworkException.defaultMessage
         : error.message;
@@ -54,6 +61,13 @@ String extractApiErrorMessage(Object error) {
   final message = match?.group(1)?.trim();
 
   if (message != null && message.isNotEmpty) {
+    final statusMatch = RegExp(r'^ApiException\(statusCode: (\d+|null),').firstMatch(raw);
+    final statusText = statusMatch?.group(1)?.trim().toLowerCase();
+    final hasHttpStatus = statusText != null && statusText != 'null';
+    if (hasHttpStatus) {
+      return message;
+    }
+
     return isNetworkErrorMessage(message)
         ? NetworkException.defaultMessage
         : message;

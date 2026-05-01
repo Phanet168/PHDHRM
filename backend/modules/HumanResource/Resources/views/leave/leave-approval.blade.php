@@ -76,6 +76,10 @@
                                 <td>
                                     @if ((int) $leave->is_approved === 0 && ($canApproveMap[$leave->id] ?? false))
                                         @can('create_leave_approval')
+                                            <a href="{{ route('leave.review-form', $leave->uuid) }}"
+                                                class="btn btn-primary-soft btn-sm me-1" title="Review page">
+                                                <i class="fa fa-external-link"></i>
+                                            </a>
                                             <a href="#" class="btn btn-success-soft btn-sm me-1" data-bs-toggle="modal"
                                                 data-bs-target="#approvedapplication{{ $leave->id }}" title="Approve"><i
                                                     class="fa fa-check"></i></a>
@@ -83,6 +87,13 @@
                                         @endcan
                                     @elseif((int) $leave->is_approved === 0)
                                         <span class="badge bg-secondary">{{ localize('no_action', 'No action') }}</span>
+                                    @endif
+
+                                    @if (($leave->workflow_status ?? '') === 'approved' || (int) $leave->is_approved === 1)
+                                        <a href="{{ route('leave.print', $leave->uuid) }}"
+                                            class="btn btn-primary-soft btn-sm me-1" title="Print">
+                                            <i class="fa fa-print"></i>
+                                        </a>
                                     @endif
 
                                     @can('delete_leave_approval')

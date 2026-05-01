@@ -11,9 +11,9 @@
             <div class="form-container my-4">
                 <div class="panel login-form-w">
                     <div class="panel-header text-center mb-3">
-                        <div class="mb-3">
-                            <img src="{{ $appSetting->logo }}" class="rounded-circle" width="90" height="90"
-                                alt="">
+                        <div class="login-brand mb-3">
+                            <img src="{{ $appSetting->logo }}" class="login-brand__logo"
+                                alt="{{ $appSetting->title }} logo">
                         </div>
                         <h3 class="fs-24 fw-bold mb-1">{{ $appSetting->title }} {{ localize('login') }}</h3>
                         <p class="fw--semi-bold text-center fs-14 mb-0">{{ localize('welcome_back') }}, {{ $appSetting->title }}</p>

@@ -185,9 +185,18 @@ class HomeAttendanceService {
       final first = _asMap(group.first);
       final last = _asMap(group.last);
       final date = (first['date'] ?? first['mydate'] ?? '').toString().trim();
-      final totalHours = (first['totalhours'] ?? '0:00:00').toString();
       final timeIn = _toTimeDisplay(first['time']);
       final timeOut = _toTimeDisplay(last['time'] ?? first['time']);
+      final totalHours = _resolveTotalHours(
+        explicit:
+            first['nethours'] ??
+            first['net_hours'] ??
+            first['totalhours'] ??
+            first['total_hours'] ??
+            first['work_hours'],
+        timeIn: timeIn,
+        timeOut: timeOut,
+      );
 
       return AttendanceDayRecord(
         date: date.isEmpty ? '-' : date,
@@ -201,14 +210,26 @@ class HomeAttendanceService {
     if (group is Map<String, dynamic> || group is Map) {
       final map = _asMap(group);
       final date = (map['date'] ?? map['mydate'] ?? '').toString().trim();
-      final totalHours = (map['totalhours'] ?? '0:00:00').toString();
       final timeIn = _toTimeDisplay(map['time']);
+      final timeOut = _toTimeDisplay(
+        map['outtime'] ?? map['out_time'] ?? map['time'],
+      );
+      final totalHours = _resolveTotalHours(
+        explicit:
+            map['nethours'] ??
+            map['net_hours'] ??
+            map['totalhours'] ??
+            map['total_hours'] ??
+            map['work_hours'],
+        timeIn: timeIn,
+        timeOut: timeOut,
+      );
 
       return AttendanceDayRecord(
         date: date.isEmpty ? '-' : date,
         totalHours: totalHours,
         timeIn: timeIn,
-        timeOut: timeIn,
+        timeOut: timeOut,
         punchCount: _toInt(map['punch_count']) ?? 1,
       );
     }
@@ -236,9 +257,6 @@ class HomeAttendanceService {
       return null;
     }
 
-    final totalHours = _toStringOrNull(
-      map['nethours'] ?? map['totalhours'] ?? baseRow['totalhours'],
-    );
     final timeIn = _toTimeDisplay(
       map['first_punch'] ??
           baseRow['intime'] ??
@@ -251,10 +269,25 @@ class HomeAttendanceService {
           baseRow['time'] ??
           baseRow['out_time'],
     );
+    final totalHours = _resolveTotalHours(
+      explicit:
+          map['nethours'] ??
+          map['net_hours'] ??
+          map['totalhours'] ??
+          map['total_hours'] ??
+          map['work_hours'] ??
+          baseRow['nethours'] ??
+          baseRow['net_hours'] ??
+          baseRow['totalhours'] ??
+          baseRow['total_hours'] ??
+          baseRow['work_hours'],
+      timeIn: timeIn,
+      timeOut: timeOut,
+    );
 
     return AttendanceDayRecord(
       date: date,
-      totalHours: totalHours ?? '0:00:00',
+      totalHours: totalHours,
       timeIn: timeIn,
       timeOut: timeOut,
       punchCount:
@@ -391,5 +424,67 @@ class HomeAttendanceService {
 
   String _two(int input) {
     return input.toString().padLeft(2, '0');
+  }
+
+  String _resolveTotalHours({
+    required dynamic explicit,
+    required String timeIn,
+    required String timeOut,
+  }) {
+    final explicitText = _toStringOrNull(explicit);
+    if (explicitText != null && !_isZeroDuration(explicitText)) {
+      return explicitText;
+    }
+
+    final computed = _computeDuration(timeIn, timeOut);
+    return computed ?? (explicitText ?? '0:00:00');
+  }
+
+  bool _isZeroDuration(String value) {
+    final normalized = value.trim();
+    return normalized == '0' ||
+        normalized == '0:00' ||
+        normalized == '0:00:00' ||
+        normalized == '00:00' ||
+        normalized == '00:00:00';
+  }
+
+  String? _computeDuration(String timeIn, String timeOut) {
+    final inDuration = _parseClockDuration(timeIn);
+    final outDuration = _parseClockDuration(timeOut);
+    if (inDuration == null || outDuration == null) {
+      return null;
+    }
+
+    var diff = outDuration - inDuration;
+    if (diff.isNegative) {
+      // Handle overnight shift.
+      diff += const Duration(hours: 24);
+    }
+
+    final hours = diff.inHours;
+    final minutes = diff.inMinutes.remainder(60);
+    final seconds = diff.inSeconds.remainder(60);
+    return '$hours:${_two(minutes)}:${_two(seconds)}';
+  }
+
+  Duration? _parseClockDuration(String text) {
+    if (text.trim().isEmpty || text == '-') {
+      return null;
+    }
+
+    final match = RegExp(r'(\d{1,2}):(\d{2})(?::(\d{2}))?$').firstMatch(text);
+    if (match == null) {
+      return null;
+    }
+
+    final hour = int.tryParse(match.group(1)!);
+    final minute = int.tryParse(match.group(2)!);
+    final second = int.tryParse(match.group(3) ?? '0');
+    if (hour == null || minute == null || second == null) {
+      return null;
+    }
+
+    return Duration(hours: hour, minutes: minute, seconds: second);
   }
 }

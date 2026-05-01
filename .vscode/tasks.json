@@ -52,7 +52,7 @@
         "-avd",
         "Pixel_6_VIC",
         "-gpu",
-        "host",
+        "swiftshader_indirect",
         "-no-boot-anim",
         "-camera-back",
         "none",

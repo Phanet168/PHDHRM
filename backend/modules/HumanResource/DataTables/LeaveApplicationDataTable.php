@@ -109,7 +109,7 @@ class LeaveApplicationDataTable extends DataTable
 
             ->addColumn('action', function ($row) {
                 $button = '';
-                if ($row->is_approved == 0) {
+                if ((int) $row->is_approved === 0) {
 
                     if (auth()->user()->can('update_leave_application')) {
 
@@ -123,6 +123,11 @@ class LeaveApplicationDataTable extends DataTable
                     if (auth()->user()->can('delete_leave_application')) {
                         $button .= '<a href="javascript:void(0)" class="btn btn-danger-soft btn-sm delete-confirm" data-bs-toggle="tooltip" title="Delete" data-route="' . route('leave.destroy', $row->uuid) . '" data-csrf="' . csrf_token() . '"><i class="fas fa-trash-alt"></i></a>';
                     }
+                }
+
+                if (((string) ($row->workflow_status ?? '') === 'approved' || (int) $row->is_approved === 1)
+                    && (int) (optional($row->employee)->user_id ?? 0) === (int) (auth()->id() ?? 0)) {
+                    $button .= '<a href="' . route('leave.print', $row->uuid) . '" class="btn btn-primary-soft btn-sm me-1" title="Print"><i class="fa fa-print"></i></a>';
                 }
 
                 return $button;

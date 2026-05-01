@@ -41,8 +41,9 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final token =await _tokenStorageService.readToken().timeout(
+      final token = await _tokenStorageService.readToken().timeout(
         const Duration(seconds: 4),
+        onTimeout: () => null,
       );
       if (token == null || token.isEmpty) {
         _currentUser = null;
@@ -54,6 +55,7 @@ class AuthController extends ChangeNotifier {
 
       final user = await _authService.getCurrentUser().timeout(
         const Duration(seconds: 15),
+        onTimeout: () => null,
       );
       if (user == null) {
         await _tokenStorageService.clearToken();
@@ -78,11 +80,6 @@ class AuthController extends ChangeNotifier {
         _errorMessage = error.message;
         _deviceHeartbeatService.stop();
       }
-    } on TimeoutException {
-      _currentUser = null;
-      _status = AuthStatus.unauthenticated;
-      _errorMessage = null;
-      _deviceHeartbeatService.stop();
     } catch (error) {
       if (isNetworkErrorMessage(error.toString())) {
         _currentUser = null;

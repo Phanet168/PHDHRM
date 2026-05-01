@@ -5,17 +5,25 @@ class HomeNotificationItem {
     required this.description,
     required this.meta,
     required this.isUnread,
+    required this.source,
+    required this.typeLabel,
+    required this.dateLabel,
     this.sentAt,
     this.readAt,
+    this.link,
   });
 
-  final int id;
+  final String id;
   final String title;
   final String description;
   final String meta;
   final bool isUnread;
+  final String source;
+  final String typeLabel;
+  final String dateLabel;
   final String? sentAt;
   final String? readAt;
+  final String? link;
 }
 
 class HomeNotificationPageData {
