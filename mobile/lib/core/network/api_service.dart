@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
+import '../network/private_ipv4_prefix_provider.dart';
 import '../storage/token_storage_service.dart';
 import 'api_exception.dart';
 
@@ -552,7 +553,171 @@ class ApiService {
       }
     }
 
+    final discoveredBase = await _discoverLanBase(headers);
+    if (discoveredBase != null) {
+      return discoveredBase;
+    }
+
     return null;
+  }
+
+  Future<String?> _discoverLanBase(Map<String, String> headers) async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return null;
+    }
+
+    final subnetPrefixes = await _privateIpv4Prefixes();
+    if (subnetPrefixes.isEmpty) {
+      return null;
+    }
+
+    final prioritizedOctets = _prioritizedLanHostOctets();
+    for (final prefix in subnetPrefixes) {
+      final phpBases = prioritizedOctets
+          .map((octet) => 'http://$prefix.$octet/PHDHRM/backend/api')
+          .toList(growable: false);
+      final discoveredPhp = await _probeLanCandidatesInBatches(
+        phpBases,
+        headers,
+      );
+      if (discoveredPhp != null) {
+        _perfLog('Discovered LAN base: $discoveredPhp');
+        return discoveredPhp;
+      }
+
+      final artisanBases = prioritizedOctets
+          .map((octet) => 'http://$prefix.$octet:8000/api')
+          .toList(growable: false);
+      final discoveredArtisan = await _probeLanCandidatesInBatches(
+        artisanBases,
+        headers,
+      );
+      if (discoveredArtisan != null) {
+        _perfLog('Discovered LAN artisan base: $discoveredArtisan');
+        return discoveredArtisan;
+      }
+    }
+
+    return null;
+  }
+
+  Future<String?> _probeLanCandidatesInBatches(
+    List<String> bases,
+    Map<String, String> headers,
+  ) async {
+    const batchSize = 24;
+    for (var start = 0; start < bases.length; start += batchSize) {
+      final end =
+          start + batchSize < bases.length ? start + batchSize : bases.length;
+      final batch = bases.sublist(start, end);
+      final result = await _probeBatchForHealthyBase(batch, headers);
+      if (result != null) {
+        _registerSuccess(result);
+        return result;
+      }
+    }
+
+    return null;
+  }
+
+  Future<String?> _probeBatchForHealthyBase(
+    List<String> batch,
+    Map<String, String> headers,
+  ) async {
+    final completer = Completer<String?>();
+    var completed = 0;
+
+    for (final base in batch) {
+      _probeHealthyBase(base, headers).then((result) {
+        if (result != null && !completer.isCompleted) {
+          completer.complete(result);
+          return;
+        }
+
+        completed++;
+        if (completed >= batch.length && !completer.isCompleted) {
+          completer.complete(null);
+        }
+      });
+    }
+
+    return completer.future;
+  }
+
+  Future<String?> _probeHealthyBase(
+    String base,
+    Map<String, String> headers,
+  ) async {
+    final uri = ApiConfig.buildUriForBase(base, '/auth/profile');
+    try {
+      final response = await _client
+          .get(uri, headers: headers)
+          .then<http.Response?>((response) => response)
+          .timeout(const Duration(milliseconds: 600), onTimeout: () => null);
+      if (response == null) {
+        _registerFailure(base);
+        return null;
+      }
+
+      final code = response.statusCode;
+      final isHealthy =
+          _isJsonLikeHttpResponse(response) &&
+          ((code >= 200 && code < 400) ||
+              code == 401 ||
+              code == 403 ||
+              code == 422);
+
+      if (!isHealthy) {
+        _registerFailure(base);
+        return null;
+      }
+
+      return base;
+    } on http.ClientException {
+      _registerFailure(base);
+      return null;
+    }
+  }
+
+  Future<List<String>> _privateIpv4Prefixes() async {
+    return privateIpv4Prefixes();
+  }
+
+  List<int> _prioritizedLanHostOctets() {
+    final prioritized = <int>[];
+
+    void addOctetFromBase(String? base) {
+      if (base == null || base.trim().isEmpty) {
+        return;
+      }
+      final uri = Uri.tryParse(base);
+      final host = uri?.host ?? '';
+      final parts = host.split('.');
+      if (parts.length != 4) {
+        return;
+      }
+      final last = int.tryParse(parts.last);
+      if (last == null || last <= 1 || last >= 255) {
+        return;
+      }
+      if (!prioritized.contains(last)) {
+        prioritized.add(last);
+      }
+    }
+
+    addOctetFromBase(_preferredBaseUrl);
+    addOctetFromBase(ApiConfig.lastSuccessfulBaseUrl);
+    for (final base in ApiConfig.fallbackLanDiscoveryBases) {
+      addOctetFromBase(base);
+    }
+
+    for (var i = 2; i <= 254; i++) {
+      if (!prioritized.contains(i)) {
+        prioritized.add(i);
+      }
+    }
+
+    return prioritized;
   }
 
   List<String> _orderedBaseUrls(List<String> baseUrls) {
@@ -587,6 +752,7 @@ class ApiService {
   void _registerSuccess(String base) {
     _preferredBaseUrl = base;
     _baseFailures[base] = 0;
+    unawaited(ApiConfig.saveLastSuccessfulBaseUrl(base));
   }
 
   void _registerFailure(String base) {
@@ -596,6 +762,7 @@ class ApiService {
     // If the preferred base fails repeatedly, allow fallback URLs to take over.
     if (_preferredBaseUrl == base && failures >= 2) {
       _preferredBaseUrl = null;
+      unawaited(ApiConfig.saveLastSuccessfulBaseUrl(''));
     }
   }
 
@@ -633,8 +800,9 @@ class ApiService {
     required bool throwOnError,
   }) {
     final contentType = response.headers['content-type']?.toLowerCase() ?? '';
-    final rawBody = response.body.trim();
-    final responseBody = _tryDecodeMap(response.body);
+    final decodedBody = _decodeResponseBody(response);
+    final rawBody = decodedBody.trim();
+    final responseBody = _tryDecodeMap(decodedBody);
     final isJsonResponse =
         contentType.contains('application/json') ||
         contentType.contains('+json');
@@ -748,8 +916,17 @@ class ApiService {
       return true;
     }
 
-    final body = response.body.trimLeft();
+    final body = _decodeResponseBody(response).trimLeft();
     return _looksLikeJsonPayload(body);
+  }
+
+  String _decodeResponseBody(http.Response response) {
+    if (response.bodyBytes.isEmpty) {
+      return '';
+    }
+
+    // Force UTF-8 decoding so Khmer text is preserved even when charset is missing.
+    return utf8.decode(response.bodyBytes, allowMalformed: true);
   }
 
   String _buildHttpErrorMessage({

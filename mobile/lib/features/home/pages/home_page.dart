@@ -12,10 +12,13 @@ import '../models/dashboard_summary.dart';
 import '../models/home_notification_item.dart';
 import '../models/mission_summary.dart';
 import 'attendance_history_page.dart';
+import 'leave_history_page.dart';
+import 'leave_review_page.dart';
 import 'leave_request_page.dart';
 import 'attendance_scan_page.dart';
 import '../services/home_attendance_service.dart';
 import '../services/home_dashboard_service.dart';
+import '../services/home_leave_service.dart';
 import '../services/home_mission_service.dart';
 import '../services/home_notification_service.dart';
 import '../services/home_profile_service.dart';
@@ -828,7 +831,7 @@ class _HomePageState extends State<HomePage> {
       }
     }
 
-    _switchToMenu(_resolveNotificationTarget(item));
+    await _navigateNotificationTarget(item);
   }
 
   _HomeMenuItem _resolveNotificationTarget(HomeNotificationItem item) {
@@ -851,6 +854,60 @@ class _HomePageState extends State<HomePage> {
     }
 
     return _HomeMenuItem.notice;
+  }
+
+  Future<void> _navigateNotificationTarget(HomeNotificationItem item) async {
+    final user = widget.authController.currentUser;
+    if (user == null) {
+      _switchToMenu(_resolveNotificationTarget(item));
+      return;
+    }
+
+    final language = await _languageFuture;
+    if (!mounted) {
+      return;
+    }
+    final source = item.source.trim().toLowerCase();
+    final audience = item.audienceLabel.trim().toLowerCase();
+
+    if (source == 'leave_workflow') {
+      final leaveService = HomeLeaveService();
+
+      final isReviewerAudience =
+          audience.contains('អ្នកអនុម័ត') ||
+          audience.contains('អ្នកពិនិត្យ') ||
+          audience.contains('approver') ||
+          audience.contains('reviewer');
+
+      if (isReviewerAudience) {
+        await Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(
+            builder:
+                (_) => LeaveReviewPage(
+                  user: user,
+                  language: language,
+                  leaveService: leaveService,
+                ),
+          ),
+        );
+        return;
+      }
+
+      await Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder:
+              (_) => LeaveHistoryPage(
+                user: user,
+                language: language,
+                leaveService: leaveService,
+                types: const [],
+              ),
+        ),
+      );
+      return;
+    }
+
+    _switchToMenu(_resolveNotificationTarget(item));
   }
 
   Future<void> _markAllNotificationsAsRead() async {
@@ -1707,6 +1764,9 @@ class _HomePageState extends State<HomePage> {
                   meta: notice.meta,
                   typeLabel: notice.typeLabel,
                   dateLabel: notice.dateLabel,
+                  audienceLabel: notice.audienceLabel,
+                  contextLabel: notice.contextLabel,
+                  stepName: notice.stepName,
                   source: notice.source,
                   unread: notice.isUnread,
                   onTap: () => _openNotificationItem(notice),
@@ -1816,9 +1876,10 @@ class _HomePageState extends State<HomePage> {
                       ? Builder(
                         builder:
                             (context) => IconButton(
-                              onPressed: () => Scaffold.of(context).openDrawer(),
+                              onPressed:
+                                  () => Scaffold.of(context).openDrawer(),
                               icon: const Icon(Icons.menu_rounded),
-                              tooltip: _tr(language, 'menu', 'áž˜áŸ‰ážºáž“áž»áž™'),
+                              tooltip: _tr(language, 'menu', 'ម៉ឺនុយ'),
                             ),
                       )
                       : IconButton(
@@ -1840,14 +1901,15 @@ class _HomePageState extends State<HomePage> {
                     tooltip: _tr(language, 'refresh', 'ធ្វើបច្ចុប្បន្នភាព'),
                   ),
                   const SizedBox(width: 4),
-                  if (_selectedMenu == _HomeMenuItem.logout) Builder(
-                    builder:
-                        (context) => _TopActionIcon(
-                          icon: Icons.menu_rounded,
-                          onPressed: () => Scaffold.of(context).openDrawer(),
-                          tooltip: _tr(language, 'menu', 'ម៉ឺនុយ'),
-                        ),
-                  ),
+                  if (_selectedMenu == _HomeMenuItem.logout)
+                    Builder(
+                      builder:
+                          (context) => _TopActionIcon(
+                            icon: Icons.menu_rounded,
+                            onPressed: () => Scaffold.of(context).openDrawer(),
+                            tooltip: _tr(language, 'menu', 'ម៉ឺនុយ'),
+                          ),
+                    ),
                   const SizedBox(width: 8),
                 ] else ...[
                   _buildTopNotificationAction(language),
@@ -2836,6 +2898,9 @@ class _NoticeFeedCard extends StatelessWidget {
     required this.meta,
     required this.typeLabel,
     required this.dateLabel,
+    required this.audienceLabel,
+    required this.contextLabel,
+    required this.stepName,
     required this.source,
     required this.unread,
     this.onTap,
@@ -2848,6 +2913,9 @@ class _NoticeFeedCard extends StatelessWidget {
   final String meta;
   final String typeLabel;
   final String dateLabel;
+  final String audienceLabel;
+  final String contextLabel;
+  final String stepName;
   final String source;
   final bool unread;
   final VoidCallback? onTap;
@@ -2855,11 +2923,30 @@ class _NoticeFeedCard extends StatelessWidget {
   final String? actionLabel;
 
   IconData _iconForSource() {
+    final normalizedContext = contextLabel.trim().toLowerCase();
+
+    if (normalizedContext.contains('អនុម័ត') ||
+        normalizedContext.contains('approve')) {
+      return Icons.task_alt_rounded;
+    }
+    if (normalizedContext.contains('បដិសេធ') ||
+        normalizedContext.contains('reject')) {
+      return Icons.cancel_outlined;
+    }
+    if (normalizedContext.contains('ផ្ទេរ') ||
+        normalizedContext.contains('forward')) {
+      return Icons.swap_horiz_rounded;
+    }
+    if (normalizedContext.contains('រង់ចាំ') ||
+        normalizedContext.contains('pending')) {
+      return Icons.pending_actions_rounded;
+    }
+
     switch (source) {
       case 'leave_workflow':
-        return Icons.send_rounded;
+        return Icons.event_note_rounded;
       case 'attendance_workflow':
-        return Icons.hourglass_top_rounded;
+        return Icons.fact_check_outlined;
       case 'correspondence_workflow':
         return Icons.mail_outline_rounded;
       default:
@@ -2929,11 +3016,7 @@ class _NoticeFeedCard extends StatelessWidget {
                     color: _iconBg(),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
-                    _iconForSource(),
-                    color: _iconTint(),
-                    size: 18,
-                  ),
+                  child: Icon(_iconForSource(), color: _iconTint(), size: 18),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -3001,6 +3084,44 @@ class _NoticeFeedCard extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (audienceLabel.trim().isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEAF7F2),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                audienceLabel,
+                                style: const TextStyle(
+                                  color: Color(0xFF0F766E),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          if (contextLabel.trim().isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFFF4E5),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                contextLabel,
+                                style: const TextStyle(
+                                  color: Color(0xFFB54708),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
                           if (dateLabel.trim().isNotEmpty)
                             Text(
                               dateLabel,
@@ -3017,13 +3138,28 @@ class _NoticeFeedCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Expanded(
-                            child: Text(
-                              meta,
-                              style: const TextStyle(
-                                color: Color(0xFF64748B),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (stepName.trim().isNotEmpty)
+                                  Text(
+                                    stepName,
+                                    style: const TextStyle(
+                                      color: Color(0xFF334155),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                if (meta.trim().isNotEmpty)
+                                  Text(
+                                    meta,
+                                    style: const TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                           if (onMarkRead != null)

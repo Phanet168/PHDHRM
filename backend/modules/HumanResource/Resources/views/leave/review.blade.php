@@ -3,6 +3,20 @@
 
 @section('content')
     @include('humanresource::leave_header')
+    @php
+        $formatLeaveDate = static function ($value): string {
+            $value = trim((string) $value);
+            if ($value === '') {
+                return '-';
+            }
+
+            try {
+                return \Carbon\Carbon::parse($value)->format('d-m-Y');
+            } catch (\Throwable $e) {
+                return $value;
+            }
+        };
+    @endphp
 
     <div class="card mb-4">
         @include('backend.layouts.common.validation')
@@ -13,7 +27,7 @@
                 <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('leave_review', 'Leave Review') }}</h6>
                 <div class="small text-muted mt-1">
                     {{ $leave->employee?->full_name }} | {{ $leave->leaveType?->display_name }} |
-                    {{ $leave->leave_apply_start_date }} - {{ $leave->leave_apply_end_date }}
+                    {{ $formatLeaveDate($leave->leave_apply_start_date) }} - {{ $formatLeaveDate($leave->leave_apply_end_date) }}
                 </div>
             </div>
             <div class="d-flex gap-2">
@@ -58,11 +72,11 @@
                             </div>
                             <div class="col-sm-6">
                                 <div class="text-muted">{{ localize('leave_start_date') }}</div>
-                                <div class="fw-semibold">{{ $leave->leave_apply_start_date ?: '-' }}</div>
+                                <div class="fw-semibold">{{ $formatLeaveDate($leave->leave_apply_start_date) }}</div>
                             </div>
                             <div class="col-sm-6">
                                 <div class="text-muted">{{ localize('leave_end_date') }}</div>
-                                <div class="fw-semibold">{{ $leave->leave_apply_end_date ?: '-' }}</div>
+                                <div class="fw-semibold">{{ $formatLeaveDate($leave->leave_apply_end_date) }}</div>
                             </div>
                             <div class="col-12">
                                 <div class="text-muted">{{ localize('replacement_employee', 'Replacement employee') }}</div>

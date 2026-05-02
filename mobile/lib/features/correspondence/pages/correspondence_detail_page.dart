@@ -1344,8 +1344,8 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
 
   String _formatDate(DateTime? dt) {
     if (dt == null) return '-';
-    return '${dt.day.toString().padLeft(2, '0')}/'
-        '${dt.month.toString().padLeft(2, '0')}/'
+    return '${dt.day.toString().padLeft(2, '0')}-'
+        '${dt.month.toString().padLeft(2, '0')}-'
         '${dt.year}';
   }
 

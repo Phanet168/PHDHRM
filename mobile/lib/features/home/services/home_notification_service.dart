@@ -85,6 +85,9 @@ class HomeNotificationService {
         noticeDateRaw,
         sentAtRaw,
       ),
+      audienceLabel: (row['audience_label'] ?? '').toString().trim(),
+      contextLabel: (row['context_label'] ?? '').toString().trim(),
+      stepName: (row['step_name'] ?? '').toString().trim(),
       sentAt: sentAtRaw.isEmpty ? null : sentAtRaw,
       readAt: (row['read_at'] as String?)?.trim(),
       link: (row['link'] as String?)?.trim(),
@@ -151,7 +154,7 @@ class HomeNotificationService {
       final hour = date.hour.toString().padLeft(2, '0');
       final minute = date.minute.toString().padLeft(2, '0');
 
-      return '$day/$month/$year $hour:$minute';
+      return '$day-$month-$year $hour:$minute';
     } catch (_) {
       return rawDate;
     }

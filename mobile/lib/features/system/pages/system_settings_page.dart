@@ -486,7 +486,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                   decoration: const InputDecoration(
                     labelText: 'អាសយដ្ឋានម៉ាស៊ីនមេ',
                     hintText:
-                        '192.168.1.9\n192.168.1.9/PHDHRM/backend\n10.0.2.2/PHDHRM/backend\n10.0.2.2:8000',
+                        'phdhrm.local\nphdhrm.local/PHDHRM/backend\n192.168.1.2/PHDHRM/backend\n10.0.2.2/PHDHRM/backend',
                   ),
                 ),
                 const SizedBox(height: 10),

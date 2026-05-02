@@ -106,6 +106,11 @@
 			}
 
 			var textValue = String(value).trim();
+			var isoMatch = textValue.match(/^(\d{4})-(\d{2})-(\d{2})(?:\s.*)?$/);
+			if (isoMatch) {
+				return isoMatch[3] + '-' + isoMatch[2] + '-' + isoMatch[1];
+			}
+
 			if (!/^\d{4}-\d{2}-\d{2}$/.test(textValue)) {
 				var legacyMatch = textValue.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
 				if (!legacyMatch) {
@@ -117,11 +122,11 @@
 					return textValue;
 				}
 
-				return String(parseInt(legacyMatch[1], 10)).padStart(2, '0') + '/' + EN_MONTH_MAP[monthKey] + '/' + legacyMatch[3];
+				return String(parseInt(legacyMatch[1], 10)).padStart(2, '0') + '-' + EN_MONTH_MAP[monthKey] + '-' + legacyMatch[3];
 			}
 
 			var parts = textValue.split('-');
-			return parts[2] + '/' + parts[1] + '/' + parts[0];
+			return parts[2] + '-' + parts[1] + '-' + parts[0];
 		}
 
 		function toUiDateTime(value) {
@@ -135,7 +140,7 @@
 				return normalized;
 			}
 
-			return match[3] + '/' + match[2] + '/' + match[1] + ' ' + match[4];
+			return match[3] + '-' + match[2] + '-' + match[1] + ' ' + match[4];
 		}
 
 		function normalizeDateInput(value) {
@@ -302,7 +307,7 @@
 					}
 
 					var safeOptions = $.extend({}, options || {});
-					safeOptions.dateFormat = 'dd/mm/yy';
+					safeOptions.dateFormat = 'dd-mm-yy';
 					safeOptions.monthNames = KH_MONTHS;
 					safeOptions.monthNamesShort = KH_MONTHS;
 					safeOptions.dayNames = KH_DAY_FULL;
@@ -327,9 +332,9 @@
 					if (safeOptions.datepicker === false) {
 						safeOptions.format = 'H:i';
 					} else if (safeOptions.timepicker === false) {
-						safeOptions.format = 'd/m/Y';
+						safeOptions.format = 'd-m-Y';
 					} else {
-						safeOptions.format = 'd/m/Y H:i';
+						safeOptions.format = 'd-m-Y H:i';
 					}
 
 					return originalDatetimepicker.call(this, safeOptions);
@@ -397,13 +402,13 @@
 
 				$input.attr('autocomplete', 'off');
 				$input.attr('inputmode', 'numeric');
-				$input.attr('placeholder', 'DD/MM/YYYY');
+				$input.attr('placeholder', 'DD-MM-YYYY');
 				$input.attr('data-ui-picker-type', 'date');
 
 				var currentValue = toUiDate($input.val());
 
 				$input.datepicker({
-					dateFormat: 'dd/mm/yy',
+					dateFormat: 'dd-mm-yy',
 					changeMonth: true,
 					changeYear: true,
 					monthNames: KH_MONTHS,
@@ -431,13 +436,13 @@
 				}
 
 				var currentValue = toUiDate($input.val());
-				$input.attr('type', 'text').attr('autocomplete', 'off').attr('placeholder', 'DD/MM/YYYY');
+				$input.attr('type', 'text').attr('autocomplete', 'off').attr('placeholder', 'DD-MM-YYYY');
 				$input.attr('inputmode', 'numeric');
 				$input.attr('data-ui-picker-type', 'date');
 				$input.datetimepicker({
 					timepicker: false,
 					lang: 'km',
-					format: 'd/m/Y',
+					format: 'd-m-Y',
 					scrollInput: false,
 					closeOnDateSelect: true
 				});
@@ -472,12 +477,12 @@
 				}
 
 				var currentValue = toUiDateTime($input.val());
-				$input.attr('type', 'text').attr('autocomplete', 'off').attr('placeholder', 'DD/MM/YYYY HH:mm');
+				$input.attr('type', 'text').attr('autocomplete', 'off').attr('placeholder', 'DD-MM-YYYY HH:mm');
 				$input.attr('inputmode', 'numeric');
 				$input.attr('data-ui-picker-type', 'datetime');
 				$input.datetimepicker({
 					lang: 'km',
-					format: 'd/m/Y H:i',
+					format: 'd-m-Y H:i',
 					step: 5,
 					scrollInput: false
 				});
@@ -563,7 +568,7 @@
 				return;
 			}
 
-			$input.val(parsed.dd + '/' + parsed.mm + '/' + parsed.yyyy);
+			$input.val(parsed.dd + '-' + parsed.mm + '-' + parsed.yyyy);
 			$input.removeClass('is-invalid');
 		});
 
@@ -580,7 +585,7 @@
 				return;
 			}
 
-			$input.val(parsed.dd + '/' + parsed.mm + '/' + parsed.yyyy + ' ' + parsed.hh + ':' + parsed.ii);
+			$input.val(parsed.dd + '-' + parsed.mm + '-' + parsed.yyyy + ' ' + parsed.hh + ':' + parsed.ii);
 			$input.removeClass('is-invalid');
 		});
 
@@ -615,7 +620,7 @@
 
 			if (hasInvalidDate) {
 				e.preventDefault();
-				alert('Invalid date format. Use DD/MM/YYYY or YYYY-MM-DD (and HH:mm for time).');
+				alert('Invalid date format. Use DD-MM-YYYY or YYYY-MM-DD (and HH:mm for time).');
 			}
 		});
 	})(jQuery);

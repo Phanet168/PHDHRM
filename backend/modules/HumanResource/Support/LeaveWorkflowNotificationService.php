@@ -25,7 +25,11 @@ class LeaveWorkflowNotificationService
                 'submitted',
                 localize('leave_request_submitted', 'Leave request submitted'),
                 localize('leave_request_submitted_message', 'Your leave request has been submitted and is waiting for workflow review.'),
-                route('leave.index')
+                route('leave.index'),
+                [
+                    'audience_key' => 'requester',
+                    'audience_label' => localize('notification_audience_requester', 'អ្នកស្នើសុំ'),
+                ]
             ));
         }
 
@@ -43,7 +47,11 @@ class LeaveWorkflowNotificationService
                 'forwarded',
                 localize('leave_request_forwarded', 'Leave request forwarded'),
                 localize('leave_request_forwarded_message', 'Your leave request was reviewed and sent to the next approver.'),
-                route('leave.index')
+                route('leave.index'),
+                [
+                    'audience_key' => 'requester',
+                    'audience_label' => localize('notification_audience_requester', 'អ្នកស្នើសុំ'),
+                ]
             ));
         }
 
@@ -60,7 +68,11 @@ class LeaveWorkflowNotificationService
                 'approved',
                 localize('leave_request_approved', 'Leave request approved'),
                 localize('leave_request_approved_message', 'Your leave request has been approved. Please print the form and submit the hard copy to administration.'),
-                route('leave.print', $leave->uuid)
+                route('leave.print', $leave->uuid),
+                [
+                    'audience_key' => 'requester',
+                    'audience_label' => localize('notification_audience_requester', 'អ្នកស្នើសុំ'),
+                ]
             ));
         }
     }
@@ -75,7 +87,11 @@ class LeaveWorkflowNotificationService
                 'rejected',
                 localize('leave_request_rejected', 'Leave request rejected'),
                 localize('leave_request_rejected_message', 'Your leave request was rejected. Open the request to review the note.'),
-                route('leave.index')
+                route('leave.index'),
+                [
+                    'audience_key' => 'requester',
+                    'audience_label' => localize('notification_audience_requester', 'អ្នកស្នើសុំ'),
+                ]
             ));
         }
     }
@@ -102,6 +118,9 @@ class LeaveWorkflowNotificationService
                     . ' ' . $actionLabel . '.',
                 route('leave.review-form', $leave->uuid),
                 [
+                    'audience_key' => 'reviewer',
+                    'audience_label' => localize('notification_audience_reviewer', 'អ្នកពិនិត្យ/អនុម័ត'),
+                    'step_name' => (string) ($step->step_name ?? ''),
                     'step_order' => (int) ($step->step_order ?? 0),
                     'action_type' => (string) ($step->action_type ?? ''),
                     'is_final_approval' => (bool) ($step->is_final_approval ?? false),
@@ -238,6 +257,8 @@ class LeaveWorkflowNotificationService
             implode(' ', $messageParts),
             route('leave.index'),
             [
+                'audience_key' => 'handover',
+                'audience_label' => localize('notification_audience_handover', 'អ្នកជំនួសការងារ'),
                 'handover_employee_id' => (int) ($leave->handover_employee_id ?? 0),
                 'handover_employee_name' => trim((string) ($leave->handoverEmployee?->full_name ?? '')),
             ]

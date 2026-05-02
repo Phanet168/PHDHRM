@@ -244,6 +244,7 @@ class LeaveRequestApiController extends Controller
                 $payload = $this->transformLeave($row);
                 $payload['employee'] = [
                     'id' => (int) optional($row->employee)->id,
+                    'user_id' => (int) optional($row->employee)->user_id,
                     'employee_no' => (string) optional($row->employee)->employee_id,
                     'full_name' => trim(((string) optional($row->employee)->first_name) . ' ' . ((string) optional($row->employee)->last_name)),
                 ];
@@ -870,12 +871,7 @@ class LeaveRequestApiController extends Controller
             return;
         }
 
-        $plan = $this->workflowPolicyService()->resolveAndBuild(
-            'leave',
-            'leave_request',
-            $this->buildLeaveWorkflowContext($leave)
-        );
-        $plan = $this->normalizeLeaveWorkflowPlan($plan, $leave);
+        $plan = $this->resolveLeaveWorkflowPlan($leave);
 
         if (!$plan || empty($plan['steps'])) {
             $leave->update([
@@ -961,6 +957,73 @@ class LeaveRequestApiController extends Controller
         ];
     }
 
+    private function resolveLeaveWorkflowPlan(ApplyLeave $leave): ?array
+    {
+        $context = $this->buildLeaveWorkflowContext($leave);
+
+        $leavePlan = $this->workflowPolicyService()->resolveAndBuild(
+            'leave',
+            'leave_request',
+            $context
+        );
+        if ($leavePlan) {
+            $leavePlan['source_policy_module_key'] = (string) ($leavePlan['module_key'] ?? 'leave');
+            $leavePlan['source_policy_name'] = (string) ($leavePlan['name'] ?? 'Leave workflow');
+        }
+        $leavePlan = $this->normalizeLeaveWorkflowPlan($leavePlan, $leave);
+
+        if ($this->planUsesSpecificUsers($leavePlan)) {
+            return $leavePlan;
+        }
+
+        $attendancePlan = $this->workflowPolicyService()->resolveAndBuild(
+            'attendance',
+            'attendance_adjustment',
+            $context
+        );
+        $attendancePlan = $this->normalizeLeaveWorkflowPlan(
+            $this->adaptWorkflowPlanForLeave($attendancePlan),
+            $leave
+        );
+
+        if ($this->planUsesSpecificUsers($attendancePlan)) {
+            return $attendancePlan;
+        }
+
+        return $leavePlan;
+    }
+
+    private function adaptWorkflowPlanForLeave(?array $plan): ?array
+    {
+        if (!$plan) {
+            return null;
+        }
+
+        $plan['module_key'] = 'leave';
+        $plan['request_type_key'] = 'leave_request';
+        $plan['name'] = (string) ($plan['name'] ?? 'Leave workflow');
+        $plan['description'] = (string) ($plan['description'] ?? '');
+        $plan['source_policy_module_key'] = (string) ($plan['source_policy_module_key'] ?? 'attendance');
+        $plan['source_policy_name'] = (string) ($plan['source_policy_name'] ?? $plan['name']);
+
+        return $plan;
+    }
+
+    private function planUsesSpecificUsers(?array $plan): bool
+    {
+        $steps = collect((array) ($plan['steps'] ?? []))
+            ->filter(fn ($step) => is_array($step));
+
+        if ($steps->isEmpty()) {
+            return false;
+        }
+
+        return $steps->every(function (array $step): bool {
+            return (string) ($step['actor_type'] ?? '') === WorkflowDefinitionStep::ACTOR_TYPE_SPECIFIC_USER
+                && !empty($step['actor_user_id']);
+        });
+    }
+
     private function normalizeLeaveWorkflowPlan(?array $plan, ApplyLeave $leave): ?array
     {
         if (!$plan || empty($plan['steps'])) {
@@ -1041,6 +1104,10 @@ class LeaveRequestApiController extends Controller
             return false;
         }
 
+        if ($this->isRequesterUser($leave, $reviewer)) {
+            return false;
+        }
+
         if ($this->orgHierarchyAccessService()->isSystemAdmin($reviewer)) {
             return true;
         }
@@ -1099,12 +1166,26 @@ class LeaveRequestApiController extends Controller
 
     private function canUserActOnWorkflowStep(User $user, ApplyLeave $leave, WorkflowDefinitionStep $step): bool
     {
+        if ($this->isRequesterUser($leave, $user)) {
+            return false;
+        }
+
         if ($this->orgHierarchyAccessService()->isSystemAdmin($user)) {
             return true;
         }
 
         $sourceDepartmentId = $this->resolveLeaveSourceDepartmentId($leave);
         return $this->workflowActorResolverService()->canUserActOnStep($user, $step, $sourceDepartmentId, 'leave');
+    }
+
+    private function isRequesterUser(ApplyLeave $leave, User $user): bool
+    {
+        $requesterUserId = (int) ($leave->employee?->user_id ?? 0);
+        if ($requesterUserId <= 0) {
+            $requesterUserId = (int) ($leave->employee()->value('user_id') ?? 0);
+        }
+
+        return $requesterUserId > 0 && $requesterUserId === (int) $user->id;
     }
 
     private function resolveWorkflowStepRoleCode(WorkflowDefinitionStep $step): string
@@ -1466,6 +1547,7 @@ class LeaveRequestApiController extends Controller
         $status = $this->resolveStatus($row);
         $attachmentPath = trim((string) ($row->location ?? ''));
         $attachmentUrl = $attachmentPath !== '' ? asset('storage/' . ltrim($attachmentPath, '/')) : null;
+        $workflowDisplay = $this->resolveLeaveWorkflowDisplay($row);
 
         return [
             'id' => (int) $row->id,
@@ -1487,9 +1569,67 @@ class LeaveRequestApiController extends Controller
             'attachment_url' => $attachmentUrl,
             'status' => $status,
             'workflow_status' => (string) ($row->workflow_status ?? ''),
+            'workflow_current_step_order' => $workflowDisplay['current_step_order'],
+            'workflow_current_step_name' => $workflowDisplay['current_step_name'],
+            'workflow_current_actor_name' => $workflowDisplay['current_actor_name'],
+            'workflow_source_policy_module_key' => $workflowDisplay['source_policy_module_key'],
+            'workflow_source_policy_name' => $workflowDisplay['source_policy_name'],
+            'workflow_steps' => $workflowDisplay['steps'],
             'is_approved' => (int) ($row->is_approved ?? 0),
             'submitted_at' => optional($row->created_at)?->toIso8601String(),
             'updated_at' => optional($row->updated_at)?->toIso8601String(),
+        ];
+    }
+
+    private function resolveLeaveWorkflowDisplay(ApplyLeave $row): array
+    {
+        $plan = is_array($row->workflow_snapshot_json) ? $row->workflow_snapshot_json : null;
+        if (!$plan) {
+            $plan = $this->resolveLeaveWorkflowPlan($row);
+        }
+
+        if (!$plan || empty($plan['steps'])) {
+            return [
+                'current_step_order' => null,
+                'current_step_name' => '',
+                'current_actor_name' => '',
+                'source_policy_module_key' => '',
+                'source_policy_name' => '',
+                'steps' => [],
+            ];
+        }
+
+        $preview = $this->workflowActorResolverService()->previewPlan(
+            $plan,
+            $this->buildLeaveWorkflowContext($row)
+        );
+
+        $currentOrder = (int) ($row->workflow_current_step_order ?? 0);
+        $steps = collect((array) ($preview['steps'] ?? []))
+            ->map(function (array $step) use ($currentOrder): array {
+                $candidate = collect((array) ($step['resolved_candidates'] ?? []))->first();
+                $actorName = trim((string) (($candidate['full_name'] ?? '') ?: ($candidate['email'] ?? '')));
+
+                return [
+                    'step_order' => (int) ($step['step_order'] ?? 0),
+                    'step_name' => (string) ($step['step_name'] ?? ''),
+                    'action_type' => (string) ($step['action_type'] ?? ''),
+                    'actor_name' => $actorName,
+                    'is_final_approval' => (bool) ($step['is_final_approval'] ?? false),
+                    'is_current' => $currentOrder > 0 && (int) ($step['step_order'] ?? 0) === $currentOrder,
+                ];
+            })
+            ->values();
+
+        $currentStep = $steps->firstWhere('is_current', true);
+
+        return [
+            'current_step_order' => $currentStep['step_order'] ?? ($currentOrder > 0 ? $currentOrder : null),
+            'current_step_name' => (string) ($currentStep['step_name'] ?? ''),
+            'current_actor_name' => (string) ($currentStep['actor_name'] ?? ''),
+            'source_policy_module_key' => (string) ($preview['source_policy_module_key'] ?? $preview['module_key'] ?? ''),
+            'source_policy_name' => (string) ($preview['source_policy_name'] ?? $preview['name'] ?? ''),
+            'steps' => $steps->all(),
         ];
     }
 

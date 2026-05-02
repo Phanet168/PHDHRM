@@ -133,11 +133,11 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
 
   String _formatDate(DateTime? value) {
     if (value == null) {
-      return '--/--/----';
+      return '--/--/----'.replaceAll('/', '-');
     }
     final day = value.day.toString().padLeft(2, '0');
     final month = value.month.toString().padLeft(2, '0');
-    return '$day/$month/${value.year}';
+    return '$day-$month-${value.year}';
   }
 
   String _filterSummary(Map<String, String> language) {
@@ -1174,11 +1174,11 @@ class _CorrespondenceCreatePageState extends State<_CorrespondenceCreatePage> {
 
   String _formatDate(DateTime? value) {
     if (value == null) {
-      return '--/--/----';
+      return '--/--/----'.replaceAll('/', '-');
     }
     final day = value.day.toString().padLeft(2, '0');
     final month = value.month.toString().padLeft(2, '0');
-    return '$day/$month/${value.year}';
+    return '$day-$month-${value.year}';
   }
 
   Future<void> _pickDate(

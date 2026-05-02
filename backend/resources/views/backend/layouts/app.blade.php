@@ -460,6 +460,9 @@
                                                     $message = trim((string) ($data['message'] ?? ''));
                                                     $metaPrimary = trim((string) ($data['employee_name'] ?? $data['sender_name'] ?? $data['reference_no'] ?? '-'));
                                                     $metaSecondary = '';
+                                                    $metaAudience = trim((string) ($data['audience_label'] ?? ''));
+                                                    $stepName = trim((string) ($data['step_name'] ?? ''));
+                                                    $contextLabel = '';
                                                     $dateText = '';
                                                     $formatNotificationDate = function (?string $value, bool $includeTime = false): string {
                                                         $value = trim((string) $value);
@@ -469,8 +472,8 @@
 
                                                         try {
                                                             return $includeTime
-                                                                ? \Carbon\Carbon::parse($value)->format('d/m/Y H:i')
-                                                                : \Carbon\Carbon::parse($value)->format('d/m/Y');
+                                                                ? \Carbon\Carbon::parse($value)->format('d-m-Y H:i')
+                                                                : \Carbon\Carbon::parse($value)->format('d-m-Y');
                                                         } catch (\Throwable $e) {
                                                             return $value;
                                                         }
@@ -515,6 +518,15 @@
                                                             default => 'color:#6c757d;background:#f1f3f5;',
                                                         };
                                                         $metaSecondary = trim((string) ($data['leave_type_name'] ?? ''));
+                                                        $contextLabel = match ($context) {
+                                                            'submitted' => localize('notification_context_submitted', 'បានដាក់សំណើ'),
+                                                            'forwarded' => localize('notification_context_forwarded', 'បានបញ្ជូនបន្ត'),
+                                                            'approved' => localize('notification_context_approved', 'បានអនុម័ត'),
+                                                            'rejected' => localize('notification_context_rejected', 'បានបដិសេធ'),
+                                                            'pending_review' => localize('notification_context_pending_review', 'កំពុងរង់ចាំសកម្មភាព'),
+                                                            'handover_assigned' => localize('notification_context_handover', 'បានកំណត់ជាអ្នកជំនួស'),
+                                                            default => '',
+                                                        };
                                                         $fromDateText = $formatNotificationDate((string) ($data['from_date'] ?? ''));
                                                         $toDateText = $formatNotificationDate((string) ($data['to_date'] ?? ''));
                                                         $dateText = trim($fromDateText . ' - ' . $toDateText, ' -');
@@ -541,6 +553,11 @@
                                                             'pending_review' => 'color:#f97316;background:#fff1e6;',
                                                             default => 'color:#6c757d;background:#f1f3f5;',
                                                         };
+                                                        $contextLabel = match ($context) {
+                                                            'submitted' => localize('notification_context_submitted', 'បានដាក់សំណើ'),
+                                                            'pending_review' => localize('notification_context_pending_review', 'កំពុងរង់ចាំសកម្មភាព'),
+                                                            default => '',
+                                                        };
                                                         $dateText = $formatNotificationDate((string) ($data['attendance_date'] ?? ''));
                                                     } else {
                                                         $letterType = trim((string) ($data['letter_type'] ?? ''));
@@ -560,7 +577,7 @@
                                                         $iconStyle = 'color:#059669;background:#ecfdf3;';
                                                         $dateText = $formatNotificationDate((string) ($data['assigned_at'] ?? $data['created_at'] ?? ''), true);
                                                     }
-                                                    $createdAtText = optional($notification->created_at)->format('d/m/Y H:i');
+                                                    $createdAtText = optional($notification->created_at)->format('d-m-Y H:i');
                                                 @endphp
                                                 <a href="{{ $entry['link'] }}"
                                                     class="list-group-item list-group-item-action py-3 {{ $notification->read_at ? 'bg-light text-muted' : '' }}">
@@ -577,6 +594,19 @@
                                                             </div>
                                                             @if ($message !== '')
                                                                 <div class="small text-dark mb-1">{{ $message }}</div>
+                                                            @endif
+                                                            @if ($metaAudience !== '' || $contextLabel !== '')
+                                                                <div class="workflow-notification-meta mb-1">
+                                                                    @if ($metaAudience !== '')
+                                                                        <span class="workflow-notification-type">{{ $metaAudience }}</span>
+                                                                    @endif
+                                                                    @if ($contextLabel !== '')
+                                                                        <span>{{ $contextLabel }}</span>
+                                                                    @endif
+                                                                </div>
+                                                            @endif
+                                                            @if ($stepName !== '')
+                                                                <div class="small text-muted mb-1">{{ $stepName }}</div>
                                                             @endif
                                                             <div class="workflow-notification-meta">
                                                                 <span class="workflow-notification-type"><span class="workflow-notification-type-dot" style="{{ $typeDotStyle }}"></span>{{ $typeLabel }}</span>

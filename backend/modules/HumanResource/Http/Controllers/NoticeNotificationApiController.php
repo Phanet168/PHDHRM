@@ -204,6 +204,9 @@ class NoticeNotificationApiController extends Controller
         $leaveTypeName = trim((string) ($data['leave_type_name'] ?? ''));
         $fromDate = trim((string) ($data['from_date'] ?? ''));
         $toDate = trim((string) ($data['to_date'] ?? ''));
+        $audienceLabel = trim((string) ($data['audience_label'] ?? ''));
+        $stepName = trim((string) ($data['step_name'] ?? ''));
+        $context = trim((string) ($data['context'] ?? ''));
 
         $metaParts = array_values(array_filter([
             $employeeName !== '' ? $employeeName : null,
@@ -227,7 +230,12 @@ class NoticeNotificationApiController extends Controller
             'sent_at' => optional($notification->created_at)?->toIso8601String(),
             'read_at' => optional($notification->read_at)?->toIso8601String(),
             'is_unread' => $notification->read_at === null,
+            'audience_label' => $audienceLabel,
+            'context_label' => $this->leaveContextLabel($context),
+            'step_name' => $stepName,
             'meta' => implode(' | ', array_values(array_filter([
+                $audienceLabel !== '' ? $audienceLabel : null,
+                $stepName !== '' ? $stepName : null,
                 $employeeName !== '' ? $employeeName : null,
                 $leaveTypeName !== '' ? $leaveTypeName : null,
                 trim($this->formatDisplayDate($fromDate) . ' - ' . $this->formatDisplayDate($toDate), ' -') !== ''
@@ -247,6 +255,9 @@ class NoticeNotificationApiController extends Controller
         $employeeName = trim((string) ($data['employee_name'] ?? ''));
         $attendanceDate = trim((string) ($data['attendance_date'] ?? ''));
         $reason = trim((string) ($data['reason'] ?? ''));
+        $audienceLabel = trim((string) ($data['audience_label'] ?? ''));
+        $stepName = trim((string) ($data['step_name'] ?? ''));
+        $context = trim((string) ($data['context'] ?? ''));
 
         $metaParts = array_values(array_filter([
             $employeeName !== '' ? $employeeName : null,
@@ -270,7 +281,12 @@ class NoticeNotificationApiController extends Controller
             'sent_at' => optional($notification->created_at)?->toIso8601String(),
             'read_at' => optional($notification->read_at)?->toIso8601String(),
             'is_unread' => $notification->read_at === null,
+            'audience_label' => $audienceLabel,
+            'context_label' => $this->attendanceContextLabel($context),
+            'step_name' => $stepName,
             'meta' => implode(' | ', array_values(array_filter([
+                $audienceLabel !== '' ? $audienceLabel : null,
+                $stepName !== '' ? $stepName : null,
                 $employeeName !== '' ? $employeeName : null,
                 $this->formatDisplayDate($attendanceDate),
                 $reason !== '' ? $reason : null,
@@ -494,9 +510,31 @@ class NoticeNotificationApiController extends Controller
 
         try {
             $date = \Carbon\Carbon::parse($raw);
-            return $includeTime ? $date->format('d/m/Y H:i') : $date->format('d/m/Y');
+            return $includeTime ? $date->format('d-m-Y H:i') : $date->format('d-m-Y');
         } catch (\Throwable $e) {
             return $raw;
         }
+    }
+
+    private function leaveContextLabel(string $context): string
+    {
+        return match ($context) {
+            'submitted' => localize('notification_context_submitted', 'បានដាក់សំណើ'),
+            'forwarded' => localize('notification_context_forwarded', 'បានបញ្ជូនបន្ត'),
+            'approved' => localize('notification_context_approved', 'បានអនុម័ត'),
+            'rejected' => localize('notification_context_rejected', 'បានបដិសេធ'),
+            'handover_assigned' => localize('notification_context_handover', 'បានកំណត់ជាអ្នកជំនួស'),
+            'pending_review' => localize('notification_context_pending_review', 'កំពុងរង់ចាំសកម្មភាព'),
+            default => '',
+        };
+    }
+
+    private function attendanceContextLabel(string $context): string
+    {
+        return match ($context) {
+            'submitted' => localize('notification_context_submitted', 'បានដាក់សំណើ'),
+            'pending_review' => localize('notification_context_pending_review', 'កំពុងរង់ចាំសកម្មភាព'),
+            default => '',
+        };
     }
 }

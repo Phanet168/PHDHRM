@@ -222,9 +222,16 @@ class LeaveRequestItem {
     required this.reason,
     required this.status,
     required this.workflowStatus,
+    this.workflowCurrentStepOrder,
+    this.workflowCurrentStepName,
+    this.workflowCurrentActorName,
+    this.workflowSourcePolicyModuleKey,
+    this.workflowSourcePolicyName,
+    this.workflowSteps = const <LeaveWorkflowStepItem>[],
     this.attachmentUrl,
     this.employeeName,
     this.employeeNo,
+    this.employeeUserId,
     this.submittedAt,
     this.updatedAt,
   });
@@ -243,9 +250,16 @@ class LeaveRequestItem {
   final String reason;
   final String status;
   final String workflowStatus;
+  final int? workflowCurrentStepOrder;
+  final String? workflowCurrentStepName;
+  final String? workflowCurrentActorName;
+  final String? workflowSourcePolicyModuleKey;
+  final String? workflowSourcePolicyName;
+  final List<LeaveWorkflowStepItem> workflowSteps;
   final String? attachmentUrl;
   final String? employeeName;
   final String? employeeNo;
+  final int? employeeUserId;
   final String? submittedAt;
   final String? updatedAt;
 
@@ -271,12 +285,31 @@ class LeaveRequestItem {
     final employee = map['employee'];
     String? employeeName;
     String? employeeNo;
+    int? employeeUserId;
     if (employee is Map<String, dynamic>) {
       employeeName = (employee['full_name'] ?? '').toString();
       employeeNo = (employee['employee_no'] ?? '').toString();
+      employeeUserId = _toInt(employee['user_id']);
     } else if (employee is Map) {
       employeeName = (employee['full_name'] ?? '').toString();
       employeeNo = (employee['employee_no'] ?? '').toString();
+      employeeUserId = _toInt(employee['user_id']);
+    }
+
+    final workflowSteps = <LeaveWorkflowStepItem>[];
+    final rawWorkflowSteps = map['workflow_steps'];
+    if (rawWorkflowSteps is List) {
+      for (final row in rawWorkflowSteps) {
+        if (row is Map<String, dynamic>) {
+          workflowSteps.add(LeaveWorkflowStepItem.fromMap(row));
+        } else if (row is Map) {
+          workflowSteps.add(
+            LeaveWorkflowStepItem.fromMap(
+              row.map((key, value) => MapEntry(key.toString(), value)),
+            ),
+          );
+        }
+      }
     }
 
     return LeaveRequestItem(
@@ -294,13 +327,57 @@ class LeaveRequestItem {
       reason: (map['reason'] ?? '').toString(),
       status: (map['status'] ?? '').toString(),
       workflowStatus: (map['workflow_status'] ?? '').toString(),
+      workflowCurrentStepOrder: map['workflow_current_step_order'] == null
+          ? null
+          : _toInt(map['workflow_current_step_order']),
+      workflowCurrentStepName:
+          (map['workflow_current_step_name'] as String?)?.trim(),
+      workflowCurrentActorName:
+          (map['workflow_current_actor_name'] as String?)?.trim(),
+      workflowSourcePolicyModuleKey:
+          (map['workflow_source_policy_module_key'] as String?)?.trim(),
+      workflowSourcePolicyName:
+          (map['workflow_source_policy_name'] as String?)?.trim(),
+      workflowSteps: workflowSteps,
       attachmentUrl: (map['attachment_url'] as String?)?.trim(),
       employeeName:
           employeeName?.trim().isEmpty == true ? null : employeeName?.trim(),
       employeeNo:
           employeeNo?.trim().isEmpty == true ? null : employeeNo?.trim(),
+      employeeUserId: employeeUserId == null || employeeUserId <= 0
+          ? null
+          : employeeUserId,
       submittedAt: (map['submitted_at'] as String?)?.trim(),
       updatedAt: (map['updated_at'] as String?)?.trim(),
+    );
+  }
+}
+
+class LeaveWorkflowStepItem {
+  const LeaveWorkflowStepItem({
+    required this.stepOrder,
+    required this.stepName,
+    required this.actionType,
+    required this.actorName,
+    required this.isFinalApproval,
+    required this.isCurrent,
+  });
+
+  final int stepOrder;
+  final String stepName;
+  final String actionType;
+  final String actorName;
+  final bool isFinalApproval;
+  final bool isCurrent;
+
+  factory LeaveWorkflowStepItem.fromMap(Map<String, dynamic> map) {
+    return LeaveWorkflowStepItem(
+      stepOrder: _toInt(map['step_order']),
+      stepName: (map['step_name'] ?? '').toString(),
+      actionType: (map['action_type'] ?? '').toString(),
+      actorName: (map['actor_name'] ?? '').toString(),
+      isFinalApproval: _toBool(map['is_final_approval']),
+      isCurrent: _toBool(map['is_current']),
     );
   }
 }

@@ -27,6 +27,17 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
   bool _loading = true;
   bool _submitting = false;
 
+  bool _canReviewItem(LeaveRequestItem item) {
+    final employeeUserId = item.employeeUserId;
+    if (employeeUserId != null &&
+        employeeUserId > 0 &&
+        employeeUserId == widget.user.userId) {
+      return false;
+    }
+
+    return item.status.trim().toLowerCase() == 'pending';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -47,7 +58,7 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
       }
 
       setState(() {
-        _requests = requests;
+        _requests = requests.where(_canReviewItem).toList();
       });
     } catch (error) {
       if (mounted) {
@@ -63,6 +74,14 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
   }
 
   Future<void> _submitReview(LeaveRequestItem item, String action) async {
+    if (!_canReviewItem(item)) {
+      _showMessage(
+        _tr('permission_denied', 'មិនអាចពិនិត្យសំណើរបស់ខ្លួនឯងបានទេ'),
+        isError: true,
+      );
+      return;
+    }
+
     final noteController = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
@@ -150,16 +169,16 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
   Future<void> _openAttachment(String url) async {
     final uri = Uri.tryParse(url.trim());
     if (uri == null) {
-      _showMessage(_tr('attachment', 'តំណឯកសារភ្ជាប់មិនត្រឹមត្រូវ'), isError: true);
+      _showMessage(
+        _tr('attachment', 'តំណឯកសារភ្ជាប់មិនត្រឹមត្រូវ'),
+        isError: true,
+      );
       return;
     }
 
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!launched && mounted) {
-      _showMessage(
-        _tr('attachment', 'មិនអាចបើកឯកសារភ្ជាប់បាន'),
-        isError: true,
-      );
+      _showMessage(_tr('attachment', 'មិនអាចបើកឯកសារភ្ជាប់បាន'), isError: true);
     }
   }
 
@@ -258,6 +277,20 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
                                 Text(
                                   '${_tr('day_leave', 'ចំនួនថ្ងៃ')}: ${item.requestedDays}',
                                 ),
+                                if (item.workflowCurrentStepName
+                                        ?.trim()
+                                        .isNotEmpty ==
+                                    true)
+                                  Text(
+                                    'ជំហាន: ${item.workflowCurrentStepName!.trim()}',
+                                  ),
+                                if (item.workflowCurrentActorName
+                                        ?.trim()
+                                        .isNotEmpty ==
+                                    true)
+                                  Text(
+                                    'អ្នកទទួលបន្ទុកបច្ចុប្បន្ន: ${item.workflowCurrentActorName!.trim()}',
+                                  ),
                                 if (item.handoverEmployeeName.trim().isNotEmpty)
                                   Text(
                                     '${_tr('handover_employee', 'Replacement employee')}: ${item.handoverEmployeeName}',

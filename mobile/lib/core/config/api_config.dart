@@ -7,9 +7,14 @@ class ApiConfig {
       'http://127.0.0.1/PHDHRM/backend/api';
   static const String _primaryServerArtisanUrl = 'http://127.0.0.1:8000/api';
   static const List<String> _androidLanBaseUrls = <String>[
+    'http://phdhrm.local/PHDHRM/backend/api',
+    'http://phdhrm.local:8000/api',
+  ];
+  static const List<String> _legacyAndroidLanBaseUrls = <String>[
     'http://192.168.1.4/PHDHRM/backend/api',
     'http://192.168.1.9/PHDHRM/backend/api',
     'http://192.168.1.7/PHDHRM/backend/api',
+    'http://192.168.1.2/PHDHRM/backend/api',
   ];
   static const List<String> _androidEmulatorBaseUrls = <String>[
     'http://10.0.2.2/PHDHRM/backend/api',
@@ -18,9 +23,13 @@ class ApiConfig {
   static final ApiBaseUrlStorageService _storageService =
       ApiBaseUrlStorageService();
   static List<String>? _storedBaseUrls;
+  static String? _lastSuccessfulBaseUrl;
 
   static Future<void> initialize() async {
     final storedBaseUrls = await _storageService.readConfiguredBaseUrls();
+    _lastSuccessfulBaseUrl = normalizeBaseUrl(
+      await _storageService.readLastSuccessfulBaseUrl() ?? '',
+    );
     if (storedBaseUrls.isEmpty) {
       _storedBaseUrls = null;
       return;
@@ -37,6 +46,8 @@ class ApiConfig {
   static bool get hasStoredBaseUrls {
     return _storedBaseUrls != null && _storedBaseUrls!.isNotEmpty;
   }
+
+  static String? get lastSuccessfulBaseUrl => _lastSuccessfulBaseUrl;
 
   static String get baseUrl {
     return baseUrls.first;
@@ -57,11 +68,14 @@ class ApiConfig {
   }
 
   static List<String> get baseUrls {
+    final lastSuccessful = _lastSuccessfulBaseUrl;
     final stored = _storedBaseUrls;
     if (stored != null && stored.isNotEmpty) {
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-        // For physical Android phones: try LAN IP first, then emulator fallback
+        // For physical Android phones: use the last successful base first,
+        // then explicit server settings, then stable local hostnames.
         return _androidCompatibleBaseUrls(<String>[
+          if (lastSuccessful != null) lastSuccessful,
           ...stored,
           ..._androidLanBaseUrls,
           ..._androidEmulatorBaseUrls,
@@ -69,6 +83,7 @@ class ApiConfig {
       }
 
       return _dedupe(<String>[
+        if (lastSuccessful != null) lastSuccessful,
         ...stored,
         _primaryServerBaseUrl,
         _primaryServerArtisanUrl,
@@ -79,8 +94,10 @@ class ApiConfig {
     if (configured.trim().isNotEmpty) {
       final configuredBaseUrls = normalizeConfiguredBaseUrls(configured);
       if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-        // For physical Android phones: try configured URLs first, then LAN IP, then emulator
+        // For physical Android phones: prefer previous success, then configured,
+        // then stable local hostnames, then emulator fallback.
         return _androidCompatibleBaseUrls(<String>[
+          if (lastSuccessful != null) lastSuccessful,
           ...configuredBaseUrls,
           ..._androidLanBaseUrls,
           ..._androidEmulatorBaseUrls,
@@ -88,6 +105,7 @@ class ApiConfig {
       }
 
       return _dedupe(<String>[
+        if (lastSuccessful != null) lastSuccessful,
         ...configuredBaseUrls,
         _primaryServerBaseUrl,
         _primaryServerArtisanUrl,
@@ -97,6 +115,7 @@ class ApiConfig {
     if (kIsWeb) {
       final host = Uri.base.host.isEmpty ? '127.0.0.1' : Uri.base.host;
       return _dedupe(<String>[
+        if (lastSuccessful != null) lastSuccessful,
         _primaryServerBaseUrl,
         _primaryServerArtisanUrl,
         'http://$host/PHDHRM/backend/api',
@@ -107,10 +126,11 @@ class ApiConfig {
     }
 
     if (defaultTargetPlatform == TargetPlatform.android) {
-      // For physical Android phones: prioritize LAN IP, then DNS, then emulator
+      // For physical Android phones during development:
+      // 1. previous success, 2. stable local DNS, 3. emulator fallback.
       return _dedupe(<String>[
+        if (lastSuccessful != null) lastSuccessful,
         ..._androidLanBaseUrls,
-        'http://phdhrm.local/PHDHRM/backend/api',
         'http://10.0.2.2/PHDHRM/backend/api',
         'http://10.0.2.2:8000/api',
       ]);
@@ -140,9 +160,27 @@ class ApiConfig {
     await _storageService.clearConfiguredBaseUrls();
   }
 
-  static const Duration connectTimeout = Duration(seconds: 6);
-  static const Duration fallbackConnectTimeout = Duration(seconds: 3);
-  static const Duration warmupProbeTimeout = Duration(seconds: 2);
+  static Future<void> saveLastSuccessfulBaseUrl(String value) async {
+    final normalized = normalizeBaseUrl(value);
+    _lastSuccessfulBaseUrl = normalized;
+    if (normalized == null) {
+      await _storageService.clearLastSuccessfulBaseUrl();
+      return;
+    }
+
+    await _storageService.saveLastSuccessfulBaseUrl(normalized);
+  }
+
+  static List<String> get fallbackLanDiscoveryBases {
+    return _dedupe(<String>[
+      ..._androidLanBaseUrls,
+      ..._legacyAndroidLanBaseUrls,
+    ]);
+  }
+
+  static const Duration connectTimeout = Duration(seconds: 4);
+  static const Duration fallbackConnectTimeout = Duration(milliseconds: 1500);
+  static const Duration warmupProbeTimeout = Duration(milliseconds: 1200);
 
   static Uri buildUri(String path, [Map<String, dynamic>? queryParameters]) {
     return buildUriForBase(baseUrl, path, queryParameters);

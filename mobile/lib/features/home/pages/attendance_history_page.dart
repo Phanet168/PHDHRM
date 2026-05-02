@@ -258,7 +258,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
   String _formatDate(DateTime d) {
     final dd = d.day.toString().padLeft(2, '0');
     final mm = d.month.toString().padLeft(2, '0');
-    return '$dd/$mm/${d.year}';
+    return '$dd-$mm-${d.year}';
   }
 
   String _dateKey(int y, int m, int d) =>
@@ -1108,7 +1108,7 @@ class _SelectedDayCard extends StatelessWidget {
     final rec = record;
     final dd = date.day.toString().padLeft(2, '0');
     final mm = date.month.toString().padLeft(2, '0');
-    final dateStr = '$dd/$mm/${date.year}';
+    final dateStr = '$dd-$mm-${date.year}';
 
     return Container(
       padding: const EdgeInsets.all(14),

@@ -206,8 +206,8 @@ if (!function_exists('current_date')) {
 if (!function_exists('current_date_for_account')) {
     function current_date_for_account()
     {
-        $startDate = Carbon::today()->format('d/m/Y');
-        $endDate = Carbon::today()->addDays(30)->subDay()->format('d/m/Y');
+        $startDate = Carbon::today()->format('d-m-Y');
+        $endDate = Carbon::today()->addDays(30)->subDay()->format('d-m-Y');
 
         return $startDate . ' - ' . $endDate;
     }
@@ -217,7 +217,7 @@ if (!function_exists('display_date')) {
     /**
      * Format date for UI display.
      */
-    function display_date($value, string $format = 'd/m/Y', string $fallback = '-'): string
+    function display_date($value, string $format = 'd-m-Y', string $fallback = '-'): string
     {
         if ($value === null || $value === '') {
             return $fallback;
@@ -235,7 +235,7 @@ if (!function_exists('display_datetime')) {
     /**
      * Format date-time for UI display.
      */
-    function display_datetime($value, string $format = 'd/m/Y H:i', string $fallback = '-'): string
+    function display_datetime($value, string $format = 'd-m-Y H:i', string $fallback = '-'): string
     {
         if ($value === null || $value === '') {
             return $fallback;

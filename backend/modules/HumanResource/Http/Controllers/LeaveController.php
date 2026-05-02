@@ -525,7 +525,7 @@ class LeaveController extends Controller
             $record->markAsRead();
         }
 
-        $link = trim((string) data_get($record->data, 'link', route('leave.index')));
+        $link = $this->resolveNotificationLink($record);
         return redirect()->to($link !== '' ? $link : route('leave.index'));
     }
 
@@ -967,12 +967,7 @@ class LeaveController extends Controller
             return;
         }
 
-        $plan = $this->workflowPolicyService()->resolveAndBuild(
-            'leave',
-            'leave_request',
-            $this->buildLeaveWorkflowContext($leave)
-        );
-        $plan = $this->normalizeLeaveWorkflowPlan($plan, $leave);
+        $plan = $this->resolveLeaveWorkflowPlan($leave);
 
         if (!$plan || empty($plan['steps'])) {
             $leave->update([
@@ -1399,6 +1394,10 @@ class LeaveController extends Controller
             return false;
         }
 
+        if ($this->isRequesterUser($leave, $user)) {
+            return false;
+        }
+
         if ($this->orgHierarchyAccessService()->isSystemAdmin($user)) {
             return true;
         }
@@ -1422,6 +1421,10 @@ class LeaveController extends Controller
         ApplyLeave $leave,
         \Modules\HumanResource\Entities\WorkflowDefinitionStep $step
     ): bool {
+        if ($this->isRequesterUser($leave, $user)) {
+            return false;
+        }
+
         if ($this->orgHierarchyAccessService()->isSystemAdmin($user)) {
             return true;
         }
@@ -1429,6 +1432,16 @@ class LeaveController extends Controller
         $sourceDepartmentId = $this->resolveLeaveSourceDepartmentId($leave);
 
         return $this->workflowActorResolverService()->canUserActOnStep($user, $step, $sourceDepartmentId);
+    }
+
+    protected function isRequesterUser(ApplyLeave $leave, User $user): bool
+    {
+        $requesterUserId = (int) ($leave->employee?->user_id ?? 0);
+        if ($requesterUserId <= 0) {
+            $requesterUserId = (int) ($leave->employee()->value('user_id') ?? 0);
+        }
+
+        return $requesterUserId > 0 && $requesterUserId === (int) $user->id;
     }
 
     protected function resolveWorkflowStepRoleCode(\Modules\HumanResource\Entities\WorkflowDefinitionStep $step): string
@@ -1471,6 +1484,73 @@ class LeaveController extends Controller
             'org_unit_type_code' => (string) ($currentDepartment?->unitType?->code ?? ''),
             'is_full_right' => (bool) ($employee?->is_full_right_officer ?? false),
         ];
+    }
+
+    protected function resolveLeaveWorkflowPlan(ApplyLeave $leave): ?array
+    {
+        $context = $this->buildLeaveWorkflowContext($leave);
+
+        $leavePlan = $this->workflowPolicyService()->resolveAndBuild(
+            'leave',
+            'leave_request',
+            $context
+        );
+        if ($leavePlan) {
+            $leavePlan['source_policy_module_key'] = (string) ($leavePlan['module_key'] ?? 'leave');
+            $leavePlan['source_policy_name'] = (string) ($leavePlan['name'] ?? 'Leave workflow');
+        }
+        $leavePlan = $this->normalizeLeaveWorkflowPlan($leavePlan, $leave);
+
+        if ($this->planUsesSpecificUsers($leavePlan)) {
+            return $leavePlan;
+        }
+
+        $attendancePlan = $this->workflowPolicyService()->resolveAndBuild(
+            'attendance',
+            'attendance_adjustment',
+            $context
+        );
+        $attendancePlan = $this->normalizeLeaveWorkflowPlan(
+            $this->adaptWorkflowPlanForLeave($attendancePlan),
+            $leave
+        );
+
+        if ($this->planUsesSpecificUsers($attendancePlan)) {
+            return $attendancePlan;
+        }
+
+        return $leavePlan;
+    }
+
+    protected function adaptWorkflowPlanForLeave(?array $plan): ?array
+    {
+        if (!$plan) {
+            return null;
+        }
+
+        $plan['module_key'] = 'leave';
+        $plan['request_type_key'] = 'leave_request';
+        $plan['name'] = (string) ($plan['name'] ?? 'Leave workflow');
+        $plan['description'] = (string) ($plan['description'] ?? '');
+        $plan['source_policy_module_key'] = (string) ($plan['source_policy_module_key'] ?? 'attendance');
+        $plan['source_policy_name'] = (string) ($plan['source_policy_name'] ?? $plan['name']);
+
+        return $plan;
+    }
+
+    protected function planUsesSpecificUsers(?array $plan): bool
+    {
+        $steps = collect((array) ($plan['steps'] ?? []))
+            ->filter(fn ($step) => is_array($step));
+
+        if ($steps->isEmpty()) {
+            return false;
+        }
+
+        return $steps->every(function (array $step): bool {
+            return (string) ($step['actor_type'] ?? '') === \Modules\HumanResource\Entities\WorkflowDefinitionStep::ACTOR_TYPE_SPECIFIC_USER
+                && !empty($step['actor_user_id']);
+        });
     }
 
     protected function normalizeLeaveWorkflowPlan(?array $plan, ApplyLeave $leave): ?array
@@ -1939,6 +2019,64 @@ class LeaveController extends Controller
     protected function leaveWorkflowNotificationService(): LeaveWorkflowNotificationService
     {
         return app(LeaveWorkflowNotificationService::class);
+    }
+
+    protected function resolveNotificationLink(DatabaseNotification $record): string
+    {
+        $user = auth()->user();
+        $canReadLeaveApplication = (bool) ($user?->can('read_leave_application') ?? false);
+        $canReadLeaveApproval = (bool) ($user?->can('read_leave_approval') ?? false);
+        $default = $canReadLeaveApplication
+            ? route('leave.index')
+            : ($canReadLeaveApproval ? route('leave.approval') : route('home'));
+        $data = is_array($record->data) ? $record->data : [];
+        $link = trim((string) ($data['link'] ?? ''));
+        $leaveUuid = trim((string) ($data['leave_uuid'] ?? ''));
+        $leaveId = (int) ($data['leave_id'] ?? 0);
+        $context = trim((string) ($data['context'] ?? ''));
+
+        $leave = null;
+        if ($leaveUuid !== '') {
+            $leave = ApplyLeave::query()->where('uuid', $leaveUuid)->first();
+        }
+        if (!$leave && $leaveId > 0) {
+            $leave = ApplyLeave::query()->find($leaveId);
+        }
+
+        if ($leave && filled($leave->uuid)) {
+            $isFinalApproved = ((string) ($leave->workflow_status ?? '') === 'approved')
+                || (int) ($leave->is_approved ?? 0) === 1;
+
+            if ($context === 'pending_review') {
+                if ($isFinalApproved) {
+                    if ((int) ($leave->employee?->user_id ?? 0) === (int) ($user?->id ?? 0)) {
+                        return route('leave.print', $leave->uuid);
+                    }
+
+                    return $default;
+                }
+
+                if ($canReadLeaveApproval) {
+                    return route('leave.review-form', $leave->uuid);
+                }
+
+                return $default;
+            }
+
+            if (in_array($context, ['submitted', 'handover_assigned', 'forwarded', 'approved', 'rejected'], true)) {
+                if ($context === 'approved' && $isFinalApproved && (int) ($leave->employee?->user_id ?? 0) === (int) ($user?->id ?? 0)) {
+                    return route('leave.print', $leave->uuid);
+                }
+
+                return $default;
+            }
+
+            if ($link === '' || str_ends_with($link, '/hr/leaves/review') || str_ends_with($link, '/hr/leaves/review/')) {
+                return $default;
+            }
+        }
+
+        return $link !== '' ? $link : $default;
     }
 
     protected function isLeaveWithoutPay(?LeaveType $leaveType): bool

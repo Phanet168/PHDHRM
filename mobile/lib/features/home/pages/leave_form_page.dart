@@ -101,8 +101,8 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
   }
 
   String _fmt(DateTime? d) {
-    if (d == null) return '--/--/----';
-    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    if (d == null) return '--/--/----'.replaceAll('/', '-');
+    return '${d.day.toString().padLeft(2, '0')}-${d.month.toString().padLeft(2, '0')}-${d.year}';
   }
 
   // ── Date pickers ───────────────────────────────────────────────────────────

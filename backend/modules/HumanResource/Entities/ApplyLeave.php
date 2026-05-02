@@ -64,35 +64,40 @@ class ApplyLeave extends Model
 
     protected static function boot()
     {
-    parent::boot();
-    if (Auth::check()) {
+        parent::boot();
+
         self::creating(function ($model) {
-            $model->uuid = (string) Str::uuid();
-            $model->created_by = Auth::id();
+            if (blank($model->uuid)) {
+                $model->uuid = (string) Str::uuid();
+            }
+
+            if (Auth::check()) {
+                $model->created_by = Auth::id();
+            }
         });
 
         self::updating(function ($model) {
-            $model->updated_by = Auth::id();
+            if (Auth::check()) {
+                $model->updated_by = Auth::id();
+            }
         });
-
 
         self::deleted(function ($model) {
-            $model->updated_by = Auth::id();
-            $model->save();
+            if (Auth::check()) {
+                $model->updated_by = Auth::id();
+                $model->save();
+            }
         });
-    }
 
-
-
-    static::addGlobalScope('sortByLatest', function (Builder $builder) {
-        $builder->orderByDesc('id');
-    });
+        static::addGlobalScope('sortByLatest', function (Builder $builder) {
+            $builder->orderByDesc('id');
+        });
     }
 
 
     public function employee()
     {
-        return $this->belongsTo(Employee::class);
+        return $this->belongsTo(Employee::class, 'employee_id', 'id')->withoutGlobalScopes();
     }
     public function leaveType()
     {
@@ -106,7 +111,7 @@ class ApplyLeave extends Model
 
     public function handoverEmployee()
     {
-        return $this->belongsTo(Employee::class, 'handover_employee_id');
+        return $this->belongsTo(Employee::class, 'handover_employee_id', 'id')->withoutGlobalScopes();
     }
 
     public function approvedBy()

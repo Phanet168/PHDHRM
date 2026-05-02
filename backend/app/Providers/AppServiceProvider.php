@@ -29,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot()
     {
+        $this->configureDynamicApplicationUrl();
 
         Blueprint::macro('updateCreatedBy', function () {
             $this->foreignId('created_by')->nullable();
@@ -51,6 +52,31 @@ class AppServiceProvider extends ServiceProvider
     {
         foreach (glob(__DIR__ . '/../Helpers/*.php') as $filename) {
             require_once $filename;
+        }
+    }
+
+    protected function configureDynamicApplicationUrl(): void
+    {
+        if ($this->app->runningInConsole()) {
+            return;
+        }
+
+        $request = request();
+        $host = trim((string) $request->getHost());
+        if ($host === '') {
+            return;
+        }
+
+        $rootUrl = $request->getSchemeAndHttpHost();
+        $baseUrl = trim((string) $request->getBaseUrl(), '/');
+        if ($baseUrl !== '') {
+            $rootUrl .= '/' . $baseUrl;
+        }
+
+        URL::forceRootUrl($rootUrl);
+
+        if ((bool) env('APP_HTTPS', false) || $request->isSecure()) {
+            URL::forceScheme('https');
         }
     }
 }

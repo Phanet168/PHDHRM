@@ -8,6 +8,9 @@ class HomeNotificationItem {
     required this.source,
     required this.typeLabel,
     required this.dateLabel,
+    required this.audienceLabel,
+    required this.contextLabel,
+    required this.stepName,
     this.sentAt,
     this.readAt,
     this.link,
@@ -21,6 +24,9 @@ class HomeNotificationItem {
   final String source;
   final String typeLabel;
   final String dateLabel;
+  final String audienceLabel;
+  final String contextLabel;
+  final String stepName;
   final String? sentAt;
   final String? readAt;
   final String? link;

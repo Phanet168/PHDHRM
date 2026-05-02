@@ -41,30 +41,34 @@ class _LeaveDetailPageState extends State<LeaveDetailPage> {
   Future<void> _cancel() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'បោះបង់សំណើ',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-        content: const Text('តើអ្នកចង់បោះបង់សំណើច្បាប់នេះពិតមែនទេ?'),
-        actions: <Widget>[
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(_tr('cancel', 'ទេ')),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFEF4444),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+      builder:
+          (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('បោះបង់សំណើ'),
+            title: const Text(
+              'បោះបង់សំណើ',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            content: const Text('តើអ្នកចង់បោះបង់សំណើច្បាប់នេះពិតមែនទេ?'),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(_tr('cancel', 'ទេ')),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF4444),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('បោះបង់សំណើ'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
 
     if (confirmed != true || !mounted) return;
@@ -116,6 +120,11 @@ class _LeaveDetailPageState extends State<LeaveDetailPage> {
         req.leaveTypeKm.trim().isNotEmpty ? req.leaveTypeKm : req.leaveType;
     final si = _statusInfo(req.status);
     final canCancel = req.canCancel;
+    final workflowSource =
+        (req.workflowSourcePolicyModuleKey ?? '').trim().toLowerCase() ==
+                'attendance'
+            ? 'វត្តមាន'
+            : 'ច្បាប់';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F6F8),
@@ -163,8 +172,11 @@ class _LeaveDetailPageState extends State<LeaveDetailPage> {
                         color: si.color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Icon(Icons.event_available_outlined,
-                          size: 24, color: si.color),
+                      child: Icon(
+                        Icons.event_available_outlined,
+                        size: 24,
+                        color: si.color,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -242,17 +254,23 @@ class _LeaveDetailPageState extends State<LeaveDetailPage> {
                 onTap: _openAttachment,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                        color: const Color(0xFF3B82F6).withValues(alpha: 0.3)),
+                      color: const Color(0xFF3B82F6).withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     children: <Widget>[
-                      const Icon(Icons.description_outlined,
-                          size: 20, color: Color(0xFF3B82F6)),
+                      const Icon(
+                        Icons.description_outlined,
+                        size: 20,
+                        color: Color(0xFF3B82F6),
+                      ),
                       const SizedBox(width: 10),
                       const Expanded(
                         child: Text(
@@ -264,8 +282,11 @@ class _LeaveDetailPageState extends State<LeaveDetailPage> {
                           ),
                         ),
                       ),
-                      const Icon(Icons.open_in_new_rounded,
-                          size: 16, color: Color(0xFF3B82F6)),
+                      const Icon(
+                        Icons.open_in_new_rounded,
+                        size: 16,
+                        color: Color(0xFF3B82F6),
+                      ),
                     ],
                   ),
                 ),
@@ -275,9 +296,97 @@ class _LeaveDetailPageState extends State<LeaveDetailPage> {
           if (req.attachmentUrl?.trim().isNotEmpty == true)
             const SizedBox(height: 12),
 
+          if ((req.workflowCurrentStepName?.trim().isNotEmpty ?? false) ||
+              (req.workflowCurrentActorName?.trim().isNotEmpty ?? false) ||
+              req.workflowSteps.isNotEmpty)
+            _InfoCard(
+              title: 'លំហូរអនុម័ត',
+              icon: Icons.route_outlined,
+              child: Column(
+                children: <Widget>[
+                  _DetailRow(
+                    icon: Icons.account_tree_outlined,
+                    label: 'ប្រភពលំហូរ',
+                    value: workflowSource,
+                  ),
+                  if ((req.workflowCurrentStepName?.trim().isNotEmpty ??
+                      false)) ...<Widget>[
+                    const SizedBox(height: 8),
+                    _DetailRow(
+                      icon: Icons.flag_outlined,
+                      label: 'ជំហានបច្ចុប្បន្ន',
+                      value: req.workflowCurrentStepName!.trim(),
+                    ),
+                  ],
+                  if ((req.workflowCurrentActorName?.trim().isNotEmpty ??
+                      false)) ...<Widget>[
+                    const SizedBox(height: 8),
+                    _DetailRow(
+                      icon: Icons.person_outline_rounded,
+                      label: 'អ្នកទទួលបន្ទុកបច្ចុប្បន្ន',
+                      value: req.workflowCurrentActorName!.trim(),
+                    ),
+                  ],
+                  if (req.workflowSteps.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 12),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    const SizedBox(height: 12),
+                    for (final step in req.workflowSteps) ...<Widget>[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Icon(
+                            step.isCurrent
+                                ? Icons.radio_button_checked_rounded
+                                : Icons.radio_button_unchecked_rounded,
+                            size: 16,
+                            color:
+                                step.isCurrent
+                                    ? const Color(0xFF0B6B58)
+                                    : const Color(0xFF94A3B8),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  'ជំហានទី ${step.stepOrder}: ${step.stepName}',
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                                if (step.actorName.trim().isNotEmpty)
+                                  Text(
+                                    step.actorName.trim(),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (step != req.workflowSteps.last)
+                        const SizedBox(height: 10),
+                    ],
+                  ],
+                ],
+              ),
+            ),
+
+          if ((req.workflowCurrentStepName?.trim().isNotEmpty ?? false) ||
+              (req.workflowCurrentActorName?.trim().isNotEmpty ?? false) ||
+              req.workflowSteps.isNotEmpty)
+            const SizedBox(height: 12),
+
           // ── Request meta ──────────────────────────────────────────────
           _InfoCard(
-            title: 'ព័ត៌មានបន្ថែម',
+            title: 'ព័ត៌មានសំណើ',
             icon: Icons.info_outline_rounded,
             child: Column(
               children: <Widget>[
@@ -289,7 +398,7 @@ class _LeaveDetailPageState extends State<LeaveDetailPage> {
                 const SizedBox(height: 8),
                 _DetailRow(
                   icon: Icons.category_outlined,
-                  label: 'ប្រភេទ',
+                  label: 'ប្រភេទច្បាប់',
                   value: typeLabel,
                 ),
               ],
@@ -299,50 +408,61 @@ class _LeaveDetailPageState extends State<LeaveDetailPage> {
       ),
 
       // ── Action bar ────────────────────────────────────────────────────
-      bottomNavigationBar: canCancel
-          ? Container(
-              padding: EdgeInsets.fromLTRB(
-                  16, 12, 16, 12 + MediaQuery.of(context).padding.bottom),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                boxShadow: <BoxShadow>[
-                  BoxShadow(
-                    color: Color(0x10000000),
-                    blurRadius: 12,
-                    offset: Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: SizedBox(
-                height: 50,
-                child: OutlinedButton.icon(
-                  onPressed: _cancelling ? null : _cancel,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFFEF4444),
-                    side: const BorderSide(
-                        color: Color(0xFFEF4444), width: 1.5),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(13)),
-                  ),
-                  icon: _cancelling
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Color(0xFFEF4444),
-                          ),
-                        )
-                      : const Icon(Icons.cancel_outlined, size: 18),
-                  label: Text(
-                    _cancelling ? 'កំពុងដំណើរការ...' : 'បោះបង់សំណើ',
-                    style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600),
+      bottomNavigationBar:
+          canCancel
+              ? Container(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  12,
+                  16,
+                  12 + MediaQuery.of(context).padding.bottom,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: <BoxShadow>[
+                    BoxShadow(
+                      color: Color(0x10000000),
+                      blurRadius: 12,
+                      offset: Offset(0, -4),
+                    ),
+                  ],
+                ),
+                child: SizedBox(
+                  height: 50,
+                  child: OutlinedButton.icon(
+                    onPressed: _cancelling ? null : _cancel,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFFEF4444),
+                      side: const BorderSide(
+                        color: Color(0xFFEF4444),
+                        width: 1.5,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(13),
+                      ),
+                    ),
+                    icon:
+                        _cancelling
+                            ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFFEF4444),
+                              ),
+                            )
+                            : const Icon(Icons.cancel_outlined, size: 18),
+                    label: Text(
+                      _cancelling ? 'កំពុងដំណើរការ...' : 'បោះបង់សំណើ',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            )
-          : null,
+              )
+              : null,
     );
   }
 }
@@ -446,7 +566,8 @@ class _DetailRow extends StatelessWidget {
               const SizedBox(height: 1),
               Text(
                 value,
-                style: valueStyle ??
+                style:
+                    valueStyle ??
                     const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -505,19 +626,27 @@ class _StatusInfo {
 
   Color get color {
     switch (_s.trim().toLowerCase()) {
-      case 'approved': return const Color(0xFF10B981);
-      case 'rejected': return const Color(0xFFEF4444);
-      case 'cancelled': return const Color(0xFF9CA3AF);
-      default: return const Color(0xFFF59E0B);
+      case 'approved':
+        return const Color(0xFF10B981);
+      case 'rejected':
+        return const Color(0xFFEF4444);
+      case 'cancelled':
+        return const Color(0xFF9CA3AF);
+      default:
+        return const Color(0xFFF59E0B);
     }
   }
 
   String label(Map<String, String> language) {
     switch (_s.trim().toLowerCase()) {
-      case 'approved': return language['approved'] ?? 'អនុម័ត';
-      case 'rejected': return language['rejected'] ?? 'បដិសេធ';
-      case 'cancelled': return language['cancelled'] ?? 'បោះបង់';
-      default: return language['pending'] ?? 'រង់ចាំ';
+      case 'approved':
+        return language['approved'] ?? 'បានអនុម័ត';
+      case 'rejected':
+        return language['rejected'] ?? 'បានបដិសេធ';
+      case 'cancelled':
+        return language['cancelled'] ?? 'បានបោះបង់';
+      default:
+        return language['pending'] ?? 'កំពុងរង់ចាំ';
     }
   }
 }

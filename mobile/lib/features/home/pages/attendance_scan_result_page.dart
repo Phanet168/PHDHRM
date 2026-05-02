@@ -32,7 +32,7 @@ class AttendanceScanResultPage extends StatelessWidget {
   String _formatDateTime(DateTime value) {
     String two(int input) => input.toString().padLeft(2, '0');
 
-    return '${two(value.day)}/${two(value.month)}/${value.year} '
+    return '${two(value.day)}-${two(value.month)}-${value.year} '
         '${two(value.hour)}:${two(value.minute)}:${two(value.second)}';
   }
 
