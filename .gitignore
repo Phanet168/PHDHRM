@@ -3,10 +3,6 @@
 # /backend/public/build
 /backend/public/hot
 /backend/public/storage
-!/backend/public/storage/
-/backend/public/storage/*
-!/backend/public/storage/employee/
-!/backend/public/storage/employee/**
 /backend/storage/*.key
 /backend/storage/installed.php
 /backend/vendor
