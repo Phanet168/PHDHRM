@@ -1,0 +1,5 @@
+*
+!procurement
+!employee
+!employee/**
+!.gitignore
