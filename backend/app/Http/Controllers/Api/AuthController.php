@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\MobileDeviceRegistration;
 use App\Models\User;
+use App\Services\Security\EmployeeLoginResolver;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -12,6 +13,10 @@ use Modules\HumanResource\Entities\Employee;
 
 class AuthController extends Controller
 {
+    public function __construct(private readonly EmployeeLoginResolver $employeeLoginResolver)
+    {
+    }
+
     public function sanctumUser(Request $request): JsonResponse
     {
         return response()->json($request->user());
@@ -44,7 +49,8 @@ class AuthController extends Controller
         ]);
 
         $validated = $request->validate([
-            'email'       => ['required', 'email'],
+            'login'       => ['nullable', 'string'],
+            'email'       => ['nullable', 'string'],
             'password'    => ['required', 'string'],
             'device_name' => ['nullable', 'string', 'max:191'],
             'device_id'   => ['required', 'string', 'max:191'],
@@ -53,7 +59,15 @@ class AuthController extends Controller
             'fingerprint' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $loginInput = trim((string) ($validated['login'] ?? $validated['email'] ?? ''));
+        if ($loginInput === '') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Login field is required.',
+            ], 422);
+        }
+
+        $user = $this->employeeLoginResolver->resolveUserByLogin($loginInput);
 
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             return response()->json([
@@ -160,7 +174,8 @@ class AuthController extends Controller
         ]);
 
         $validated = $request->validate([
-            'email'       => ['required', 'email'],
+            'login'       => ['nullable', 'string'],
+            'email'       => ['nullable', 'string'],
             'password'    => ['required', 'string'],
             'device_name' => ['nullable', 'string', 'max:191'],
             'device_id'   => ['required', 'string', 'max:191'],
@@ -170,7 +185,15 @@ class AuthController extends Controller
             'request_note' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $loginInput = trim((string) ($validated['login'] ?? $validated['email'] ?? ''));
+        if ($loginInput === '') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Login field is required.',
+            ], 422);
+        }
+
+        $user = $this->employeeLoginResolver->resolveUserByLogin($loginInput);
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             return response()->json([
                 'status'  => 'error',
@@ -267,12 +290,21 @@ class AuthController extends Controller
         ]);
 
         $validated = $request->validate([
-            'email'       => ['required', 'email'],
+            'login'       => ['nullable', 'string'],
+            'email'       => ['nullable', 'string'],
             'password'    => ['required', 'string'],
             'device_id'   => ['required', 'string', 'max:191'],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $loginInput = trim((string) ($validated['login'] ?? $validated['email'] ?? ''));
+        if ($loginInput === '') {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Login field is required.',
+            ], 422);
+        }
+
+        $user = $this->employeeLoginResolver->resolveUserByLogin($loginInput);
         if (!$user || !Hash::check($validated['password'], $user->password)) {
             return response()->json([
                 'status'  => 'error',
@@ -474,7 +506,7 @@ class AuthController extends Controller
             ];
         }
 
-        $profilePic = $employee->profile_image ?: $user->profile_image;
+        $profilePic = $employee->profile_img_location ?: ($employee->profile_image ?: $user->profile_image);
         $displayName = trim((string) ($employee->full_name ?: $user->full_name));
         $phone = $this->normalizeText($employee->phone)
             ?? $this->normalizeText($employee->cell_phone)

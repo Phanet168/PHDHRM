@@ -39,6 +39,7 @@ class LoginRequest {
   Map<String, dynamic> toBody() {
     return <String, dynamic>{
       'email': email,
+      'login': email,
       'password': password,
       if (tokenId != null && tokenId!.isNotEmpty) 'device_id': tokenId,
       if (tokenId != null && tokenId!.isNotEmpty) 'token_id': tokenId,

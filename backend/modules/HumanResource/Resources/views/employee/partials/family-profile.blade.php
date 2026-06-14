@@ -109,7 +109,7 @@
     ];
 
     $salutationOptions = [
-        'boy' => localize('salutation_boy'),
+        'boy' => 'កុមារា',
         'girl' => localize('salutation_girl'),
         'mr' => localize('salutation_mr'),
         'miss' => localize('salutation_miss'),

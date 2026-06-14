@@ -1,0 +1,39 @@
+1 | Asst. Officer | 
+2 | Asst. Manager | 
+3 | Project Manager | អ្នកគ្រប់គ្រងគម្រោង
+4 | edrt | 
+5 | rtretyertyerty | 
+6 | Director of Center | ប្រធានមជ្ឈមណ្ឌលជាតិ
+7 | Deputy Director of  Center | អនុប្រធានមជ្ឈមណ្ឌលជាតិ
+8 | Director of Central Medical Store | ប្រធានឃ្លាំងឱសថ
+9 | Deputy Director of Central Medical Store | អនុប្រធានឃ្ល្លាំងំឱសថ
+10 | Director of RTC | នាយកសាលាភូមិភាគ
+11 | Deputy Director of RTC | នាយករងសាលាភូមិភាគ
+12 | Director of Municipal Health Department | ប្រធានមន្ទីរសុខាភិបាលរាជធានីភ្នំពេញ
+13 | Deputy Director of Municipal Health Department | អនុប្រធានមន្ទីរសុខាភិបាលរាជធានីភ្នំពេញ
+14 | Director of Provincial Health Department | ប្រធានមន្ទីរសុខាភិបាលខេត្ត-ក្រុង
+15 | Deputy Director of Provincial Health Department | អនុប្រធានមន្ទីរសុខាភិបាលខេត្ត-ក្រុង
+16 | Chief of Operational District Office | ប្រធានការិយាល័យសុខាភិបាលស្រុកប្រតិបត្តិ្ត
+17 | Deputy Chief o Operational District Office | អនុប្រធានការិយាល័យសុខាភិបាលស្រុកប្រតិបត្តិ្ត
+18 | Chief of Referral Hospital | ប្រធានមន្ទីរពេទ្យបង្អែក
+19 | Deputy Chief of Referral Hospital | អនុប្រធានមន្ទីរពេទ្យបង្អែក
+20 | Chief of Health Centre | ប្រធានមណ្ឌលសុខភាព
+21 | Deputy Chief of Health Centre | អនុប្រធានមណ្ឌលសុខភាព
+22 | Staff | បុគ្គលិក
+23 | Chief of Station | ប្រធានស្ថានីយ៏
+24 | Assistant Chief of Station | អនុប្រធានស្ថានីយ៏
+25 | Chief of Ward | នាយសាល
+26 | Assistant Chief of Ward | នាយសាលរង
+27 | Chief of Section | ប្រធានផ្នែក
+28 | Assistant Chief of Section | អនុប្រធានផ្នែក
+29 | Chief of Group | ប្រធានក្រុម
+30 | Assistant Chief of Group | អនុប្រធានក្រុម
+31 | Chief of Program | ប្រធានកម្មវិធី
+32 | Assistant Chief of Program | អនុប្រធានកម្មវិធី
+33 | Dean | ព្រឹទ្ធបុរស
+34 | Deputy Dean | ព្រឹទ្ធបុរសរង
+35 | Professor | សាស្ត្រាចារ្យ
+36 | Health Technical Staff | បុគ្គលិកបច្ចេកទេសសុខាភិបាល
+37 | Non-Health Technical Staff | បុគ្គលិកបច្ចេកទេសក្រៅសុខាភិបាល
+38 | Bureau Chief - Provincial | ប្រធានការិយាល័យ-ខេត្ត.ក្រុង
+39 | Vice Chief of Bureau - Provincial | អនុប្រធានការិយាល័យ-ខេត្ត.ក្រុង

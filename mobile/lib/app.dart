@@ -51,10 +51,13 @@ class _StaffMobileAppState extends State<StaffMobileApp> {
     return AnimatedBuilder(
       animation: _authController,
       builder: (context, _) {
+        final weekdayColor = AppDesignSystem.colorForWeekday(
+          DateTime.now().weekday,
+        );
         return MaterialApp(
           title: 'PHDHRMS',
           debugShowCheckedModeBanner: false,
-          theme: AppDesignSystem.lightTheme(),
+          theme: AppDesignSystem.lightTheme(seedColor: weekdayColor),
           onGenerateRoute: (settings) {
             switch (settings.name) {
               case AppRoutes.login:

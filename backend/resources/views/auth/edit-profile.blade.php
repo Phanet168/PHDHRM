@@ -74,9 +74,14 @@
                         <a class="nav-link active bg-smoke fw-semi-bold rounded-3 d-block text-center w-100 py-2 mb-2"
                             id="v-pills-home-tab" data-bs-toggle="pill" href="#v-pills-home" role="tab"
                             aria-controls="v-pills-home" aria-selected="true">{{ localize('personal_info') }}</a>
-                        <a class="nav-link bg-smoke fw-semi-bold rounded-3 d-block text-center w-100 py-2"
+                        <a class="nav-link bg-smoke fw-semi-bold rounded-3 d-block text-center w-100 py-2 mb-2"
                             id="v-pills-profile-tab" data-bs-toggle="pill" href="#v-pills-profile" role="tab"
                             aria-controls="v-pills-profile" aria-selected="false">{{ localize('change_password') }}</a>
+                        @if(Auth::user()->admin())
+                            <a class="nav-link bg-smoke fw-semi-bold rounded-3 d-block text-center w-100 py-2"
+                                id="v-pills-settings-tab" data-bs-toggle="pill" href="#v-pills-settings" role="tab"
+                                aria-controls="v-pills-settings" aria-selected="false">{{ localize('data_management') }}</a>
+                        @endif
                     </div>
                 </div>
                 <div class="col-lg-10">
@@ -182,7 +187,134 @@
                                 </form>
                             </div>
                         </div>
+                        @if(Auth::user()->admin())
+                        <div class="tab-pane fade" id="v-pills-settings" role="tabpanel"
+                            aria-labelledby="v-pills-settings-tab">
+                            <div class="card shadow-1 py-4">
+                                <h6 class="px-5 py-3 bg-honeydew fs-18 fw-bold mb-0 d-flex align-items-center"><span
+                                        class="vr_line me-2"></span> {{ localize('data_management') }}</h6>
+                                <div class="row px-5 py-3">
+                                    <div class="col-lg-12">
+                                        <div class="mb-3">
+                                            <h6 class="fw-semi-bold mb-3">{{ localize('account_preferences') }}</h6>
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semi-bold">{{ localize('language') }}</label>
+                                                <select class="form-select" id="language_preference" name="language_preference">
+                                                    <option value="en" @if(app()->getLocale() === 'en') selected @endif>English</option>
+                                                    <option value="km" @if(app()->getLocale() === 'km') selected @endif>ខ្មែរ</option>
+                                                </select>
+                                                <small class="text-muted d-block mt-2">{{ localize('select_preferred_language') }}</small>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semi-bold">{{ localize('notification_settings') }}</label>
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" id="email_notifications" name="email_notifications" checked>
+                                                    <label class="form-check-label" for="email_notifications">
+                                                        {{ localize('email_notifications') }}
+                                                    </label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="telegram_notifications" name="telegram_notifications" checked>
+                                                    <label class="form-check-label" for="telegram_notifications">
+                                                        {{ localize('telegram_notifications') }}
+                                                    </label>
+                                                </div>
+                                                <small class="text-muted d-block mt-2">{{ localize('choose_notification_methods') }}</small>
+                                            </div>
+                                        </div>
+
+                                        <hr class="my-4">
+
+                                        <div class="mb-3">
+                                            <h6 class="fw-semi-bold mb-3">{{ localize('data_privacy') }}</h6>
+                                            
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semi-bold">{{ localize('login_sessions') }}</label>
+                                                <p class="text-muted small mb-2">{{ localize('active_sessions') }}: <strong>1</strong></p>
+                                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#logoutAllDevicesModal">
+                                                    {{ localize('logout_all_devices') }}
+                                                </button>
+                                                <small class="text-muted d-block mt-2">{{ localize('logout_all_sessions_help') }}</small>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semi-bold">{{ localize('data_export') }}</label>
+                                                <p class="text-muted small mb-2">{{ localize('export_personal_data_desc') }}</p>
+                                                <button type="button" class="btn btn-sm btn-outline-primary">
+                                                    {{ localize('export_data') }}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <hr class="my-4">
+
+                                        <div class="mb-3">
+                                            <h6 class="fw-semi-bold mb-3 text-danger">{{ localize('danger_zone') }}</h6>
+                                            
+                                            <div class="mb-3 p-3 border border-danger rounded bg-light">
+                                                <label class="form-label fw-semi-bold text-danger">{{ localize('delete_account') }}</label>
+                                                <p class="text-muted small mb-2">{{ localize('delete_account_warning') }}</p>
+                                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                                                    {{ localize('delete_account') }}
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-lg-12 mt-4">
+                                            <div class="d-flex gap-3 justify-content-end">
+                                                <button type="button" class="btn btn-success bg-salem text-white fw-semi-bold rounded-3 d-block text-center w-auto px-5 py-2" id="saveDataManagementBtn">
+                                                    {{ localize('save_change') }}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        @endif
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal fade" id="logoutAllDevicesModal" tabindex="-1" aria-labelledby="logoutAllDevicesLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="logoutAllDevicesLabel">{{ localize('logout_all_devices') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {{ localize('logout_all_devices_confirm') }}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ localize('cancel') }}</button>
+                    <button type="button" class="btn btn-danger">{{ localize('logout_all') }}</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deleteAccountLabel">{{ localize('delete_account') }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger" role="alert">
+                        {{ localize('delete_account_warning') }}
+                    </div>
+                    <p>{{ localize('delete_account_irreversible') }}</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ localize('cancel') }}</button>
+                    <button type="button" class="btn btn-danger">{{ localize('delete_account') }}</button>
                 </div>
             </div>
         </div>
@@ -353,5 +485,37 @@
                 reader.readAsDataURL(input.files[0]);
             }
         }
+
+        // Data Management Settings Handler
+        $('#saveDataManagementBtn').on('click', function() {
+            var languagePreference = $('#language_preference').val();
+            var emailNotifications = $('#email_notifications').is(':checked');
+            var telegramNotifications = $('#telegram_notifications').is(':checked');
+
+            var formData = {
+                language_preference: languagePreference,
+                email_notifications: emailNotifications,
+                telegram_notifications: telegramNotifications,
+            };
+
+            $.ajax({
+                type: 'POST',
+                url: '{{ route("profile.updateDataManagement") }}',
+                data: formData,
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(data) {
+                    if (data.status) {
+                        toastr.success(data.message || 'Settings saved successfully');
+                    } else {
+                        toastr.error(data.message || 'Failed to save settings');
+                    }
+                },
+                error: function(data) {
+                    toastr.error('Error saving settings');
+                }
+            });
+        });
     </script>
 @endpush

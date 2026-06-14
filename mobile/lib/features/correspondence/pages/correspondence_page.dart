@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
 import '../../../core/localization/laravel_language_service.dart';
+import '../../../core/theme/app_design_system.dart';
 import '../../auth/controllers/auth_controller.dart';
 import 'correspondence_create_page.dart';
 import 'correspondence_detail_page.dart';
 import '../models/correspondence_models.dart';
 import '../services/correspondence_service.dart';
+
+Color _dynamicPrimary() =>
+    AppDesignSystem.colorForWeekday(DateTime.now().weekday);
 
 class CorrespondencePage extends StatefulWidget {
   const CorrespondencePage({super.key, required this.authController});
@@ -188,8 +192,8 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF0B6B58),
+            colorScheme: ColorScheme.light(
+              primary: _dynamicPrimary(),
               onPrimary: Colors.white,
             ),
           ),
@@ -280,10 +284,10 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.date_range_outlined,
                       size: 18,
-                      color: Color(0xFF0B6B58),
+                      color: _dynamicPrimary(),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -665,7 +669,7 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
               _SummaryCard(
                 title: _tr(language, 'outgoing_total', 'លិខិតចេញសរុប'),
                 count: (data['outgoing_total'] as num?)?.toInt() ?? 0,
-                color: const Color(0xFF0B6B58),
+                color: _dynamicPrimary(),
               ),
               const SizedBox(height: 12),
               _SummaryCard(
@@ -717,7 +721,7 @@ class _TabButton extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: isActive ? const Color(0xFF0B6B58) : Colors.grey[600],
+              color: isActive ? _dynamicPrimary() : Colors.grey[600],
               fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
             ),
           ),
@@ -725,7 +729,7 @@ class _TabButton extends StatelessWidget {
             Container(
               height: 3,
               width: label.length * 6.0,
-              color: const Color(0xFF0B6B58),
+              color: _dynamicPrimary(),
               margin: const EdgeInsets.only(top: 8),
             ),
         ],
@@ -791,7 +795,7 @@ class _CorrespondenceCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       if (letter.letterNo != null)
                         Text(
-                          'លេខ: ${letter.letterNo}',
+                          'លេខ៖ ${letter.letterNo}',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],
@@ -849,7 +853,7 @@ class _CorrespondenceCard extends StatelessWidget {
   Color _statusColor(String status) {
     switch (status) {
       case 'completed':
-        return const Color(0xFF0B6B58);
+        return _dynamicPrimary();
       case 'in_progress':
         return const Color(0xFF1D4F91);
       case 'pending':
@@ -1194,8 +1198,8 @@ class _CorrespondenceCreatePageState extends State<_CorrespondenceCreatePage> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF0B6B58),
+            colorScheme: ColorScheme.light(
+              primary: _dynamicPrimary(),
               onPrimary: Colors.white,
             ),
           ),
@@ -1215,8 +1219,7 @@ class _CorrespondenceCreatePageState extends State<_CorrespondenceCreatePage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor:
-            isError ? const Color(0xFFDC2626) : const Color(0xFF0B6B58),
+        backgroundColor: isError ? const Color(0xFFDC2626) : _dynamicPrimary(),
       ),
     );
   }

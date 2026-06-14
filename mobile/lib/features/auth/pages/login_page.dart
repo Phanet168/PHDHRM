@@ -95,6 +95,13 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
+    if (success) {
+      Navigator.of(
+        context,
+      ).pushNamedAndRemoveUntil(AppRoutes.home, (route) => false);
+      return;
+    }
+
     if (!success && _hasInlineError) {
       setState(() {});
     }
@@ -383,6 +390,12 @@ class _LoginPageState extends State<LoginPage> {
     final screenWidth = MediaQuery.of(context).size.width;
     final panelWidth = screenWidth >= 600 ? 420.0 : double.infinity;
 
+    // Auto-size logo based on the effective form panel width.
+    final effectivePanelWidth =
+        screenWidth >= 600 ? 420.0 : (screenWidth - 44).clamp(280.0, 420.0);
+    final logoWidth =
+        (effectivePanelWidth * 0.16).clamp(96.0, 110.0).toDouble();
+
     return FutureBuilder<Map<String, String>>(
       future: _languageFuture,
       builder: (context, snapshot) {
@@ -443,28 +456,10 @@ class _LoginPageState extends State<LoginPage> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Center(
-                                  child: Container(
-                                    width: 86,
-                                    height: 86,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 4,
-                                      ),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Color(0x240B1B16),
-                                          blurRadius: 18,
-                                          offset: Offset(0, 10),
-                                        ),
-                                      ],
-                                    ),
-                                    clipBehavior: Clip.antiAlias,
-                                    child: Image.asset(
-                                      'assets/images/laravel_logo.png',
-                                      fit: BoxFit.contain,
-                                    ),
+                                  child: Image.asset(
+                                    'assets/images/app_logo.png',
+                                    width: logoWidth,
+                                    fit: BoxFit.contain,
                                   ),
                                 ),
                                 const SizedBox(height: 16),

@@ -877,7 +877,13 @@ class EmployeeRetirementController extends Controller
     protected function isSystemAdmin(): bool
     {
         $user = auth()->user();
-        return $user && (int) $user->user_type_id === 1;
+        if (!$user) {
+            return false;
+        }
+
+        return method_exists($user, 'admin')
+            ? (bool) $user->admin()
+            : (int) ($user->user_type_id ?? 0) === 1;
     }
 
     protected function currentUserRootUnitId(): ?int

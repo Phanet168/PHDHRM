@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="km">
+
+<head>
+    <!-- Required meta tags -->
+    <meta name="csrf-token" content="KaMR36pQwX2xS6E1bisTRx5MnNwPnX0edzFUjOAx" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="Sales ERP Software">
+    <meta name="author" content="Bdtask">
+        <title>ចូលប្រើ</title>
+
+    <!-- App favicon -->
+    <link rel="shortcut icon" class="favicon_show" href="http://localhost/PHDHRM/backend/storage/application/1777606576favicon.png">
+
+            <style>
+            :root {
+                --khmer-font-family: "Khmer OS Battambang", "Khmer OS Siemreap", "Khmer OS", "Leelawadee UI", sans-serif;
+            }
+
+            body,
+            .panel,
+            .form-control,
+            .btn,
+            .card,
+            .login-form-w,
+            .register-form {
+                font-family: var(--khmer-font-family) !important;
+                letter-spacing: 0;
+                line-height: 1.45;
+            }
+        </style>
+    
+    <style>
+        .login-brand {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-brand__logo {
+            display: block;
+            max-width: min(220px, 72vw);
+            max-height: 120px;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+        }
+    </style>
+
+        <link rel="shortcut icon" href="http://localhost/PHDHRM/backend/backend/assets/dist/img/favicon.png">
+    <link href="http://localhost/PHDHRM/backend/backend/assets/dist/css/khmer-font.css" rel="stylesheet" />
+<link href="http://localhost/PHDHRM/backend/backend/assets/plugins/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+<link href="http://localhost/PHDHRM/backend/backend/assets/plugins/metisMenu/metisMenu.css" rel="stylesheet">
+<link href="http://localhost/PHDHRM/backend/backend/assets/plugins/fontawesome/css/all.min.css" rel="stylesheet">
+<link href="http://localhost/PHDHRM/backend/backend/assets/plugins/typicons/src/typicons.min.css" rel="stylesheet">
+<link href="http://localhost/PHDHRM/backend/backend/assets/plugins/themify-icons/themify-icons.min.css" rel="stylesheet">
+<link href="http://localhost/PHDHRM/backend/backend/assets/dist/css/style.css" rel="stylesheet">
+</head>
+
+<body class="bg-white">
+
+        
+    <div class="d-flex align-items-center justify-content-center text-center login-bg h-100vh"
+        style="background-image: url(http://localhost/PHDHRM/backend/storage/application/1716991729login-image.jpg);">
+        <div class="form-wrapper position-relative m-auto">
+            <div class="form-container my-4">
+                <div class="panel login-form-w">
+                    <div class="panel-header text-center mb-3">
+                        <div class="login-brand mb-3">
+                            <img src="http://localhost/PHDHRM/backend/storage/application/1777612226logo.png" class="login-brand__logo"
+                                alt="មន្ទីរសុខាភិបាលនៃរដ្ឋបាលខេត្ត logo">
+                        </div>
+                        <h3 class="fs-24 fw-bold mb-1">មន្ទីរសុខាភិបាលនៃរដ្ឋបាលខេត្ត ចូលប្រើ</h3>
+                        <p class="fw--semi-bold text-center fs-14 mb-0">សូមស្វាគមន៍មកវិញ, មន្ទីរសុខាភិបាលនៃរដ្ឋបាលខេត្ត</p>
+                    </div>
+
+
+                    <form class="register-form text-start" action="http://localhost/PHDHRM/backend/login" method="POST">
+                        <input type="hidden" name="_token" value="KaMR36pQwX2xS6E1bisTRx5MnNwPnX0edzFUjOAx" autocomplete="off">                        <div class="mb-3">
+                            <label for="login" class="form-label fw-semi-bold">អ៊ីមែល ឬឈ្មោះអ្នកប្រើ</label>
+                            <input type="text" name="login" value=""
+                                class="form-control " id="login"
+                                placeholder="សូមបញ្ចូលអ៊ីមែល ឬឈ្មោះអ្នកប្រើ" />
+                            <input type="hidden" name="email" id="email_fallback" value="">
+
+                                                    </div>
+                        <div class="mb-3">
+                            <label for="pass" class="form-label fw-semi-bold">ពាក្យសម្ងាត់</label>
+                            <input type="password" name="password"
+                                class="form-control " id="pass"
+                                placeholder="សូមបញ្ចូលពាក្យសម្ងាត់របស់អ្នក" />
+                                                    </div>
+                        <div class="form-check mb-3 text-end">
+                                                            <a href="http://localhost/PHDHRM/backend/password/reset"
+                                    class="text-black fw-medium">ភ្លេចពាក្យសម្ងាត់</a>
+                                                    </div>
+                        <button type="submit" class="btn btn-success py-2 w-100">ចូលគណនី</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="http://localhost/PHDHRM/backend/backend/assets/plugins/jQuery/jquery.min.js"></script>
+<script src="http://localhost/PHDHRM/backend/backend/assets/plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script src="http://localhost/PHDHRM/backend/backend/assets/plugins/metisMenu/metisMenu.min.js"></script>
+<script src="http://localhost/PHDHRM/backend/backend/assets/plugins/perfect-scrollbar/dist/perfect-scrollbar.min.js"></script>
+<script src="http://localhost/PHDHRM/backend/backend/assets/dist/js/authentication.js"></script>
+        <script>
+        (function() {
+            "use strict";
+
+            const loginInput = document.getElementById('login');
+            const emailFallback = document.getElementById('email_fallback');
+            const form = document.querySelector('form.register-form');
+
+            const syncFallback = function() {
+                if (emailFallback && loginInput) {
+                    emailFallback.value = loginInput.value || '';
+                }
+            };
+
+            if (loginInput) {
+                loginInput.addEventListener('input', syncFallback);
+                syncFallback();
+            }
+
+            if (form) {
+                form.addEventListener('submit', syncFallback);
+            }
+        })();
+    </script>
+</body>
+
+</html>

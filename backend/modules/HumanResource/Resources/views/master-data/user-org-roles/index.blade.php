@@ -25,12 +25,15 @@
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('org_role_management', 'គ្រប់គ្រងតួនាទីតាមអង្គភាព') }}</h6>
+                    <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('org_role_management_simple', 'របៀបចាស់សម្រាប់កំណត់អ្នកគ្រប់គ្រង') }}</h6>
+                    <small class="text-muted">
+                        {{ localize('org_role_management_simple_desc', 'ប្រើនៅពេលចង់កំណត់ប្រធាន អនុប្រធាន ឬអ្នកគ្រប់គ្រងតាមអង្គភាពតែប៉ុណ្ណោះ។') }}
+                    </small>
                 </div>
                 <div class="text-end">
                     <div class="actions">
                         <a href="{{ $canonical_assignments_route }}" class="btn btn-info btn-sm me-1">
-                            <i class="fa fa-user-check"></i>&nbsp;{{ localize('open_user_assignments', 'Open User Assignments') }}
+                            <i class="fa fa-user-check"></i>&nbsp;{{ localize('open_user_assignments_simple', 'បើកទំព័រងាយប្រើ') }}
                         </a>
                         @canany(['create_org_governance', 'create_department'])
                             @if (!($legacy_read_only ?? false))
@@ -49,19 +52,19 @@
         <div class="card-body">
             @if ($legacy_read_only ?? false)
                 <div class="alert alert-warning mb-3">
-                    <div class="fw-semibold mb-1">{{ localize('legacy_screen_notice', 'Legacy screen notice') }}</div>
+                    <div class="fw-semibold mb-1">{{ localize('legacy_screen_notice', 'សេចក្តីជូនដំណឹង') }}</div>
                     <div>
-                        {{ localize('legacy_screen_notice_desc', 'This page is in transition mode. Please use User Assignments for create/update actions. Legacy rows remain visible for backward compatibility.') }}
+                        {{ localize('legacy_screen_notice_desc', 'ទំព័រនេះសម្រាប់មើល និងប្រើរបៀបចាស់។ បើចង់បន្ថែម ឬកែការកំណត់ថ្មី សូមប្រើ "ទំព័រងាយប្រើ" ខាងលើ។') }}
                     </div>
                 </div>
             @endif
 
-            <div class="alert alert-info mb-3">
-                <div class="fw-semibold mb-1">{{ localize('org_role_quick_guide', 'ការណែនាំខ្លី') }}</div>
-                <div>{{ localize('org_role_guide_1', '១) ជ្រើសអ្នកប្រើ និងអង្គភាព') }}</div>
-                <div>{{ localize('org_role_guide_2', '២) ជ្រើសតួនាទី (ប្រធាន/អនុប្រធាន/អ្នកគ្រប់គ្រង)') }}</div>
-                <div>{{ localize('org_role_guide_3', '៣) កំណត់ Scope៖ តែអង្គភាពខ្លួនឯង ឬរួមទាំងអង្គភាពរង') }}</div>
-                <div>{{ localize('org_role_guide_4', '៤) បើកស្ថានភាព សកម្ម ដើម្បីអនុវត្តក្នុង workflow') }}</div>
+            <div class="alert alert-light border mb-3">
+                <div class="fw-semibold mb-1">{{ localize('org_role_quick_guide', 'របៀបប្រើខ្លី') }}</div>
+                <div>{{ localize('org_role_guide_1', '1) ជ្រើសអ្នកប្រើ និងអង្គភាព') }}</div>
+                <div>{{ localize('org_role_guide_2', '2) ជ្រើសតួនាទី ដូចជា ប្រធាន អនុប្រធាន ឬអ្នកគ្រប់គ្រង') }}</div>
+                <div>{{ localize('org_role_guide_3', '3) ជ្រើសវិសាលភាព ថាត្រឹមអង្គភាពនេះ ឬរួមទាំងអង្គភាពរង') }}</div>
+                <div>{{ localize('org_role_guide_4', '4) រក្សាទុក ហើយពិនិត្យស្ថានភាពថា សកម្ម') }}</div>
             </div>
 
             <form method="GET" action="{{ route('user-org-roles.index') }}" class="mb-3">

@@ -25,5 +25,6 @@
     "OpeningStock": true,
     "UserManagement": true,
     "Correspondence": true,
-    "Pharmaceutical": true
+    "Pharmaceutical": true,
+    "Planning": true
 }

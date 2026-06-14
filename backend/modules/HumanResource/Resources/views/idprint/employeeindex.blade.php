@@ -44,6 +44,9 @@
                                         <a href="{{ route('idprint.employeeshow', $data->uuid) }}"
                                             class="btn btn-success btn-sm me-1" target="_blank" title="Print Id Card"><i
                                                 class="fa-regular fa-id-card"></i></a>
+                                        <a href="{{ route('idprint.public-profile', $data->uuid) }}"
+                                            class="btn btn-info btn-sm" target="_blank" title="View e-Card"><i
+                                                class="fa fa-qrcode"></i></a>
                                     @endcan
 
 

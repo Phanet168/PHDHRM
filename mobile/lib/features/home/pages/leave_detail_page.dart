@@ -203,7 +203,7 @@ class _LeaveDetailPageState extends State<LeaveDetailPage> {
                 // Date range
                 _DetailRow(
                   icon: Icons.calendar_today_outlined,
-                  label: 'ថ្ងៃចាប់ផ្តើម',
+                  label: 'ថ្ងៃចាប់ផ្ដើម',
                   value: req.startDate.isNotEmpty ? req.startDate : '-',
                 ),
                 const SizedBox(height: 10),
@@ -351,7 +351,7 @@ class _LeaveDetailPageState extends State<LeaveDetailPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: <Widget>[
                                 Text(
-                                  'ជំហានទី ${step.stepOrder}: ${step.stepName}',
+                                  'ជំហានទី ${step.stepOrder}៖ ${step.stepName}',
                                   style: const TextStyle(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
@@ -640,13 +640,13 @@ class _StatusInfo {
   String label(Map<String, String> language) {
     switch (_s.trim().toLowerCase()) {
       case 'approved':
-        return language['approved'] ?? 'បានអនុម័ត';
+        return language['approved'] ?? 'អនុម័ត';
       case 'rejected':
-        return language['rejected'] ?? 'បានបដិសេធ';
+        return language['rejected'] ?? 'បដិសេធ';
       case 'cancelled':
-        return language['cancelled'] ?? 'បានបោះបង់';
+        return language['cancelled'] ?? 'បោះបង់';
       default:
-        return language['pending'] ?? 'កំពុងរង់ចាំ';
+        return language['pending'] ?? 'រង់ចាំ';
     }
   }
 }

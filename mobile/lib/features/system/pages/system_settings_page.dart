@@ -10,11 +10,15 @@ import '../../../core/config/api_config.dart';
 import '../../../core/device/device_metadata_service.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/api_service.dart';
+import '../../../core/theme/app_design_system.dart';
 import '../../../core/storage/token_storage_service.dart';
 import '../../../core/storage/user_session_storage_service.dart';
 import '../../../core/storage/machine_number_storage_service.dart';
 import '../../auth/models/device_access_request_result.dart';
 import '../../auth/services/device_access_request_service.dart';
+
+Color _dynamicPrimary() =>
+    AppDesignSystem.colorForWeekday(DateTime.now().weekday);
 
 class SystemSettingsPage extends StatefulWidget {
   const SystemSettingsPage({super.key});
@@ -101,7 +105,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(content: Text('បានរក្សាទុកម៉ាស៊ីនមេ: ${ApiConfig.baseUrl}')),
+        SnackBar(content: Text('បានរក្សាទុកម៉ាស៊ីនមេ៖ ${ApiConfig.baseUrl}')),
       );
 
     Navigator.of(
@@ -121,7 +125,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
     setState(() {
       _serverController.clear();
       _connectionMessage = 'បានត្រឡប់ទៅម៉ាស៊ីនមេលំនាំដើម';
-      _connectionColor = const Color(0xFF0B6B58);
+      _connectionColor = _dynamicPrimary();
     });
 
     Navigator.of(
@@ -193,8 +197,8 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
           setState(() {
             _isTestingConnection = false;
             _connectionMessage =
-                'ភ្ជាប់ជោគជ័យ: $base (HTTP $statusCode$authHint)';
-            _connectionColor = const Color(0xFF0B6B58);
+                'ភ្ជាប់ជោគជ័យ៖ $base (HTTP $statusCode$authHint)';
+            _connectionColor = _dynamicPrimary();
           });
           return;
         }
@@ -332,7 +336,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'លេខស្នើសុំឧបករណ៍: $machineNumber',
+                          'លេខស្នើសុំឧបករណ៍៖ $machineNumber',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
@@ -340,7 +344,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'ឧបករណ៍: $deviceSummary',
+                          'ឧបករណ៍៖ $deviceSummary',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
@@ -436,7 +440,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('${result.message} (លេខសំណើ: ${result.requestId})'),
+          content: Text('${result.message} (លេខសំណើ៖ ${result.requestId})'),
         ),
       );
   }
@@ -475,7 +479,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                 ),
                 const SizedBox(height: 12),
                 SelectableText(
-                  'អាសយដ្ឋានដែលកំពុងប្រើ: ${ApiConfig.baseUrl}',
+                  'អាសយដ្ឋានដែលកំពុងប្រើ៖ ${ApiConfig.baseUrl}',
                   style: theme.textTheme.bodySmall,
                 ),
                 const SizedBox(height: 10),
@@ -564,7 +568,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                       machineNumber,
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF0B6B58),
+                        color: _dynamicPrimary(),
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -578,7 +582,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                                 : _deviceMetadataService.summarize(info);
 
                         return Text(
-                          'ឧបករណ៍: $summary',
+                          'ឧបករណ៍៖ $summary',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: const Color(0xFF5D6D65),
                           ),

@@ -1,4 +1,4 @@
-@extends('backend.layouts.app')
+﻿@extends('backend.layouts.app')
 @section('title', localize('grade_rank_management', 'Grade and rank management'))
 
 @push('css')
@@ -216,6 +216,85 @@
         .pay-promotion-subtitle {
             color: #5f6b7a;
             font-size: 0.9rem;
+        }
+
+        .pay-promotion-toast {
+            min-width: 320px;
+            max-width: 460px;
+            border-radius: 12px;
+            border: 1px solid transparent;
+            box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+            overflow: hidden;
+        }
+
+        .pay-promotion-toast .toast-body {
+            font-size: 0.95rem;
+            line-height: 1.45;
+            font-weight: 600;
+            padding: 0.95rem 1rem;
+        }
+
+        .pay-promotion-toast .pay-promotion-toast-close {
+            border: 0;
+            background: transparent;
+            padding: 0.75rem 0.95rem;
+            font-size: 1.2rem;
+            line-height: 1;
+            opacity: 0.78;
+        }
+
+        .pay-promotion-toast .pay-promotion-toast-close:hover {
+            opacity: 1;
+        }
+
+        .pay-promotion-toast-success {
+            background: #dff7ea;
+            border-color: #8dd7ab;
+            color: #0f5132;
+        }
+
+        .pay-promotion-toast-success .pay-promotion-toast-close {
+            color: #0f5132;
+        }
+
+        .pay-promotion-toast-warning {
+            background: #fff3cd;
+            border-color: #f0cd72;
+            color: #7a4b00;
+        }
+
+        .pay-promotion-toast-warning .pay-promotion-toast-close {
+            color: #7a4b00;
+        }
+
+        .pay-promotion-toast-danger {
+            background: #fbe3e6;
+            border-color: #e6a0a7;
+            color: #842029;
+        }
+
+        .pay-promotion-toast-danger .pay-promotion-toast-close {
+            color: #842029;
+        }
+
+        .pay-promotion-toast-info {
+            background: #e0f1ff;
+            border-color: #8fc6f3;
+            color: #0b4f7f;
+        }
+
+        .pay-promotion-toast-info .pay-promotion-toast-close {
+            color: #0b4f7f;
+        }
+
+        .pay-promotion-toast-primary {
+            background: #e6f0ff;
+            border-color: #9fbef5;
+            color: #184b96;
+        }
+
+        .pay-promotion-toast-primary .pay-promotion-toast-close {
+            color: #184b96;
         }
 
         .pay-promotion-stat-badge {
@@ -729,6 +808,20 @@
             ->all();
         $pendingProposalEmployeeSet = array_flip($pendingProposalEmployeeIds);
         $autoPromotionCandidates = collect($auto_promotion_candidates ?? [])->values();
+        $pendingProposals = collect();
+        $pendingProposalEmployeeIds = [];
+        $pendingProposalEmployeeSet = [];
+        $proposalActionPermissions = [];
+        $proposalActionSummary = [
+            'can_recommend' => 0,
+            'can_approve' => 0,
+            'can_reject' => 0,
+            'blocked' => 0,
+        ];
+        $approvalCanRecommendCount = 0;
+        $approvalCanApproveCount = 0;
+        $approvalCanRejectCount = 0;
+        $approvalBlockedCount = 0;
 
         $cutoffDateDisplay = !empty($cutoff_date)
             ? display_date($cutoff_date)
@@ -746,6 +839,8 @@
         $ui = function (string $km, string $en) use ($isEnglishUi) {
             return $isEnglishUi ? $en : $km;
         };
+        $canAdminEditPromotionHistory = auth()->check() && auth()->user()->admin() && auth()->user()->can('update_employee');
+        $canAdminDeletePromotionHistory = auth()->check() && auth()->user()->admin() && auth()->user()->can('delete_employee');
         $lx = function (string $key, string $km, string $en) use ($ui, $fixKhmerText): string {
             $raw = (string) localize($key, $ui($km, $en));
             $value = trim(html_entity_decode($raw, ENT_QUOTES, 'UTF-8'));
@@ -755,7 +850,7 @@
             if (
                 $value === ''
                 || preg_match('/^[\\?\\.\\-\\s]+$/u', $value)
-                || (!preg_match('/\\p{Khmer}/u', $value) && preg_match('/(Ã|Â|â|á)/u', $value))
+                || (!preg_match('/\\p{Khmer}/u', $value) && preg_match('/(Ãƒ|Ã‚|Ã¢|Ã¡)/u', $value))
             ) {
                 return $ui($km, $en);
             }
@@ -771,18 +866,18 @@
         ];
 
         $labelModuleTitle = $lx('grade_rank_management', 'គ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ', 'Grade and rank management');
-        $labelTabDashboard = $lx('summary_dashboard', 'ផ្ទាំងសង្ខេប', 'Summary dashboard');
-        $labelTabEligibleList = $lx('eligible_list', 'បញ្ជីគ្រប់លក្ខខណ្ឌ', 'Eligible list');
-        $labelTabEmployeeInfo = $lx('employee_information', 'ព័ត៌មានមន្ត្រី', 'Employee information');
+        $labelTabDashboard = $lx('summary_dashboard', 'សង្ខេបនិងការណែនាំ', 'Overview and guide');
+        $labelTabEligibleList = $lx('eligible_list', '១. បញ្ជីអ្នកដល់ពេលឡើងថ្នាក់', '1. Due list');
+        $labelTabEmployeeInfo = $lx('employee_information', 'ព័ត៌មានមន្ត្រីម្នាក់ៗ', 'Employee details');
         $labelTabCreateRequest = $lx('create_request', 'បង្កើតសំណើ', 'Create request');
-        $labelTabPromotionHistory = $lx('promotion_history', 'ប្រវត្តិដំឡើង', 'Promotion history');
-        $labelTabAllRequests = $lx('all_requests', 'សំណើទាំងអស់', 'All requests');
-        $labelTabApproval = $lx('approvals', 'ការអនុម័ត', 'Approvals');
-        $labelTabReports = $lx('reports', 'របាយការណ៍', 'Reports');
-        $labelTabNotifications = $lx('notifications', 'ការជូនដំណឹង', 'Notifications');
+        $labelTabPromotionHistory = $lx('promotion_history', '៣. ប្រវត្តិឡើងថ្នាក់', '3. Promotion history');
+        $labelTabAllRequests = $lx('all_requests', 'កំណត់ត្រាចាស់', 'Legacy records');
+        $labelTabApproval = $lx('approvals', 'ត្រួតពិនិត្យចាស់', 'Legacy review');
+        $labelTabReports = $lx('reports', 'របាយការណ៍បោះពុម្ព', 'Printable reports');
+        $labelTabNotifications = $lx('notifications', 'ការជូនដំណឹង និងត្រួតពិនិត្យ', 'Alerts and checks');
         $labelTotalEmployees = $lx('total_officials', 'មន្ត្រីសរុប', 'Total officials');
         $labelEligiblePromotion = $lx('eligible_for_grade_promotion', 'គ្រប់លក្ខខណ្ឌដំឡើងថ្នាក់', 'Eligible for grade promotion');
-        $labelPendingRequests = $lx('pending_requests', 'សំណើកំពុងរង់ចាំ', 'Pending requests');
+        $labelPendingRequests = $lx('pending_requests', 'បានកត់ត្រាក្នុងឆ្នាំនេះ', 'Recorded this year');
         $labelOverdue3Years = $lx('overdue_over_3_years', 'ហួសកាលកំណត់លើស ៣ ឆ្នាំ', 'Overdue over 3 years');
         $labelNearNextCycle = $lx('near_next_cycle', 'ជិតដល់វដ្តបន្ទាប់', 'Near next cycle');
         $labelMissingDocs = $lx('missing_documents', 'ឯកសារខ្វះ', 'Missing documents');
@@ -792,17 +887,24 @@
         $labelLastPromotionDate = $lx('last_promotion_date', 'ថ្ងៃដំឡើងចុងក្រោយ', 'Last promotion date');
         $labelAction = $lx('action', 'សកម្មភាព', 'Actions');
 
+        $labelModuleTitle = $ui('ការគ្រប់គ្រងក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់', 'Pay framework, rank, and grade management');
+        $labelTabCreateRequest = $ui('២. កត់ត្រាអ្នកបានឡើងថ្នាក់', '2. Record completed promotion');
+        $labelEligiblePromotion = $ui('ដល់ពេលឡើងថ្នាក់', 'Due for promotion');
+        $labelPayGrade = $ui('ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់', 'Pay framework, rank, and grade');
+
         // Backward compatibility with old tab names.
         $tabAliasMap = [
             'summary' => 'dashboard',
             'action' => 'form',
             'pending' => 'requests',
+            'detail' => 'staff',
         ];
         $allowedTabs = ['dashboard', 'staff', 'detail', 'form', 'history', 'requests', 'approvals', 'reports', 'alerts'];
-        $activeTab = old('_active_tab', request()->query('tab', $errors->any() ? 'form' : 'dashboard'));
+        $allowedTabs = ['dashboard', 'staff', 'detail', 'form', 'history', 'reports', 'alerts'];
+        $activeTab = old('_active_tab', request()->query('tab', $errors->any() ? 'form' : 'staff'));
         $activeTab = $tabAliasMap[$activeTab] ?? $activeTab;
         if (!in_array($activeTab, $allowedTabs, true)) {
-            $activeTab = 'dashboard';
+            $activeTab = 'staff';
         }
 
         $prefillProposalId = (int) old('proposal_id', request()->query('proposal_id', 0));
@@ -812,13 +914,14 @@
 
         $prefillEmployeeId = (int) old('employee_id', request()->query('employee_id', (int) ($prefillProposal->employee_id ?? 0)));
         if ($prefillEmployeeId <= 0) {
-            $prefillEmployeeId = (int) optional($employees->first())->id;
+            $prefillEmployeeId = 0;
         }
 
         $prefillRecordMode = old('record_mode', request()->query('record_mode', 'request'));
         if (!in_array($prefillRecordMode, ['request', 'recommend', 'approve', 'reject'], true)) {
             $prefillRecordMode = 'request';
         }
+        $prefillRecordMode = 'request';
         $prefillPayLevelId = (int) old('pay_level_id', request()->query('pay_level_id', (int) ($prefillProposal->pay_level_id ?? 0)));
         $prefillEffectiveDate = (string) old('effective_date', request()->query('effective_date', (string) ($prefillProposal->start_date ?? $cutoffDateIso)));
         $prefillNextReviewDate = (string) old('next_review_date', request()->query('next_review_date', ''));
@@ -838,12 +941,12 @@
         }
 
         $employeesById = collect($employees)->keyBy('id');
-        $detailEmployee = $employeesById->get($prefillEmployeeId) ?: $employees->first();
+        $detailEmployee = $prefillEmployeeId > 0 ? $employeesById->get($prefillEmployeeId) : null;
         $detailSnapshot = $detailEmployee ? ($employee_snapshots[$detailEmployee->id] ?? null) : null;
         $canManagePromotions = (bool) (auth()->user()?->can('update_employee') ?? false);
         $isReadOnlyPromotionUser = !$canManagePromotions;
         if ($isReadOnlyPromotionUser && $activeTab === 'form') {
-            $activeTab = 'dashboard';
+            $activeTab = 'staff';
         }
 
         $allSnapshots = collect($employee_snapshots ?? []);
@@ -879,11 +982,6 @@
             })
             ->values();
 
-        $detailEmployeePendingProposals = $detailEmployee
-            ? $pendingProposals
-                ->filter(fn ($row) => (int) $row->employee_id === (int) $detailEmployee->id)
-                ->values()
-            : collect();
         $missingDocumentCount = $pendingProposals
             ->filter(function ($proposal) {
                 return trim((string) ($proposal->document_reference ?? '')) === '';
@@ -1101,12 +1199,23 @@
             ->all();
         $promotionPreviousLevelLabels = (array) ($promotion_previous_level_labels ?? []);
 
-        $officialReportRows = collect($promotions ?? [])->values();
+        $officialReportRows = collect($staffEmployees ?? [])
+            ->filter(function ($employee) use ($employee_snapshots) {
+                $snapshot = $employee_snapshots[$employee->id] ?? [];
+                return (bool) ($snapshot['is_due_regular'] ?? false)
+                    || (bool) ($snapshot['is_overdue_3y'] ?? false)
+                    || (bool) ($snapshot['is_due_honorary_pre_retirement'] ?? false);
+            })
+            ->values();
         $officialReportLogo = app_setting()->logo ?? asset('assets/HRM2.png');
         $officialReportDate = \Carbon\Carbon::today();
         $officialReportTitle = $ui(
             'បញ្ជីរបាយការណ៍ការគ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ ប្រចាំឆ្នាំ ' . $staffToKhmerDigits((string) $year),
             'Grade and rank management report for year ' . $year
+        );
+        $officialReportTitle = $ui(
+            'បញ្ជីមន្ត្រីដែលត្រូវឡើងថ្នាក់ ប្រចាំឆ្នាំ ' . $staffToKhmerDigits((string) $year),
+            'List of officers due for promotion in year ' . $year
         );
         $officialReportDateLine = $ui(
             'ស្ទឹងត្រែង, ថ្ងៃទី ' . $staffToKhmerDigits($officialReportDate->format('d'))
@@ -1140,9 +1249,9 @@
                     </nav>
                     <div class="pay-promotion-title">{{ $labelModuleTitle }}</div>
                     <div class="pay-promotion-subtitle">
-                        {{ localize('grade_rank_subtitle', 'ត្រួតពិនិត្យលក្ខខណ្ឌ ដំឡើងថ្នាក់ បង្កើតសំណើ និងអនុម័ត') }}
+                        {{ localize('grade_rank_subtitle', 'តាមដានអ្នកដល់ពេលឡើងថ្នាក់ កត់ត្រាអ្នកបានឡើងថ្នាក់ និងពិនិត្យប្រវត្តិ') }}
                     </div>
-                </div>
+                    </div>
                 <div class="d-flex align-items-center gap-2 flex-wrap">
                     <span class="pay-promotion-stat-badge">{{ localize('year', 'Year') }} {{ $year }}</span>
                     <span class="pay-promotion-stat-badge">{{ localize('cutoff', 'Cutoff') }} {{ $cutoffDateDisplay }}</span>
@@ -1153,6 +1262,10 @@
             <div class="pay-promotion-header-tools mt-3">
                 <form id="yearFilterForm" method="GET" action="{{ route('employee-pay-promotions.index') }}">
                     <input id="yearFilterTabInput" type="hidden" name="tab" value="{{ $activeTab }}">
+                    <input type="hidden" name="history_year" value="{{ $history_year ?? $year }}">
+                    @if (!empty($history_employee_id))
+                        <input type="hidden" name="history_employee_id" value="{{ $history_employee_id }}">
+                    @endif
                     <div class="row g-2 align-items-end">
                         <div class="col-xl-2 col-lg-4 col-md-6">
                             <label class="form-label">{{ localize('year', 'Year') }}</label>
@@ -1246,8 +1359,8 @@
                 </div>
                 <div class="col-md-6 col-xl-2">
                     <div class="alert alert-info mb-0 py-2 h-100">
-                        <div class="small">{{ $labelPendingRequests }}</div>
-                        <div class="fs-5 fw-bold">{{ $pendingProposals->count() }}</div>
+                        <div class="small">{{ app()->getLocale() === 'en' ? 'Already promoted in selected year' : 'បានឡើងថ្នាក់រួចក្នុងឆ្នាំដែលបានជ្រើស' }}</div>
+                        <div class="fs-5 fw-bold">{{ $promotions->count() }}</div>
                     </div>
                 </div>
                 <div class="col-md-6 col-xl-2">
@@ -1273,11 +1386,11 @@
             <div class="pay-promotion-workflow-guide mb-3">
                 <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
                     <div>
-                        <div class="fw-semibold">{{ app()->getLocale() === 'en' ? 'Workflow guide' : 'មគ្គុទេសក៍ដំណាក់កាលការងារ' }}</div>
+                        <div class="fw-semibold">{{ app()->getLocale() === 'en' ? 'Main workflow' : 'លំដាប់ការងារស្នូល' }}</div>
                         <small class="text-muted">
                             {{ app()->getLocale() === 'en'
-                                ? 'Follow this order: check eligible list -> create requests -> approvals -> verify history/report.'
-                                : 'អនុវត្តតាមលំដាប់៖ ពិនិត្យបញ្ជីគ្រប់លក្ខខណ្ឌ -> បង្កើតសំណើ -> ការអនុម័ត -> ផ្ទៀងផ្ទាត់ប្រវត្តិ/របាយការណ៍។' }}
+                                ? 'Use these three tabs in order: due list -> record completed promotion -> verify already-saved history/report.'
+                                : 'សូមប្រើ ៣ ផ្ទាំងនេះតាមលំដាប់៖ បញ្ជីអ្នកដល់ពេលឡើងថ្នាក់ -> កត់ត្រាអ្នកបានឡើងថ្នាក់ -> ពិនិត្យប្រវត្តិដែលបានរក្សាទុករួច/របាយការណ៍។' }}
                         </small>
                     </div>
                     <div class="d-flex flex-wrap gap-2">
@@ -1285,24 +1398,16 @@
                         @if ($canManagePromotions)
                             <span class="pay-promotion-flow-step">2. {{ $labelTabCreateRequest }}</span>
                         @endif
-                        <span class="pay-promotion-flow-step">3. {{ $labelTabApproval }}</span>
-                        <span class="pay-promotion-flow-step">4. {{ $labelTabPromotionHistory }}</span>
+                        <span class="pay-promotion-flow-step">3. {{ $labelTabPromotionHistory }}</span>
+                        <span class="pay-promotion-flow-step">4. {{ $labelTabReports }}</span>
                     </div>
                 </div>
             </div>
 
             <div class="pay-promotion-tab-section-title">
-                {{ app()->getLocale() === 'en' ? 'Main workflow tabs' : 'Tab ដំណាក់កាលស្នូល' }}
+                {{ app()->getLocale() === 'en' ? 'Main workflow tabs' : 'ផ្ទាំងស្នូល ៣ ជំហាន' }}
             </div>
             <ul class="nav pay-promotion-core-tabs flex-nowrap overflow-auto mb-2" id="payPromotionTabs" role="tablist" style="white-space: nowrap;">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link {{ $activeTab === 'dashboard' ? 'active' : '' }}" id="tab-dashboard-trigger"
-                        data-bs-toggle="tab" data-bs-target="#tab-dashboard" type="button" role="tab"
-                        aria-controls="tab-dashboard" aria-selected="{{ $activeTab === 'dashboard' ? 'true' : 'false' }}"
-                        data-tab-label="{{ $labelTabDashboard }}">
-                        <span class="tab-label-text">{{ $labelTabDashboard }}</span>
-                    </button>
-                </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link {{ $activeTab === 'staff' ? 'active' : '' }}" id="tab-staff-trigger"
                         data-bs-toggle="tab" data-bs-target="#tab-staff" type="button" role="tab"
@@ -1322,42 +1427,25 @@
                     </li>
                 @endif
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link {{ $activeTab === 'approvals' ? 'active' : '' }}" id="tab-approvals-trigger"
-                        data-bs-toggle="tab" data-bs-target="#tab-approvals" type="button" role="tab"
-                        aria-controls="tab-approvals" aria-selected="{{ $activeTab === 'approvals' ? 'true' : 'false' }}"
-                        data-tab-label="{{ $labelTabApproval }}">
-                        <span class="tab-label-text">{{ $labelTabApproval }}</span>
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link {{ $activeTab === 'requests' ? 'active' : '' }}" id="tab-requests-trigger"
-                        data-bs-toggle="tab" data-bs-target="#tab-requests" type="button" role="tab"
-                        aria-controls="tab-requests" aria-selected="{{ $activeTab === 'requests' ? 'true' : 'false' }}"
-                        data-tab-label="{{ $labelTabAllRequests }}">
-                        <span class="tab-label-text">{{ $labelTabAllRequests }}</span>
-                        <span class="badge bg-secondary ms-1">{{ $pendingProposals->count() }}</span>
+                    <button class="nav-link {{ $activeTab === 'history' ? 'active' : '' }}" id="tab-history-trigger"
+                        data-bs-toggle="tab" data-bs-target="#tab-history" type="button" role="tab"
+                        aria-controls="tab-history" aria-selected="{{ $activeTab === 'history' ? 'true' : 'false' }}"
+                        data-tab-label="{{ $labelTabPromotionHistory }}">
+                        <span class="tab-label-text">{{ $labelTabPromotionHistory }}</span>
                     </button>
                 </li>
             </ul>
 
             <div class="pay-promotion-tab-section-title mt-2">
-                {{ app()->getLocale() === 'en' ? 'Additional information tabs' : 'Tab ព័ត៌មានបន្ថែម' }}
+                {{ app()->getLocale() === 'en' ? 'Support tabs' : 'ផ្ទាំងគាំទ្រ និងព័ត៌មានបន្ថែម' }}
             </div>
             <ul class="nav nav-tabs pay-promotion-secondary-tabs flex-nowrap overflow-auto mb-3" role="tablist" style="white-space: nowrap;">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link {{ $activeTab === 'detail' ? 'active' : '' }}" id="tab-detail-trigger"
-                        data-bs-toggle="tab" data-bs-target="#tab-detail" type="button" role="tab"
-                        aria-controls="tab-detail" aria-selected="{{ $activeTab === 'detail' ? 'true' : 'false' }}"
-                        data-tab-label="{{ $labelTabEmployeeInfo }}">
-                        <span class="tab-label-text-secondary">{{ $labelTabEmployeeInfo }}</span>
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link {{ $activeTab === 'history' ? 'active' : '' }}" id="tab-history-trigger"
-                        data-bs-toggle="tab" data-bs-target="#tab-history" type="button" role="tab"
-                        aria-controls="tab-history" aria-selected="{{ $activeTab === 'history' ? 'true' : 'false' }}"
-                        data-tab-label="{{ $labelTabPromotionHistory }}">
-                        <span class="tab-label-text-secondary">{{ $labelTabPromotionHistory }}</span>
+                    <button class="nav-link {{ $activeTab === 'dashboard' ? 'active' : '' }}" id="tab-dashboard-trigger"
+                        data-bs-toggle="tab" data-bs-target="#tab-dashboard" type="button" role="tab"
+                        aria-controls="tab-dashboard" aria-selected="{{ $activeTab === 'dashboard' ? 'true' : 'false' }}"
+                        data-tab-label="{{ $labelTabDashboard }}">
+                        <span class="tab-label-text-secondary">{{ $labelTabDashboard }}</span>
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -1391,15 +1479,15 @@
                         <div class="alert alert-secondary mb-3">
                             <strong>{{ app()->getLocale() === 'en' ? 'Read-only guidance' : 'ណែនាំសម្រាប់អ្នកប្រើមើលទិន្នន័យ' }}:</strong>
                             {{ app()->getLocale() === 'en'
-                                ? 'Use Summary, Staff, Requests, Approvals, History, and Reports tabs to follow progress. Create/Edit/Batch actions are hidden for your role.'
-                                : 'សូមប្រើ Tab ផ្ទាំងសង្ខេប, បញ្ជីមន្ត្រី, សំណើ, ការអនុម័ត, ប្រវត្តិ និងរបាយការណ៍ សម្រាប់តាមដានដំណើរការ។ មុខងារ បង្កើត/កែប្រែ/ដំណើរការជាក្រុម ត្រូវបានលាក់តាមតួនាទីរបស់អ្នក។' }}
+                                ? 'Use the due list, history, reports, and support tabs for monitoring. Record/save actions are hidden for your role.'
+                                : 'សូមប្រើផ្ទាំង បញ្ជីអ្នកដល់ពេលឡើងថ្នាក់, ប្រវត្តិ, របាយការណ៍ និងផ្ទាំងគាំទ្រ សម្រាប់តាមដានទិន្នន័យ។ មុខងារកត់ត្រា/រក្សាទុក ត្រូវបានលាក់តាមតួនាទីរបស់អ្នក។' }}
                         </div>
                     @else
                         <div class="alert alert-primary mb-3">
                             <strong>{{ app()->getLocale() === 'en' ? 'Quick path for managers' : 'ផ្លូវលឿនសម្រាប់អ្នកគ្រប់គ្រង' }}:</strong>
                             {{ app()->getLocale() === 'en'
-                                ? '1) Check eligible list 2) Create request 3) Continue in approvals.'
-                                : '១) ពិនិត្យបញ្ជីគ្រប់លក្ខខណ្ឌ ២) បង្កើតសំណើ ៣) បន្តនៅ Tab ការអនុម័ត។' }}
+                                ? '1) Check due list 2) Record completed promotions 3) Verify history and reports.'
+                                : '១) ពិនិត្យបញ្ជីអ្នកដល់ពេលឡើងថ្នាក់ ២) កត់ត្រាអ្នកដែលបានឡើងថ្នាក់រួច ៣) ពិនិត្យប្រវត្តិ និងរបាយការណ៍។' }}
                         </div>
                     @endif
 
@@ -1420,8 +1508,8 @@
                                                     <td class="kpi-value">{{ $dueRegularCount }}</td>
                                                 </tr>
                                                 <tr>
-                                                    <td class="kpi-label">{{ $labelPendingRequests }}</td>
-                                                    <td class="kpi-value">{{ $pendingProposals->count() }}</td>
+                                                    <td class="kpi-label">{{ app()->getLocale() === 'en' ? 'Already promoted in selected year' : 'បានឡើងថ្នាក់រួចក្នុងឆ្នាំដែលបានជ្រើស' }}</td>
+                                                    <td class="kpi-value">{{ $promotions->count() }}</td>
                                                     <td class="kpi-label">{{ $labelOverdue3Years }}</td>
                                                     <td class="kpi-value">{{ $overdue3YearCount }}</td>
                                                 </tr>
@@ -1476,7 +1564,7 @@
                                 <div class="card-body">
                                     <ul class="pay-promotion-alert-list small">
                                         <li><span>{{ $labelOverdue3Years }}</span><strong>{{ $overdue3YearCount }}</strong></li>
-                                        <li><span>{{ $labelPendingRequests }}</span><strong>{{ $pendingProposals->count() }}</strong></li>
+                                        <li><span>{{ app()->getLocale() === 'en' ? 'Already promoted in selected year' : 'បានឡើងថ្នាក់រួចក្នុងឆ្នាំដែលបានជ្រើស' }}</span><strong>{{ $promotions->count() }}</strong></li>
                                         <li><span>{{ $labelMissingDocs }}</span><strong>{{ $missingDocumentCount }}</strong></li>
                                         <li><span>{{ app()->getLocale() === 'en' ? 'Honorary pre-retirement due' : 'មុននិវត្តន៍ ១ ឆ្នាំ (កិត្តិយស)' }}</span><strong>{{ $honoraryDueSnapshots->count() }}</strong></li>
                                         <li><span>{{ localize('inactive_or_suspended', 'អសកម្ម/ផ្អាកការងារ') }}</span><strong>{{ $inactiveCadreSnapshots->count() }}</strong></li>
@@ -1502,6 +1590,79 @@
                 </div>
                 <div class="tab-pane fade {{ $activeTab === 'staff' ? 'show active' : '' }}" id="tab-staff" role="tabpanel"
                     aria-labelledby="tab-staff-trigger">
+
+                    <div class="alert alert-primary border mb-3">
+                        <strong>{{ app()->getLocale() === 'en' ? 'Purpose of this tab' : 'គោលបំណងនៃផ្ទាំងនេះ' }}</strong>
+                        <div class="small mt-1">
+                            {{ app()->getLocale() === 'en'
+                                ? 'This tab is for calculation and tracking only. It does not save promotion records. Use it to identify who is due, then move to the recording tab for employees who were actually promoted.'
+                                : 'ផ្ទាំងនេះសម្រាប់គណនា និងតាមដានប៉ុណ្ណោះ មិនទាន់រក្សាទុកប្រវត្តិឡើងថ្នាក់ទេ។ សូមប្រើវា ដើម្បីរកអ្នកដល់ពេលឡើងថ្នាក់ ហើយបន្តទៅផ្ទាំងកត់ត្រា សម្រាប់អ្នកដែលបានឡើងថ្នាក់ជាក់ស្តែង។' }}
+                        </div>
+                    </div>
+
+                    <div id="staff-preview-panel" class="card border mb-3">
+                        <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                            <div>
+                                <strong>{{ app()->getLocale() === 'en' ? 'Selected employee preview' : 'ព័ត៌មានយោងរបស់មន្ត្រីដែលបានជ្រើស' }}</strong>
+                                <div class="small text-muted">
+                                    {{ app()->getLocale() === 'en'
+                                        ? 'Quick reference only. Use this preview to confirm the employee before opening the recording tab.'
+                                        : 'នេះជាព័ត៌មានយោងខ្លីៗប៉ុណ្ណោះ សម្រាប់ផ្ទៀងផ្ទាត់មន្ត្រី មុនបន្តទៅផ្ទាំងកត់ត្រា។' }}
+                                </div>
+                            </div>
+                            @if ($detailEmployee)
+                                <div class="d-flex gap-2">
+                                    @if ($canManagePromotions)
+                                        <a class="btn btn-sm btn-success"
+                                            href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'form', 'employee_id' => $detailEmployee->id, 'history_year' => ($history_year ?? $year)]) }}">
+                                            {{ app()->getLocale() === 'en' ? 'Open recording tab' : 'បើកផ្ទាំងកត់ត្រា' }}
+                                        </a>
+                                    @endif
+                                    <a class="btn btn-sm btn-outline-secondary"
+                                        href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'history', 'history_employee_id' => $detailEmployee->id, 'history_year' => ($history_year ?? $year)]) }}">
+                                        {{ app()->getLocale() === 'en' ? 'Open history' : 'បើកប្រវត្តិ' }}
+                                    </a>
+                                </div>
+                            @endif
+                        </div>
+                        <div class="card-body">
+                            @if ($detailEmployee)
+                                @php
+                                    $detailUnit = $detailEmployee->sub_department?->department_name
+                                        ?: ($detailEmployee->department?->department_name ?: '-');
+                                @endphp
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <div class="border rounded p-3 h-100 bg-light">
+                                            <div class="small text-muted mb-1">{{ app()->getLocale() === 'en' ? 'Employee' : 'មន្ត្រី' }}</div>
+                                            <div class="fw-semibold">{{ $detailEmployee->employee_id ?: '-' }} - {{ $fixKhmerText($detailEmployee->full_name) }}</div>
+                                            <div class="small mt-2"><strong>{{ localize('unit', 'Unit') }}:</strong> {{ $fixKhmerText($detailUnit) }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="border rounded p-3 h-100 bg-light">
+                                            <div class="small text-muted mb-1">{{ app()->getLocale() === 'en' ? 'Current status' : 'ស្ថានភាពបច្ចុប្បន្ន' }}</div>
+                                            <div class="small"><strong>{{ $labelPayGrade }}:</strong> {{ $fixKhmerText($current_pay_level_labels[$detailEmployee->id] ?? '-') }}</div>
+                                            <div class="small mt-2"><strong>{{ $labelServiceState }}:</strong> {{ ucfirst((string) ($detailSnapshot['service_state'] ?? 'active')) }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="border rounded p-3 h-100 bg-light">
+                                            <div class="small text-muted mb-1">{{ app()->getLocale() === 'en' ? 'Promotion snapshot' : 'សង្ខេបការឡើងថ្នាក់' }}</div>
+                                            <div class="small"><strong>{{ $labelCountableYears }}:</strong> {{ number_format((float) ($detailSnapshot['countable_years'] ?? 0), 2) }}</div>
+                                            <div class="small mt-2"><strong>{{ $labelLastPromotionDate }}:</strong> {{ display_date($detailSnapshot['last_promotion_date'] ?? null) }}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @else
+                                <div class="text-muted">
+                                    {{ app()->getLocale() === 'en'
+                                        ? 'Choose one employee from the table below to show a quick preview here.'
+                                        : 'សូមជ្រើសមន្ត្រីម្នាក់ពីតារាងខាងក្រោម ដើម្បីបង្ហាញព័ត៌មានយោងនៅទីនេះ។' }}
+                                </div>
+                            @endif
+                        </div>
+                    </div>
 
                     <div class="pay-promotion-table-tools border rounded p-2 mb-3 bg-light">
                         <div class="row g-2 align-items-end">
@@ -1640,13 +1801,13 @@
                                         </td>
                                         <td class="text-nowrap">
                                             <a class="btn btn-sm btn-outline-primary"
-                                                href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'detail', 'employee_id' => $employee->id]) }}">
-                                                {{ localize('view', 'View') }}
+                                                href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'staff', 'employee_id' => $employee->id, 'history_year' => ($history_year ?? $year)]) }}#staff-preview-panel">
+                                                {{ app()->getLocale() === 'en' ? 'Preview' : 'មើលព័ត៌មានយោង' }}
                                             </a>
                                             @if ($canManagePromotions)
                                                 <a class="btn btn-sm btn-outline-success"
-                                                    href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'form', 'employee_id' => $employee->id]) }}">
-                                                    {{ localize('open_form', 'Open form') }}
+                                                    href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'form', 'employee_id' => $employee->id, 'history_year' => ($history_year ?? $year)]) }}">
+                                                    {{ app()->getLocale() === 'en' ? 'Record promotion' : 'កត់ត្រាឡើងថ្នាក់' }}
                                                 </a>
                                             @endif
                                         </td>
@@ -1666,91 +1827,30 @@
                     </div>
                 </div>
 
-                <div class="tab-pane fade {{ $activeTab === 'detail' ? 'show active' : '' }}" id="tab-detail" role="tabpanel"
-                    aria-labelledby="tab-detail-trigger">
-
-                    @if ($detailEmployee)
-                        @php
-                            $detailUnit = $detailEmployee->sub_department?->department_name
-                                ?: ($detailEmployee->department?->department_name ?: '-');
-                        @endphp
-
-                        <div class="row g-3 mb-3">
-                            <div class="col-md-4">
-                                <div class="border rounded p-3 h-100">
-                                    <h6 class="mb-2">{{ localize('basic_information', 'Basic information') }}</h6>
-                                    <p class="mb-1"><strong>{{ localize('employee_code', 'Employee code') }}:</strong> {{ $detailEmployee->employee_id ?: '-' }}</p>
-                                    <p class="mb-1"><strong>{{ localize('employee_name', 'Employee name') }}:</strong> {{ $fixKhmerText($detailEmployee->full_name) }}</p>
-                                    <p class="mb-1"><strong>{{ localize('unit', 'Unit') }}:</strong> {{ $fixKhmerText($detailUnit) }}</p>
-                                    <p class="mb-0"><strong>{{ localize('current_pay_level', 'Current pay level') }}:</strong> {{ $fixKhmerText($current_pay_level_labels[$detailEmployee->id] ?? '-') }}</p>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="border rounded p-3 h-100">
-                                    <h6 class="mb-2">{{ localize('promotion_snapshot', 'Promotion snapshot') }}</h6>
-                                    <p class="mb-1"><strong>{{ $labelServiceState }}:</strong> {{ ucfirst((string) ($detailSnapshot['service_state'] ?? 'active')) }}</p>
-                                    <p class="mb-1"><strong>{{ localize('anchor_date', 'Anchor date') }}:</strong> {{ display_date($detailSnapshot['anchor_date'] ?? null) }}</p>
-                                    <p class="mb-1"><strong>{{ $labelCountableYears }}:</strong> {{ number_format((float) ($detailSnapshot['countable_years'] ?? 0), 2) }}</p>
-                                    <p class="mb-0"><strong>{{ $labelLastPromotionDate }}:</strong> {{ display_date($detailSnapshot['last_promotion_date'] ?? null) }}</p>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="border rounded p-3 h-100">
-                                    <h6 class="mb-2">{{ localize('recommendation', 'Recommendation') }}</h6>
-                                    @if ((bool) ($detailSnapshot['is_overdue_3y'] ?? false))
-                                        <p class="mb-2 text-danger fw-semibold">{{ $labelOverdue3Years }}</p>
-                                    @elseif ((bool) ($detailSnapshot['is_due_regular'] ?? false))
-                                        <p class="mb-2 text-success fw-semibold">{{ $labelEligiblePromotion }}</p>
-                                    @else
-                                        <p class="mb-2 text-muted">{{ localize('not_due_yet', 'Not due yet') }}</p>
-                                    @endif
-                                    <div class="d-flex gap-2">
-                                        @if ($canManagePromotions)
-                                            <a class="btn btn-sm btn-success"
-                                                href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'form', 'employee_id' => $detailEmployee->id, 'record_mode' => 'request']) }}">
-                                                {{ localize('create_request', 'Create request') }}
-                                            </a>
-                                        @endif
-                                        @if ($detailEmployeePendingProposals->isNotEmpty())
-                                            @php
-                                                $firstPendingProposal = $detailEmployeePendingProposals->first();
-                                            @endphp
-                                            <a class="btn btn-sm btn-primary"
-                                                href="{{ route('employee-pay-promotions.review', ['proposal' => $firstPendingProposal->id, 'year' => $year]) }}">
-                                                {{ app()->getLocale() === 'en' ? 'Review pending request' : 'ពិនិត្យសំណើកំពុងរង់ចាំ' }}
-                                            </a>
-                                        @else
-                                            <a class="btn btn-sm btn-outline-secondary"
-                                                href="{{ route('employee-pay-promotions.index', ['year' => $year, 'tab' => 'approvals']) }}">
-                                                {{ app()->getLocale() === 'en' ? 'Open approvals tab' : 'បើក Tab អនុម័ត' }}
-                                            </a>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    @else
-                        <div class="alert alert-warning mb-0">{{ localize('no_employee_selected', 'No employee selected.') }}</div>
-                    @endif
-                </div>
-
                 <div class="tab-pane fade {{ $activeTab === 'form' ? 'show active' : '' }}" id="tab-form" role="tabpanel"
                     aria-labelledby="tab-form-trigger">
                     @if (!$canManagePromotions)
                         <div class="alert alert-secondary mb-3">
                             <strong>{{ app()->getLocale() === 'en' ? 'Read-only tab' : 'Tab សម្រាប់មើលតែប៉ុណ្ណោះ' }}:</strong>
                             {{ app()->getLocale() === 'en'
-                                ? 'You do not have permission to create/edit requests. Please use Requests/Approvals/History tabs for tracking.'
-                                : 'អ្នកមិនមានសិទ្ធិបង្កើត ឬកែប្រែសំណើទេ។ សូមប្រើ Tab សំណើ/ការអនុម័ត/ប្រវត្តិ សម្រាប់តាមដានដំណើរការ។' }}
+                                ? 'You do not have permission to record promotions. Please use the due list, history, and reports tabs for tracking.'
+                                : 'អ្នកមិនមានសិទ្ធិកត់ត្រាការឡើងថ្នាក់ទេ។ សូមប្រើផ្ទាំងបញ្ជីដល់ពេលឡើងថ្នាក់, ប្រវត្តិ និងរបាយការណ៍ សម្រាប់តាមដាន។' }}
                         </div>
                     @else
-                    <div class="alert alert-info mb-3">
-                        <strong>{{ app()->getLocale() === 'en' ? 'How to use this tab' : 'របៀបប្រើប្រាស់ Tab នេះ' }}</strong>
+                    <div class="alert alert-success border mb-3">
+                        <strong>{{ app()->getLocale() === 'en' ? 'Purpose of this tab' : 'គោលបំណងនៃផ្ទាំងនេះ' }}</strong>
                         <div class="small mt-1">
                             {{ app()->getLocale() === 'en'
-                                ? 'Step 1: Add one employee at a time from the form below. Step 2: Review/edit names in the batch table. Step 3: Click "Submit all requests" once.'
-                                : 'ជំហានទី១៖ បន្ថែមមន្ត្រីម្នាក់ៗពី Form ខាងក្រោម។ ជំហានទី២៖ ពិនិត្យ/កែប្រែឈ្មោះក្នុងតារាងសំណើជាក្រុម។ ជំហានទី៣៖ ចុច «ដាក់សំណើទាំងអស់» ម្តងតែមួយ។' }}
+                                ? 'Use this tab only for employees who have already been approved or officially promoted. Add names one by one, enter one shared letter for the group, then save once.'
+                                : 'ប្រើផ្ទាំងនេះសម្រាប់មន្ត្រីដែលបានសម្រេច ឬបានឡើងថ្នាក់រួចហើយតែប៉ុណ្ណោះ។ សូមបន្ថែមឈ្មោះម្នាក់ៗ បញ្ចូលព័ត៌មានលិខិតរួម ហើយរក្សាទុកតែម្តង។' }}
                         </div>
+                    </div>
+
+                    <div class="alert alert-primary border mb-3">
+                        <strong>លំដាប់ការងារ</strong>
+                        <div class="small mt-1">1. បន្ថែមមន្ត្រីម្នាក់ៗចូលតារាង</div>
+                        <div class="small">2. បំពេញព័ត៌មានលិខិតរួមសម្រាប់ក្រុម</div>
+                        <div class="small">3. ពិនិត្យតារាងខាងក្រោម ហើយរក្សាទុកទាំងអស់តែម្តង</div>
                     </div>
 
                     <div id="requestFlowContainer" class="d-flex flex-column gap-3">
@@ -1758,30 +1858,29 @@
                     <form id="bulkRequestForm" action="{{ route('employee-pay-promotions.store') }}" method="POST" class="mb-3">
                         @csrf
                         <input type="hidden" name="year" value="{{ $year }}">
-                        <input type="hidden" name="record_mode" value="request">
+                        <input type="hidden" name="record_mode" value="save">
                         <input type="hidden" name="_active_tab" value="form">
                         <input type="hidden" name="bulk_items" id="bulkItemsInput" value="">
-                        <input type="hidden" name="bulk_removed_items" id="bulkRemovedItemsInput" value="">
 
                         <div class="card border mb-0">
                             <div class="card-header py-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
                                 <div>
-                                    <strong>{{ app()->getLocale() === 'en' ? 'Batch request table' : 'តារាងត្រៀមដាក់សំណើជាក្រុម' }}</strong>
+                                    <strong>{{ app()->getLocale() === 'en' ? 'Grouped promotion recording table' : 'តារាងកត់ត្រាអ្នកបានឡើងថ្នាក់ជាក្រុម' }}</strong>
                                     <div class="small text-muted">
                                         {{ app()->getLocale() === 'en'
-                                            ? 'Review, update target level, remove with reason, then submit once.'
-                                            : 'ពិនិត្យ/កែប្រែថ្នាក់ត្រូវឡើង និងដកចេញដោយបញ្ជាក់មូលហេតុ រួចដាក់សំណើម្តងតែមួយ។' }}
+                                            ? 'Review the list, adjust each employee target level if needed, remove incorrect names if necessary, then save the whole letter once.'
+                                            : 'ពិនិត្យ/កែប្រែថ្នាក់ត្រូវឡើង ហើយដកចេញឈ្មោះដែលបញ្ចូលខុសបើចាំបាច់ រួចរក្សាទុកតែម្តង។' }}
                                     </div>
                                     <div class="small text-muted">
                                         {{ app()->getLocale() === 'en'
-                                            ? 'After successful submit, names are moved to the Requests/Approvals workflow and removed from this draft table.'
-                                            : 'បន្ទាប់ពីដាក់សំណើជោគជ័យ ឈ្មោះនឹងផ្លាស់ទៅលំហូរ Tab សំណើ/ការអនុម័ត ហើយមិនបង្ហាញនៅតារាង Draft នេះទៀតទេ។' }}
+                                            ? 'One letter can include many employees, while each employee may keep a different promotion type and target level.'
+                                            : 'មួយលិខិតអាចមានមន្ត្រីច្រើននាក់បាន ហើយមន្ត្រីនីមួយៗអាចមានប្រភេទឡើងថ្នាក់ និងថ្នាក់គោលដៅខុសគ្នា។' }}
                                     </div>
                                 </div>
                                 <div class="d-flex gap-2 align-items-center">
-                                    <span class="badge bg-primary" id="bulkCandidateCountBadge">{{ $autoPromotionCandidates->count() }} {{ app()->getLocale() === 'en' ? 'names' : 'ឈ្មោះ' }}</span>
+                                    <span class="badge bg-primary" id="bulkCandidateCountBadge">0 {{ app()->getLocale() === 'en' ? 'names' : 'ឈ្មោះ' }}</span>
                                     <button type="button" id="bulkSubmitBtn" class="btn btn-sm btn-success">
-                                        <i class="fa fa-paper-plane me-1"></i>{{ app()->getLocale() === 'en' ? 'Submit all requests' : 'ដាក់សំណើទាំងអស់' }}
+                                        <i class="fa fa-save me-1"></i>{{ app()->getLocale() === 'en' ? 'Save all promotions' : 'រក្សាទុកការឡើងថ្នាក់ទាំងអស់' }}
                                     </button>
                                 </div>
                             </div>
@@ -1789,22 +1888,52 @@
                             <div class="card-body border-bottom bg-light py-2">
                                 <div class="small text-muted">
                                     {{ app()->getLocale() === 'en'
-                                        ? 'Add names from the single form below. This table is for final review before bulk submit.'
-                                        : 'សូមបន្ថែមឈ្មោះពី Form ខាងក្រោម។ តារាងនេះសម្រាប់ពិនិត្យចុងក្រោយមុនដាក់សំណើជាក្រុម។' }}
+                                        ? 'Add names from the single form below, then use the shared letter fields here before saving the full group.'
+                                        : 'សូមបន្ថែមឈ្មោះពី Form ខាងក្រោម។ តារាងនេះសម្រាប់ពិនិត្យចុងក្រោយមុនរក្សាទុកជាក្រុម។' }}
+                                </div>
+                            </div>
+
+                            <div class="px-3 pt-3 pb-2 border-bottom bg-white">
+                                <div class="fw-semibold text-primary">ជំហានទី ២: ព័ត៌មានលិខិតរួម</div>
+                                <div class="small text-muted">ព័ត៌មាននៅផ្នែកនេះប្រើរួមសម្រាប់មន្ត្រីទាំងអស់ក្នុងតារាងខាងក្រោម។</div>
+                            </div>
+
+                            <div class="px-3 pt-2 pb-1 border-bottom bg-light">
+                                <div class="row g-2">
+                                    <div class="col-md-4">
+                                        <label for="bulk_document_reference" class="form-label mb-1">{{ app()->getLocale() === 'en' ? 'Shared document reference' : 'លេខលិខិតរួម' }}</label>
+                                        <input type="text" id="bulk_document_reference" name="document_reference" class="form-control form-control-sm"
+                                            value="{{ old('document_reference', $prefillDocumentReference) }}"
+                                            placeholder="{{ app()->getLocale() === 'en' ? 'One letter for all selected employees' : 'ប្រើលេខលិខិតតែមួយសម្រាប់មន្ត្រីក្នុងតារាង' }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="bulk_document_date" class="form-label mb-1">{{ app()->getLocale() === 'en' ? 'Shared document date' : 'កាលបរិច្ឆេទលិខិតរួម' }}</label>
+                                        <input type="date" id="bulk_document_date" name="document_date" class="form-control form-control-sm"
+                                            value="{{ old('document_date', $prefillDocumentDate) }}">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="bulk_effective_date" class="form-label mb-1">{{ app()->getLocale() === 'en' ? 'Shared effective date' : 'ថ្ងៃមានប្រសិទ្ធភាពរួម' }}</label>
+                                        <input type="date" id="bulk_effective_date" name="shared_effective_date" class="form-control form-control-sm"
+                                            value="{{ old('shared_effective_date', $prefillEffectiveDate ?: $cutoffDateIso) }}">
+                                    </div>
                                 </div>
                             </div>
 
                             <div class="card-body p-0">
+                                <div class="px-3 pt-3 pb-2 border-bottom bg-white">
+                                    <div class="fw-semibold text-primary">ជំហានទី ៣: តារាងពិនិត្យមុនរក្សាទុក</div>
+                                    <div class="small text-muted">ពិនិត្យឈ្មោះ ថ្នាក់គោលដៅ និងដកចេញបើចាំបាច់ មុនរក្សាទុកទាំងអស់។</div>
+                                </div>
                                 <div class="table-responsive">
                                     <table id="pay-promotion-candidate-table" class="table table-sm table-bordered table-striped mb-0 align-middle">
                                         <thead>
                                             <tr>
                                                 <th width="4%">#</th>
                                                 <th>{{ localize('employee', 'Employee') }}</th>
-                                                <th>{{ app()->getLocale() === 'en' ? 'Reason' : 'ហេតុផលស្នើដំឡើង' }}</th>
-                                                <th>{{ $labelLastPromotionDate }}</th>
-                                                <th>{{ app()->getLocale() === 'en' ? 'Current level' : 'ថ្នាក់បច្ចុប្បន្ន' }}</th>
-                                                <th>{{ app()->getLocale() === 'en' ? 'Target level' : 'ថ្នាក់ត្រូវឡើង' }}</th>
+                                                <th>{{ app()->getLocale() === 'en' ? 'Promotion reason' : 'មូលហេតុឡើងថ្នាក់' }}</th>
+                                                <th>{{ localize('requested_effective_date', 'ថ្ងៃមានប្រសិទ្ធភាព') }}</th>
+                                                <th>{{ app()->getLocale() === 'en' ? 'Current pay grade and rank' : 'ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់បច្ចុប្បន្ន' }}</th>
+                                                <th>{{ app()->getLocale() === 'en' ? 'New pay grade and rank' : 'ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់ថ្មី' }}</th>
                                                 <th width="10%">{{ app()->getLocale() === 'en' ? 'Status' : 'ស្ថានភាពជួរ' }}</th>
                                                 <th width="12%">{{ $labelAction }}</th>
                                             </tr>
@@ -1816,7 +1945,7 @@
                                                 $candidateLastPathByDepth = [];
                                                 $candidateRowIndex = 0;
                                             @endphp
-                                            @forelse ($autoPromotionCandidates as $candidate)
+                                            @forelse (collect() as $candidate)
                                                 @php
                                                     $candidateSegments = $staffGetSegments((string) ($candidate['unit_path'] ?? ''));
                                                     $candidateEmployeeId = (int) ($candidate['employee_id'] ?? 0);
@@ -1885,7 +2014,7 @@
                                                         {{ $fixKhmerText($candidate['full_name'] ?? '-') }}
                                                     </td>
                                                     <td class="candidate-reason-text">{{ $candidateReasonText }}</td>
-                                                    <td>{{ display_date($candidate['last_promotion_date'] ?? null) }}</td>
+                                                    <td>{{ display_date($candidateEffectiveDate) }}</td>
                                                     <td>{{ $fixKhmerText($candidate['current_pay_level_label'] ?? '-') }}</td>
                                                     <td>
                                                         @if ($candidateTargetOptions->isNotEmpty())
@@ -1921,8 +2050,8 @@
                                                 <tr id="bulkEmptyRow">
                                                     <td colspan="8" class="text-center text-muted">
                                                         {{ app()->getLocale() === 'en'
-                                                            ? 'No auto-generated candidates for this year/cutoff.'
-                                                            : 'មិនមានបេក្ខជនស្វ័យប្រវត្តសម្រាប់ឆ្នាំ/ថ្ងៃកាត់នេះទេ។' }}
+                                                            ? 'No names have been added yet. Add employees who were actually promoted below.'
+                                                            : 'មិនទាន់មានឈ្មោះត្រូវកត់ត្រានៅឡើយទេ។ សូមបន្ថែមមន្ត្រីដែលបានឡើងថ្នាក់ជាក់ស្តែងនៅខាងក្រោម។' }}
                                                     </td>
                                                 </tr>
                                             @endforelse
@@ -1935,30 +2064,35 @@
                     </div>
 
                     <div id="requestStepOneSection" style="order:1;">
-                    <div class="alert alert-light border mb-3">
+                    <div class="alert alert-light border mb-3 d-none">
                         <strong>{{ app()->getLocale() === 'en' ? 'Form purpose' : 'គោលបំណង Form' }}:</strong>
                         {{ app()->getLocale() === 'en'
                             ? 'Create proposal first, then process approval from the Approval tab.'
                             : 'សម្រាប់បង្កើតសំណើជាមុន ហើយដំណើរការអនុម័តនៅ Tab ការអនុម័ត។' }}
                         <div class="small mt-1 text-muted">
                             {{ app()->getLocale() === 'en'
-                                ? 'Supported request basis: annual grade, annual rank, degree-based, and honorary pre-retirement.'
+                                ? 'Supported promotion basis: annual grade, annual rank, degree-based, and honorary pre-retirement.'
                                 : 'គាំទ្រមូលដ្ឋានសំណើ ៤ ប្រភេទ៖ ដំឡើងថ្នាក់ប្រចាំឆ្នាំ, ដំឡើងឋានន្តរស័ក្តិប្រចាំឆ្នាំ, តាមសញ្ញាបត្រ, និងដំឡើងថ្នាក់កិត្តិយសមុននិវត្តន៍។' }}
                         </div>
                         <div class="small mt-1 text-muted">
                             {{ app()->getLocale() === 'en'
-                                ? 'Rule: one pending request per employee. If pending exists, create form will block duplicate.'
+                                ? 'This page records final promotion directly. Pending request and approval steps are not required.'
                                 : 'គោលការណ៍៖ មន្ត្រីម្នាក់មានសំណើកំពុងរង់ចាំបានតែ ១ ប៉ុណ្ណោះ។ បើមាន pending រួច Form នឹងទប់ស្កាត់មិនអោយស្នើស្ទួន។' }}
                         </div>
                     </div>
 
                     <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
                         <h6 class="mb-0">
-                            {{ app()->getLocale() === 'en' ? 'Step 1: Add one employee to batch table' : 'ជំហានទី១៖ បន្ថែមមន្ត្រីម្នាក់ទៅតារាងសំណើជាក្រុម' }}
+                            {{ app()->getLocale() === 'en' ? 'Step 1: Add one promoted employee into the table' : 'ជំហានទី១៖ បន្ថែមមន្ត្រីដែលបានឡើងថ្នាក់ម្នាក់ទៅតារាងក្រុម' }}
                         </h6>
                         <small class="text-muted">
-                            {{ app()->getLocale() === 'en' ? 'After each add, review rows above and submit all once.' : 'បន្ថែមរួច សូមពិនិត្យតារាងខាងលើ ហើយដាក់សំណើទាំងអស់ម្តងតែមួយ។' }}
+                            {{ app()->getLocale() === 'en' ? 'After each add, review rows above and save all once.' : 'បន្ថែមរួច សូមពិនិត្យតារាងខាងលើ ហើយរក្សាទុកទាំងអស់ម្តងតែមួយ។' }}
                         </small>
+                    </div>
+
+                    <div class="border rounded bg-white p-3 mb-3">
+                        <div class="fw-semibold text-primary">ជំហានទី ១: បន្ថែមមន្ត្រីម្នាក់ៗចូលតារាង</div>
+                        <div class="small text-muted mt-1">ជ្រើសមន្ត្រីដែលបានឡើងថ្នាក់រួច ជ្រើសក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់គោលដៅ និងប្រភេទឡើងថ្នាក់ រួចចុចប៊ូតុងបន្ថែមទៅតារាង។</div>
                     </div>
 
                     <form id="singlePromotionForm" action="{{ route('employee-pay-promotions.store') }}" method="POST" class="mb-0">
@@ -1971,8 +2105,8 @@
                         @if ($prefillProposal)
                             <div class="alert alert-warning mb-3 py-2">
                                 {{ app()->getLocale() === 'en'
-                                    ? 'Reviewing pending request'
-                                    : 'កំពុងពិនិត្យសំណើកំពុងរង់ចាំ' }}
+                                    ? 'Reviewing unfinished record'
+                                    : 'កំពុងពិនិត្យកំណត់ត្រាមិនទាន់បញ្ចប់' }}
                                 <strong>#{{ $prefillProposal->id }}</strong>
                                 -
                                 {{ app()->getLocale() === 'en' ? 'Employee' : 'មន្ត្រី' }}:
@@ -1989,6 +2123,7 @@
                                         @php $employeeSnapshot = $employee_snapshots[$employee->id] ?? []; @endphp
                                         <option value="{{ $employee->id }}"
                                             data-current-level="{{ $fixKhmerText($current_pay_level_labels[$employee->id] ?? ($employee->employee_grade ?? '-')) }}"
+                                            data-current-level-id="{{ (int) ($employeeCurrentLevelMap[$employee->id] ?? 0) }}"
                                             data-due-regular="{{ !empty($employeeSnapshot['is_due_regular']) ? '1' : '0' }}"
                                             data-due-honorary="{{ !empty($employeeSnapshot['is_due_honorary_pre_retirement']) ? '1' : '0' }}"
                                             data-service-state="{{ (string) ($employeeSnapshot['service_state'] ?? 'active') }}"
@@ -2003,14 +2138,34 @@
                             </div>
 
                             <div class="col-md-4">
-                                <label class="form-label">{{ localize('current_pay_level', 'Current pay level') }}</label>
+                                <label class="form-label">{{ app()->getLocale() === 'en' ? 'Current pay grade and rank' : 'ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់បច្ចុប្បន្ន' }}</label>
                                 <input type="text" id="old_pay_level_label" class="form-control bg-light" readonly value="-">
+                            </div>
+                        </div>
+
+                        <div class="border rounded bg-light p-3 mb-3">
+                            <div class="fw-semibold text-primary mb-2">
+                                {{ app()->getLocale() === 'en' ? 'Selected employee preview' : 'ព័ត៌មានមន្ត្រីដែលបានជ្រើស' }}
+                            </div>
+                            <div class="row g-3 small">
+                                <div class="col-md-4">
+                                    <div class="text-muted mb-1">{{ app()->getLocale() === 'en' ? 'Employee' : 'មន្ត្រី' }}</div>
+                                    <div id="selectedEmployeePreviewName" class="fw-semibold">-</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-muted mb-1">{{ app()->getLocale() === 'en' ? 'Current level' : 'ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់បច្ចុប្បន្ន' }}</div>
+                                    <div id="selectedEmployeePreviewLevel" class="fw-semibold">-</div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="text-muted mb-1">{{ app()->getLocale() === 'en' ? 'Last promotion date' : 'ថ្ងៃឡើងថ្នាក់ចុងក្រោយ' }}</div>
+                                    <div id="selectedEmployeePreviewLastPromotion" class="fw-semibold">-</div>
+                                </div>
                             </div>
                         </div>
 
                         <div class="row g-3 mb-2">
                             <div class="col-md-4">
-                                <label class="form-label">{{ localize('new_pay_level', 'New pay level') }} <span class="text-danger">*</span></label>
+                                <label class="form-label">{{ app()->getLocale() === 'en' ? 'New pay grade and rank' : 'ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់ថ្មី' }} <span class="text-danger">*</span></label>
                                 <select id="new_pay_level_id" name="pay_level_id" class="form-select" required>
                                     <option value="">-- {{ localize('select_one', 'Select one') }} --</option>
                                     @foreach ($pay_levels as $pay_level)
@@ -2025,7 +2180,7 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-4">
+                            <div class="col-md-4 d-none" id="single_effective_date_wrap">
                                 <label class="form-label">{{ localize('effective_date', 'Effective date') }} <span class="text-danger">*</span></label>
                                 <input type="date" id="single_effective_date" name="effective_date" class="form-control" value="{{ $prefillEffectiveDate }}" required>
                             </div>
@@ -2047,27 +2202,27 @@
                                     </option>
                                 </select>
                             </div>
-                            <div class="col-md-4" id="request_reference_wrap" style="display: none;">
+                            <div class="col-md-4 d-none" id="request_reference_wrap" style="display: none;">
                                 <label class="form-label">{{ app()->getLocale() === 'en' ? 'Proposal reference no.' : 'លេខយោងសំណើ' }}</label>
                                 <input type="text" name="request_reference" class="form-control" value="{{ $prefillRequestReference }}">
                             </div>
 
-                            <div class="col-md-4" id="request_date_wrap" style="display: none;">
+                            <div class="col-md-4 d-none" id="request_date_wrap" style="display: none;">
                                 <label class="form-label">{{ app()->getLocale() === 'en' ? 'Proposal date' : 'កាលបរិច្ឆេទសំណើ' }}</label>
                                 <input type="date" name="request_date" class="form-control" value="{{ $prefillRequestDate }}">
                             </div>
 
-                            <div class="col-md-4" id="document_reference_wrap" style="{{ $prefillRecordMode === 'approve' ? '' : 'display:none;' }}">
+                            <div class="col-md-4 d-none" id="document_reference_wrap" style="display: none;">
                                 <label class="form-label">{{ localize('document_reference', 'Document reference') }}</label>
                                 <input type="text" id="document_reference" name="document_reference" class="form-control" value="{{ $prefillDocumentReference }}">
                             </div>
 
-                            <div class="col-md-4" id="document_date_wrap" style="{{ $prefillRecordMode === 'approve' ? '' : 'display:none;' }}">
+                            <div class="col-md-4 d-none" id="document_date_wrap" style="display: none;">
                                 <label class="form-label">{{ localize('document_date', 'Document date') }}</label>
                                 <input type="date" id="document_date" name="document_date" class="form-control" value="{{ $prefillDocumentDate }}">
                             </div>
 
-                            <div class="col-md-8">
+                            <div class="col-md-12">
                                 <label class="form-label">{{ localize('note', 'Note') }}</label>
                                 <input type="text" id="single_note" name="note" class="form-control" value="{{ $prefillNote }}">
                             </div>
@@ -2077,7 +2232,7 @@
                         <div class="text-end d-flex flex-wrap justify-content-end gap-2">
                             @if ($prefillRecordMode === 'request')
                                 <button type="button" id="singleSubmitBtn" class="btn btn-primary">
-                                    <i class="fa fa-plus me-1"></i>{{ app()->getLocale() === 'en' ? 'Add to batch table' : 'បន្ថែមចូលតារាងសំណើ' }}
+                                    <i class="fa fa-plus me-1"></i>{{ app()->getLocale() === 'en' ? 'Add employee to table' : 'បន្ថែមមន្ត្រីទៅតារាង' }}
                                 </button>
                             @else
                                 <button type="button" id="singleSubmitBtn" class="btn btn-success">
@@ -2089,8 +2244,8 @@
                     @if ($prefillRecordMode === 'request')
                         <div class="small text-muted mt-2">
                             {{ app()->getLocale() === 'en'
-                                ? 'Use this form to add one employee at a time into the batch table, then click "Submit all requests" above.'
-                                : 'ប្រើ Form នេះសម្រាប់បញ្ចូលមន្ត្រីម្នាក់ៗចូលតារាងសំណើជាក្រុម បន្ទាប់មកចុច «ដាក់សំណើទាំងអស់» ខាងលើ។' }}
+                                ? 'Use this form to add one employee at a time into the batch table, then click "Save all promotions" above.'
+                                : 'ប្រើ Form នេះសម្រាប់បញ្ចូលមន្ត្រីម្នាក់ៗចូលតារាងក្រុម បន្ទាប់មកចុច «រក្សាទុកការឡើងថ្នាក់ទាំងអស់» ខាងលើ។' }}
                         </div>
                     @endif
                     </div>
@@ -2099,6 +2254,56 @@
                 </div>
 
                 <div class="tab-pane fade {{ $activeTab === 'history' ? 'show active' : '' }}" id="tab-history" role="tabpanel" aria-labelledby="tab-history-trigger">
+                        <div class="alert alert-light border mb-3">
+                            <strong>{{ app()->getLocale() === 'en' ? 'Promotion history overview' : 'ការមើលប្រវត្តិឡើងថ្នាក់' }}</strong>
+                            <div class="small mt-1 text-muted">
+                                {{ app()->getLocale() === 'en'
+                                    ? 'This tab is for viewing records that were already saved after promotion. It is separated into yearly promotion history and individual employee promotion history for easier review.'
+                                    : 'ផ្ទាំងនេះសម្រាប់មើលប្រវត្តិដែលបានរក្សាទុករួចបន្ទាប់ពីការឡើងថ្នាក់ប៉ុណ្ណោះ ហើយត្រូវបានបែងចែកជា ២ ផ្នែក៖ ប្រវត្តិឡើងថ្នាក់តាមឆ្នាំ និងប្រវត្តិឡើងថ្នាក់របស់មន្ត្រីម្នាក់ៗ ដើម្បីងាយស្រួលពិនិត្យ។' }}
+                            </div>
+                        </div>
+                    <div class="card border mb-4">
+                        <div class="card-header bg-white">
+                            <div class="fw-semibold">{{ app()->getLocale() === 'en' ? '1. Yearly promotion history' : '1. ប្រវត្តិឡើងថ្នាក់តាមឆ្នាំ' }}</div>
+                            <div class="small text-muted">
+                                {{ app()->getLocale() === 'en'
+                                    ? 'Shows all employees whose promotion records were already saved in year ' . ($history_year ?? $year) . '.'
+                                    : 'បង្ហាញមន្ត្រីទាំងអស់ដែលបានឡើងថ្នាក់រួច និងបានរក្សាទុកក្នុងឆ្នាំ ' . $staffToKhmerDigits((string) ($history_year ?? $year)) . '។' }}
+                            </div>
+                        </div>
+                    <div class="card-body border-bottom bg-light">
+                        <form method="GET" action="{{ route('employee-pay-promotions.index') }}" class="row g-2 align-items-end">
+                            <input type="hidden" name="tab" value="history">
+                            <input type="hidden" name="year" value="{{ $year }}">
+                            @if ($selected_unit_id > 0)
+                                <input type="hidden" name="unit_id" value="{{ $selected_unit_id }}">
+                            @endif
+                            @if ($selected_employee_type_id > 0)
+                                <input type="hidden" name="employee_type_id" value="{{ $selected_employee_type_id }}">
+                            @endif
+                            @if ($selected_service_state !== '')
+                                <input type="hidden" name="service_state" value="{{ $selected_service_state }}">
+                            @endif
+                            @if (!empty($history_employee_id))
+                                <input type="hidden" name="history_employee_id" value="{{ $history_employee_id }}">
+                            @endif
+                            <div class="col-md-4 col-lg-3">
+                                <label class="form-label mb-1">{{ app()->getLocale() === 'en' ? 'Year' : 'ឆ្នាំ' }}</label>
+                                <select name="history_year" class="form-select">
+                                    @foreach (($history_year_options ?? []) as $optionYear)
+                                        <option value="{{ $optionYear }}" {{ (int) ($history_year ?? $year) === (int) $optionYear ? 'selected' : '' }}>
+                                            {{ app()->getLocale() === 'en' ? $optionYear : $staffToKhmerDigits((string) $optionYear) }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="col-md-3 col-lg-2">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fa fa-filter me-1"></i>{{ app()->getLocale() === 'en' ? 'Filter history' : 'ច្រោះប្រវត្តិ' }}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped align-middle" id="historyTable">
                             <thead>
@@ -2107,7 +2312,7 @@
                                     <th>{{ localize('employee', 'Employee') }}</th>
                                     <th>{{ localize('department', 'Unit') }}</th>
                                     <th>{{ $labelPayGrade }}</th>
-                                    <th>{{ app()->getLocale() === 'en' ? 'Request basis' : 'មូលដ្ឋានសំណើ' }}</th>
+                                    <th>{{ app()->getLocale() === 'en' ? 'Request basis' : 'មូលដ្ឋានឡើងថ្នាក់' }}</th>
                                     <th>{{ localize('effective_date', 'Effective date') }}</th>
                                     <th>{{ localize('document_reference', 'Document reference') }}</th>
                                     <th>{{ localize('status', 'Status') }}</th>
@@ -2146,6 +2351,235 @@
                                 @endforelse
                             </tbody>
                         </table>
+                    </div>
+                    </div>
+
+                    <div class="card border" id="history-employee-section">
+                        <div class="card-header bg-white">
+                            <div class="fw-semibold">{{ app()->getLocale() === 'en' ? '2. Individual employee promotion history' : '2. ប្រវត្តិឡើងថ្នាក់របស់មន្ត្រីម្នាក់ៗ' }}</div>
+                            <div class="small text-muted">
+                                {{ app()->getLocale() === 'en'
+                                    ? 'Choose one employee to review only promotion records that were already saved for that employee.'
+                                    : 'ជ្រើសមន្ត្រីម្នាក់ ដើម្បីមើលតែប្រវត្តិការឡើងថ្នាក់ដែលបានរក្សាទុករួចរបស់គាត់ប៉ុណ្ណោះ។' }}
+                            </div>
+                        </div>
+                        <div class="card-body border-bottom bg-light">
+                            <form method="GET" action="{{ route('employee-pay-promotions.index') }}#history-employee-section" class="row g-2 align-items-end">
+                                <input type="hidden" name="tab" value="history">
+                                <input type="hidden" name="year" value="{{ $year }}">
+                                <input type="hidden" name="history_year" value="{{ $history_year ?? $year }}">
+                                @if ($selected_unit_id > 0)
+                                    <input type="hidden" name="unit_id" value="{{ $selected_unit_id }}">
+                                @endif
+                                @if ($selected_employee_type_id > 0)
+                                    <input type="hidden" name="employee_type_id" value="{{ $selected_employee_type_id }}">
+                                @endif
+                                @if ($selected_service_state !== '')
+                                    <input type="hidden" name="service_state" value="{{ $selected_service_state }}">
+                                @endif
+                                <div class="col-md-9">
+                                    <label class="form-label mb-1">{{ localize('employee', 'Employee') }}</label>
+                                    <select id="history_employee_section_id" name="history_employee_id" class="form-select">
+                                        <option value="">{{ app()->getLocale() === 'en' ? 'Select employee' : 'ជ្រើសមន្ត្រី' }}</option>
+                                        @foreach ($employees as $employee)
+                                            <option value="{{ $employee->id }}" {{ (int) ($history_employee_id ?? 0) === (int) $employee->id ? 'selected' : '' }}>
+                                                {{ $employee->employee_id }} - {{ $fixKhmerText($employee->full_name ?? '-') }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="submit" class="btn btn-primary w-100">
+                                        <i class="fa fa-search me-1"></i>{{ app()->getLocale() === 'en' ? 'Show history' : 'បង្ហាញប្រវត្តិ' }}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+
+                        @if (!empty($history_employee))
+                            <div class="px-3 pt-3 pb-2 border-bottom bg-white">
+                                <div class="fw-semibold">
+                                    {{ $history_employee->employee_id }} - {{ $fixKhmerText($history_employee->full_name ?? '-') }}
+                                </div>
+                                <div class="small text-muted">
+                                    {{ app()->getLocale() === 'en' ? 'Current pay grade and rank' : 'ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់បច្ចុប្បន្ន' }}:
+                                    {{ $fixKhmerText($current_pay_level_labels[$history_employee->id] ?? '-') }}
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-striped align-middle mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th width="5%">{{ localize('sl', '#') }}</th>
+                                            <th>{{ app()->getLocale() === 'en' ? 'Previous level' : 'ថ្នាក់មុន' }}</th>
+                                            <th>{{ $labelPayGrade }}</th>
+                                            <th>{{ app()->getLocale() === 'en' ? 'Promotion basis' : 'មូលដ្ឋានឡើងថ្នាក់' }}</th>
+                                            <th>{{ localize('effective_date', 'Effective date') }}</th>
+                                            <th>{{ localize('document_reference', 'Document reference') }}</th>
+                                            <th>{{ localize('status', 'Status') }}</th>
+                                            @if ($canAdminEditPromotionHistory || $canAdminDeletePromotionHistory)
+                                                <th width="12%">{{ $labelAction }}</th>
+                                            @endif
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse (($personal_promotion_history ?? collect()) as $promotion)
+                                            @php
+                                                $rowLevelNameKm = $fixPayLevelKm($promotion->payLevel?->level_name_km ?? '');
+                                                $previousLabel = $personal_promotion_previous_level_labels[$promotion->id] ?? '-';
+                                                $canManagePromotionHistoryRow = in_array((string) $promotion->status, ['active', 'inactive'], true);
+                                            @endphp
+                                            <tr>
+                                                <td>{{ $loop->iteration }}</td>
+                                                <td>{{ $fixKhmerText($previousLabel) }}</td>
+                                                <td>{{ $rowLevelNameKm !== '' ? $rowLevelNameKm : ($promotion->payLevel?->level_code ?? '-') }}</td>
+                                                <td>{{ $promotionTypeLabel($promotion->promotion_type) }}</td>
+                                                <td>{{ display_date($promotion->start_date) }}</td>
+                                                <td>{{ $promotion->document_reference ?: '-' }}</td>
+                                                <td>
+                                                    @if ($promotion->status === 'active')
+                                                        <span class="badge bg-success">{{ localize('active', 'Active') }}</span>
+                                                    @elseif ($promotion->status === 'proposed')
+                                                        <span class="badge bg-warning text-dark">{{ localize('proposed', 'Proposed') }}</span>
+                                                    @elseif ($promotion->status === 'recommended')
+                                                        <span class="badge bg-info text-white">{{ localize('recommended', 'Recommended') }}</span>
+                                                    @elseif ($promotion->status === 'approved')
+                                                        <span class="badge bg-primary">{{ localize('approved', 'Approved') }}</span>
+                                                    @else
+                                                        <span class="badge bg-secondary">{{ localize('inactive', 'Inactive') }}</span>
+                                                    @endif
+                                                </td>
+                                                @if ($canAdminEditPromotionHistory || $canAdminDeletePromotionHistory)
+                                                    <td>
+                                                        @if ($canManagePromotionHistoryRow)
+                                                            <div class="d-flex gap-1">
+                                                                @if ($canAdminEditPromotionHistory)
+                                                                    <button type="button"
+                                                                        class="btn btn-sm btn-outline-primary js-edit-pay-history"
+                                                                        onclick="window.openPayHistoryEdit && window.openPayHistoryEdit(this)"
+                                                                        data-id="{{ $promotion->id }}"
+                                                                        data-employee="{{ $fixKhmerText(($history_employee->employee_id ?? '-') . ' - ' . ($history_employee->full_name ?? '-')) }}"
+                                                                        data-pay-level-id="{{ $promotion->pay_level_id }}"
+                                                                        data-effective-date="{{ optional($promotion->start_date)->format('Y-m-d') }}"
+                                                                        data-document-reference="{{ $promotion->document_reference ?? '' }}"
+                                                                        data-document-date="{{ optional($promotion->document_date)->format('Y-m-d') }}"
+                                                                        data-promotion-type="{{ $promotion->promotion_type ?? 'annual_grade' }}"
+                                                                        data-note="{{ $promotion->note ?? '' }}">
+                                                                        <i class="fa fa-pencil"></i>
+                                                                    </button>
+                                                                @endif
+                                                                @if ($canAdminDeletePromotionHistory)
+                                                                    <form action="{{ route('employee-pay-promotions.destroy', $promotion->id) }}"
+                                                                        method="POST"
+                                                                        onsubmit="return confirm('{{ app()->getLocale() === 'en' ? 'Delete this promotion history record?' : 'បញ្ជាក់លុបប្រវត្តិឡើងថ្នាក់នេះ?' }}');">
+                                                                        @csrf
+                                                                        @method('DELETE')
+                                                                        <input type="hidden" name="year" value="{{ $year }}">
+                                                                        <input type="hidden" name="history_year" value="{{ $history_year ?? $year }}">
+                                                                        <input type="hidden" name="history_employee_id" value="{{ $history_employee_id }}">
+                                                                        <input type="hidden" name="unit_id" value="{{ $selected_unit_id ?? 0 }}">
+                                                                        <input type="hidden" name="employee_type_id" value="{{ $selected_employee_type_id ?? 0 }}">
+                                                                        <input type="hidden" name="service_state" value="{{ $selected_service_state ?? '' }}">
+                                                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                                            <i class="fa fa-trash"></i>
+                                                                        </button>
+                                                                    </form>
+                                                                @endif
+                                                            </div>
+                                                        @else
+                                                            <span class="text-muted small">{{ app()->getLocale() === 'en' ? 'Read only' : 'មើលតែប៉ុណ្ណោះ' }}</span>
+                                                        @endif
+                                                    </td>
+                                                @endif
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="{{ ($canAdminEditPromotionHistory || $canAdminDeletePromotionHistory) ? 8 : 7 }}" class="text-center text-muted">
+                                                    {{ app()->getLocale() === 'en' ? 'No promotion history found for this employee.' : 'មិនទាន់មានប្រវត្តិឡើងថ្នាក់សម្រាប់មន្ត្រីនេះទេ។' }}
+                                                </td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                            @if ($canAdminEditPromotionHistory)
+                                <div class="modal fade" id="editPayHistoryModal" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                                        <div class="modal-content">
+                                            <form id="editPayHistoryForm" method="POST">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="hidden" name="year" value="{{ $year }}">
+                                                <input type="hidden" name="history_year" value="{{ $history_year ?? $year }}">
+                                                <input type="hidden" name="history_employee_id" value="{{ $history_employee_id }}">
+                                                <input type="hidden" name="unit_id" value="{{ $selected_unit_id ?? 0 }}">
+                                                <input type="hidden" name="employee_type_id" value="{{ $selected_employee_type_id ?? 0 }}">
+                                                <input type="hidden" name="service_state" value="{{ $selected_service_state ?? '' }}">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">{{ app()->getLocale() === 'en' ? 'Edit promotion history' : 'កែប្រវត្តិឡើងថ្នាក់' }}</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="row g-3">
+                                                        <div class="col-md-6">
+                                                            <label class="form-label">{{ localize('employee', 'Employee') }}</label>
+                                                            <input type="text" id="edit_pay_history_employee" class="form-control bg-light" readonly>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <label class="form-label">{{ $labelPayGrade }} <span class="text-danger">*</span></label>
+                                                            <select name="pay_level_id" id="edit_pay_history_pay_level_id" class="form-select" required>
+                                                                <option value="">{{ app()->getLocale() === 'en' ? 'Select level' : 'ជ្រើសថ្នាក់' }}</option>
+                                                                @foreach (($pay_levels ?? collect()) as $payLevel)
+                                                                    @php
+                                                                        $payLevelLabel = $fixPayLevelKm($payLevel->level_name_km ?? '');
+                                                                        $payLevelLabel = $payLevelLabel !== '' ? $payLevelLabel : ($payLevel->level_code ?? '-');
+                                                                    @endphp
+                                                                    <option value="{{ $payLevel->id }}">{{ $payLevelLabel }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label">{{ localize('effective_date', 'Effective date') }} <span class="text-danger">*</span></label>
+                                                            <input type="date" name="effective_date" id="edit_pay_history_effective_date" class="form-control" required>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label">{{ localize('document_reference', 'Document reference') }}</label>
+                                                            <input type="text" name="document_reference" id="edit_pay_history_document_reference" class="form-control">
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <label class="form-label">{{ localize('document_date', 'Document date') }}</label>
+                                                            <input type="date" name="document_date" id="edit_pay_history_document_date" class="form-control">
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <label class="form-label">{{ app()->getLocale() === 'en' ? 'Promotion basis' : 'មូលដ្ឋានឡើងថ្នាក់' }}</label>
+                                                            <select name="promotion_type" id="edit_pay_history_promotion_type" class="form-select" required>
+                                                                <option value="annual_grade">{{ $promotionTypeLabel('annual_grade') }}</option>
+                                                                <option value="annual_rank">{{ $promotionTypeLabel('annual_rank') }}</option>
+                                                                <option value="degree_based">{{ $promotionTypeLabel('degree_based') }}</option>
+                                                                <option value="honorary_pre_retirement">{{ $promotionTypeLabel('honorary_pre_retirement') }}</option>
+                                                                <option value="manual_record">{{ app()->getLocale() === 'en' ? 'Manual record' : 'កត់ត្រាដោយដៃ' }}</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <label class="form-label">{{ localize('note', 'Note') }}</label>
+                                                            <input type="text" name="note" id="edit_pay_history_note" class="form-control">
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">{{ app()->getLocale() === 'en' ? 'Close' : 'បិទ' }}</button>
+                                                    <button type="submit" class="btn btn-primary">{{ app()->getLocale() === 'en' ? 'Save changes' : 'រក្សាទុកការកែប្រែ' }}</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
+                        @else
+                            <div class="card-body text-muted">
+                                {{ app()->getLocale() === 'en' ? 'Please choose one employee above to view their promotion history.' : 'សូមជ្រើសមន្ត្រីម្នាក់ខាងលើ ដើម្បីមើលប្រវត្តិឡើងថ្នាក់របស់គាត់។' }}
+                            </div>
+                        @endif
                     </div>
                 </div>
 
@@ -2346,8 +2780,8 @@
                                                 <th width="6%">#</th>
                                                 <th>{{ localize('employee', 'Employee') }}</th>
                                                 <th>{{ app()->getLocale() === 'en' ? 'Request basis' : 'មូលដ្ឋានសំណើ' }}</th>
-                                                <th>{{ app()->getLocale() === 'en' ? 'Current level' : 'ថ្នាក់បច្ចុប្បន្ន' }}</th>
-                                                <th>{{ app()->getLocale() === 'en' ? 'Target level' : 'ថ្នាក់ត្រូវឡើង' }}</th>
+                                                <th>{{ app()->getLocale() === 'en' ? 'Current pay grade and rank' : 'ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់បច្ចុប្បន្ន' }}</th>
+                                                <th>{{ app()->getLocale() === 'en' ? 'New pay grade and rank' : 'ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់ថ្មី' }}</th>
                                                 <th>{{ localize('requested_effective_date', 'Requested effective date') }}</th>
                                                 <th>{{ localize('request_reference', 'Request reference') }}</th>
                                                 <th>{{ localize('status', 'Status') }}</th>
@@ -2503,7 +2937,7 @@
                     <div class="row g-3 mb-3">
                         <div class="col-md-3"><div class="alert alert-success mb-0">{{ $labelEligiblePromotion }}: <strong>{{ $dueRegularCount }}</strong></div></div>
                         <div class="col-md-3"><div class="alert alert-warning mb-0">{{ $labelOverdue3Years }}: <strong>{{ $overdue3YearCount }}</strong></div></div>
-                        <div class="col-md-3"><div class="alert alert-secondary mb-0">{{ $labelPendingRequests }}: <strong>{{ $pendingProposals->count() }}</strong></div></div>
+                        <div class="col-md-3"><div class="alert alert-secondary mb-0">{{ app()->getLocale() === 'en' ? 'Near retirement' : 'ជិតចូលនិវត្តន៍' }}: <strong>{{ $honoraryDueSnapshots->count() }}</strong></div></div>
                         <div class="col-md-3"><div class="alert alert-dark mb-0">{{ localize('inactive_or_suspended', 'Inactive/Suspended') }}: <strong>{{ $inactiveCadreSnapshots->count() }}</strong></div></div>
                     </div>
                     <div class="d-flex gap-2">
@@ -2535,6 +2969,64 @@
                         </div>
 
                         <div class="table-responsive">
+                            <table class="table report-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th width="5%">{{ $ui('ល.រ', '#') }}</th>
+                                        <th width="10%">{{ $ui('អត្តលេខមន្ត្រី', 'Staff ID') }}</th>
+                                        <th width="18%">{{ $ui('គោត្តនាម និងនាម', 'Name') }}</th>
+                                        <th width="16%">{{ $ui('អង្គភាព', 'Unit') }}</th>
+                                        <th width="12%">{{ $ui('ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់បច្ចុប្បន្ន', 'Current pay level') }}</th>
+                                        <th width="12%">{{ $ui('មូលហេតុត្រូវឡើងថ្នាក់', 'Promotion basis') }}</th>
+                                        <th width="10%">{{ $ui('ថ្ងៃឡើងថ្នាក់ចុងក្រោយ', 'Last promotion date') }}</th>
+                                        <th width="9%">{{ $ui('ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់បន្ទាប់', 'Next pay level') }}</th>
+                                        <th width="8%">{{ $ui('កំណត់សម្គាល់', 'Remark') }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @forelse ($officialReportRows as $reportRow)
+                                        @php
+                                            $reportSnapshot = $employee_snapshots[$reportRow->id] ?? [];
+                                            $reportState = $current_pay_level_state[$reportRow->id] ?? [];
+                                            $reportOfficialId10 = trim((string) ($reportRow->official_id_10 ?? ''));
+                                            if ($reportOfficialId10 === '') {
+                                                $reportOfficialId10 = (string) ($reportRow->employee_id ?? '-');
+                                            }
+                                            $reportUnit = $fixKhmerText((string) ($employee_unit_paths[$reportRow->id] ?? ($reportRow->sub_department?->department_name ?: ($reportRow->department?->department_name ?: '-'))));
+                                            $reportCurrentLevel = $fixKhmerText((string) ($current_pay_level_labels[$reportRow->id] ?? '-'));
+                                            $reportNextLevel = $fixKhmerText((string) ($reportState['next_label'] ?? '-'));
+                                            if ((bool) ($reportSnapshot['is_due_honorary_pre_retirement'] ?? false)) {
+                                                $reportReason = $ui('ជិតចូលនិវត្តន៍', 'Near retirement');
+                                            } elseif ((bool) ($reportSnapshot['is_overdue_3y'] ?? false)) {
+                                                $reportReason = $ui('លើស ៣ ឆ្នាំ', 'Over 3 years');
+                                            } else {
+                                                $reportReason = $ui('ដល់វដ្តប្រចាំឆ្នាំ', 'Annual cycle');
+                                            }
+                                            $reportRemark = (bool) ($reportSnapshot['is_due_honorary_pre_retirement'] ?? false)
+                                                ? $ui('គួរពិនិត្យជាករណីអាទិភាព', 'Priority case')
+                                                : ((bool) ($reportSnapshot['is_overdue_3y'] ?? false) ? $ui('លើសកាលកំណត់', 'Overdue') : '-');
+                                        @endphp
+                                        <tr>
+                                            <td class="text-center">{{ $loop->iteration }}</td>
+                                            <td class="text-center">{{ $reportOfficialId10 }}</td>
+                                            <td>{{ $fixKhmerText($reportRow->full_name ?? '-') }}</td>
+                                            <td>{{ $reportUnit }}</td>
+                                            <td class="text-center">{{ $reportCurrentLevel }}</td>
+                                            <td>{{ $reportReason }}</td>
+                                            <td class="text-center">{{ display_date($reportSnapshot['last_promotion_date'] ?? null) }}</td>
+                                            <td class="text-center">{{ $reportNextLevel }}</td>
+                                            <td>{{ $reportRemark }}</td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="9" class="text-center">{{ localize('empty_data', 'No data found') }}</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="table-responsive d-none">
                             <table class="table report-table mb-0">
                                 <thead>
                                     <tr>
@@ -2638,6 +3130,13 @@
             var documentReferenceInput = document.getElementById('document_reference');
             var documentDateInput = document.getElementById('document_date');
             var oldPayLevelLabel = document.getElementById('old_pay_level_label');
+            var headerStrong = null;
+            var singleStepCardTitle = null;
+            var singleStepCardHelp = null;
+            var singleFormHelp = null;
+            var selectedEmployeePreviewName = document.getElementById('selectedEmployeePreviewName');
+            var selectedEmployeePreviewLevel = document.getElementById('selectedEmployeePreviewLevel');
+            var selectedEmployeePreviewLastPromotion = document.getElementById('selectedEmployeePreviewLastPromotion');
             var employeeEligibilityHint = document.getElementById('employeeEligibilityHint');
             var staffFilterKeyword = document.getElementById('staffFilterKeyword');
             var staffFilterState = document.getElementById('staffFilterState');
@@ -2670,8 +3169,10 @@
             var yearFilterUnitClear = document.getElementById('year-filter-unit-tree-clear');
             var bulkRequestForm = document.getElementById('bulkRequestForm');
             var bulkItemsInput = document.getElementById('bulkItemsInput');
-            var bulkRemovedItemsInput = document.getElementById('bulkRemovedItemsInput');
             var bulkSubmitBtn = document.getElementById('bulkSubmitBtn');
+            var bulkDocumentReferenceInput = document.getElementById('bulk_document_reference');
+            var bulkDocumentDateInput = document.getElementById('bulk_document_date');
+            var bulkEffectiveDateInput = document.getElementById('bulk_effective_date');
             var bulkCandidateTable = document.getElementById('pay-promotion-candidate-table');
             var bulkCandidateTableBody = document.getElementById('bulkCandidateTableBody');
             var bulkCandidateCountBadge = document.getElementById('bulkCandidateCountBadge');
@@ -2684,7 +3185,6 @@
             var employeeCurrentLevelMap = @json($employeeCurrentLevelMap);
             var candidateTargetOptionsByCurrent = @json($candidateTargetOptionsPayload);
             var employeeDisplayLabelMap = @json($employeeDisplayLabelMap);
-            var bulkRemovedItems = [];
 
             function showToast(message, type) {
                 if (!message) return;
@@ -2695,31 +3195,38 @@
                     document.body.appendChild(toastContainer);
                 }
 
-                var colorClass = 'text-bg-primary';
-                if (type === 'success') colorClass = 'text-bg-success';
-                if (type === 'warning') colorClass = 'text-bg-warning';
-                if (type === 'danger') colorClass = 'text-bg-danger';
-                if (type === 'info') colorClass = 'text-bg-info';
+                var colorClass = 'pay-promotion-toast-primary';
+                if (type === 'success') colorClass = 'pay-promotion-toast-success';
+                if (type === 'warning') colorClass = 'pay-promotion-toast-warning';
+                if (type === 'danger') colorClass = 'pay-promotion-toast-danger';
+                if (type === 'info') colorClass = 'pay-promotion-toast-info';
 
                 var toastEl = document.createElement('div');
-                toastEl.className = 'toast align-items-center border-0 ' + colorClass;
+                toastEl.className = 'toast align-items-center border-0 pay-promotion-toast ' + colorClass;
                 toastEl.setAttribute('role', 'alert');
                 toastEl.setAttribute('aria-live', 'assertive');
                 toastEl.setAttribute('aria-atomic', 'true');
                 toastEl.innerHTML = ''
                     + '<div class=\"d-flex\">'
                     + '  <div class=\"toast-body\">' + message + '</div>'
-                    + '  <button type=\"button\" class=\"btn-close btn-close-white me-2 m-auto\" data-bs-dismiss=\"toast\" aria-label=\"Close\"></button>'
+                    + '  <button type=\"button\" class=\"pay-promotion-toast-close me-2 m-auto\" data-bs-dismiss=\"toast\" aria-label=\"Close\">&times;</button>'
                     + '</div>';
 
                 toastContainer.appendChild(toastEl);
 
                 if (window.bootstrap && window.bootstrap.Toast) {
-                    var instance = window.bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2600 });
+                    var instance = typeof window.bootstrap.Toast.getOrCreateInstance === 'function'
+                        ? window.bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 2600 })
+                        : new window.bootstrap.Toast(toastEl, { delay: 2600 });
                     toastEl.addEventListener('hidden.bs.toast', function() {
                         toastEl.remove();
                     });
                     instance.show();
+                } else if (window.jQuery && window.jQuery.fn && window.jQuery.fn.toast) {
+                    window.jQuery(toastEl).toast({ delay: 2600 }).toast('show');
+                    window.jQuery(toastEl).on('hidden.bs.toast', function() {
+                        toastEl.remove();
+                    });
                 } else {
                     setTimeout(function() {
                         toastEl.remove();
@@ -2735,16 +3242,36 @@
                 var root = scopeEl || document;
                 var tooltipEls = root.querySelectorAll('[data-bs-toggle="tooltip"]');
                 tooltipEls.forEach(function(el) {
-                    var existing = window.bootstrap.Tooltip.getInstance(el);
-                    if (existing) {
-                        existing.dispose();
+                    if (typeof window.bootstrap.Tooltip.getInstance === 'function') {
+                        var existing = window.bootstrap.Tooltip.getInstance(el);
+                        if (existing) {
+                            existing.dispose();
+                        }
                     }
-                    window.bootstrap.Tooltip.getOrCreateInstance(el);
+                    if (typeof window.bootstrap.Tooltip.getOrCreateInstance === 'function') {
+                        window.bootstrap.Tooltip.getOrCreateInstance(el);
+                    } else {
+                        new window.bootstrap.Tooltip(el);
+                    }
                 });
             }
 
             function normalizeSearchText(value) {
                 return (value || '').toString().toLowerCase().trim();
+            }
+
+            function formatIsoDateForDisplay(value) {
+                var text = (value || '').toString().trim();
+                if (!text) {
+                    return '-';
+                }
+
+                var match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+                if (!match) {
+                    return text;
+                }
+
+                return [match[3], match[2], match[1]].join('-');
             }
 
             function initYearFilterUnitTreeCombo() {
@@ -3193,29 +3720,82 @@
                 oldPayLevelLabel.value = (!selectedOption || !selectedOption.value) ? '-' : (selectedOption.getAttribute('data-current-level') || '-');
             }
 
+            function refreshSelectedEmployeePreview() {
+                if (!singleEmployeeSelect) {
+                    return;
+                }
+
+                var selectedOption = singleEmployeeSelect.options[singleEmployeeSelect.selectedIndex];
+                var employeeLabel = '-';
+                var currentLevel = '-';
+                var lastPromotion = '-';
+
+                if (selectedOption && selectedOption.value) {
+                    employeeLabel = employeeDisplayLabelMap[selectedOption.value] || selectedOption.text || '-';
+                    currentLevel = selectedOption.getAttribute('data-current-level') || '-';
+                    lastPromotion = selectedOption.getAttribute('data-last-promotion') || '-';
+                }
+
+                if (selectedEmployeePreviewName) {
+                    selectedEmployeePreviewName.textContent = employeeLabel;
+                }
+                if (selectedEmployeePreviewLevel) {
+                    selectedEmployeePreviewLevel.textContent = currentLevel;
+                }
+                if (selectedEmployeePreviewLastPromotion) {
+                    selectedEmployeePreviewLastPromotion.textContent = lastPromotion;
+                }
+            }
+
+            function refreshSingleTargetLevelOptions() {
+                if (!singleEmployeeSelect || !newPayLevelSelect) {
+                    return;
+                }
+
+                var selectedOption = singleEmployeeSelect.options[singleEmployeeSelect.selectedIndex];
+                var currentLevelId = selectedOption ? (selectedOption.getAttribute('data-current-level-id') || '') : '';
+                var currentSelectedValue = (newPayLevelSelect.value || '').toString();
+
+                if (!selectedOption || !selectedOption.value || !currentLevelId) {
+                    newPayLevelSelect.innerHTML = '<option value="">{{ app()->getLocale() === 'en' ? 'Select one' : 'ជ្រើសរើសមួយ' }}</option>';
+                    return;
+                }
+
+                var options = candidateTargetOptionsByCurrent[(currentLevelId || '').toString()] || [];
+                if (!options.length) {
+                    newPayLevelSelect.innerHTML = '<option value="">{{ app()->getLocale() === 'en' ? 'No next level' : 'មិនមានថ្នាក់បន្ទាប់' }}</option>';
+                    return;
+                }
+
+                var optionHtml = buildTargetLevelOptions(currentLevelId, currentSelectedValue);
+                newPayLevelSelect.innerHTML = '<option value="">{{ app()->getLocale() === 'en' ? 'Select one' : 'ជ្រើសរើសមួយ' }}</option>' + optionHtml;
+
+                if (currentSelectedValue) {
+                    var hasMatched = Array.prototype.some.call(newPayLevelSelect.options, function(option) {
+                        return (option.value || '').toString() === currentSelectedValue;
+                    });
+                    if (!hasMatched) {
+                        newPayLevelSelect.value = '';
+                    }
+                }
+            }
+
             function toggleRequestFields() {
                 if (!promotionTypeSelect || !requestReferenceWrap || !requestDateWrap) {
                     return;
                 }
-                var isNonAnnual =
-                    promotionTypeSelect.value === 'degree_based' ||
-                    promotionTypeSelect.value === 'honorary_pre_retirement' ||
-                    promotionTypeSelect.value === 'special_case' ||
-                    promotionTypeSelect.value === 'special_request';
-                requestReferenceWrap.style.display = isNonAnnual ? '' : 'none';
-                requestDateWrap.style.display = isNonAnnual ? '' : 'none';
+                requestReferenceWrap.style.display = 'none';
+                requestDateWrap.style.display = 'none';
             }
 
             function toggleRecordModeFields() {
-                if (!recordModeInput) {
-                    return;
+                if (recordModeInput) {
+                    recordModeInput.value = 'request';
                 }
-                var mode = (recordModeInput.value || 'request').trim();
-                var isApproveMode = mode === 'approve';
-                if (documentReferenceInput) documentReferenceInput.disabled = !isApproveMode;
-                if (documentDateInput) documentDateInput.disabled = !isApproveMode;
-                if (documentReferenceWrap) documentReferenceWrap.style.display = isApproveMode ? '' : 'none';
-                if (documentDateWrap) documentDateWrap.style.display = isApproveMode ? '' : 'none';
+                if (documentReferenceInput) documentReferenceInput.disabled = true;
+                if (documentDateInput) documentDateInput.disabled = true;
+                if (documentReferenceWrap) documentReferenceWrap.style.display = 'none';
+                if (documentDateWrap) documentDateWrap.style.display = 'none';
             }
 
             function refreshEligibilityHint() {
@@ -3241,7 +3821,7 @@
                 if (promotionType === 'annual_grade' || promotionType === 'annual_rank' || promotionType === 'yearly_cycle' || promotionType === 'regular') {
                     isEligible = dueRegular;
                     message = isEligible
-                        ? '{{ app()->getLocale() === 'en' ? 'Eligible by annual cycle (countable service years: ' : 'គ្រប់លក្ខខណ្ឌវដ្តប្រចាំឆ្នាំ (អាយុកាលគិតបាន៖ ' }}' + countableYears + '{{ app()->getLocale() === 'en' ? ').' : ' ឆ្នាំ)।' }}'
+                        ? '{{ app()->getLocale() === 'en' ? 'Eligible by annual cycle (countable service years: ' : 'គ្រប់លក្ខខណ្ឌវដ្តប្រចាំឆ្នាំ (អាយុកាលគិតបាន៖ ' }}' + countableYears + '{{ app()->getLocale() === 'en' ? ').' : ' ឆ្នាំ)à¥¤' }}'
                         : '{{ app()->getLocale() === 'en' ? 'Not yet eligible by annual cycle for this cutoff date.' : 'មិនទាន់គ្រប់លក្ខខណ្ឌវដ្តប្រចាំឆ្នាំត្រឹមថ្ងៃ cutoff នេះទេ។' }}';
                 } else if (promotionType === 'honorary_pre_retirement' || promotionType === 'special_case') {
                     isEligible = dueHonorary;
@@ -3303,12 +3883,27 @@
                     if (!emptyRow) {
                         emptyRow = document.createElement('tr');
                         emptyRow.id = 'bulkEmptyRow';
-                        emptyRow.innerHTML = '<td colspan=\\\"8\\\" class=\\\"text-center text-muted\\\">{{ app()->getLocale() === 'en' ? 'No names selected for batch request.' : 'មិនមានឈ្មោះសម្រាប់ដាក់សំណើជាក្រុម។' }}</td>';
+                        emptyRow.innerHTML = '<td colspan=\\\"8\\\" class=\\\"text-center text-muted\\\">{{ app()->getLocale() === 'en' ? 'No names selected for grouped recording.' : 'មិនមានឈ្មោះសម្រាប់កត់ត្រាជាក្រុម។' }}</td>';
                         bulkCandidateTableBody.appendChild(emptyRow);
                     }
                 } else if (emptyRow) {
                     emptyRow.remove();
                 }
+            }
+
+            function syncBulkEffectiveDateCells() {
+                if (!bulkCandidateTableBody) {
+                    return;
+                }
+
+                var rows = bulkCandidateTableBody.querySelectorAll('tr.candidate-batch-row');
+                rows.forEach(function(row) {
+                    row.setAttribute('data-effective-date',
+                        bulkEffectiveDateInput && bulkEffectiveDateInput.value
+                            ? bulkEffectiveDateInput.value.trim()
+                            : '{{ $cutoffDateIso }}'
+                    );
+                });
             }
 
             function setCandidateRowStatus(row, statusKey) {
@@ -3367,8 +3962,29 @@
                 return map[value] || value || '-';
             }
 
+            function createBulkRowSkeleton(employeeId) {
+                if (!bulkCandidateTableBody) {
+                    return null;
+                }
+
+                var row = document.createElement('tr');
+                row.className = 'candidate-batch-row table-info';
+                row.setAttribute('data-employee-id', employeeId);
+                row.innerHTML = ''
+                    + '<td class="candidate-row-no">0</td>'
+                    + '<td class="candidate-employee-label"></td>'
+                    + '<td class="candidate-reason-text"></td>'
+                    + '<td class="candidate-last-promotion">-</td>'
+                    + '<td class="candidate-current-level">-</td>'
+                    + '<td><select class="form-select form-select-sm candidate-target-level"></select></td>'
+                    + '<td class="candidate-row-status"></td>'
+                    + '<td><button type="button" class="btn btn-sm btn-outline-danger candidate-remove-btn">{{ app()->getLocale() === 'en' ? 'Remove' : 'ដកចេញ' }}</button></td>';
+                bulkCandidateTableBody.appendChild(row);
+                return row;
+            }
+
             function upsertBulkRowFromSingleForm() {
-                if (!singleEmployeeSelect || !newPayLevelSelect || !promotionTypeSelect || !effectiveDateInput || !bulkCandidateTableBody) {
+                if (!singleEmployeeSelect || !newPayLevelSelect || !promotionTypeSelect || !bulkCandidateTableBody) {
                     return;
                 }
 
@@ -3381,7 +3997,7 @@
                 var selectedEmployeeOption = singleEmployeeSelect.options[singleEmployeeSelect.selectedIndex];
                 if (selectedEmployeeOption && selectedEmployeeOption.getAttribute('data-has-pending') === '1') {
                     showToast(
-                        '{{ app()->getLocale() === 'en' ? 'This employee already has a pending request. Please continue from the Approvals/Requests tab.' : 'មន្ត្រីនេះមានសំណើកំពុងរង់ចាំរួចហើយ។ សូមបន្តដំណើរការនៅ Tab សំណើ/ការអនុម័ត។' }}',
+                        '{{ app()->getLocale() === 'en' ? 'This employee already has an unfinished record. Please review the existing entry first.' : 'មន្ត្រីនេះមានកំណត់ត្រាមិនទាន់បញ្ចប់រួចហើយ។ សូមពិនិត្យកំណត់ត្រាដែលមានស្រាប់ជាមុន។' }}',
                         'info'
                     );
                     return;
@@ -3389,24 +4005,28 @@
 
                 var targetLevelId = (newPayLevelSelect.value || '').toString();
                 if (!targetLevelId) {
-                    showToast('{{ app()->getLocale() === 'en' ? 'Please select target level.' : 'សូមជ្រើសរើសថ្នាក់ត្រូវឡើង។' }}', 'warning');
+                    showToast('{{ app()->getLocale() === 'en' ? 'Please select new pay grade and rank.' : 'សូមជ្រើសរើសក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់ថ្មី។' }}', 'warning');
                     return;
                 }
 
-                var effectiveDate = (effectiveDateInput.value || '').trim();
+                var effectiveDate = bulkEffectiveDateInput && bulkEffectiveDateInput.value
+                    ? bulkEffectiveDateInput.value.trim()
+                    : '{{ $cutoffDateIso }}';
                 if (!effectiveDate) {
                     showToast('{{ app()->getLocale() === 'en' ? 'Please choose effective date.' : 'សូមជ្រើសរើសថ្ងៃមានប្រសិទ្ធភាព។' }}', 'warning');
                     return;
                 }
 
                 var selectedTargetOption = newPayLevelSelect.options[newPayLevelSelect.selectedIndex];
-                var employeeLabel = selectedEmployeeOption ? (selectedEmployeeOption.text || ('#' + employeeId)) : ('#' + employeeId);
+                var employeeLabel = employeeDisplayLabelMap[employeeId]
+                    || (selectedEmployeeOption ? (selectedEmployeeOption.text || ('#' + employeeId)) : ('#' + employeeId));
                 var currentLevelLabel = selectedEmployeeOption ? (selectedEmployeeOption.getAttribute('data-current-level') || '-') : '-';
                 var targetLabel = selectedTargetOption ? (selectedTargetOption.getAttribute('data-level-label') || selectedTargetOption.text || '-') : '-';
                 var promotionType = (promotionTypeSelect.value || 'annual_grade').toString();
                 var noteText = singleNoteInput && singleNoteInput.value ? singleNoteInput.value.trim() : '';
                 var reasonText = noteText || promotionTypeLabelFromValue(promotionType);
                 var lastPromotionText = selectedEmployeeOption ? (selectedEmployeeOption.getAttribute('data-last-promotion') || '-') : '-';
+                var currentLevelId = employeeCurrentLevelMap[employeeId] || 0;
 
                 ensureBulkEmptyRow();
 
@@ -3461,9 +4081,109 @@
                 if (existed) {
                     showToast('{{ app()->getLocale() === 'en' ? 'This employee already existed in the table, and the row has been updated.' : 'មន្ត្រីនេះមានក្នុងតារាងរួចហើយ ហើយទិន្នន័យត្រូវបានធ្វើបច្ចុប្បន្នភាព។' }}', 'info');
                 } else {
-                    showToast('{{ app()->getLocale() === 'en' ? 'Added to batch table successfully.' : 'បានបន្ថែមចូលតារាងសំណើជាក្រុមរួចរាល់។' }}', 'success');
+                    showToast('{{ app()->getLocale() === 'en' ? 'Added to grouped recording table successfully.' : 'បានបន្ថែមចូលតារាងកត់ត្រាជាក្រុមរួចរាល់។' }}', 'success');
                 }
             }
+
+            upsertBulkRowFromSingleForm = function() {
+                if (!singleEmployeeSelect || !newPayLevelSelect || !promotionTypeSelect || !bulkCandidateTableBody) {
+                    return;
+                }
+
+                var employeeId = (singleEmployeeSelect.value || '').toString();
+                if (!employeeId) {
+                    showToast('{{ app()->getLocale() === 'en' ? 'Please select an employee.' : 'សូមជ្រើសរើសមន្ត្រីជាមុន។' }}', 'warning');
+                    return;
+                }
+
+                var selectedEmployeeOption = singleEmployeeSelect.options[singleEmployeeSelect.selectedIndex];
+                if (selectedEmployeeOption && selectedEmployeeOption.getAttribute('data-has-pending') === '1') {
+                    showToast(
+                        '{{ app()->getLocale() === 'en' ? 'This employee already has an unfinished record. Please review the existing entry first.' : 'មន្ត្រីនេះមានកំណត់ត្រាមិនទាន់បញ្ចប់រួចហើយ។ សូមពិនិត្យកំណត់ត្រាដែលមានស្រាប់ជាមុន។' }}',
+                        'info'
+                    );
+                    return;
+                }
+
+                var targetLevelId = (newPayLevelSelect.value || '').toString();
+                if (!targetLevelId) {
+                    showToast('{{ app()->getLocale() === 'en' ? 'Please select new pay grade and rank.' : 'សូមជ្រើសរើសក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់ថ្មី។' }}', 'warning');
+                    return;
+                }
+
+                var effectiveDate = bulkEffectiveDateInput && bulkEffectiveDateInput.value
+                    ? bulkEffectiveDateInput.value.trim()
+                    : '{{ $cutoffDateIso }}';
+
+                var selectedTargetOption = newPayLevelSelect.options[newPayLevelSelect.selectedIndex];
+                var employeeLabel = employeeDisplayLabelMap[employeeId]
+                    || (selectedEmployeeOption ? (selectedEmployeeOption.text || ('#' + employeeId)) : ('#' + employeeId));
+                var currentLevelLabel = selectedEmployeeOption ? (selectedEmployeeOption.getAttribute('data-current-level') || '-') : '-';
+                var targetLabel = selectedTargetOption ? (selectedTargetOption.getAttribute('data-level-label') || selectedTargetOption.text || '-') : '-';
+                var promotionType = (promotionTypeSelect.value || 'annual_grade').toString();
+                var noteText = singleNoteInput && singleNoteInput.value ? singleNoteInput.value.trim() : '';
+                var reasonText = noteText || promotionTypeLabelFromValue(promotionType);
+                var lastPromotionText = selectedEmployeeOption ? (selectedEmployeeOption.getAttribute('data-last-promotion') || '-') : '-';
+                var currentLevelId = employeeCurrentLevelMap[employeeId] || 0;
+
+                ensureBulkEmptyRow();
+
+                var row = getBulkRowByEmployeeId(employeeId);
+                var existed = !!row;
+                if (!row) {
+                    row = createBulkRowSkeleton(employeeId);
+                }
+                if (!row) {
+                    return;
+                }
+
+                row.setAttribute('data-employee-name', employeeLabel);
+                row.setAttribute('data-promotion-type', promotionType);
+                row.setAttribute('data-effective-date', effectiveDate || '{{ $cutoffDateIso }}');
+                row.setAttribute('data-note', noteText);
+
+                var employeeCell = row.querySelector('.candidate-employee-label');
+                if (employeeCell) {
+                    employeeCell.textContent = employeeLabel;
+                }
+
+                var reasonCell = row.querySelector('.candidate-reason-text');
+                if (reasonCell) {
+                    reasonCell.textContent = reasonText;
+                }
+
+                var lastPromotionCell = row.querySelector('.candidate-last-promotion');
+                if (lastPromotionCell) {
+                    lastPromotionCell.textContent = lastPromotionText || '-';
+                }
+
+                var currentLevelCell = row.querySelector('.candidate-current-level');
+                if (currentLevelCell) {
+                    currentLevelCell.textContent = currentLevelLabel || '-';
+                }
+
+                var targetSelect = row.querySelector('select.candidate-target-level');
+                if (targetSelect) {
+                    targetSelect.innerHTML = buildTargetLevelOptions(currentLevelId, targetLevelId);
+                    if (!targetSelect.value) {
+                        var fallbackOption = document.createElement('option');
+                        fallbackOption.value = targetLevelId;
+                        fallbackOption.textContent = targetLabel;
+                        fallbackOption.selected = true;
+                        targetSelect.appendChild(fallbackOption);
+                    }
+                }
+
+                setCandidateRowStatus(row, existed ? 'updated' : 'manual');
+                renumberBulkRows();
+                ensureBulkEmptyRow();
+
+                if (existed) {
+                    showToast('{{ app()->getLocale() === 'en' ? 'This employee already existed in the table, and the row has been updated.' : 'មន្ត្រីនេះមាននៅក្នុងតារាងរួចហើយ ហើយទិន្នន័យត្រូវបានធ្វើបច្ចុប្បន្នភាព។' }}', 'info');
+                } else {
+                    showToast('{{ app()->getLocale() === 'en' ? 'Added to grouped recording table successfully.' : 'បានបន្ថែមមន្ត្រីចូលតារាងកត់ត្រាជាក្រុមរួចរាល់។' }}', 'success');
+                }
+            };
 
             function addManualBulkRow() {
                 if (!bulkCandidateTableBody || !bulkManualEmployee || !bulkManualTargetLevel || !bulkManualPromotionType) {
@@ -3482,7 +4202,7 @@
 
                 var targetLevelId = (bulkManualTargetLevel.value || '').toString();
                 if (!targetLevelId) {
-                    showToast('{{ app()->getLocale() === 'en' ? 'Please select target level.' : 'សូមជ្រើសរើសថ្នាក់ត្រូវឡើង។' }}', 'warning');
+                    showToast('{{ app()->getLocale() === 'en' ? 'Please select new pay grade and rank.' : 'សូមជ្រើសរើសក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់ថ្មី។' }}', 'warning');
                     return;
                 }
 
@@ -3527,40 +4247,27 @@
                     return;
                 }
 
-                var reasonPrompt = '{{ app()->getLocale() === 'en' ? 'Please enter reason for removing this name:' : 'សូមបញ្ចូលមូលហេតុដកឈ្មោះនេះចេញ៖' }}';
-                var reason = window.prompt(reasonPrompt, '');
-                if (reason === null) {
-                    return;
-                }
-                reason = (reason || '').trim();
-                if (!reason) {
-                    showToast('{{ app()->getLocale() === 'en' ? 'Removal reason is required.' : 'មូលហេតុដកចេញ គឺចាំបាច់។' }}', 'warning');
-                    return;
-                }
-
-                bulkRemovedItems.push({
-                    employee_id: parseInt(row.getAttribute('data-employee-id') || '0', 10),
-                    employee_name: row.getAttribute('data-employee-name') || '',
-                    reason: reason
-                });
-
                 row.remove();
                 renumberBulkRows();
                 ensureBulkEmptyRow();
+                showToast('{{ app()->getLocale() === 'en' ? 'Removed from the table.' : 'បានដកឈ្មោះចេញពីតារាងហើយ។' }}', 'info');
             }
 
             function submitBulkRequests() {
-                if (!bulkRequestForm || !bulkItemsInput || !bulkRemovedItemsInput || !bulkCandidateTableBody) {
+                if (!bulkRequestForm || !bulkItemsInput || !bulkCandidateTableBody) {
                     return;
                 }
 
+                var sharedDocumentReference = bulkDocumentReferenceInput ? (bulkDocumentReferenceInput.value || '').trim() : '';
+                var sharedDocumentDate = bulkDocumentDateInput ? (bulkDocumentDateInput.value || '').trim() : '';
+                var sharedEffectiveDate = bulkEffectiveDateInput ? (bulkEffectiveDateInput.value || '').trim() : '';
                 var rows = bulkCandidateTableBody.querySelectorAll('tr.candidate-batch-row');
                 var payload = [];
 
                 rows.forEach(function(row) {
                     var employeeId = parseInt(row.getAttribute('data-employee-id') || '0', 10);
                     var promotionType = row.getAttribute('data-promotion-type') || 'annual_grade';
-                    var effectiveDate = row.getAttribute('data-effective-date') || '{{ $cutoffDateIso }}';
+                    var effectiveDate = sharedEffectiveDate || row.getAttribute('data-effective-date') || '{{ $cutoffDateIso }}';
                     var note = row.getAttribute('data-note') || '';
                     var targetSelect = row.querySelector('select.candidate-target-level');
                     var payLevelId = targetSelect ? parseInt(targetSelect.value || '0', 10) : 0;
@@ -3577,24 +4284,124 @@
                 });
 
                 if (!payload.length) {
-                    showToast('{{ app()->getLocale() === 'en' ? 'No valid names to submit.' : 'មិនមានឈ្មោះត្រឹមត្រូវសម្រាប់ដាក់សំណើទេ។' }}', 'warning');
+                    showToast('{{ app()->getLocale() === 'en' ? 'No valid names to save.' : 'មិនមានឈ្មោះត្រឹមត្រូវសម្រាប់រក្សាទុកទេ។' }}', 'warning');
+                    return;
+                }
+
+                if (!sharedDocumentReference || !sharedDocumentDate) {
+                    showToast('{{ app()->getLocale() === 'en' ? 'Please enter one shared document reference and document date for this group.' : 'សូមបញ្ចូលលេខលិខិតរួម និងកាលបរិច្ឆេទលិខិតរួមសម្រាប់ក្រុមនេះសិន។' }}', 'warning');
                     return;
                 }
 
                 bulkItemsInput.value = JSON.stringify(payload);
-                bulkRemovedItemsInput.value = JSON.stringify(bulkRemovedItems);
                 bulkRequestForm.submit();
             }
 
+            function refreshBulkPromotionTexts() {
+                if (!bulkRequestForm) {
+                    return;
+                }
+
+                var isEnglish = '{{ app()->getLocale() }}' === 'en';
+                var formTabPane = bulkRequestForm.closest('.tab-pane');
+                var usageGuide = formTabPane ? formTabPane.querySelector('.alert.alert-info .small.mt-1') : null;
+                var headerStrong = bulkRequestForm.querySelector('.card-header strong');
+                var helperBlocks = bulkRequestForm.querySelectorAll('.card-header .small.text-muted');
+                var introBlock = bulkRequestForm.querySelector('.card-body.border-bottom.bg-light.py-2 .small.text-muted');
+                var oldSingleHeading = document.querySelector('#requestStepOneSection > .d-flex.align-items-center.justify-content-between.mb-2.flex-wrap.gap-2');
+                var flowAlertTitle = document.querySelector('.alert.alert-primary.border.mb-3 strong');
+                var flowAlertSteps = document.querySelectorAll('.alert.alert-primary.border.mb-3 .small');
+                var singleStepCardTitle = document.querySelector('#requestStepOneSection .border.rounded.bg-white.p-3.mb-3 .fw-semibold.text-primary');
+                var singleStepCardHelp = document.querySelector('#requestStepOneSection .border.rounded.bg-white.p-3.mb-3 .small.text-muted.mt-1');
+                var singleFormHelp = document.querySelector('#requestStepOneSection .small.text-muted.mt-2');
+                var candidateTableDateHeader = document.querySelector('#pay-promotion-candidate-table thead th:nth-child(4)');
+
+                if (oldSingleHeading) {
+                    oldSingleHeading.style.display = 'none';
+                }
+
+                if (flowAlertTitle) {
+                    flowAlertTitle.textContent = isEnglish ? 'Work steps' : 'លំដាប់ការងារ';
+                }
+
+                if (flowAlertSteps.length >= 3) {
+                    flowAlertSteps[0].textContent = isEnglish ? '1. Add employees one by one into the table' : '1. បន្ថែមមន្ត្រីម្នាក់ៗចូលតារាង';
+                    flowAlertSteps[1].textContent = isEnglish ? '2. Enter one shared document for the whole group' : '2. បញ្ចូលព័ត៌មានលិខិតរួមសម្រាប់ក្រុមទាំងមូល';
+                    flowAlertSteps[2].textContent = isEnglish ? '3. Review the table and save all promotions once' : '3. ពិនិត្យតារាង ហើយរក្សាទុកការឡើងថ្នាក់ទាំងអស់តែម្តង';
+                }
+
+                if (candidateTableDateHeader && !isEnglish) {
+                    candidateTableDateHeader.textContent = 'ថ្ងៃឡើងថ្នាក់ចុងក្រោយ';
+                }
+
+                if (usageGuide) {
+                    usageGuide.textContent = isEnglish
+                        ? 'Step 1: Add employees who were actually promoted. Step 2: Enter one shared letter for the group. Step 3: Save all recorded promotions once.'
+                        : 'ជំហានទី១៖ បន្ថែមមន្ត្រីដែលបានឡើងថ្នាក់ជាក់ស្តែង។ ជំហានទី២៖ បញ្ចូលព័ត៌មានលិខិតរួមសម្រាប់ក្រុម។ ជំហានទី៣៖ រក្សាទុកការឡើងថ្នាក់ទាំងអស់តែម្តង។';
+                }
+
+                if (headerStrong) {
+                    headerStrong.textContent = isEnglish ? 'Grouped promotion recording table' : 'តារាងកត់ត្រាអ្នកបានឡើងថ្នាក់ជាក្រុម';
+                }
+
+                if (bulkSubmitBtn) {
+                    bulkSubmitBtn.innerHTML = '<i class="fa fa-save me-1"></i>' + (isEnglish ? 'Save all promotions' : 'រក្សាទុកការឡើងថ្នាក់ទាំងអស់');
+                }
+
+                if (helperBlocks.length > 0) {
+                    helperBlocks[0].textContent = isEnglish
+                        ? 'Review the list, adjust each employee target level if needed, then save the whole letter once.'
+                        : 'ពិនិត្យបញ្ជី កែថ្នាក់គោលដៅរបស់មន្ត្រីនីមួយៗបើចាំបាច់ ហើយរក្សាទុកលិខិតនេះតែម្តង។';
+                }
+
+                if (helperBlocks.length > 1) {
+                    helperBlocks[1].textContent = isEnglish
+                        ? 'One letter can include many employees, while each employee may keep a different promotion type and target level.'
+                        : 'មួយលិខិតអាចមានមន្ត្រីច្រើននាក់បាន ហើយមន្ត្រីនីមួយៗអាចមានប្រភេទឡើងថ្នាក់ និងថ្នាក់គោលដៅខុសគ្នា។';
+                }
+
+                if (introBlock) {
+                    introBlock.textContent = isEnglish
+                        ? 'Add names from the single form below, then use the shared letter fields here before saving the full group.'
+                        : 'បន្ថែមឈ្មោះពីទម្រង់ខាងក្រោមសិន បន្ទាប់មកបញ្ចូលព័ត៌មានលិខិតរួមនៅទីនេះ មុនរក្សាទុកក្រុមទាំងមូល។';
+                }
+            }
+
+                if (!('{{ app()->getLocale() }}' === 'en')) {
+                if (headerStrong) {
+                    headerStrong.textContent = 'តារាងកត់ត្រាអ្នកបានឡើងថ្នាក់ជាក្រុម';
+                }
+                if (bulkSubmitBtn) {
+                    bulkSubmitBtn.innerHTML = '<i class="fa fa-save me-1"></i>រក្សាទុកការឡើងថ្នាក់ទាំងអស់';
+                }
+                if (singleSubmitBtn) {
+                    singleSubmitBtn.innerHTML = '<i class="fa fa-plus me-1"></i>បន្ថែមមន្ត្រីទៅតារាង';
+                }
+                if (singleStepCardTitle) {
+                    singleStepCardTitle.textContent = 'ជំហានទី ១: បន្ថែមមន្ត្រីម្នាក់ៗចូលតារាង';
+                }
+                if (singleStepCardHelp) {
+                    singleStepCardHelp.textContent = 'ជ្រើសមន្ត្រីដែលបានឡើងថ្នាក់រួច ជ្រើសក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់គោលដៅ ជ្រើសប្រភេទឡើងថ្នាក់ ហើយចុចបន្ថែមមន្ត្រីទៅតារាង។';
+                }
+                if (singleFormHelp) {
+                    singleFormHelp.textContent = 'ផ្នែកនេះសម្រាប់បន្ថែមមន្ត្រីដែលបានឡើងថ្នាក់ជាក់ស្តែងម្នាក់ម្តងចូលតារាងក្រុមប៉ុណ្ណោះ។ ព័ត៌មានលិខិតរួមត្រូវបញ្ចូលនៅជំហានទី ២។';
+                }
+            }
+
             if (singleEmployeeSelect) singleEmployeeSelect.addEventListener('change', refreshOldPayLevelLabel);
+            if (singleEmployeeSelect) singleEmployeeSelect.addEventListener('change', refreshSelectedEmployeePreview);
+            if (singleEmployeeSelect) singleEmployeeSelect.addEventListener('change', refreshSingleTargetLevelOptions);
             if (promotionTypeSelect) promotionTypeSelect.addEventListener('change', toggleRequestFields);
             if (singleEmployeeSelect) singleEmployeeSelect.addEventListener('change', refreshEligibilityHint);
             if (promotionTypeSelect) promotionTypeSelect.addEventListener('change', refreshEligibilityHint);
 
             refreshOldPayLevelLabel();
+            refreshSelectedEmployeePreview();
+            refreshSingleTargetLevelOptions();
             toggleRequestFields();
             toggleRecordModeFields();
             refreshEligibilityHint();
+            refreshBulkPromotionTexts();
             initYearFilterUnitTreeCombo();
             applyStaffTableFilters();
             applyApprovalTableFilters();
@@ -3603,11 +4410,9 @@
                 var coreTabs = document.querySelectorAll('#payPromotionTabs .nav-link');
                 if (!coreTabs.length) return;
                 var coreFallback = {
-                    'tab-dashboard-trigger': '{{ addslashes($labelTabDashboard) }}',
                     'tab-staff-trigger': '{{ addslashes($labelTabEligibleList) }}',
                     'tab-form-trigger': '{{ addslashes($labelTabCreateRequest) }}',
-                    'tab-approvals-trigger': '{{ addslashes($labelTabApproval) }}',
-                    'tab-requests-trigger': '{{ addslashes($labelTabAllRequests) }}'
+                    'tab-history-trigger': '{{ addslashes($labelTabPromotionHistory) }}'
                 };
 
                 coreTabs.forEach(function(tabBtn) {
@@ -3635,8 +4440,7 @@
                 var secondaryTabs = document.querySelectorAll('.pay-promotion-secondary-tabs .nav-link');
                 if (!secondaryTabs.length) return;
                 var secondaryFallback = {
-                    'tab-detail-trigger': '{{ addslashes($labelTabEmployeeInfo) }}',
-                    'tab-history-trigger': '{{ addslashes($labelTabPromotionHistory) }}',
+                    'tab-dashboard-trigger': '{{ addslashes($labelTabDashboard) }}',
                     'tab-reports-trigger': '{{ addslashes($labelTabReports) }}',
                     'tab-alerts-trigger': '{{ addslashes($labelTabNotifications) }}'
                 };
@@ -3685,6 +4489,142 @@
                     });
                 });
             }
+
+            var historyEmployeeSection = document.getElementById('history-employee-section');
+            var historyTabTrigger = document.getElementById('tab-history-trigger');
+            var currentUrlParams = new URLSearchParams(window.location.search);
+            var shouldReturnToHistoryEmployeeSection = !!historyEmployeeSection
+                && (
+                    window.location.hash === '#history-employee-section'
+                    || (
+                        (currentUrlParams.get('tab') || '') === 'history'
+                        && (currentUrlParams.get('history_employee_id') || '') !== ''
+                    )
+                );
+
+            function scrollToHistoryEmployeeSection() {
+                if (!historyEmployeeSection) {
+                    return;
+                }
+
+                window.requestAnimationFrame(function() {
+                    historyEmployeeSection.scrollIntoView({
+                        behavior: 'auto',
+                        block: 'start'
+                    });
+                });
+            }
+
+            function showHistoryTab() {
+                if (!historyTabTrigger) {
+                    return;
+                }
+
+                if (window.bootstrap && window.bootstrap.Tab) {
+                    if (typeof window.bootstrap.Tab.getOrCreateInstance === 'function') {
+                        window.bootstrap.Tab.getOrCreateInstance(historyTabTrigger).show();
+                        return;
+                    }
+                    if (typeof window.bootstrap.Tab === 'function') {
+                        (new window.bootstrap.Tab(historyTabTrigger)).show();
+                        return;
+                    }
+                }
+
+                if (window.jQuery && window.jQuery.fn && typeof window.jQuery(historyTabTrigger).tab === 'function') {
+                    window.jQuery(historyTabTrigger).tab('show');
+                    return;
+                }
+
+                historyTabTrigger.click();
+            }
+
+            if (shouldReturnToHistoryEmployeeSection) {
+                showHistoryTab();
+
+                setTimeout(scrollToHistoryEmployeeSection, 80);
+                window.addEventListener('load', function() {
+                    setTimeout(scrollToHistoryEmployeeSection, 160);
+                }, { once: true });
+            }
+
+            if (historyTabTrigger) {
+                historyTabTrigger.addEventListener('shown.bs.tab', function() {
+                    if (shouldReturnToHistoryEmployeeSection) {
+                        setTimeout(scrollToHistoryEmployeeSection, 60);
+                    }
+                });
+            }
+
+            function getLastElementById(id) {
+                var elements = document.querySelectorAll('[id="' + id + '"]');
+                return elements.length ? elements[elements.length - 1] : null;
+            }
+
+            var editPayHistoryForm = getLastElementById('editPayHistoryForm');
+            var editPayHistoryModalElement = getLastElementById('editPayHistoryModal');
+            var editPayHistoryModal = null;
+            if (editPayHistoryModalElement && window.bootstrap && window.bootstrap.Modal) {
+                editPayHistoryModal = new window.bootstrap.Modal(editPayHistoryModalElement);
+            }
+
+            function openEditPayHistoryModal() {
+                if (editPayHistoryModal) {
+                    editPayHistoryModal.show();
+                    return;
+                }
+
+                if (window.jQuery && window.jQuery.fn && window.jQuery.fn.modal) {
+                    window.jQuery(editPayHistoryModalElement).modal('show');
+                    return;
+                }
+
+                if (editPayHistoryModalElement) {
+                    editPayHistoryModalElement.classList.add('show');
+                    editPayHistoryModalElement.style.display = 'block';
+                    editPayHistoryModalElement.removeAttribute('aria-hidden');
+                    editPayHistoryModalElement.setAttribute('aria-modal', 'true');
+                    document.body.classList.add('modal-open');
+                }
+            }
+
+            function populateAndOpenEditPayHistoryModal(button) {
+                if (!editPayHistoryForm || !editPayHistoryModalElement || !button) {
+                    return;
+                }
+
+                editPayHistoryForm.action = '{{ route('employee-pay-promotions.update', ['pay_history' => '__PAY_HISTORY_ID__']) }}'.replace('__PAY_HISTORY_ID__', button.getAttribute('data-id') || '');
+
+                var employeeField = getLastElementById('edit_pay_history_employee');
+                var payLevelField = getLastElementById('edit_pay_history_pay_level_id');
+                var effectiveDateField = getLastElementById('edit_pay_history_effective_date');
+                var documentReferenceField = getLastElementById('edit_pay_history_document_reference');
+                var documentDateField = getLastElementById('edit_pay_history_document_date');
+                var promotionTypeField = getLastElementById('edit_pay_history_promotion_type');
+                var noteField = getLastElementById('edit_pay_history_note');
+
+                if (employeeField) employeeField.value = button.getAttribute('data-employee') || '';
+                if (payLevelField) payLevelField.value = button.getAttribute('data-pay-level-id') || '';
+                if (effectiveDateField) effectiveDateField.value = button.getAttribute('data-effective-date') || '';
+                if (documentReferenceField) documentReferenceField.value = button.getAttribute('data-document-reference') || '';
+                if (documentDateField) documentDateField.value = button.getAttribute('data-document-date') || '';
+                if (promotionTypeField) promotionTypeField.value = button.getAttribute('data-promotion-type') || 'annual_grade';
+                if (noteField) noteField.value = button.getAttribute('data-note') || '';
+
+                openEditPayHistoryModal();
+            }
+
+            window.openPayHistoryEdit = populateAndOpenEditPayHistoryModal;
+
+            document.addEventListener('click', function(event) {
+                var editButton = event.target.closest('.js-edit-pay-history');
+                if (!editButton) {
+                    return;
+                }
+
+                event.preventDefault();
+                populateAndOpenEditPayHistoryModal(editButton);
+            });
 
             function printOfficialReport() {
                 var reportNode = document.getElementById('payPromotionOfficialPrint');
@@ -3767,7 +4707,7 @@
                     var url = URL.createObjectURL(blob);
                     var link = document.createElement('a');
                     link.href = url;
-                    link.download = 'pay-promotion-history-{{ $year }}.csv';
+                    link.download = 'pay-promotion-history-{{ $history_year ?? $year }}.csv';
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
@@ -3916,6 +4856,11 @@
                 bulkSubmitBtn.addEventListener('click', submitBulkRequests);
             }
 
+            if (bulkEffectiveDateInput) {
+                bulkEffectiveDateInput.addEventListener('change', syncBulkEffectiveDateCells);
+                bulkEffectiveDateInput.addEventListener('input', syncBulkEffectiveDateCells);
+            }
+
             if (singleSubmitBtn) {
                 singleSubmitBtn.addEventListener('click', function() {
                     var mode = recordModeInput ? (recordModeInput.value || 'request').trim() : 'request';
@@ -3942,6 +4887,7 @@
             refreshManualTargetLevelOptions();
             renumberBulkRows();
             ensureBulkEmptyRow();
+            syncBulkEffectiveDateCells();
             updateApprovalSelectionState();
             refreshBootstrapTooltips(document);
             var initialRows = bulkCandidateTableBody ? bulkCandidateTableBody.querySelectorAll('tr.candidate-batch-row') : [];
@@ -3960,14 +4906,23 @@
             $('#single_employee_id').select2({
                 width: '100%',
                 allowClear: true,
-                placeholder: "Select employee"
+                placeholder: '{{ app()->getLocale() === 'en' ? 'Select employee' : 'ជ្រើសមន្ត្រី' }}'
             });
 
             $('#single_employee_id').on('select2:select select2:clear', function() {
                 this.dispatchEvent(new Event('change'));
             });
+
+            if ($('#history_employee_section_id').length) {
+                $('#history_employee_section_id').select2({
+                    width: '100%',
+                    allowClear: true,
+                    placeholder: '{{ app()->getLocale() === 'en' ? 'Search employee by name or ID' : 'ស្វែងរកមន្ត្រីតាមឈ្មោះ ឬលេខសម្គាល់' }}'
+                });
+            }
         })(window.jQuery);
     </script>
 @endpush
+
 
 

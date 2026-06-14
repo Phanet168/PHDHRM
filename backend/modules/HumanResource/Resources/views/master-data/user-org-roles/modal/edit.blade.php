@@ -10,9 +10,10 @@
                 @csrf
                 <div class="modal-body">
                     <div class="alert alert-light border mb-3">
-                        <div class="fw-semibold mb-1">{{ localize('org_role_assign_help_title', 'អត្ថន័យការកំណត់នេះ') }}</div>
-                        <div>{{ localize('org_role_assign_help_1', 'Role = តួនាទីអ្នកចុះហត្ថលេខា/អនុម័ត') }}</div>
-                        <div>{{ localize('org_role_assign_help_2', 'Scope: តែអង្គភាពខ្លួនឯង ឬរួមទាំងអង្គភាពរង') }}</div>
+                        <div class="fw-semibold mb-1">{{ localize('org_role_assign_help_title', 'របៀបកែប្រែ') }}</div>
+                        <div>{{ localize('org_role_assign_help_1', '1) ពិនិត្យអ្នកប្រើ និងអង្គភាពឲ្យត្រឹមត្រូវ') }}</div>
+                        <div>{{ localize('org_role_assign_help_2', '2) កែតួនាទី ឬវិសាលភាពតាមតម្រូវការ') }}</div>
+                        <div>{{ localize('org_role_assign_help_3', '3) រក្សាទុកបន្ទាប់ពីពិនិត្យរួច') }}</div>
                     </div>
 
                     <div class="row">
@@ -83,7 +84,7 @@
                                     @endforeach
                                 </select>
                                 <small class="text-muted">
-                                    {{ localize('scope_hint_text', 'បើជ្រើស "អង្គភាពខ្លួនឯង និងអង្គភាពរង" អ្នកប្រើនឹងអាចដំណើរការលើឯកសាររបស់អង្គភាពរងបានផង។') }}
+                                    {{ localize('scope_hint_text', 'ជាទូទៅ ប្រើ "អង្គភាពខ្លួនឯង និងអង្គភាពរង" សម្រាប់ប្រធាន ឬអ្នកគ្រប់គ្រង។') }}
                                 </small>
                             </div>
                         </div>

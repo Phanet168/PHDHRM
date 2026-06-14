@@ -8,9 +8,13 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 import '../../../core/localization/laravel_language_service.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_design_system.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../models/correspondence_models.dart';
 import '../services/correspondence_service.dart';
+
+Color _dynamicPrimary() =>
+    AppDesignSystem.colorForWeekday(DateTime.now().weekday);
 
 /// Full detail & workflow-action page for a correspondence letter.
 /// Logic mirrors the Laravel CorrespondenceController workflow.
@@ -766,7 +770,7 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
               children: [
                 if (letter.registryNo != null)
                   Text(
-                    'ចុះបញ្ជី: ${letter.registryNo}',
+                    'ចុះបញ្ជី៖ ${letter.registryNo}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Color(0xFF94A3B8),
@@ -774,7 +778,7 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
                   ),
                 if (letter.letterNo != null)
                   Text(
-                    'លេខ: ${letter.letterNo}',
+                    'លេខ៖ ${letter.letterNo}',
                     style: const TextStyle(
                       fontSize: 12,
                       color: Color(0xFF94A3B8),
@@ -1019,7 +1023,7 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
             : _fallbackWorkflowIndex(letter, steps);
 
     return _SectionCard(
-      title: 'ដំណើរការ Workflow',
+      title: 'លំហូរ Workflow',
       child: Column(
         children: List.generate(steps.length, (i) {
           final step = steps[i];
@@ -1073,7 +1077,7 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
                   return _ActionButton(
                     label: 'ប្រគល់',
                     icon: Icons.send_and_archive_outlined,
-                    color: const Color(0xFF1D4F91),
+                    color: _dynamicPrimary(),
                     onPressed: () => _actDelegate(letter),
                   );
                 case _CorrAction.officeComment:
@@ -1130,7 +1134,7 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
         child: _ActionButton(
           label: 'ផ្ញើមតិទៅអង្គភាពម្ដាយ',
           icon: Icons.reply_outlined,
-          color: const Color(0xFF0B6B58),
+          color: _dynamicPrimary(),
           onPressed: () => _actFeedbackParent(letter),
           fullWidth: true,
         ),
@@ -1176,7 +1180,7 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
                 decoration: BoxDecoration(
                   color:
                       dist.isTo
-                          ? const Color(0xFF1D4F91).withAlpha(26)
+                          ? _dynamicPrimary().withAlpha(26)
                           : const Color(0xFF94A3B8).withAlpha(26),
                   borderRadius: BorderRadius.circular(4),
                 ),
@@ -1186,9 +1190,7 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color:
-                        dist.isTo
-                            ? const Color(0xFF1D4F91)
-                            : const Color(0xFF64748B),
+                        dist.isTo ? _dynamicPrimary() : const Color(0xFF64748B),
                   ),
                 ),
               ),
@@ -1234,7 +1236,7 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
                   _SmallActionButton(
                     label: 'ទទួលស្គាល់',
                     icon: Icons.check_rounded,
-                    color: const Color(0xFF0B6B58),
+                    color: _dynamicPrimary(),
                     onPressed: () => _actAcknowledge(dist),
                   ),
                 if (canFb) ...[
@@ -1242,7 +1244,7 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
                   _SmallActionButton(
                     label: 'ផ្ញើមតិ',
                     icon: Icons.reply_rounded,
-                    color: const Color(0xFF1D4F91),
+                    color: _dynamicPrimary(),
                     onPressed: () => _actFeedback(dist),
                   ),
                 ],
@@ -1275,13 +1277,13 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF0B6B58).withAlpha(26),
+                        color: _dynamicPrimary().withAlpha(26),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.history_rounded,
                         size: 16,
-                        color: Color(0xFF0B6B58),
+                        color: _dynamicPrimary(),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -1376,7 +1378,7 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
       case 'pending_ack':
         return const Color(0xFFD79C2E);
       case 'acknowledged':
-        return const Color(0xFF1D4F91);
+        return _dynamicPrimary();
       case 'feedback_sent':
         return const Color(0xFF0B6B58);
       case 'closed':
@@ -1585,9 +1587,9 @@ class _StepTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final color =
         isDone
-            ? const Color(0xFF0B6B58)
+            ? _dynamicPrimary()
             : isCurrent
-            ? const Color(0xFF1D4F91)
+            ? _dynamicPrimary()
             : const Color(0xFFCBD5E1);
 
     return IntrinsicHeight(
@@ -1619,9 +1621,7 @@ class _StepTile extends StatelessWidget {
                     child: Container(
                       width: 2,
                       color:
-                          isDone
-                              ? const Color(0xFF0B6B58)
-                              : const Color(0xFFE2E8F0),
+                          isDone ? _dynamicPrimary() : const Color(0xFFE2E8F0),
                     ),
                   ),
               ],
@@ -1659,7 +1659,7 @@ class _TypeBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color:
             isIncoming
-                ? const Color(0xFF1D4F91).withAlpha(26)
+                ? _dynamicPrimary().withAlpha(26)
                 : const Color(0xFF0B6B58).withAlpha(26),
         borderRadius: BorderRadius.circular(6),
       ),
@@ -1668,7 +1668,7 @@ class _TypeBadge extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: isIncoming ? const Color(0xFF1D4F91) : const Color(0xFF0B6B58),
+          color: isIncoming ? _dynamicPrimary() : const Color(0xFF0B6B58),
         ),
       ),
     );
@@ -1718,7 +1718,7 @@ class _StatusBadge extends StatelessWidget {
         color = const Color(0xFFD79C2E);
         label = 'ចាប់ផ្ដើម';
       case 'in_progress':
-        color = const Color(0xFF1D4F91);
+        color = _dynamicPrimary();
         label = 'ដំណើរការ';
       case 'completed':
         color = const Color(0xFF0B6B58);

@@ -10,25 +10,31 @@
             $value = trim((string) $scope);
             return $value === 'self' ? 'self_only' : $value;
         };
+        $simpleScopeHelp = [
+            'self_only' => localize('scope_help_self_only', 'មើល/គ្រប់គ្រងតែអង្គភាពនេះ'),
+            'self_unit_only' => localize('scope_help_self_unit_only', 'មើលអង្គភាពប្រភេទដូចគ្នា'),
+            'self_and_children' => localize('scope_help_self_and_children', 'មើលអង្គភាពនេះ និងអង្គភាពរង'),
+            'all' => localize('scope_help_all', 'មើលទាំងអស់'),
+        ];
     @endphp
 
     <div class="card mb-4 fixed-tab-body">
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('user_assignments', 'User Assignments') }}</h6>
+                    <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('user_assignments', 'កំណត់អ្នកគ្រប់គ្រងតាមអង្គភាព') }}</h6>
                     <small class="text-muted">
-                        {{ localize('user_assignments_desc', 'Canonical governance assignment source (user + department + position + responsibility template + scope).') }}
+                        {{ localize('user_assignments_desc_simple', 'ប្រើទំព័រនេះដើម្បីកំណត់ថា អ្នកណាអាចគ្រប់គ្រងបុគ្គលិកក្នុងអង្គភាពណា។') }}
                     </small>
                 </div>
                 <div class="text-end">
                     <a href="{{ $legacy_index_route }}" class="btn btn-info-soft btn-sm me-1">
-                        <i class="fa fa-history"></i>&nbsp;{{ localize('legacy_org_role_screen', 'Legacy Org Role Screen') }}
+                        <i class="fa fa-history"></i>&nbsp;{{ localize('legacy_org_role_screen_simple', 'បើករបៀបចាស់') }}
                     </a>
                     @canany(['create_org_governance', 'create_department'])
                         <a href="#" id="open-create-user-assignment" class="btn btn-success btn-sm" data-bs-toggle="modal"
                             data-bs-target="#create-user-assignment">
-                            <i class="fa fa-plus-circle"></i>&nbsp;{{ localize('add', 'Add') }}
+                            <i class="fa fa-plus-circle"></i>&nbsp;{{ localize('add_assignment_simple', 'បន្ថែមការកំណត់') }}
                         </a>
                     @endcanany
                 </div>
@@ -36,44 +42,75 @@
         </div>
 
         <div class="card-body">
-            <div class="alert alert-info mb-3">
-                <div class="fw-semibold mb-1">{{ localize('governance_assignment_guide', 'Governance assignment guide') }}</div>
-                <div>{{ localize('guide_user_assignment_1', '1) Use Responsibility Template as main selector (module-specific preset).') }}</div>
-                <div>{{ localize('guide_user_assignment_2', '2) Department + Position can auto-fill from current employee posting.') }}</div>
-                <div>{{ localize('guide_user_assignment_3', '3) Legacy org-role table is kept temporarily and auto-synced by service layer.') }}</div>
-                <div>{{ localize('guide_user_assignment_4', '4) Module Action Matrix is advanced override only.') }}</div>
+            <div class="alert alert-light border mb-3">
+                <div class="fw-semibold mb-2">{{ localize('quick_usage_guide', 'របៀបប្រើលឿន') }}</div>
+                <div>{{ localize('quick_usage_guide_1', '1) ជ្រើសអ្នកប្រើប្រាស់') }}</div>
+                <div>{{ localize('quick_usage_guide_2', '2) ជ្រើសអង្គភាពដែលគាត់ត្រូវគ្រប់គ្រង') }}</div>
+                <div>{{ localize('quick_usage_guide_3', '3) ជ្រើសតួនាទី/គំរូតួនាទី') }}</div>
+                <div>{{ localize('quick_usage_guide_4', '4) ជ្រើសវិសាលភាព (Scope) ហើយរក្សាទុក') }}</div>
+                <hr class="my-2">
+                <div class="small text-muted">
+                    {{ localize('quick_usage_note', 'សម្រាប់ការកំណត់ធម្មតា អ្នកមិនចាំបាច់ចូលទៅកាន់ Module Action Matrix ឬ Workflow Policy ទេ។') }}
+                </div>
+            </div>
+
+            <div class="row g-2 mb-3">
+                <div class="col-md-3">
+                    <div class="border rounded p-2 h-100 bg-light">
+                        <div class="fw-semibold">{{ localize('scope_self_only', 'តែអង្គភាពនេះ') }}</div>
+                        <small class="text-muted">{{ $simpleScopeHelp['self_only'] }}</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded p-2 h-100 bg-light">
+                        <div class="fw-semibold">{{ localize('scope_self_and_children', 'អង្គភាព និងអង្គភាពរង') }}</div>
+                        <small class="text-muted">{{ $simpleScopeHelp['self_and_children'] }}</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded p-2 h-100 bg-light">
+                        <div class="fw-semibold">{{ localize('scope_self_unit_only', 'អង្គភាពប្រភេទដូចគ្នា') }}</div>
+                        <small class="text-muted">{{ $simpleScopeHelp['self_unit_only'] }}</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="border rounded p-2 h-100 bg-light">
+                        <div class="fw-semibold">{{ localize('scope_all', 'ទាំងអស់') }}</div>
+                        <small class="text-muted">{{ $simpleScopeHelp['all'] }}</small>
+                    </div>
+                </div>
             </div>
 
             <form method="GET" action="{{ route('user-assignments.index') }}" class="mb-3">
                 <div class="row g-2 align-items-end">
                     <div class="col-md-5">
-                        <label class="form-label mb-1">{{ localize('user', 'User') }}</label>
+                        <label class="form-label mb-1">{{ localize('user', 'អ្នកប្រើប្រាស់') }}</label>
                         <select name="user_id" class="form-control user-assignment-user-ajax"
-                            data-placeholder="{{ localize('select_user', 'Select user') }}">
-                            <option value="">{{ localize('all', 'All') }}</option>
+                            data-placeholder="{{ localize('select_user', 'ជ្រើសអ្នកប្រើប្រាស់') }}">
+                            <option value="">{{ localize('all', 'ទាំងអស់') }}</option>
                             @if ((int) $selected_user_id > 0 && filled($selected_user_text))
                                 <option value="{{ $selected_user_id }}" selected>{{ $selected_user_text }}</option>
                             @endif
                         </select>
                     </div>
                     <div class="col-md-3">
-                        <label class="form-label mb-1">{{ localize('status', 'Status') }}</label>
+                        <label class="form-label mb-1">{{ localize('status', 'ស្ថានភាព') }}</label>
                         <select name="is_active" class="form-control select-basic-single">
-                            <option value="">{{ localize('all', 'All') }}</option>
+                            <option value="">{{ localize('all', 'ទាំងអស់') }}</option>
                             <option value="1" @selected((string) $selected_status === '1')>
-                                {{ localize('active', 'Active') }}
+                                {{ localize('active', 'សកម្ម') }}
                             </option>
                             <option value="0" @selected((string) $selected_status === '0')>
-                                {{ localize('inactive', 'Inactive') }}
+                                {{ localize('inactive', 'អសកម្ម') }}
                             </option>
                         </select>
                     </div>
                     <div class="col-md-4 text-md-end">
                         <button type="submit" class="btn btn-primary btn-sm">
-                            <i class="fa fa-search"></i>&nbsp;{{ localize('filter', 'Filter') }}
+                            <i class="fa fa-search"></i>&nbsp;{{ localize('filter', 'ស្វែងរក') }}
                         </button>
                         <a href="{{ route('user-assignments.index') }}" class="btn btn-secondary btn-sm">
-                            {{ localize('reset', 'Reset') }}
+                            {{ localize('reset', 'សម្អាត') }}
                         </a>
                     </div>
                 </div>
@@ -83,18 +120,18 @@
                 <table id="example" class="table display table-bordered table-striped table-hover">
                     <thead>
                         <tr>
-                            <th width="4%">{{ localize('sl', 'SL') }}</th>
-                            <th width="16%">{{ localize('user', 'User') }}</th>
-                            <th width="12%">{{ localize('org_unit', 'Org Unit') }}</th>
-                            <th width="10%">{{ localize('position', 'Position') }}</th>
-                            <th width="14%">{{ localize('responsibility_template', 'Responsibility Template') }}</th>
-                            <th width="12%">{{ localize('responsibility', 'Responsibility') }}</th>
-                            <th width="10%">{{ localize('scope', 'Scope') }}</th>
-                            <th width="6%">{{ localize('primary', 'Primary') }}</th>
-                            <th width="12%">{{ localize('effective_date', 'Effective date') }}</th>
-                            <th width="6%">{{ localize('status', 'Status') }}</th>
-                            <th width="8%">{{ localize('legacy_sync', 'Legacy sync') }}</th>
-                            <th width="8%">{{ localize('action', 'Action') }}</th>
+                            <th width="4%">{{ localize('sl', 'ល.រ') }}</th>
+                            <th width="16%">{{ localize('user', 'អ្នកប្រើ') }}</th>
+                            <th width="12%">{{ localize('org_unit', 'អង្គភាព') }}</th>
+                            <th width="10%">{{ localize('position', 'មុខតំណែង') }}</th>
+                            <th width="14%">{{ localize('responsibility_template_simple', 'គំរូតួនាទី') }}</th>
+                            <th width="12%">{{ localize('responsibility_simple', 'តួនាទី') }}</th>
+                            <th width="10%">{{ localize('scope', 'វិសាលភាព') }}</th>
+                            <th width="6%">{{ localize('primary_simple', 'លំនាំដើម') }}</th>
+                            <th width="12%">{{ localize('effective_date', 'កាលបរិច្ឆេទ') }}</th>
+                            <th width="6%">{{ localize('status', 'ស្ថានភាព') }}</th>
+                            <th width="8%">{{ localize('legacy_sync_simple', 'សមកាលកម្ម') }}</th>
+                            <th width="8%">{{ localize('action', 'សកម្មភាព') }}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -123,7 +160,7 @@
                                             <code>{{ $item->responsibilityTemplate->module_key }}::{{ $item->responsibilityTemplate->template_key }}</code>
                                         </small>
                                     @else
-                                        <span class="text-muted">{{ localize('legacy_direct_responsibility', 'Legacy direct responsibility') }}</span>
+                                        <span class="text-muted">{{ localize('legacy_direct_responsibility_simple', 'កំណត់ដោយផ្ទាល់') }}</span>
                                     @endif
                                 </td>
                                 <td>
@@ -137,9 +174,9 @@
                                 <td>{{ $scopeLabels[$currentScope] ?? $currentScope }}</td>
                                 <td>
                                     @if ($item->is_primary)
-                                        <span class="badge bg-primary">{{ localize('yes', 'Yes') }}</span>
+                                        <span class="badge bg-primary">{{ localize('yes', 'បាទ/ចាស') }}</span>
                                     @else
-                                        <span class="badge bg-secondary">{{ localize('no', 'No') }}</span>
+                                        <span class="badge bg-secondary">{{ localize('no', 'ទេ') }}</span>
                                     @endif
                                 </td>
                                 <td>
@@ -151,18 +188,18 @@
                                 </td>
                                 <td>
                                     @if ($item->is_active)
-                                        <span class="badge bg-success">{{ localize('active', 'Active') }}</span>
+                                        <span class="badge bg-success">{{ localize('active', 'សកម្ម') }}</span>
                                     @else
-                                        <span class="badge bg-danger">{{ localize('inactive', 'Inactive') }}</span>
+                                        <span class="badge bg-danger">{{ localize('inactive', 'អសកម្ម') }}</span>
                                     @endif
                                 </td>
                                 <td>
                                     @if ($isLegacyMatched)
-                                        <span class="badge bg-success">{{ localize('synced', 'Synced') }}</span>
+                                        <span class="badge bg-success">{{ localize('synced', 'ត្រូវគ្នា') }}</span>
                                     @elseif ($legacy)
-                                        <span class="badge bg-warning text-dark">{{ localize('mismatch', 'Mismatch') }}</span>
+                                        <span class="badge bg-warning text-dark">{{ localize('mismatch', 'មិនត្រូវគ្នា') }}</span>
                                     @else
-                                        <span class="badge bg-secondary">{{ localize('pending', 'Pending') }}</span>
+                                        <span class="badge bg-secondary">{{ localize('pending', 'មិនទាន់') }}</span>
                                     @endif
                                 </td>
                                 <td>
@@ -189,7 +226,7 @@
                                         <div class="modal-content">
                                             <div class="modal-header">
                                                 <h5 class="modal-title">
-                                                    {{ localize('edit_user_assignment', 'Edit user assignment') }}
+                                                    {{ localize('edit_user_assignment', 'កែការកំណត់អ្នកគ្រប់គ្រង') }}
                                                 </h5>
                                             </div>
                                             <form action="{{ route('user-assignments.update', $item->uuid) }}" method="POST">
@@ -209,8 +246,8 @@
                                                 </div>
                                                 <div class="modal-footer">
                                                     <button type="button" class="btn btn-danger"
-                                                        data-bs-dismiss="modal">{{ localize('close', 'Close') }}</button>
-                                                    <button class="btn btn-primary">{{ localize('save', 'Save') }}</button>
+                                                        data-bs-dismiss="modal">{{ localize('close', 'បិទ') }}</button>
+                                                    <button class="btn btn-primary">{{ localize('save', 'រក្សាទុក') }}</button>
                                                 </div>
                                             </form>
                                         </div>
@@ -227,11 +264,11 @@
     @canany(['create_org_governance', 'create_department'])
         <div class="modal fade" id="create-user-assignment" data-bs-backdrop="static" data-bs-keyboard="false"
             tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">{{ localize('add_user_assignment', 'Add user assignment') }}</h5>
-                    </div>
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                        <h5 class="modal-title">{{ localize('add_user_assignment', 'បន្ថែមការកំណត់អ្នកគ្រប់គ្រង') }}</h5>
+                            </div>
                     <form action="{{ route('user-assignments.store') }}" method="POST">
                         @csrf
                         <div class="modal-body">
@@ -252,8 +289,8 @@
                         </div>
                         <div class="modal-footer">
                             <button type="button" class="btn btn-danger"
-                                data-bs-dismiss="modal">{{ localize('close', 'Close') }}</button>
-                            <button class="btn btn-primary">{{ localize('save', 'Save') }}</button>
+                                data-bs-dismiss="modal">{{ localize('close', 'បិទ') }}</button>
+                            <button class="btn btn-primary">{{ localize('save', 'រក្សាទុក') }}</button>
                         </div>
                     </form>
                 </div>

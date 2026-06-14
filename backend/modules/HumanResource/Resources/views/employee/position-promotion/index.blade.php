@@ -12,7 +12,7 @@
                 return '';
             }
 
-            $looksMojibake = str_contains($value, 'á') || str_contains($value, 'â') || str_contains($value, 'Ã');
+            $looksMojibake = str_contains($value, 'Ã¡') || str_contains($value, 'Ã¢') || str_contains($value, 'Ãƒ');
             if (!$looksMojibake) {
                 return $value;
             }
@@ -29,6 +29,9 @@
 
             return $value;
         };
+
+        $canAdminEdit = auth()->check() && auth()->user()->admin() && auth()->user()->can('update_employee');
+        $canAdminDelete = auth()->check() && auth()->user()->admin() && auth()->user()->can('delete_employee');
     @endphp
 
     <div class="card mb-3 fixed-tab-body">
@@ -52,7 +55,7 @@
         <div class="card-body">
             <div class="alert alert-info mb-3">
                 រាល់ពេលឡើងតួនាទី ប្រព័ន្ធនឹងកែ <strong>តួនាទីបច្ចុប្បន្ន</strong> និងកត់ត្រា
-                <strong>ប្រវត្តការងារ</strong> ដោយស្វ័យប្រវត្តិ។
+                <strong>ប្រវត្តិការងារ</strong> ដោយស្វ័យប្រវត្តិ។
             </div>
 
             <form action="{{ route('employee-position-promotions.store') }}" method="POST" class="mb-4">
@@ -97,7 +100,7 @@
 
                 <div class="row g-3 mt-0">
                     <div class="col-md-3">
-                        <label class="form-label">ថ្ងៃមានប្រសិទ្ធិភាព <span class="text-danger">*</span></label>
+                        <label class="form-label">ថ្ងៃមានប្រសិទ្ធភាព <span class="text-danger">*</span></label>
                         <input type="date" name="effective_date" class="form-control"
                             value="{{ old('effective_date', now()->toDateString()) }}" required>
                     </div>
@@ -105,7 +108,7 @@
                     <div class="col-md-3">
                         <label class="form-label">លេខលិខិត</label>
                         <input type="text" name="document_reference" class="form-control"
-                            value="{{ old('document_reference') }}" placeholder="ឧ. ១២៣/២៦">
+                            value="{{ old('document_reference') }}" placeholder="ឧ. 123/26">
                     </div>
 
                     <div class="col-md-3">
@@ -136,10 +139,13 @@
                             <th>អង្គភាព</th>
                             <th>តួនាទីចាស់</th>
                             <th>តួនាទីថ្មី</th>
-                            <th>ថ្ងៃមានប្រសិទ្ធិភាព</th>
+                            <th>ថ្ងៃមានប្រសិទ្ធភាព</th>
                             <th>លេខលិខិត</th>
                             <th>ថ្ងៃខែលិខិត</th>
                             <th>សម្គាល់</th>
+                            @if ($canAdminEdit || $canAdminDelete)
+                                <th width="12%">Action</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
@@ -165,10 +171,40 @@
                                 <td>{{ $promotion_documents[$promotion->id]['document_reference'] ?? '-' }}</td>
                                 <td>{{ $promotion_documents[$promotion->id]['document_date'] ?? '-' }}</td>
                                 <td>{{ $fixKhmerText($displayNote !== '' ? $displayNote : '-') }}</td>
+                                @if ($canAdminEdit || $canAdminDelete)
+                                    <td>
+                                        <div class="d-flex gap-1">
+                                            @if ($canAdminEdit)
+                                                <button type="button"
+                                                    class="btn btn-sm btn-outline-primary js-edit-position-promotion"
+                                                    data-id="{{ $promotion->id }}"
+                                                    data-employee="{{ $fixKhmerText(($promotion->employee?->employee_id ?: '-') . ' - ' . ($promotion->employee?->full_name ?? '-')) }}"
+                                                    data-position-id="{{ $promotion->position_id }}"
+                                                    data-effective-date="{{ optional($promotion->start_date)->format('Y-m-d') }}"
+                                                    data-document-reference="{{ $promotion_documents[$promotion->id]['document_reference'] ?? '' }}"
+                                                    data-document-date="{{ $promotion_documents[$promotion->id]['document_date'] ?? '' }}"
+                                                    data-note="{{ $displayNote }}">
+                                                    <i class="fa fa-pencil"></i>
+                                                </button>
+                                            @endif
+                                            @if ($canAdminDelete)
+                                                <form action="{{ route('employee-position-promotions.destroy', $promotion->id) }}"
+                                                    method="POST"
+                                                    onsubmit="return confirm('Delete this position promotion record?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                        <i class="fa fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    </td>
+                                @endif
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center text-muted">មិនទាន់មានទិន្នន័យឡើងតួនាទីក្នុងឆ្នាំនេះទេ</td>
+                                <td colspan="{{ ($canAdminEdit || $canAdminDelete) ? 10 : 9 }}" class="text-center text-muted">មិនទាន់មានទិន្នន័យឡើងតួនាទីក្នុងឆ្នាំនេះទេ</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -176,6 +212,63 @@
             </div>
         </div>
     </div>
+
+    @if ($canAdminEdit)
+        <div class="modal fade" id="editPositionPromotionModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <form id="editPositionPromotionForm" method="POST">
+                        @csrf
+                        @method('PATCH')
+                        <div class="modal-header">
+                            <h5 class="modal-title">Edit Position Promotion</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Employee</label>
+                                    <input type="text" id="edit_position_employee" class="form-control bg-light" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">New Position <span class="text-danger">*</span></label>
+                                    <select name="position_id" id="edit_position_id" class="form-select" required>
+                                        <option value="">-- Select position --</option>
+                                        @foreach ($positions as $position)
+                                            @php
+                                                $positionLabel = $position->position_name_km ?: $position->position_name;
+                                            @endphp
+                                            <option value="{{ $position->id }}">{{ $fixKhmerText($positionLabel) }}</option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Effective Date <span class="text-danger">*</span></label>
+                                    <input type="date" name="effective_date" id="edit_position_effective_date" class="form-control" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Document Ref.</label>
+                                    <input type="text" name="document_reference" id="edit_position_document_reference" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Document Date</label>
+                                    <input type="date" name="document_date" id="edit_position_document_date" class="form-control">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Note</label>
+                                    <input type="text" name="note" id="edit_position_note" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary">Save changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
 @endsection
 
 @push('js')
@@ -222,6 +315,37 @@
                 this.dispatchEvent(new Event('change'));
             });
         })(window.jQuery);
+
+        (function() {
+            "use strict";
+
+            var modalElement = document.getElementById('editPositionPromotionModal');
+            var form = document.getElementById('editPositionPromotionForm');
+            if (!modalElement || !form || !window.bootstrap) {
+                return;
+            }
+
+            var modal = new bootstrap.Modal(modalElement);
+            var employeeInput = document.getElementById('edit_position_employee');
+            var positionInput = document.getElementById('edit_position_id');
+            var effectiveDateInput = document.getElementById('edit_position_effective_date');
+            var documentReferenceInput = document.getElementById('edit_position_document_reference');
+            var documentDateInput = document.getElementById('edit_position_document_date');
+            var noteInput = document.getElementById('edit_position_note');
+            var baseAction = @json(url('hr/employee-position-promotions'));
+
+            document.querySelectorAll('.js-edit-position-promotion').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    form.action = baseAction + '/' + button.getAttribute('data-id');
+                    employeeInput.value = button.getAttribute('data-employee') || '';
+                    positionInput.value = button.getAttribute('data-position-id') || '';
+                    effectiveDateInput.value = button.getAttribute('data-effective-date') || '';
+                    documentReferenceInput.value = button.getAttribute('data-document-reference') || '';
+                    documentDateInput.value = button.getAttribute('data-document-date') || '';
+                    noteInput.value = button.getAttribute('data-note') || '';
+                    modal.show();
+                });
+            });
+        })();
     </script>
 @endpush
-

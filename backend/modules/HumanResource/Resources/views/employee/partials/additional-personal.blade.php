@@ -1,6 +1,34 @@
 ﻿@php
     $emp = $employee ?? null;
     $extra = optional($emp)->profileExtra;
+    $additionalPersonalDateValue = static function ($value): ?string {
+        if (empty($value)) {
+            return null;
+        }
+
+        if ($value instanceof \Carbon\CarbonInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return null;
+            }
+
+            try {
+                return \Carbon\Carbon::parse($trimmed)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return $trimmed;
+            }
+        }
+
+        return null;
+    };
     $birthPlaceText = old('legacy_pob_code', optional($emp)->legacy_pob_code);
     $birthParts = array_values(array_filter(array_map('trim', explode('>', (string) $birthPlaceText))));
     $birthProvinceName = old('birth_place_state', optional($extra)->birth_place_state ?: ($birthParts[0] ?? ''));
@@ -27,11 +55,44 @@
     $currentCityInitial = $currentCityId !== '' ? $currentCityId : (string) $currentCityName;
     $currentCommuneInitial = $currentCommuneId !== '' ? $currentCommuneId : (string) $currentCommuneName;
     $currentVillageInitial = $currentVillageId !== '' ? $currentVillageId : (string) $currentVillageName;
+    $parseAddressMeta = static function ($value): array {
+        $text = trim((string) $value);
+        $prefix = '';
+
+        if ($text !== '' && str_contains($text, '|')) {
+            [$prefix] = array_map('trim', explode('|', $text, 2));
+        }
+
+        $houseNo = '';
+        $streetNo = '';
+
+        if ($prefix !== '') {
+            if (preg_match('/(?:ផ្ទះលេខ|House No\.?)\s*([^,|]+)/u', $prefix, $matches)) {
+                $houseNo = trim((string) ($matches[1] ?? ''));
+            }
+
+            if (preg_match('/(?:ផ្លូវលេខ|Street No\.?)\s*([^,|]+)/u', $prefix, $matches)) {
+                $streetNo = trim((string) ($matches[1] ?? ''));
+            }
+        }
+
+        return [
+            'house_no' => $houseNo,
+            'street_no' => $streetNo,
+        ];
+    };
+    $currentAddressMeta = $parseAddressMeta(old('present_address', optional($emp)->present_address));
+    $currentHouseNo = old('present_address_house_no', $currentAddressMeta['house_no']);
+    $currentStreetNo = old('present_address_street_no', $currentAddressMeta['street_no']);
     $isKhmerUi = app()->getLocale() === 'km' || (string) (app_setting()->lang?->value ?? '') === 'km';
     $provinceLabel = $isKhmerUi ? 'ខេត្ត/រាជធានី' : 'Province/Capital';
     $districtLabel = $isKhmerUi ? 'ក្រុង/ស្រុក/ខណ្ឌ' : 'City/District/Khan';
     $communeLabel = $isKhmerUi ? 'ឃុំ/សង្កាត់' : 'Commune/Sangkat';
     $villageLabel = $isKhmerUi ? 'ភូមិ' : 'Village';
+    $houseNoLabel = $isKhmerUi ? 'ផ្ទះលេខ' : 'House No.';
+    $streetNoLabel = $isKhmerUi ? 'ផ្លូវលេខ' : 'Street No.';
+    $houseNoPlaceholder = $isKhmerUi ? 'ឧ. ១២A' : 'e.g. 12A';
+    $streetNoPlaceholder = $isKhmerUi ? 'ឧ. ២៧១' : 'e.g. 271';
     $selectProvinceLabel = $isKhmerUi ? 'ជ្រើសរើសខេត្ត/រាជធានី' : 'Select province/capital';
     $selectDistrictLabel = $isKhmerUi ? 'ជ្រើសរើសក្រុង/ស្រុក/ខណ្ឌ' : 'Select city/district/khan';
     $selectCommuneLabel = $isKhmerUi ? 'ជ្រើសរើសឃុំ/សង្កាត់' : 'Select commune/sangkat';
@@ -73,9 +134,9 @@
     $khGazetteerPath = public_path('module-assets/HumanResource/data/cambodia_gazetteer.json');
     $khGazetteerVersion = is_file($khGazetteerPath) ? filemtime($khGazetteerPath) : time();
     $khGazetteerUrl = asset('module-assets/HumanResource/data/cambodia_gazetteer.json') . '?v=' . $khGazetteerVersion;
-    $nationalIdExpiryDate = old('national_id_expiry_date', optional($extra?->national_id_expiry_date)->format('Y-m-d'));
-    $passportExpiryDate = old('passport_expiry_date', optional($extra?->passport_expiry_date)->format('Y-m-d'));
-    $drivingLicenseExpiryDate = old('driving_license_expiry_date', optional($extra?->driving_license_expiry_date)->format('Y-m-d'));
+    $nationalIdExpiryDate = old('national_id_expiry_date', $additionalPersonalDateValue($extra?->national_id_expiry_date));
+    $passportExpiryDate = old('passport_expiry_date', $additionalPersonalDateValue($extra?->passport_expiry_date));
+    $drivingLicenseExpiryDate = old('driving_license_expiry_date', $additionalPersonalDateValue($extra?->driving_license_expiry_date));
 @endphp
 
 <div class="gov-section-card mb-3">
@@ -336,6 +397,18 @@
 
 <div class="gov-section-card mb-3">
     <h6 class="gov-section-title">{{ localize('current_address') }}</h6>
+    <div class="row g-3 mb-2">
+        <div class="col-md-6">
+            <label for="present_address_house_no" class="form-label">{{ $houseNoLabel }}</label>
+            <input type="text" name="present_address_house_no" id="present_address_house_no" class="form-control"
+                value="{{ $currentHouseNo }}" placeholder="{{ $houseNoPlaceholder }}">
+        </div>
+        <div class="col-md-6">
+            <label for="present_address_street_no" class="form-label">{{ $streetNoLabel }}</label>
+            <input type="text" name="present_address_street_no" id="present_address_street_no" class="form-control"
+                value="{{ $currentStreetNo }}" placeholder="{{ $streetNoPlaceholder }}">
+        </div>
+    </div>
     <div id="kh-address-cascade"
         data-source-url="{{ $khGazetteerUrl }}"
         data-placeholder-province="{{ $selectProvinceLabel }}"

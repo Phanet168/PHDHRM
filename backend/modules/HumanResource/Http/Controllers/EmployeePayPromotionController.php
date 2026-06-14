@@ -40,7 +40,8 @@ class EmployeePayPromotionController extends Controller
     public function __construct()
     {
         $this->middleware(['permission:read_employee'])->only(['index', 'review']);
-        $this->middleware(['permission:update_employee'])->only(['store', 'batchAction']);
+        $this->middleware(['permission:update_employee'])->only(['store', 'batchAction', 'updateHistory']);
+        $this->middleware(['permission:delete_employee'])->only(['destroyHistory']);
     }
 
     public function index(Request $request, OrgUnitRuleService $orgUnitRuleService)
@@ -48,6 +49,10 @@ class EmployeePayPromotionController extends Controller
         $year = (int) $request->query('year', now()->year);
         if ($year < 1950 || $year > 2100) {
             $year = (int) now()->year;
+        }
+        $historyYear = (int) $request->query('history_year', $year);
+        if ($historyYear < 1950 || $historyYear > 2100) {
+            $historyYear = $year;
         }
         $selectedUnitId = (int) $request->query('unit_id', 0);
         $selectedEmployeeTypeId = (int) $request->query('employee_type_id', 0);
@@ -154,7 +159,8 @@ class EmployeePayPromotionController extends Controller
                 'employee.sub_department',
                 'payLevel',
             ])
-            ->whereYear('start_date', $year)
+            ->whereIn('status', [self::STATUS_ACTIVE, 'inactive'])
+            ->whereYear('start_date', $historyYear)
             ->orderByDesc('start_date')
             ->orderByDesc('id');
 
@@ -165,43 +171,16 @@ class EmployeePayPromotionController extends Controller
             });
         }
 
-        $pendingProposalsQuery = EmployeePayGradeHistory::query()
-            ->with([
-                'employee.department',
-                'employee.sub_department',
-                'payLevel',
-            ])
-            ->whereIn('status', $this->pendingPromotionStatuses())
-            ->whereYear('start_date', $year)
-            ->orderByDesc('start_date')
-            ->orderByDesc('id');
-
-        if (is_array($managedBranchIds)) {
-            $pendingProposalsQuery->whereHas('employee', function ($q) use ($managedBranchIds) {
-                $q->whereIn('department_id', $managedBranchIds)
-                    ->orWhereIn('sub_department_id', $managedBranchIds);
-            });
-        }
-
-        $pendingProposals = $pendingProposalsQuery
-            ->get()
-            ->sortByDesc(function ($row) {
-                $startDate = (string) ($row->start_date ?? '');
-                return ($startDate !== '' ? $startDate : '0000-00-00') . '|' . str_pad((string) ((int) ($row->id ?? 0)), 12, '0', STR_PAD_LEFT);
-            })
-            ->unique(fn ($row) => (int) ($row->employee_id ?? 0))
-            ->values();
-        $pendingProposalEmployeeIds = $pendingProposals
-            ->pluck('employee_id')
-            ->filter(static fn ($id) => !empty($id))
-            ->map(static fn ($id) => (int) $id)
-            ->unique()
-            ->values()
-            ->all();
-        [$proposalActionPermissions, $proposalActionSummary] = $this->buildPendingProposalPermissionMap(
-            $pendingProposals,
-            $orgUnitRuleService
-        );
+        $pendingProposals = collect();
+        $pendingProposalEmployeeIds = [];
+        $proposalActionPermissions = [];
+        $proposalActionSummary = [
+            'total' => 0,
+            'can_recommend' => 0,
+            'can_approve' => 0,
+            'can_reject' => 0,
+            'blocked' => 0,
+        ];
 
         $payPromotionChart = $this->buildPayPromotionChartData(
             $year,
@@ -210,8 +189,47 @@ class EmployeePayPromotionController extends Controller
             $managedBranchIds
         );
 
+        $historyYearOptionsQuery = EmployeePayGradeHistory::query()
+            ->selectRaw('YEAR(start_date) as history_year')
+            ->whereNotNull('start_date');
+        $this->applyManagedBranchScopeToPayHistoryQuery($historyYearOptionsQuery, $managedBranchIds);
+        $historyYearOptions = $historyYearOptionsQuery
+            ->get()
+            ->pluck('history_year')
+            ->map(fn ($value) => (int) $value)
+            ->filter(fn (int $value) => $value >= 1950 && $value <= 2100)
+            ->unique()
+            ->sortDesc()
+            ->values()
+            ->all();
+        if (!in_array($historyYear, $historyYearOptions, true)) {
+            $historyYearOptions[] = $historyYear;
+            rsort($historyYearOptions, SORT_NUMERIC);
+        }
+
         $promotionRows = $promotions->get();
         $promotionPreviousLevelLabels = $this->buildPromotionPreviousLevelLabels($promotionRows);
+
+        $historyEmployeeId = (int) $request->query('history_employee_id', (int) $request->query('employee_id', 0));
+        $historyEmployee = $historyEmployeeId > 0 ? $employees->firstWhere('id', $historyEmployeeId) : null;
+        $personalPromotionHistory = collect();
+        $personalPromotionPreviousLevelLabels = [];
+
+        if ($historyEmployee) {
+            $personalPromotionHistory = EmployeePayGradeHistory::query()
+                ->with([
+                    'employee.department',
+                    'employee.sub_department',
+                    'payLevel',
+                ])
+                ->where('employee_id', (int) $historyEmployee->id)
+                ->whereIn('status', [self::STATUS_ACTIVE, 'inactive'])
+                ->orderByDesc('start_date')
+                ->orderByDesc('id')
+                ->get();
+
+            $personalPromotionPreviousLevelLabels = $this->buildPromotionPreviousLevelLabels($personalPromotionHistory);
+        }
 
         $lastUpdatedAtQuery = EmployeePayGradeHistory::query();
         $this->applyManagedBranchScopeToPayHistoryQuery($lastUpdatedAtQuery, $managedBranchIds);
@@ -235,6 +253,8 @@ class EmployeePayPromotionController extends Controller
 
         return view('humanresource::employee.pay-promotion.index', [
             'year' => $year,
+            'history_year' => $historyYear,
+            'history_year_options' => $historyYearOptions,
             'cutoff_date' => $cutoffDate->toDateString(),
             'employees' => $employees,
             'employees_for_staff' => $employeesForStaff,
@@ -245,6 +265,10 @@ class EmployeePayPromotionController extends Controller
             'pay_levels' => $payLevels,
             'promotions' => $promotionRows,
             'promotion_previous_level_labels' => $promotionPreviousLevelLabels,
+            'history_employee_id' => $historyEmployeeId,
+            'history_employee' => $historyEmployee,
+            'personal_promotion_history' => $personalPromotionHistory,
+            'personal_promotion_previous_level_labels' => $personalPromotionPreviousLevelLabels,
             'employee_snapshots' => $employeeSnapshots,
             'eligible_employee_ids' => $eligibleEmployeeIds,
             'overdue_reminders' => $overdueReminders,
@@ -261,6 +285,141 @@ class EmployeePayPromotionController extends Controller
             'selected_service_state' => $selectedServiceState,
             'last_updated_at' => $lastUpdatedAt,
         ]);
+    }
+
+    public function updateHistory(
+        Request $request,
+        EmployeePayGradeHistory $pay_history,
+        OrgUnitRuleService $orgUnitRuleService
+    ) {
+        $this->assertAdminCanManagePayHistory($pay_history, $orgUnitRuleService, 'update');
+
+        $validated = $request->validate([
+            'pay_level_id' => 'required|exists:gov_pay_levels,id',
+            'effective_date' => 'required|date',
+            'document_reference' => 'nullable|string|max:191',
+            'document_date' => 'nullable|date',
+            'promotion_type' => 'required|string|max:50',
+            'note' => 'nullable|string',
+        ]);
+
+        $employee = Employee::query()
+            ->with('primaryUnitPosting')
+            ->where('id', (int) $pay_history->employee_id)
+            ->firstOrFail();
+
+        $payLevel = GovPayLevel::query()
+            ->where('id', (int) $validated['pay_level_id'])
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $effectiveDate = Carbon::parse($validated['effective_date'])->toDateString();
+        $documentDate = !empty($validated['document_date'])
+            ? Carbon::parse($validated['document_date'])->toDateString()
+            : null;
+
+        $oldStartDate = optional($pay_history->start_date)->toDateString();
+        $oldDocumentReference = (string) ($pay_history->document_reference ?? '');
+
+        DB::beginTransaction();
+        try {
+            $pay_history->pay_level_id = (int) $payLevel->id;
+            $pay_history->start_date = $effectiveDate;
+            if (in_array((string) $pay_history->status, [self::STATUS_ACTIVE, 'inactive'], true)) {
+                $pay_history->end_date = null;
+            }
+            $pay_history->promotion_type = trim((string) $validated['promotion_type']);
+            $pay_history->document_reference = trim((string) ($validated['document_reference'] ?? '')) ?: null;
+            $pay_history->document_date = $documentDate;
+            $pay_history->note = trim((string) ($validated['note'] ?? '')) ?: null;
+            $pay_history->save();
+
+            if (in_array((string) $pay_history->status, [self::STATUS_ACTIVE, 'inactive'], true)) {
+                $this->normalizeEmployeePromotionHistoryTimeline($employee);
+            }
+
+            $this->syncEmployeeMasterFromPromotionHistory($employee);
+            $this->syncPromotionWorkHistoryFromHistoryRow($employee, $pay_history, $oldStartDate, $oldDocumentReference);
+
+            DB::commit();
+            Toastr::success(
+                localize('pay_promotion_history_updated_successfully', 'Pay promotion history updated successfully.'),
+                localize('success', 'Success')
+            );
+
+            return redirect()->route('employee-pay-promotions.index', [
+                'year' => (int) $request->input('year', now()->year),
+                'history_year' => (int) $request->input('history_year', now()->year),
+                'history_employee_id' => (int) $request->input('history_employee_id', $employee->id),
+                'tab' => 'history',
+                'unit_id' => (int) $request->input('unit_id', 0),
+                'employee_type_id' => (int) $request->input('employee_type_id', 0),
+                'service_state' => (string) $request->input('service_state', ''),
+            ])->withFragment('history-employee-section');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            activity()->causedBy(auth()->user())->log('Pay promotion history update error: ' . $e->getMessage());
+            Toastr::error(
+                localize('failed_to_update_pay_promotion_history', 'Failed to update pay promotion history.'),
+                localize('failed', 'Failed')
+            );
+
+            return redirect()->back()->withInput();
+        }
+    }
+
+    public function destroyHistory(
+        Request $request,
+        EmployeePayGradeHistory $pay_history,
+        OrgUnitRuleService $orgUnitRuleService
+    ) {
+        $this->assertAdminCanManagePayHistory($pay_history, $orgUnitRuleService, 'delete');
+
+        $employee = Employee::query()
+            ->with('primaryUnitPosting')
+            ->where('id', (int) $pay_history->employee_id)
+            ->firstOrFail();
+
+        $oldStartDate = optional($pay_history->start_date)->toDateString();
+        $oldDocumentReference = (string) ($pay_history->document_reference ?? '');
+        $oldStatus = (string) $pay_history->status;
+
+        DB::beginTransaction();
+        try {
+            $this->deletePromotionWorkHistoryByHistoryRow($employee, $oldStartDate, $oldDocumentReference);
+            $pay_history->delete();
+
+            if (in_array($oldStatus, [self::STATUS_ACTIVE, 'inactive'], true)) {
+                $this->normalizeEmployeePromotionHistoryTimeline($employee);
+            }
+
+            $this->syncEmployeeMasterFromPromotionHistory($employee);
+
+            DB::commit();
+            Toastr::success(
+                localize('pay_promotion_history_deleted_successfully', 'Pay promotion history deleted successfully.'),
+                localize('success', 'Success')
+            );
+
+            return redirect()->route('employee-pay-promotions.index', [
+                'year' => (int) $request->input('year', now()->year),
+                'history_year' => (int) $request->input('history_year', now()->year),
+                'history_employee_id' => (int) $request->input('history_employee_id', $employee->id),
+                'tab' => 'history',
+                'unit_id' => (int) $request->input('unit_id', 0),
+                'employee_type_id' => (int) $request->input('employee_type_id', 0),
+                'service_state' => (string) $request->input('service_state', ''),
+            ])->withFragment('history-employee-section');
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            activity()->causedBy(auth()->user())->log('Pay promotion history delete error: ' . $e->getMessage());
+            Toastr::error(
+                localize('failed_to_delete_pay_promotion_history', 'Failed to delete pay promotion history.'),
+                localize('failed', 'Failed')
+            );
+
+            return redirect()->back();
+        }
     }
 
     public function review(Request $request, int $proposal, OrgUnitRuleService $orgUnitRuleService)
@@ -380,7 +539,7 @@ class EmployeePayPromotionController extends Controller
             $employeeId = (int) $employee->id;
             $rows = collect($historyByEmployee->get($employeeId, []))
                 ->reject(function ($row) {
-                    return in_array((string) ($row->status ?? ''), [self::STATUS_PROPOSED, self::STATUS_RECOMMENDED, self::STATUS_REJECTED, self::STATUS_CANCELLED], true);
+                    return !in_array((string) ($row->status ?? ''), [self::STATUS_ACTIVE, 'inactive'], true);
                 })
                 ->values();
 
@@ -532,15 +691,13 @@ class EmployeePayPromotionController extends Controller
 
     public function store(Request $request, OrgUnitRuleService $orgUnitRuleService)
     {
-        $recordModeInput = trim((string) $request->input('record_mode', 'request'));
-        if ($recordModeInput === 'request' && $request->filled('bulk_items')) {
+        if ($request->filled('bulk_items')) {
             return $this->storeBulkPromotionRequests($request, $orgUnitRuleService);
         }
 
         $validated = $request->validate([
-            'record_mode' => 'nullable|in:request,recommend,approve,reject',
+            'record_mode' => 'nullable|string',
             'year' => 'nullable|integer|min:1950|max:2100',
-            'proposal_id' => 'nullable|integer|exists:employee_pay_grade_histories,id',
             'employee_id' => 'nullable|exists:employees,id',
             'employee_ids' => 'nullable|array',
             'employee_ids.*' => 'nullable|exists:employees,id',
@@ -607,8 +764,6 @@ class EmployeePayPromotionController extends Controller
             ? Carbon::parse($validated['request_date'])->toDateString()
             : null;
 
-        $recordMode = $validated['record_mode'] ?? 'request';
-        $proposalId = !empty($validated['proposal_id']) ? (int) $validated['proposal_id'] : null;
         $cutoffYear = (int) ($validated['year'] ?? Carbon::parse($effectiveDate)->year);
         $cutoffDate = Carbon::create($cutoffYear, 4, 1)->endOfDay();
         $employeeSnapshots = $this->buildPromotionSnapshots($employees->values(), $cutoffDate);
@@ -616,34 +771,12 @@ class EmployeePayPromotionController extends Controller
         $activePayLevelsById = $activePayLevels->keyBy('id');
         $currentPayLevelState = $this->currentPayLevelState($employees->values(), $activePayLevels);
 
-        if (
-            $recordMode === 'request'
-            && !$isAnnualCycle
-            && (
-                empty(trim((string) ($validated['request_reference'] ?? '')))
-                || empty($validated['request_date'])
-            )
-        ) {
-            return redirect()->back()
-                ->withErrors([
-                    'request_reference' => localize(
-                        'request_reference_required_for_non_annual',
-                        'Request reference and request date are required for degree-based and honorary cases.'
-                    ),
-                ])
-                ->withInput();
-        }
-
         DB::beginTransaction();
         try {
             $updatedCount = 0;
             $skippedSameLevelCount = 0;
-            $requestCount = 0;
-            $rejectedCount = 0;
             $skippedNotCadreCount = 0;
             $skippedNotEligibleCount = 0;
-            $skippedNoPendingRequestCount = 0;
-            $skippedInvalidStageCount = 0;
             $skippedInvalidDirectionCount = 0;
 
             foreach ($employeeIds as $employeeId) {
@@ -653,78 +786,32 @@ class EmployeePayPromotionController extends Controller
                 }
 
                 $snapshot = $employeeSnapshots[(int) $employeeId] ?? null;
-                if ($recordMode === 'request' && !($snapshot['is_state_cadre'] ?? false)) {
+                if (!($snapshot['is_state_cadre'] ?? false)) {
                     $skippedNotCadreCount++;
                     continue;
                 }
 
-                if ($recordMode === 'request' && $isAnnualCycle && !($snapshot['is_due_regular'] ?? false)) {
+                if ($isAnnualCycle && !($snapshot['is_due_regular'] ?? false)) {
                     $skippedNotEligibleCount++;
                     continue;
                 }
 
-                if ($recordMode === 'request' && $isHonoraryPreRetirement && !($snapshot['is_due_honorary_pre_retirement'] ?? false)) {
+                if ($isHonoraryPreRetirement && !($snapshot['is_due_honorary_pre_retirement'] ?? false)) {
                     $skippedNotEligibleCount++;
                     continue;
                 }
 
-                $matchedProposal = null;
                 $actionPayLevel = $payLevel;
                 $actionEffectiveDate = $effectiveDate;
                 $actionPromotionType = $promotionType;
+                $currentPayLevelId = (int) (($currentPayLevelState[(int) $employee->id]['current_id'] ?? 0));
+                $currentPayLevel = $currentPayLevelId > 0
+                    ? $activePayLevelsById->get($currentPayLevelId)
+                    : null;
 
-                if ($recordMode !== 'request') {
-                    $matchedProposal = $this->resolvePendingProposalForAction(
-                        $employee,
-                        (int) $payLevel->id,
-                        $effectiveDate,
-                        $proposalId
-                    );
-
-                    if (!$matchedProposal) {
-                        $skippedNoPendingRequestCount++;
-                        continue;
-                    }
-
-                    $proposalPayLevel = GovPayLevel::query()
-                        ->where('id', (int) $matchedProposal->pay_level_id)
-                        ->where('is_active', true)
-                        ->first();
-
-                    if (!$proposalPayLevel) {
-                        $skippedSameLevelCount++;
-                        continue;
-                    }
-
-                    $actionPayLevel = $proposalPayLevel;
-                    $actionEffectiveDate = Carbon::parse((string) $matchedProposal->start_date)->toDateString();
-                    $actionPromotionType = $this->normalizePromotionType((string) ($matchedProposal->promotion_type ?? $promotionType));
-
-                    if (!$this->proposalAllowsAction($matchedProposal, $recordMode)) {
-                        $skippedInvalidStageCount++;
-                        continue;
-                    }
-                }
-
-                if (in_array($recordMode, ['approve', 'reject', 'recommend'], true)) {
-                    $this->assertCanApproveEmployee(
-                        $employee,
-                        $orgUnitRuleService,
-                        $actionPromotionType,
-                        $recordMode
-                    );
-                }
-
-                if ($recordMode !== 'reject') {
-                    $currentPayLevelId = (int) (($currentPayLevelState[(int) $employee->id]['current_id'] ?? 0));
-                    $currentPayLevel = $currentPayLevelId > 0
-                        ? $activePayLevelsById->get($currentPayLevelId)
-                        : null;
-
-                    if ($currentPayLevel instanceof GovPayLevel && !$this->isHigherPayLevelThanCurrent($currentPayLevel, $actionPayLevel)) {
-                        $skippedInvalidDirectionCount++;
-                        continue;
-                    }
+                if ($currentPayLevel instanceof GovPayLevel && !$this->isHigherPayLevelThanCurrent($currentPayLevel, $actionPayLevel)) {
+                    $skippedInvalidDirectionCount++;
+                    continue;
                 }
 
                 $payload = [
@@ -738,137 +825,32 @@ class EmployeePayPromotionController extends Controller
                     'note' => $validated['note'] ?: null,
                 ];
 
-                if ($matchedProposal) {
-                    if (empty($payload['request_reference'])) {
-                        $payload['request_reference'] = $matchedProposal->document_reference ?: null;
-                    }
-                    if (empty($payload['request_date']) && !empty($matchedProposal->document_date)) {
-                        $payload['request_date'] = Carbon::parse((string) $matchedProposal->document_date)->toDateString();
-                    }
-                    if (empty($payload['promotion_type'])) {
-                        $payload['promotion_type'] = $this->normalizePromotionType((string) $matchedProposal->promotion_type);
-                    }
-                }
-
-                if ($recordMode === 'request') {
-                    $updated = $this->storePromotionRequestForEmployee($employee, $actionPayLevel, $payload);
-                    if ($updated) {
-                        $requestCount++;
-                    } else {
-                        $skippedSameLevelCount++;
-                    }
-                    continue;
-                }
-
-                if ($recordMode === 'reject') {
-                    $rejected = $this->rejectPendingPromotionRequests(
-                        $employee,
-                        $actionPayLevel,
-                        $actionEffectiveDate,
-                        (string) ($payload['note'] ?? ''),
-                        $matchedProposal?->id
-                    );
-                    if ($rejected) {
-                        $rejectedCount++;
-                    } else {
-                        $skippedSameLevelCount++;
-                    }
-                    continue;
-                }
-
-                if ($recordMode === 'recommend') {
-                    $recommended = $this->markPendingPromotionRequestsAsRecommended(
-                        $employee,
-                        $actionPayLevel,
-                        $actionEffectiveDate,
-                        (string) ($payload['note'] ?? ''),
-                        $matchedProposal?->id
-                    );
-                    if ($recommended) {
-                        $requestCount++;
-                    } else {
-                        $skippedSameLevelCount++;
-                    }
-                    continue;
-                }
-
                 $updated = $this->storePromotionForEmployee($employee, $actionPayLevel, $payload);
                 if ($updated) {
                     $updatedCount++;
-                    $this->markPendingPromotionRequestsAsApproved(
-                        $employee,
-                        $actionPayLevel,
-                        $actionEffectiveDate,
-                        $matchedProposal?->id
-                    );
                 } else {
                     $skippedSameLevelCount++;
                 }
             }
 
             DB::commit();
-
-            if ($recordMode === 'request') {
-                if ($requestCount > 0) {
-                    Toastr::success(
-                        $requestCount > 1
-                            ? localize('promotion_request_created_for_n_employees', "Created promotion requests for {$requestCount} employees.")
-                            : localize('promotion_request_created_successfully', 'Promotion request created successfully.'),
-                        localize('success', 'Success')
-                    );
-                } else {
-                    Toastr::info(
-                        localize('no_new_promotion_request_created', 'No new promotion request was created.'),
-                        localize('info', 'Info')
-                    );
-                }
-            } elseif ($recordMode === 'approve') {
-                if ($updatedCount > 0 && $skippedSameLevelCount > 0) {
-                    Toastr::success(
-                        localize('n_employees_promoted_and_m_skipped_same_level', "{$updatedCount} employees promoted. {$skippedSameLevelCount} skipped (same pay level)."),
-                        localize('success', 'Success')
-                    );
-                } elseif ($updatedCount > 0) {
-                    Toastr::success(
-                        $updatedCount > 1
-                            ? localize('promoted_n_employees_successfully', "Promoted {$updatedCount} employees successfully.")
-                            : localize('promotion_saved_successfully', 'Promotion saved successfully.'),
-                        localize('success', 'Success')
-                    );
-                } else {
-                    Toastr::info(
-                        localize('no_new_promotion_saved', 'No new promotion was saved.'),
-                        localize('info', 'Info')
-                    );
-                }
-            } elseif ($recordMode === 'recommend') {
-                if ($requestCount > 0) {
-                    Toastr::success(
-                        $requestCount > 1
-                            ? localize('recommended_n_promotion_requests', "Recommended {$requestCount} promotion requests.")
-                            : localize('promotion_request_recommended_successfully', 'Promotion request recommended successfully.'),
-                        localize('success', 'Success')
-                    );
-                } else {
-                    Toastr::info(
-                        localize('no_pending_request_to_recommend', 'No pending promotion request to recommend.'),
-                        localize('info', 'Info')
-                    );
-                }
+            if ($updatedCount > 0 && $skippedSameLevelCount > 0) {
+                Toastr::success(
+                    localize('n_employees_promoted_and_m_skipped_same_level', "{$updatedCount} employees promoted. {$skippedSameLevelCount} skipped (same pay level)."),
+                    localize('success', 'Success')
+                );
+            } elseif ($updatedCount > 0) {
+                Toastr::success(
+                    $updatedCount > 1
+                        ? localize('promoted_n_employees_successfully', "Promoted {$updatedCount} employees successfully.")
+                        : localize('promotion_saved_successfully', 'Promotion saved successfully.'),
+                    localize('success', 'Success')
+                );
             } else {
-                if ($rejectedCount > 0) {
-                    Toastr::success(
-                        $rejectedCount > 1
-                            ? localize('rejected_n_promotion_requests', "Rejected {$rejectedCount} promotion requests.")
-                            : localize('promotion_request_rejected_successfully', 'Promotion request rejected successfully.'),
-                        localize('success', 'Success')
-                    );
-                } else {
-                    Toastr::info(
-                        localize('no_pending_request_to_reject', 'No pending promotion request to reject.'),
-                        localize('info', 'Info')
-                    );
-                }
+                Toastr::info(
+                    localize('no_new_promotion_saved', 'No new promotion was saved.'),
+                    localize('info', 'Info')
+                );
             }
 
             if ($skippedNotCadreCount > 0) {
@@ -885,20 +867,6 @@ class EmployeePayPromotionController extends Controller
                 );
             }
 
-            if ($skippedNoPendingRequestCount > 0) {
-                Toastr::warning(
-                    localize('skipped_n_without_pending_requests', "Skipped {$skippedNoPendingRequestCount} employees without pending requests."),
-                    localize('warning', 'Warning')
-                );
-            }
-
-            if ($skippedInvalidStageCount > 0) {
-                Toastr::warning(
-                    localize('skipped_n_requests_invalid_stage', "Skipped {$skippedInvalidStageCount} requests due to stage mismatch (request stage not allowed for selected action)."),
-                    localize('warning', 'Warning')
-                );
-            }
-
             if ($skippedInvalidDirectionCount > 0) {
                 Toastr::warning(
                     localize('skipped_n_invalid_promotion_direction', "Skipped {$skippedInvalidDirectionCount} employees (target pay level is not higher than current level)."),
@@ -908,7 +876,7 @@ class EmployeePayPromotionController extends Controller
 
             return redirect()->route('employee-pay-promotions.index', [
                 'year' => $cutoffYear,
-                'tab' => $recordMode === 'request' ? 'form' : 'approvals',
+                'tab' => 'history',
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
@@ -1245,12 +1213,31 @@ class EmployeePayPromotionController extends Controller
         $validated = $request->validate([
             'year' => 'nullable|integer|min:1950|max:2100',
             'bulk_items' => 'required|string',
-            'bulk_removed_items' => 'nullable|string',
+            'document_reference' => 'nullable|string|max:191',
+            'document_date' => 'nullable|date',
+            'shared_effective_date' => 'nullable|date',
         ]);
 
         $year = (int) ($validated['year'] ?? now()->year);
         if ($year < 1950 || $year > 2100) {
             $year = (int) now()->year;
+        }
+
+        $sharedDocumentReference = trim((string) ($validated['document_reference'] ?? ''));
+        $sharedDocumentDate = !empty($validated['document_date'])
+            ? Carbon::parse((string) $validated['document_date'])->toDateString()
+            : null;
+        $sharedEffectiveDate = !empty($validated['shared_effective_date'])
+            ? Carbon::parse((string) $validated['shared_effective_date'])->toDateString()
+            : null;
+
+        if ($sharedDocumentReference === '' || empty($sharedDocumentDate)) {
+            return redirect()->back()
+                ->withErrors([
+                    'document_reference' => localize('shared_document_reference_required', 'Please provide one shared document reference for this group.'),
+                    'document_date' => localize('shared_document_date_required', 'Please provide one shared document date for this group.'),
+                ])
+                ->withInput();
         }
 
         $bulkItems = json_decode((string) $validated['bulk_items'], true);
@@ -1284,7 +1271,7 @@ class EmployeePayPromotionController extends Controller
                 }
             }
             if (empty($effectiveDate)) {
-                $effectiveDate = Carbon::create($year, 4, 1)->toDateString();
+                $effectiveDate = $sharedEffectiveDate ?: Carbon::create($year, 4, 1)->toDateString();
             }
 
             $normalizedByEmployee[$employeeId] = [
@@ -1342,7 +1329,7 @@ class EmployeePayPromotionController extends Controller
                 $employeeId = (int) ($row['employee_id'] ?? 0);
                 $payLevelId = (int) ($row['pay_level_id'] ?? 0);
                 $promotionType = (string) ($row['promotion_type'] ?? 'annual_grade');
-                $effectiveDate = (string) ($row['effective_date'] ?? Carbon::create($year, 4, 1)->toDateString());
+                $effectiveDate = (string) ($row['effective_date'] ?? ($sharedEffectiveDate ?: Carbon::create($year, 4, 1)->toDateString()));
                 $note = trim((string) ($row['note'] ?? ''));
 
                 $employee = $employees->get($employeeId);
@@ -1384,14 +1371,14 @@ class EmployeePayPromotionController extends Controller
                     'next_review_date' => $isAnnualCycle
                         ? Carbon::parse($effectiveDate)->addYears(2)->toDateString()
                         : null,
-                    'document_reference' => null,
-                    'document_date' => null,
+                    'document_reference' => $sharedDocumentReference !== '' ? $sharedDocumentReference : null,
+                    'document_date' => $sharedDocumentDate,
                     'request_reference' => null,
                     'request_date' => null,
                     'note' => $note !== '' ? $note : null,
                 ];
 
-                $created = $this->storePromotionRequestForEmployee($employee, $payLevel, $payload);
+                $created = $this->storePromotionForEmployee($employee, $payLevel, $payload);
                 if ($created) {
                     $createdCount++;
                 } else {
@@ -1403,12 +1390,12 @@ class EmployeePayPromotionController extends Controller
 
             if ($createdCount > 0) {
                 Toastr::success(
-                    localize('bulk_requests_created_n', "Created {$createdCount} promotion requests."),
+                    localize('bulk_requests_created_n', "Saved {$createdCount} promotion records."),
                     localize('success', 'Success')
                 );
             } else {
                 Toastr::info(
-                    localize('no_new_promotion_request_created', 'No new promotion request was created.'),
+                    localize('no_new_promotion_request_created', 'No new promotion was saved.'),
                     localize('info', 'Info')
                 );
             }
@@ -1446,17 +1433,6 @@ class EmployeePayPromotionController extends Controller
                     localize('skipped_n_duplicate_requests', "Skipped {$skippedDuplicateCount} duplicate/same-level requests."),
                     localize('warning', 'Warning')
                 );
-            }
-
-            $removedRowsRaw = trim((string) ($validated['bulk_removed_items'] ?? ''));
-            if ($removedRowsRaw !== '') {
-                $removedRows = json_decode($removedRowsRaw, true);
-                if (is_array($removedRows) && !empty($removedRows)) {
-                    activity()
-                        ->causedBy(auth()->user())
-                        ->withProperties(['bulk_removed_items' => $removedRows, 'year' => $year])
-                        ->log('Pay promotion batch: removed names with reasons');
-                }
             }
 
             return redirect()->route('employee-pay-promotions.index', [
@@ -1558,6 +1534,9 @@ class EmployeePayPromotionController extends Controller
         ]);
 
         $employee->employee_grade = $newPayLevelLabel;
+        // Keep employee master dates aligned with the latest recorded pay promotion.
+        $employee->promotion_date = $effectiveDate;
+        $employee->pay_scale_effective_date = $effectiveDate;
         $employee->save();
 
         $noteParts = [
@@ -3373,6 +3352,33 @@ class EmployeePayPromotionController extends Controller
         }
     }
 
+    protected function assertAdminCanManagePayHistory(
+        EmployeePayGradeHistory $payHistory,
+        OrgUnitRuleService $orgUnitRuleService,
+        string $action = 'update'
+    ): void {
+        $user = auth()->user();
+        $ability = $action === 'delete' ? 'delete_employee' : 'update_employee';
+
+        if (!$user || !$this->isSystemAdmin() || !$user->can($ability)) {
+            abort(403);
+        }
+
+        if (!in_array((string) $payHistory->status, [self::STATUS_ACTIVE, 'inactive'], true)) {
+            abort(403, localize(
+                'only_recorded_promotion_history_rows_can_be_modified_here',
+                'Only recorded promotion history rows can be edited or deleted here.'
+            ));
+        }
+
+        $employee = Employee::query()
+            ->with('primaryUnitPosting')
+            ->where('id', (int) $payHistory->employee_id)
+            ->firstOrFail();
+
+        $this->assertCanManageEmployee($employee, $orgUnitRuleService);
+    }
+
     protected function assertCanApproveEmployee(
         Employee $employee,
         OrgUnitRuleService $orgUnitRuleService,
@@ -3439,11 +3445,152 @@ class EmployeePayPromotionController extends Controller
         return $result;
     }
 
+    protected function normalizeEmployeePromotionHistoryTimeline(Employee $employee): void
+    {
+        $rows = EmployeePayGradeHistory::query()
+            ->where('employee_id', $employee->id)
+            ->whereIn('status', [self::STATUS_ACTIVE, 'inactive'])
+            ->orderBy('start_date')
+            ->orderBy('id')
+            ->get()
+            ->values();
+
+        if ($rows->isEmpty()) {
+            return;
+        }
+
+        $lastIndex = $rows->count() - 1;
+        foreach ($rows as $index => $row) {
+            if ($index === $lastIndex) {
+                $row->status = self::STATUS_ACTIVE;
+                $row->end_date = null;
+            } else {
+                $nextRow = $rows[$index + 1];
+                $row->status = 'inactive';
+                $row->end_date = optional($nextRow->start_date)
+                    ? Carbon::parse((string) $nextRow->start_date)->subDay()->toDateString()
+                    : null;
+            }
+            $row->save();
+        }
+    }
+
+    protected function syncEmployeeMasterFromPromotionHistory(Employee $employee): void
+    {
+        $currentRow = EmployeePayGradeHistory::query()
+            ->with('payLevel')
+            ->where('employee_id', $employee->id)
+            ->where('status', self::STATUS_ACTIVE)
+            ->orderByDesc('start_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$currentRow) {
+            $currentRow = EmployeePayGradeHistory::query()
+                ->with('payLevel')
+                ->where('employee_id', $employee->id)
+                ->where('status', 'inactive')
+                ->orderByDesc('start_date')
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        if ($currentRow && $currentRow->payLevel) {
+            $employee->employee_grade = $this->displayPayLevelLabel($currentRow->payLevel);
+            $currentStartDate = $currentRow->start_date
+                ? Carbon::parse((string) $currentRow->start_date)->toDateString()
+                : null;
+            $employee->promotion_date = $currentStartDate;
+            $employee->pay_scale_effective_date = $currentStartDate;
+        } else {
+            $employee->employee_grade = null;
+            $employee->promotion_date = null;
+            $employee->pay_scale_effective_date = null;
+        }
+
+        $employee->save();
+    }
+
+    protected function syncPromotionWorkHistoryFromHistoryRow(
+        Employee $employee,
+        EmployeePayGradeHistory $payHistory,
+        ?string $oldStartDate = null,
+        string $oldDocumentReference = ''
+    ): void {
+        $workHistory = $this->findPromotionWorkHistoryByHistoryRow($employee, $oldStartDate, $oldDocumentReference);
+        if (!$workHistory) {
+            return;
+        }
+
+        $workHistory->start_date = $payHistory->start_date
+            ? Carbon::parse((string) $payHistory->start_date)->toDateString()
+            : null;
+        $workHistory->document_reference = $payHistory->document_reference;
+        $workHistory->document_date = $payHistory->document_date
+            ? Carbon::parse((string) $payHistory->document_date)->toDateString()
+            : null;
+        if (!empty($payHistory->note)) {
+            $workHistory->note = $payHistory->note;
+        }
+        $workHistory->save();
+    }
+
+    protected function deletePromotionWorkHistoryByHistoryRow(
+        Employee $employee,
+        ?string $oldStartDate = null,
+        string $oldDocumentReference = ''
+    ): void {
+        $workHistory = $this->findPromotionWorkHistoryByHistoryRow($employee, $oldStartDate, $oldDocumentReference);
+        if ($workHistory) {
+            $workHistory->delete();
+        }
+    }
+
+    protected function findPromotionWorkHistoryByHistoryRow(
+        Employee $employee,
+        ?string $startDate = null,
+        string $documentReference = ''
+    ): ?EmployeeWorkHistory {
+        $query = EmployeeWorkHistory::query()
+            ->where('employee_id', $employee->id)
+            ->where('work_status_name', 'Pay grade promotion');
+
+        if (!empty($startDate)) {
+            $query->whereDate('start_date', $startDate);
+        }
+
+        $trimmedReference = trim($documentReference);
+        if ($trimmedReference !== '') {
+            $query->where('document_reference', $trimmedReference);
+        }
+
+        $workHistory = $query->orderByDesc('id')->first();
+        if ($workHistory) {
+            return $workHistory;
+        }
+
+        if (!empty($startDate)) {
+            return EmployeeWorkHistory::query()
+                ->where('employee_id', $employee->id)
+                ->where('work_status_name', 'Pay grade promotion')
+                ->whereDate('start_date', $startDate)
+                ->orderByDesc('id')
+                ->first();
+        }
+
+        return null;
+    }
+
     protected function isSystemAdmin(): bool
     {
         $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
 
-        return $user && (int) $user->user_type_id === 1;
+        return method_exists($user, 'admin')
+            ? (bool) $user->admin()
+            : (int) ($user->user_type_id ?? 0) === 1;
     }
 
     protected function currentUserRootUnitId(): ?int

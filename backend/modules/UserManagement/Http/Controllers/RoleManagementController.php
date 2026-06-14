@@ -17,6 +17,7 @@ class RoleManagementController extends Controller
     {
         $this->ensurePharmaceuticalRolePermissions();
         $this->ensureCorrespondenceRolePermissions();
+        $this->ensureHumanResourceRolePermissions();
     }
 
     private function syncPermissionToMenu(string $permissionName, int $menuId, ?Role $superAdminRole = null): void
@@ -129,6 +130,71 @@ class RoleManagementController extends Controller
 
         foreach ($permissionNames as $permissionName) {
             $this->syncPermissionToMenu($permissionName, (int) $menu->id, $superAdminRole);
+        }
+    }
+
+    private function ensureHumanResourceRolePermissions(): void
+    {
+        $menu = PerMenu::firstOrCreate([
+            'menu_name' => 'Human Resource',
+        ], [
+            'parentmenu_id' => null,
+            'lable' => 1,
+        ]);
+
+        if ($menu->parentmenu_id !== null || (int) $menu->lable !== 1) {
+            $menu->parentmenu_id = null;
+            $menu->lable = 1;
+            $menu->save();
+        }
+
+        $superAdminRole = Role::where('name', 'Super Admin')->where('guard_name', 'web')->first();
+        $this->syncPermissionToMenu('read_human_resource_menu', (int) $menu->id, $superAdminRole);
+
+        $hrMenus = [
+            'Department' => [
+                'create_department',
+                'read_department',
+                'update_department',
+                'delete_department',
+            ],
+            'Org Governance' => [
+                'create_org_governance',
+                'read_org_governance',
+                'update_org_governance',
+                'delete_org_governance',
+            ],
+            'Setup Rules' => [
+                'create_setup_rules',
+                'read_setup_rules',
+                'update_setup_rules',
+                'delete_setup_rules',
+            ],
+            'Positions' => [
+                'create_positions',
+                'read_positions',
+                'update_positions',
+                'delete_positions',
+            ],
+        ];
+
+        foreach ($hrMenus as $menuName => $permissionNames) {
+            $subMenu = PerMenu::firstOrCreate([
+                'menu_name' => $menuName,
+            ], [
+                'parentmenu_id' => null,
+                'lable' => 1,
+            ]);
+
+            if ($subMenu->parentmenu_id !== null || (int) $subMenu->lable !== 1) {
+                $subMenu->parentmenu_id = null;
+                $subMenu->lable = 1;
+                $subMenu->save();
+            }
+
+            foreach ($permissionNames as $permissionName) {
+                $this->syncPermissionToMenu($permissionName, (int) $subMenu->id, $superAdminRole);
+            }
         }
     }
 

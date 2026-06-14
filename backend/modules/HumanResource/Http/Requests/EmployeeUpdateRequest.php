@@ -5,11 +5,15 @@ namespace Modules\HumanResource\Http\Requests;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\Gender;
 use Modules\HumanResource\Entities\MaritalStatus;
 
 class EmployeeUpdateRequest extends FormRequest
 {
+    protected ?Employee $currentEmployee = null;
+    protected bool $currentEmployeeResolved = false;
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -17,6 +21,10 @@ class EmployeeUpdateRequest extends FormRequest
      */
     public function rules()
     {
+        $employee = $this->currentEmployee();
+        $employeeUuid = (string) ($employee->uuid ?? $this->route('employee') ?? '');
+        $linkedUserId = (int) ($employee?->user?->id ?? 0);
+
         return [
             'salutation' => 'nullable|string|max:40',
             'first_name' => 'required|string',
@@ -40,15 +48,26 @@ class EmployeeUpdateRequest extends FormRequest
             'is_full_right_officer' => 'required|in:1,0',
             'service_start_date' => 'nullable|date',
             'full_right_date' => 'nullable|date',
-            'legal_document_type' => 'required_if:is_full_right_officer,1|nullable|in:royal_decree,sub_decree,decision,proclamation,deika,other',
-            'legal_document_number' => 'required_if:is_full_right_officer,1|nullable|string|max:120',
-            'legal_document_date' => 'required_if:is_full_right_officer,1|nullable|date',
-            'legal_document_subject' => 'required_if:is_full_right_officer,1|nullable|string',
+            'legal_document_type' => 'nullable|in:royal_decree,sub_decree,decision,proclamation,deika,other',
+            'legal_document_number' => 'nullable|string|max:120',
+            'legal_document_date' => 'nullable|date',
+            'legal_document_subject' => 'nullable|string',
             'official_id_10' => [
-                'required_if:is_full_right_officer,1',
                 'nullable',
                 'regex:/^\d{10}$/',
-                Rule::unique('employees', 'official_id_10')->ignore((string) $this->route('employee'), 'uuid'),
+                Rule::unique('employees', 'official_id_10')
+                    ->where(fn($query) => $query->whereNull('deleted_at'))
+                    ->ignore($employeeUuid, 'uuid'),
+            ],
+            'email' => [
+                'nullable',
+                'email',
+                'max:191',
+            ],
+            'phone' => [
+                'nullable',
+                'string',
+                'max:60',
             ],
             'attendance_time_id' => 'nullable|integer',
             'employee_type_id' => 'required|integer',
@@ -65,6 +84,8 @@ class EmployeeUpdateRequest extends FormRequest
             'present_address_city_id' => ['required', 'regex:/^\d{4}$/'],
             'present_address_commune_id' => ['required', 'regex:/^\d{6}$/'],
             'present_address_village_id' => ['required', 'regex:/^\d{8}$/'],
+            'present_address_house_no' => 'nullable|string|max:60',
+            'present_address_street_no' => 'nullable|string|max:60',
             'joining_date' => 'nullable|date',
             'hire_date' => 'nullable|date',
             'gender_id' => 'required',
@@ -117,7 +138,7 @@ class EmployeeUpdateRequest extends FormRequest
             'uniform_shirt_size' => 'nullable|string|max:30',
             'uniform_pants_size' => 'nullable|string|max:30',
             'uniform_shoe_size' => 'nullable|string|max:30',
-            'profile_image' => 'image|mimes:jpg,png,webp',
+            'profile_image' => 'nullable|image|mimes:jpg,jpeg,jpe,png,webp|max:5120',
             'employee_docs' => 'array',
             'family_members' => 'array',
             'family_members.*.relation_type' => 'nullable|string|max:80',
@@ -189,7 +210,42 @@ class EmployeeUpdateRequest extends FormRequest
             'bank_attachments.*.file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,txt,rtf,jpeg,jpg,png,gif,svg|max:51200',
             'bank_attachments.*.expiry_date' => 'nullable|date',
             'is_supervisor' => 'required|in:1,0',
+            'profile_image.image' => 'សូមជ្រើសរើសឯកសារជារូបភាពត្រឹមត្រូវ។',
+            'profile_image.mimes' => 'រូបថតត្រូវជា JPG, JPEG, PNG ឬ WEBP ប៉ុណ្ណោះ។',
+            'profile_image.max' => 'ទំហំរូបថតមិនអាចលើស 5MB បានទេ។',
         ];
+    }
+
+    protected function currentEmployee(): ?Employee
+    {
+        if ($this->currentEmployeeResolved) {
+            return $this->currentEmployee;
+        }
+
+        $this->currentEmployeeResolved = true;
+        $routeEmployee = $this->route('employee');
+        if (!$routeEmployee) {
+            return null;
+        }
+
+        if ($routeEmployee instanceof Employee) {
+            $this->currentEmployee = $routeEmployee->loadMissing('user');
+            return $this->currentEmployee;
+        }
+
+        $identifier = trim((string) $routeEmployee);
+        if ($identifier === '') {
+            return null;
+        }
+
+        $query = Employee::query()->with('user')->where('uuid', $identifier);
+        if (ctype_digit($identifier)) {
+            $query->orWhere('id', (int) $identifier);
+        }
+
+        $this->currentEmployee = $query->first();
+
+        return $this->currentEmployee;
     }
 
     /**
@@ -210,9 +266,12 @@ class EmployeeUpdateRequest extends FormRequest
         [$spouseCount, $kidsCount] = $this->calculateFamilySummary($rows);
 
         $selectedMaritalStatus = (int) $this->input('marital_status_id');
-        $allowSpouseAndKids = $this->allowSpouseAndKidsByMaritalStatus($selectedMaritalStatus);
-        if (!$allowSpouseAndKids) {
+        $allowSpouse = $this->allowSpouseByMaritalStatus($selectedMaritalStatus);
+        $allowKids = $this->allowKidsByMaritalStatus($selectedMaritalStatus);
+        if (!$allowSpouse) {
             $spouseCount = 0;
+        }
+        if (!$allowKids) {
             $kidsCount = 0;
         }
 
@@ -235,6 +294,7 @@ class EmployeeUpdateRequest extends FormRequest
             'is_ethnic_minority' => $isEthnicMinority,
             'ethnic_minority_name' => $ethnicMinorityName,
             'ethnic_minority_other' => $ethnicMinorityOther,
+            'official_id_10' => $this->normalizeOfficialId10($this->input('official_id_10')),
             'passport_expiry_date' => $this->normalizeCalendarDate($this->input('passport_expiry_date')),
             'national_id_expiry_date' => $this->normalizeCalendarDate($this->input('national_id_expiry_date')),
             'driving_license_expiry_date' => $this->normalizeCalendarDate($this->input('driving_license_expiry_date')),
@@ -304,13 +364,37 @@ class EmployeeUpdateRequest extends FormRequest
         return $text;
     }
 
+    protected function normalizeOfficialId10($value): ?string
+    {
+        $text = trim((string) $value);
+        if ($text === '') {
+            return null;
+        }
+
+        $text = strtr($text, [
+            '០' => '0',
+            '១' => '1',
+            '២' => '2',
+            '៣' => '3',
+            '៤' => '4',
+            '៥' => '5',
+            '៦' => '6',
+            '៧' => '7',
+            '៨' => '8',
+            '៩' => '9',
+        ]);
+
+        return preg_replace('/\D+/', '', $text) ?: null;
+    }
+
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
             $this->validateEmploymentDateConsistency($validator);
 
             $selectedMaritalStatus = (int) $this->input('marital_status_id');
-            $allowSpouseAndKids = $this->allowSpouseAndKidsByMaritalStatus($selectedMaritalStatus);
+            $allowSpouse = $this->allowSpouseByMaritalStatus($selectedMaritalStatus);
+            $allowKids = $this->allowKidsByMaritalStatus($selectedMaritalStatus);
             $employeeGenderKey = $this->employeeGenderKey();
             $familyRows = (array) $this->input('family_members', []);
 
@@ -320,8 +404,12 @@ class EmployeeUpdateRequest extends FormRequest
                 $memberGender = mb_strtolower(trim((string) ($row['gender'] ?? '')));
 
                 if ($relation !== '') {
-                    if (!$allowSpouseAndKids && in_array($relation, ['wife', 'husband', 'son', 'daughter'], true)) {
-                        $validator->errors()->add("family_members.$index.relation_type", 'ព័ត៌មានប្តី/ប្រពន្ធ និងកូន អាចបញ្ចូលបានសម្រាប់ស្ថានភាពរៀបការ/ពោះម៉ាយប៉ុណ្ណោះ។');
+                    if (!$allowSpouse && in_array($relation, ['wife', 'husband'], true)) {
+                        $validator->errors()->add("family_members.$index.relation_type", 'ព័ត៌មានប្តី/ប្រពន្ធ អាចបញ្ចូលបានសម្រាប់ស្ថានភាពរៀបការ ឬ ពោះម៉ាយ/មេម៉ាយ ប៉ុណ្ណោះ។');
+                    }
+
+                    if (!$allowKids && in_array($relation, ['son', 'daughter'], true)) {
+                        $validator->errors()->add("family_members.$index.relation_type", 'ព័ត៌មានកូន អាចបញ្ចូលបានសម្រាប់ស្ថានភាពរៀបការ, លែងលះ ឬ ពោះម៉ាយ/មេម៉ាយ ប៉ុណ្ណោះ។');
                     }
 
                     if ($employeeGenderKey === 'male' && $relation === 'husband') {
@@ -340,10 +428,9 @@ class EmployeeUpdateRequest extends FormRequest
                         $allowedSalutations = ['mrs', 'lok_chumteav'];
                     } elseif ($relation === 'husband') {
                         $allowedSalutations = ['mr', 'excellency'];
-                    } elseif ($relation === 'son') {
-                        $allowedSalutations = ['boy'];
-                    } elseif ($relation === 'daughter') {
-                        $allowedSalutations = ['girl'];
+                    } elseif ($relation === 'son' || $relation === 'daughter') {
+                        // Children may legitimately be recorded with either child or adult salutations.
+                        $allowedSalutations = ['boy', 'girl', 'mr', 'miss', 'mrs'];
                     } elseif ($relation === 'mother') {
                         $allowedSalutations = ['mrs', 'lok_chumteav'];
                     } elseif ($relation === 'father') {
@@ -567,10 +654,16 @@ class EmployeeUpdateRequest extends FormRequest
         return null;
     }
 
-    protected function allowSpouseAndKidsByMaritalStatus(int $statusId): bool
+    protected function allowSpouseByMaritalStatus(int $statusId): bool
     {
         $statusKey = $this->maritalStatusKeyById($statusId);
         return in_array($statusKey, ['married', 'widowed'], true);
+    }
+
+    protected function allowKidsByMaritalStatus(int $statusId): bool
+    {
+        $statusKey = $this->maritalStatusKeyById($statusId);
+        return in_array($statusKey, ['married', 'widowed', 'divorced'], true);
     }
 
     protected function maritalStatusKeyById(int $statusId): string
@@ -601,6 +694,10 @@ class EmployeeUpdateRequest extends FormRequest
 
             if ($name === 'married' || str_contains($name, 'married') || $name === 'រៀបការ') {
                 return 'married';
+            }
+
+            if ($name === 'divorced' || str_contains($name, 'divorc') || $name === 'លែងលះ') {
+                return 'divorced';
             }
 
             if (

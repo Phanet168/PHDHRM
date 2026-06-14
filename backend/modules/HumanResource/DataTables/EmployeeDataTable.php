@@ -2,6 +2,7 @@
 
 namespace Modules\HumanResource\DataTables;
 
+use Illuminate\Support\Carbon;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Yajra\DataTables\EloquentDataTable;
@@ -9,6 +10,7 @@ use Yajra\DataTables\Services\DataTable;
 use Modules\HumanResource\Entities\Department;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\GovPayLevel;
+use Modules\HumanResource\Support\EmployeeProfileCompleteness;
 use Modules\HumanResource\Support\OrgHierarchyAccessService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
 use Modules\Setting\Entities\DocExpiredSetting;
@@ -34,6 +36,13 @@ class EmployeeDataTable extends DataTable
             })
             ->editColumn('official_id_10', function ($employee) {
                 return $employee->official_id_10 ?: '-';
+            })
+            ->editColumn('date_of_birth', function ($employee) {
+                if (empty($employee->date_of_birth)) {
+                    return '-';
+                }
+
+                return Carbon::parse($employee->date_of_birth)->format('d-m-Y');
             })
             ->editColumn('full_name', function ($employee) {
                 return ucwords($employee->full_name);
@@ -85,7 +94,41 @@ class EmployeeDataTable extends DataTable
                 return $employee->gender?->gender_name ?: '-';
             })
             ->editColumn('work_status_name', function ($employee) {
-                return $employee->work_status_name ?: '-';
+                return $this->displayWorkStatusName($employee);
+            })
+            ->addColumn('profile_completion', function ($employee) {
+                $summary = EmployeeProfileCompleteness::summary($employee);
+                $badgeClass = $summary['is_complete'] ? 'badge-success-soft' : 'badge-warning-soft';
+                $statusLabel = $summary['is_complete']
+                    ? localize('complete', 'គ្រប់')
+                    : localize('incomplete', 'មិនទាន់គ្រប់');
+                $detailLabel = $summary['is_complete']
+                    ? localize('all_core_fields_filled', 'បានបំពេញគ្រប់ចំណុចសំខាន់')
+                    : localize('missing_count_label', 'ខ្វះ') . ' ' . $summary['missing_count'] . ' ' . localize('fields', 'ចំណុច');
+                $popoverTitle = $summary['is_complete']
+                    ? localize('profile_status', 'ស្ថានភាពព័ត៌មាន')
+                    : localize('missing_fields', 'ចំណុចដែលខ្វះ');
+                $popoverContent = $summary['is_complete']
+                    ? localize('employee_profile_is_complete', 'ព័ត៌មានសំខាន់របស់បុគ្គលិកបានបំពេញគ្រប់ហើយ។')
+                    : $this->buildProfileCompletionPopoverContent($summary['missing_labels']);
+                $popoverText = $summary['is_complete']
+                    ? localize('employee_profile_is_complete', 'ព័ត៌មានសំខាន់របស់បុគ្គលិកបានបំពេញគ្រប់ហើយ។')
+                    : $this->buildProfileCompletionPopoverText($summary['missing_labels']);
+                $infoButtonClass = $summary['is_complete'] ? 'text-success' : 'text-warning';
+                $infoButton = '<button type="button" class="btn btn-link btn-sm ' . $infoButtonClass . ' p-0 ms-1 align-baseline profile-completion-popover"'
+                    . ' data-bs-toggle="popover" data-bs-trigger="hover focus click" data-bs-placement="left" data-bs-html="true"'
+                    . ' data-bs-custom-class="profile-completion-popover-card"'
+                    . ' data-bs-title="' . e($popoverTitle) . '"'
+                    . ' data-bs-content="' . e($popoverContent) . '"'
+                    . ' data-profile-title="' . e($popoverTitle) . '"'
+                    . ' data-profile-message="' . e($popoverText) . '"'
+                    . ' aria-label="' . e($popoverTitle) . '"><i class="fa fa-info-circle"></i></button>';
+
+                return '<div class="text-nowrap">'
+                    . '<span class="badge ' . $badgeClass . '">' . e($statusLabel) . '</span>'
+                    . $infoButton
+                    . '<div class="small text-muted mt-1">' . e($summary['completed'] . '/' . $summary['total'] . ' | ' . $detailLabel) . '</div>'
+                    . '</div>';
             })
             ->filterColumn('position_id', function ($query, $keyword) {
                 $query->whereHas('position', function ($query) use ($keyword) {
@@ -177,7 +220,7 @@ class EmployeeDataTable extends DataTable
                 }
             })
 
-            ->rawColumns(['status', 'action']);
+            ->rawColumns(['status', 'profile_completion', 'action']);
     }
 
     /**
@@ -199,6 +242,18 @@ class EmployeeDataTable extends DataTable
         $workStatusName = trim((string) $this->request->get('work_status_name', ''));
         $orgUnitRuleService = app(OrgUnitRuleService::class);
         $managedBranchIds = $this->managedBranchIds($orgUnitRuleService);
+        $effectiveLocationCodeSql = "
+            CASE
+                WHEN COALESCE(d_sub.unit_type_id, d_main.unit_type_id) IN (3, 8)
+                    THEN COALESCE(
+                        NULLIF(d_sub_parent.location_code, ''),
+                        NULLIF(d_main_parent.location_code, ''),
+                        NULLIF(d_sub.location_code, ''),
+                        NULLIF(d_main.location_code, '')
+                    )
+                ELSE COALESCE(NULLIF(d_sub.location_code, ''), NULLIF(d_main.location_code, ''))
+            END
+        ";
 
         $query = $model->newQuery()
             ->where('employees.is_active', 1)
@@ -260,21 +315,42 @@ class EmployeeDataTable extends DataTable
             ->leftJoin('positions as p_order', 'employees.position_id', '=', 'p_order.id')
             ->leftJoin('departments as d_main', 'employees.department_id', '=', 'd_main.id')
             ->leftJoin('departments as d_sub', 'employees.sub_department_id', '=', 'd_sub.id')
+            ->leftJoin('departments as d_main_parent', 'd_main.parent_id', '=', 'd_main_parent.id')
+            ->leftJoin('departments as d_sub_parent', 'd_sub.parent_id', '=', 'd_sub_parent.id')
             ->select('employees.*')
             // LEGACY-WP-1-2-19-2-1 => [1 ministry, 2 directorate, 19 province, 2 office, 1 section]
-            // Sort by province segment first (3rd), then deeper hierarchy segments.
-            ->orderByRaw("CASE WHEN COALESCE(NULLIF(d_sub.location_code, ''), NULLIF(d_main.location_code, '')) LIKE 'LEGACY-WP-%' THEN 0 ELSE 1 END ASC")
-            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(COALESCE(NULLIF(d_sub.location_code, ''), NULLIF(d_main.location_code, '')), 'LEGACY-WP-', ''), '-', 3), '-', -1) AS UNSIGNED) ASC")
-            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(COALESCE(NULLIF(d_sub.location_code, ''), NULLIF(d_main.location_code, '')), 'LEGACY-WP-', ''), '-', 4), '-', -1) AS UNSIGNED) ASC")
-            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(COALESCE(NULLIF(d_sub.location_code, ''), NULLIF(d_main.location_code, '')), 'LEGACY-WP-', ''), '-', 5), '-', -1) AS UNSIGNED) ASC")
-            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(COALESCE(NULLIF(d_sub.location_code, ''), NULLIF(d_main.location_code, '')), 'LEGACY-WP-', ''), '-', 6), '-', -1) AS UNSIGNED) ASC")
-            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(COALESCE(NULLIF(d_sub.location_code, ''), NULLIF(d_main.location_code, '')), 'LEGACY-WP-', ''), '-', 7), '-', -1) AS UNSIGNED) ASC")
-            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(COALESCE(NULLIF(d_sub.location_code, ''), NULLIF(d_main.location_code, '')), 'LEGACY-WP-', ''), '-', 8), '-', -1) AS UNSIGNED) ASC")
-            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE(COALESCE(NULLIF(d_sub.location_code, ''), NULLIF(d_main.location_code, '')), 'LEGACY-WP-', ''), '-', 9), '-', -1) AS UNSIGNED) ASC")
-            ->orderByRaw('COALESCE(d_main.sort_order, 0) ASC')
-            ->orderByRaw("COALESCE(NULLIF(d_main.department_name, ''), '') ASC")
-            ->orderByRaw('COALESCE(d_sub.sort_order, 0) ASC')
-            ->orderByRaw("COALESCE(NULLIF(d_sub.department_name, ''), '') ASC")
+            // Sort by root branch first. Child sections/health posts inherit the parent location code/group
+            // so parent-office staff (e.g. office chief/deputy chief) appear before section staff.
+            ->orderByRaw("CASE WHEN {$effectiveLocationCodeSql} LIKE 'LEGACY-WP-%' THEN 0 ELSE 1 END ASC")
+            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE({$effectiveLocationCodeSql}, 'LEGACY-WP-', ''), '-', 3), '-', -1) AS UNSIGNED) ASC")
+            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE({$effectiveLocationCodeSql}, 'LEGACY-WP-', ''), '-', 4), '-', -1) AS UNSIGNED) ASC")
+            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE({$effectiveLocationCodeSql}, 'LEGACY-WP-', ''), '-', 5), '-', -1) AS UNSIGNED) ASC")
+            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE({$effectiveLocationCodeSql}, 'LEGACY-WP-', ''), '-', 6), '-', -1) AS UNSIGNED) ASC")
+            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE({$effectiveLocationCodeSql}, 'LEGACY-WP-', ''), '-', 7), '-', -1) AS UNSIGNED) ASC")
+            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE({$effectiveLocationCodeSql}, 'LEGACY-WP-', ''), '-', 8), '-', -1) AS UNSIGNED) ASC")
+            ->orderByRaw("CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(REPLACE({$effectiveLocationCodeSql}, 'LEGACY-WP-', ''), '-', 9), '-', -1) AS UNSIGNED) ASC")
+            ->orderByRaw("
+                CASE
+                    WHEN COALESCE(d_sub.unit_type_id, d_main.unit_type_id) IN (3, 8)
+                        THEN COALESCE(d_sub_parent.sort_order, d_main_parent.sort_order, d_sub.sort_order, d_main.sort_order, 999999)
+                    ELSE COALESCE(d_sub.sort_order, d_main.sort_order, 999999)
+                END ASC
+            ")
+            ->orderByRaw("
+                CASE
+                    WHEN COALESCE(d_sub.unit_type_id, d_main.unit_type_id) IN (3, 8)
+                        THEN COALESCE(NULLIF(d_sub_parent.department_name, ''), NULLIF(d_main_parent.department_name, ''), NULLIF(d_sub.department_name, ''), NULLIF(d_main.department_name, ''), '')
+                    ELSE COALESCE(NULLIF(d_sub.department_name, ''), NULLIF(d_main.department_name, ''), '')
+                END ASC
+            ")
+            ->orderByRaw("
+                CASE
+                    WHEN COALESCE(d_sub.unit_type_id, d_main.unit_type_id) IN (3, 8) THEN 1
+                    ELSE 0
+                END ASC
+            ")
+            ->orderByRaw('COALESCE(d_sub.sort_order, d_main.sort_order, 999999) ASC')
+            ->orderByRaw("COALESCE(NULLIF(d_sub.department_name, ''), NULLIF(d_main.department_name, ''), '') ASC")
             ->orderByRaw('CASE WHEN p_order.position_rank IS NULL THEN 1 ELSE 0 END ASC')
             ->orderByRaw('p_order.position_rank ASC')
             ->orderByRaw("COALESCE(NULLIF(p_order.position_name_km, ''), NULLIF(p_order.position_name, ''), '') ASC")
@@ -285,6 +361,21 @@ class EmployeeDataTable extends DataTable
 
     protected function resolvePayLevelKmLabel($employee): string
     {
+        $direct = trim((string) (
+            $employee->employee_grade
+            ?: ($employee->profileExtra->current_salary_type ?? null)
+            ?: ''
+        ));
+        if ($direct !== '') {
+            $byCode = $this->payLevelKmByCode();
+            $lookupKey = $this->normalizePayCodeKey($direct);
+            if ($lookupKey !== '' && isset($byCode[$lookupKey]) && trim((string) $byCode[$lookupKey]) !== '') {
+                return trim((string) $byCode[$lookupKey]);
+            }
+
+            return $this->normalizePayCodeToKhmer($direct);
+        }
+
         $current = $employee->currentPayGradeHistory?->payLevel;
         if ($current) {
             $km = trim((string) ($current->level_name_km ?? ''));
@@ -345,6 +436,44 @@ class EmployeeDataTable extends DataTable
         return $cache;
     }
 
+    protected function buildProfileCompletionPopoverContent(array $missingLabels): string
+    {
+        $items = array_values(array_filter(array_map(static function ($label): string {
+            return trim((string) $label);
+        }, $missingLabels), static function (string $label): bool {
+            return $label !== '';
+        }));
+
+        if ($items === []) {
+            return localize('employee_profile_is_complete', 'ព័ត៌មានសំខាន់របស់បុគ្គលិកបានបំពេញគ្រប់ហើយ។');
+        }
+
+        $lines = array_map(static function (string $label): string {
+            return '• ' . $label;
+        }, $items);
+
+        return implode('<br>', $lines);
+    }
+
+    protected function buildProfileCompletionPopoverText(array $missingLabels): string
+    {
+        $items = array_values(array_filter(array_map(static function ($label): string {
+            return trim((string) $label);
+        }, $missingLabels), static function (string $label): bool {
+            return $label !== '';
+        }));
+
+        if ($items === []) {
+            return localize('employee_profile_is_complete', 'ព័ត៌មានសំខាន់របស់បុគ្គលិកបានបំពេញគ្រប់ហើយ។');
+        }
+
+        $lines = array_map(static function (string $label): string {
+            return '• ' . $label;
+        }, $items);
+
+        return implode("\n", $lines);
+    }
+
     protected function normalizePayCodeKey(string $value): string
     {
         return strtoupper(preg_replace('/\s+/', '', trim($value)) ?: '');
@@ -394,6 +523,54 @@ class EmployeeDataTable extends DataTable
         return implode(' | ', $chain);
     }
 
+    protected function displayWorkStatusName($employee): string
+    {
+        $status = trim((string) ($employee->work_status_name ?? ''));
+        if ($status !== '') {
+            $normalized = $this->normalizeVisibleWorkStatusName($status);
+            if ($normalized !== '') {
+                return $normalized;
+            }
+        }
+
+        if ($this->shouldSuppressWorkStatusName($status) || $status === '') {
+            return $this->serviceStateLabel($employee);
+        }
+
+        return $status;
+    }
+
+    protected function shouldSuppressWorkStatusName(string $status): bool
+    {
+        $normalized = strtolower(trim($status));
+        return $normalized !== '' && str_contains($normalized, 'pay grade promotion');
+    }
+
+    protected function serviceStateLabel($employee): string
+    {
+        return match ((string) ($employee->service_state ?? 'active')) {
+            'suspended' => localize('suspended_temporary'),
+            'inactive' => localize('inactive'),
+            default => 'កំពុងបម្រើការងារ',
+        };
+    }
+
+    protected function normalizeVisibleWorkStatusName(string $status): string
+    {
+        $trimmed = trim($status);
+        $normalized = mb_strtolower($trimmed, 'UTF-8');
+
+        if ($normalized === 'active' || str_contains($normalized, 'in service') || $trimmed === 'កំពុងបំរើការងារ' || $trimmed === 'កំពុងបម្រើការងារ') {
+            return 'កំពុងបម្រើការងារ';
+        }
+
+        if (str_contains($normalized, 'without pay') || str_contains($normalized, 'leave without pay') || str_contains($trimmed, 'ទំនេរគ្មានបៀវត្ស')) {
+            return 'ទំនេរគ្មានបៀវត្ស';
+        }
+
+        return '';
+    }
+
     protected function employeeUnitChain(Employee $employee): array
     {
         $currentId = (int) ($employee->sub_department_id ?: $employee->department_id ?: 0);
@@ -429,7 +606,47 @@ class EmployeeDataTable extends DataTable
             return [];
         }
 
-        return array_values(array_unique(array_reverse($chain)));
+        return $this->normalizeDisplayChain(array_values(array_unique(array_reverse($chain))));
+    }
+
+    protected function normalizeDisplayChain(array $chain): array
+    {
+        $normalized = array_values($chain);
+
+        if (!empty($normalized) && preg_match('/^រដ្ឋបាលខេត្ត/u', (string) $normalized[0])) {
+            array_shift($normalized);
+        }
+
+        $normalized = array_values(array_filter($normalized, function ($name) {
+            $clean = trim((string) $name);
+
+            return !in_array($clean, [
+                'មណ្ឌលសុខភាពទាំងអស់',
+                'ទីចាត់ការស្រុកប្រតិបត្តិ',
+            ], true);
+        }));
+
+        return $this->sanitizeDisplayChain($normalized);
+    }
+
+    protected function sanitizeDisplayChain(array $chain): array
+    {
+        return array_values(array_filter(array_map(function ($name) {
+            return $this->stripUnitDisplayPrefix((string) $name);
+        }, $chain), function ($name) {
+            return trim((string) $name) !== '';
+        }));
+    }
+
+    protected function stripUnitDisplayPrefix(string $name): string
+    {
+        $clean = trim($name);
+        if ($clean === '') {
+            return '';
+        }
+
+        $clean = preg_replace('/^[0-9០-៩]+\s*[-.។]?\s*/u', '', $clean) ?? $clean;
+        return trim($clean);
     }
 
     protected function employeeUnitNode(int $departmentId): ?array
@@ -487,7 +704,10 @@ class EmployeeDataTable extends DataTable
             ->setTableAttribute('class', 'table table-hover table-bordered align-middle')
             ->columns($this->getColumns())
             ->minifiedAjax()
-            ->orderBy(1, 'asc')
+            ->parameters([
+                'order' => [],
+                'ordering' => false,
+            ])
             ->language([
                 'processing' => '<div class="lds-spinner">
                 <div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div>',
@@ -547,7 +767,8 @@ class EmployeeDataTable extends DataTable
                 ->orderable(false),
 
             Column::make('official_id_10')
-                ->title(localize('official_id')),
+                ->title(localize('official_id'))
+                ->orderable(false),
 
             Column::make('full_name')
                 ->title(localize('name_of_employee'))
@@ -570,7 +791,7 @@ class EmployeeDataTable extends DataTable
                 ->orderable(false),
 
             Column::make('pay_level')
-                ->title(localize('pay_level_type'))
+                ->title(app()->getLocale() === 'km' ? 'ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់' : 'Pay framework, rank, and grade')
                 ->orderable(false),
 
             Column::make('phone')
@@ -580,6 +801,11 @@ class EmployeeDataTable extends DataTable
             Column::make('work_status_name')
                 ->title(localize('work_status'))
                 ->orderable(false),
+
+            Column::make('profile_completion')
+                ->title(localize('profile_status', 'ស្ថានភាពព័ត៌មាន'))
+                ->orderable(false)
+                ->searchable(false),
 
             Column::make('action')
                 ->title(localize('action'))->addClass('column-sl')->orderable(false)

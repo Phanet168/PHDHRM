@@ -180,7 +180,33 @@
         return safeText(selectedOption.textContent);
     }
 
+    function ensureLegacySelectedOption(selectEl, rawValue, fallbackLabel) {
+        var selected = safeText(rawValue);
+        if (!selected || !selectEl) {
+            return false;
+        }
+
+        setSelectByValueOrLabel(selectEl, selected);
+        if (safeText(selectEl.value) !== '') {
+            return true;
+        }
+
+        option(selectEl, selected, safeText(fallbackLabel) || selected);
+        selectEl.value = selected;
+        return true;
+    }
+
     function buildAddressText() {
+        var addressPrefixParts = [];
+        var houseNo = safeText(byId('present_address_house_no') && byId('present_address_house_no').value);
+        var streetNo = safeText(byId('present_address_street_no') && byId('present_address_street_no').value);
+        if (houseNo) {
+            addressPrefixParts.push('ផ្ទះលេខ ' + houseNo);
+        }
+        if (streetNo) {
+            addressPrefixParts.push('ផ្លូវលេខ ' + streetNo);
+        }
+
         var parts = [
             selectedOptionLabel(byId('present_address_state')),
             selectedOptionLabel(byId('present_address_city')),
@@ -207,7 +233,11 @@
 
         var fullAddress = byId('present_address');
         if (fullAddress) {
-            fullAddress.value = parts.length > 0 ? parts.join(' > ') : '';
+            var addressText = parts.length > 0 ? parts.join(' > ') : '';
+            var addressPrefix = addressPrefixParts.join(', ');
+            fullAddress.value = addressPrefix && addressText
+                ? addressPrefix + ' | ' + addressText
+                : (addressPrefix || addressText);
         }
     }
 
@@ -245,12 +275,21 @@
                 var placeholderCommune = safeText(wrapper.dataset.placeholderCommune) || 'Select commune/sangkat';
                 var placeholderVillage = safeText(wrapper.dataset.placeholderVillage) || 'Select village';
 
+                function restoreLegacyAddressSelection() {
+                    ensureLegacySelectedOption(provinceSelect, initialProvince, byId('present_address_state_name') && byId('present_address_state_name').value);
+                    ensureLegacySelectedOption(districtSelect, initialDistrict, byId('present_address_city_name') && byId('present_address_city_name').value);
+                    ensureLegacySelectedOption(communeSelect, initialCommune, byId('present_address_commune_name') && byId('present_address_commune_name').value);
+                    ensureLegacySelectedOption(villageSelect, initialVillage, byId('present_address_village_name') && byId('present_address_village_name').value);
+                    buildAddressText();
+                }
+
                 function populateProvinces() {
                     clearAndPlaceholder(provinceSelect, placeholderProvince);
                     provinces.forEach(function (p) {
                         option(provinceSelect, getCode(p) || getName(p), getName(p));
                     });
                     setSelectByValueOrLabel(provinceSelect, initialProvince);
+                    ensureLegacySelectedOption(provinceSelect, initialProvince, byId('present_address_state_name') && byId('present_address_state_name').value);
                     onProvinceChange();
                 }
 
@@ -261,7 +300,7 @@
 
                     var province = findNodeBySelection(provinces, provinceSelect.value);
                     if (!province) {
-                        buildAddressText();
+                        restoreLegacyAddressSelection();
                         return;
                     }
 
@@ -289,6 +328,9 @@
 
                     var district = findNodeBySelection((province.districts || []), districtSelect.value);
                     if (!district) {
+                        ensureLegacySelectedOption(districtSelect, initialDistrict, byId('present_address_city_name') && byId('present_address_city_name').value);
+                        ensureLegacySelectedOption(communeSelect, initialCommune, byId('present_address_commune_name') && byId('present_address_commune_name').value);
+                        ensureLegacySelectedOption(villageSelect, initialVillage, byId('present_address_village_name') && byId('present_address_village_name').value);
                         buildAddressText();
                         return;
                     }
@@ -322,6 +364,8 @@
 
                     var commune = findNodeBySelection((district.communes || []), communeSelect.value);
                     if (!commune) {
+                        ensureLegacySelectedOption(communeSelect, initialCommune, byId('present_address_commune_name') && byId('present_address_commune_name').value);
+                        ensureLegacySelectedOption(villageSelect, initialVillage, byId('present_address_village_name') && byId('present_address_village_name').value);
                         buildAddressText();
                         return;
                     }
@@ -342,11 +386,23 @@
                 districtSelect.addEventListener('change', onDistrictChange);
                 communeSelect.addEventListener('change', onCommuneChange);
                 villageSelect.addEventListener('change', buildAddressText);
+                var houseNoInput = byId('present_address_house_no');
+                var streetNoInput = byId('present_address_street_no');
+                if (houseNoInput) {
+                    houseNoInput.addEventListener('input', buildAddressText);
+                }
+                if (streetNoInput) {
+                    streetNoInput.addEventListener('input', buildAddressText);
+                }
 
                 populateProvinces();
             })
             .catch(function () {
-                // Keep default form usable if loading data fails.
+                ensureLegacySelectedOption(provinceSelect, initialProvince, byId('present_address_state_name') && byId('present_address_state_name').value);
+                ensureLegacySelectedOption(districtSelect, initialDistrict, byId('present_address_city_name') && byId('present_address_city_name').value);
+                ensureLegacySelectedOption(communeSelect, initialCommune, byId('present_address_commune_name') && byId('present_address_commune_name').value);
+                ensureLegacySelectedOption(villageSelect, initialVillage, byId('present_address_village_name') && byId('present_address_village_name').value);
+                buildAddressText();
             });
     }
 
@@ -415,12 +471,21 @@
                 var placeholderCommune = safeText(wrapper.dataset.placeholderCommune) || 'Select commune/sangkat';
                 var placeholderVillage = safeText(wrapper.dataset.placeholderVillage) || 'Select village';
 
+                function restoreLegacyBirthSelection() {
+                    ensureLegacySelectedOption(provinceSelect, initialProvince, byId('birth_place_state_name') && byId('birth_place_state_name').value);
+                    ensureLegacySelectedOption(districtSelect, initialDistrict, byId('birth_place_city_name') && byId('birth_place_city_name').value);
+                    ensureLegacySelectedOption(communeSelect, initialCommune, byId('birth_place_commune_name') && byId('birth_place_commune_name').value);
+                    ensureLegacySelectedOption(villageSelect, initialVillage, byId('birth_place_village_name') && byId('birth_place_village_name').value);
+                    buildBirthPlaceText();
+                }
+
                 function populateProvinces() {
                     clearAndPlaceholder(provinceSelect, placeholderProvince);
                     provinces.forEach(function (p) {
                         option(provinceSelect, getCode(p) || getName(p), getName(p));
                     });
                     setSelectByValueOrLabel(provinceSelect, initialProvince);
+                    ensureLegacySelectedOption(provinceSelect, initialProvince, byId('birth_place_state_name') && byId('birth_place_state_name').value);
                     onProvinceChange();
                 }
 
@@ -431,7 +496,7 @@
 
                     var province = findNodeBySelection(provinces, provinceSelect.value);
                     if (!province) {
-                        buildBirthPlaceText();
+                        restoreLegacyBirthSelection();
                         return;
                     }
 
@@ -459,6 +524,9 @@
 
                     var district = findNodeBySelection((province.districts || []), districtSelect.value);
                     if (!district) {
+                        ensureLegacySelectedOption(districtSelect, initialDistrict, byId('birth_place_city_name') && byId('birth_place_city_name').value);
+                        ensureLegacySelectedOption(communeSelect, initialCommune, byId('birth_place_commune_name') && byId('birth_place_commune_name').value);
+                        ensureLegacySelectedOption(villageSelect, initialVillage, byId('birth_place_village_name') && byId('birth_place_village_name').value);
                         buildBirthPlaceText();
                         return;
                     }
@@ -492,6 +560,8 @@
 
                     var commune = findNodeBySelection((district.communes || []), communeSelect.value);
                     if (!commune) {
+                        ensureLegacySelectedOption(communeSelect, initialCommune, byId('birth_place_commune_name') && byId('birth_place_commune_name').value);
+                        ensureLegacySelectedOption(villageSelect, initialVillage, byId('birth_place_village_name') && byId('birth_place_village_name').value);
                         buildBirthPlaceText();
                         return;
                     }
@@ -516,7 +586,11 @@
                 populateProvinces();
             })
             .catch(function () {
-                // Keep default form usable if loading data fails.
+                ensureLegacySelectedOption(provinceSelect, initialProvince, byId('birth_place_state_name') && byId('birth_place_state_name').value);
+                ensureLegacySelectedOption(districtSelect, initialDistrict, byId('birth_place_city_name') && byId('birth_place_city_name').value);
+                ensureLegacySelectedOption(communeSelect, initialCommune, byId('birth_place_commune_name') && byId('birth_place_commune_name').value);
+                ensureLegacySelectedOption(villageSelect, initialVillage, byId('birth_place_village_name') && byId('birth_place_village_name').value);
+                buildBirthPlaceText();
             });
     }
 

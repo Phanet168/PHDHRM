@@ -589,15 +589,28 @@
 			$input.removeClass('is-invalid');
 		});
 
-		$(document).on('submit', 'form', function(e) {
+		function handleUiDateSubmitValidation($form, selector, converter) {
 			var hasInvalidDate = false;
+			var $firstInvalid = $();
 
-			$(this).find('input[data-ui-picker-type="date"]').each(function() {
+			$form.find(selector).each(function() {
 				var $input = $(this);
-				var converted = toStorageDate($input.val());
+				if ($input.prop('disabled')) {
+					return;
+				}
+
+				var converted = converter($input.val());
 				if (converted === null) {
+					if ($input.is('[readonly]')) {
+						$input.removeClass('is-invalid');
+						return;
+					}
+
 					hasInvalidDate = true;
 					$input.addClass('is-invalid');
+					if (!$firstInvalid.length) {
+						$firstInvalid = $input;
+					}
 					return;
 				}
 
@@ -605,22 +618,48 @@
 				$input.val(converted);
 			});
 
-			$(this).find('input[data-ui-picker-type="datetime"]').each(function() {
-				var $input = $(this);
-				var converted = toStorageDateTime($input.val());
-				if (converted === null) {
-					hasInvalidDate = true;
-					$input.addClass('is-invalid');
-					return;
-				}
+			return {
+				hasInvalidDate: hasInvalidDate,
+				$firstInvalid: $firstInvalid
+			};
+		}
 
-				$input.removeClass('is-invalid');
-				$input.val(converted);
-			});
+		function notifyUiDateSubmitError($form, $firstInvalid) {
+			var message = 'Please enter dates in DD-MM-YYYY or YYYY-MM-DD format.';
 
-			if (hasInvalidDate) {
+			if (typeof toastr !== 'undefined' && toastr && typeof toastr.error === 'function') {
+				toastr.error(message);
+			} else {
+				alert(message);
+			}
+
+			if (!$firstInvalid || !$firstInvalid.length) {
+				return;
+			}
+
+			var $targetFieldset = $firstInvalid.closest('fieldset');
+			if ($targetFieldset.length && typeof setWizardStepByFieldset === 'function') {
+				setWizardStepByFieldset($form, $targetFieldset);
+			}
+
+			if (typeof jumpToFirstValidationError === 'function') {
+				jumpToFirstValidationError($form);
+				return;
+			}
+
+			$('html, body').stop().animate({ scrollTop: Math.max($firstInvalid.offset().top - 120, 0) }, 0);
+			$firstInvalid.trigger('focus');
+		}
+
+		$(document).on('submit', 'form', function(e) {
+			var $form = $(this);
+			var dateResult = handleUiDateSubmitValidation($form, 'input[data-ui-picker-type="date"]', toStorageDate);
+			var datetimeResult = handleUiDateSubmitValidation($form, 'input[data-ui-picker-type="datetime"]', toStorageDateTime);
+			var $firstInvalid = dateResult.$firstInvalid.length ? dateResult.$firstInvalid : datetimeResult.$firstInvalid;
+
+			if (dateResult.hasInvalidDate || datetimeResult.hasInvalidDate) {
 				e.preventDefault();
-				alert('Invalid date format. Use DD-MM-YYYY or YYYY-MM-DD (and HH:mm for time).');
+				notifyUiDateSubmitError($form, $firstInvalid);
 			}
 		});
 	})(jQuery);

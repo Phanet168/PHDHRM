@@ -258,7 +258,15 @@
         $position = optional($employee->position)->position_name_km ?: optional($employee->position)->position_name;
         $unit = optional($employee->sub_department)->department_name ?: optional($employee->department)->department_name;
         $birth = implode(' > ', array_filter([optional($extra)->birth_place_state, optional($extra)->birth_place_city, optional($extra)->birth_place_commune, optional($extra)->birth_place_village])) ?: $t($employee->legacy_pob_code);
-        $address = implode(' > ', array_filter([$employee->present_address_state, $employee->present_address_city, $employee->present_address_post_code, $employee->present_address_address])) ?: $t($employee->present_address);
+        $addressStructured = implode(' > ', array_filter([$employee->present_address_state, $employee->present_address_city, $employee->present_address_post_code, $employee->present_address_address]));
+        $addressRaw = $t($employee->present_address);
+        $addressPrefix = '';
+        if (str_contains($addressRaw, '|')) {
+            [$addressPrefix] = array_map('trim', explode('|', $addressRaw, 2));
+        }
+        $address = $addressStructured !== ''
+            ? ($addressPrefix !== '' ? $addressPrefix . ' | ' . $addressStructured : $addressStructured)
+            : $addressRaw;
         $phone = $employee->phone ?: $employee->cell_phone ?: $employee->business_phone;
         $image = $employee->profile_img_location ? asset('storage/' . $employee->profile_img_location) : asset('backend/assets/dist/img/avatar-1.jpg');
         $bankRows = $employee->bankAccounts;
@@ -269,7 +277,19 @@
         $languageRows = $employee->foreignLanguages;
         $payLevel = $employee->employee_grade ?: optional($extra)->current_salary_type;
         $fullRightText = (int) ($employee->is_full_right_officer ?? 0) === 1 ? $l('ពេញសិទ្ធ', 'Full-right') : $l('មិនទាន់ពេញសិទ្ធ', 'Not yet full-right');
-        $workStatusText = $t($employee->work_status_name ?: $service);
+        $rawWorkStatusText = trim((string) ($employee->work_status_name ?? ''));
+        $normalizedVisibleWorkStatus = '';
+        if ($rawWorkStatusText !== '') {
+            $normalizedWorkStatusKey = mb_strtolower($rawWorkStatusText, 'UTF-8');
+            if ($normalizedWorkStatusKey === 'active' || str_contains($normalizedWorkStatusKey, 'in service') || $rawWorkStatusText === 'កំពុងបំរើការងារ' || $rawWorkStatusText === 'កំពុងបម្រើការងារ') {
+                $normalizedVisibleWorkStatus = 'កំពុងបម្រើការងារ';
+            } elseif (str_contains($normalizedWorkStatusKey, 'without pay') || str_contains($normalizedWorkStatusKey, 'leave without pay') || str_contains($rawWorkStatusText, 'ទំនេរគ្មានបៀវត្ស')) {
+                $normalizedVisibleWorkStatus = 'ទំនេរគ្មានបៀវត្ស';
+            }
+        }
+        $workStatusText = $t(($rawWorkStatusText !== '' && str_contains(strtolower($rawWorkStatusText), 'pay grade promotion'))
+            ? ($service === $l('សកម្ម', 'Active') ? 'កំពុងបម្រើការងារ' : $service)
+            : ($normalizedVisibleWorkStatus !== '' ? $normalizedVisibleWorkStatus : ($rawWorkStatusText ?: $service)));
         $ethnicMinorityLabelMap = [
             'kuy' => $l('កួយ', 'Kuy'),
             'phnong' => $l('ព្នង', 'Phnong'),
@@ -301,7 +321,10 @@
     <div class="profile_show profile-show-page">
     <div class="row px-3 mb-3">
         <div class="col-12 d-flex justify-content-end gap-2">
+            <a href="{{ route('idprint.employeeshow', $employee->uuid) }}" class="btn btn-outline-success btn-sm" target="_blank" rel="noopener"><i class="fa fa-id-card me-1"></i>{{ $l('បោះពុម្ពកាតមន្ត្រី', 'Print ID card') }}</a>
+            <a href="{{ route('idprint.public-profile', $employee->uuid) }}" class="btn btn-outline-info btn-sm" target="_blank" rel="noopener"><i class="fa fa-qrcode me-1"></i>{{ $l('មើល e-Card', 'View e-Card') }}</a>
             <a href="{{ route('employees.profile.print', $employee->id) }}" class="btn btn-primary btn-sm" target="_blank" rel="noopener"><i class="fa fa-print me-1"></i>{{ $l('បោះពុម្ពប្រវត្តិរូបសង្ខេប', 'Print summary profile') }}</a>
+            <a href="{{ route('employees.profile.download-civil-servant-biography', $employee->id) }}" class="btn btn-outline-secondary btn-sm" rel="noopener"><i class="fa fa-download me-1"></i>{{ $l('ទាញយកជីវប្រវត្តិមន្ត្រីរាជការ', 'Download civil servant biography') }}</a>
             <a href="{{ route('employees.profile.print-detail', $employee->id) }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener"><i class="fa fa-file-text-o me-1"></i>{{ $l('បោះពុម្ពព័ត៌មានលម្អិត', 'Print detailed employee information') }}</a>
         </div>
     </div>
@@ -396,7 +419,7 @@
                 <div class="row mb-2"><div class="col-sm-5 text-muted">{{ $l('កាំប្រាក់', 'Pay level') }}</div><div class="col-sm-7">{{ $t($employee->employee_grade ?: optional($extra)->current_salary_type) }}</div></div>
                 <div class="row mb-2"><div class="col-sm-5 text-muted">{{ $l('ថ្ងៃចូលបម្រើការងារ', 'Service start date') }}</div><div class="col-sm-7">{{ $d($employee->service_start_date ?: $employee->joining_date) }}</div></div>
                 <div class="row mb-2"><div class="col-sm-5 text-muted">{{ $l('ស្ថានភាពមន្ត្រី', 'Service state') }}</div><div class="col-sm-7">{{ $service }}</div></div>
-                <div class="row mb-2"><div class="col-sm-5 text-muted">{{ $l('ស្ថានភាពការងារ', 'Work status') }}</div><div class="col-sm-7">{{ $t($employee->work_status_name) }}</div></div>
+                <div class="row mb-2"><div class="col-sm-5 text-muted">{{ $l('ស្ថានភាពការងារ', 'Work status') }}</div><div class="col-sm-7">{{ $workStatusText }}</div></div>
                 <div class="row mb-2"><div class="col-sm-5 text-muted">{{ $l('ស្ថានភាពពេញសិទ្ធ', 'Full-right status') }}</div><div class="col-sm-7">{{ (int) ($employee->is_full_right_officer ?? 0) === 1 ? $l('ពេញសិទ្ធ', 'Full-right') : $l('មិនទាន់ពេញសិទ្ធ', 'Not yet full-right') }}</div></div>
                 <div class="row mb-2"><div class="col-sm-5 text-muted">{{ $l('ថ្ងៃពេញសិទ្ធ', 'Full-right date') }}</div><div class="col-sm-7">{{ $d($employee->full_right_date) }}</div></div>
                 <div class="row mb-2"><div class="col-sm-5 text-muted">{{ $l('ប្រភេទលិខិត', 'Document type') }}</div><div class="col-sm-7">{{ $doc($employee->legal_document_type) }}</div></div>

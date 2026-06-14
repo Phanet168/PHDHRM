@@ -7,12 +7,18 @@ class ApiConfig {
       'http://127.0.0.1/PHDHRM/backend/api';
   static const String _primaryServerArtisanUrl = 'http://127.0.0.1:8000/api';
   static const List<String> _androidLanBaseUrls = <String>[
+    // Current PC IPs (Wi-Fi: 192.168.1.9, Ethernet: 192.168.1.6)
+    'http://192.168.1.9/PHDHRM/backend/api',
+    'http://192.168.1.6/PHDHRM/backend/api',
+    'http://192.168.1.14/PHDHRM/backend/api',
     'http://phdhrm.local/PHDHRM/backend/api',
     'http://phdhrm.local:8000/api',
   ];
   static const List<String> _legacyAndroidLanBaseUrls = <String>[
-    'http://192.168.1.4/PHDHRM/backend/api',
     'http://192.168.1.9/PHDHRM/backend/api',
+    'http://192.168.1.14/PHDHRM/backend/api',
+    'http://192.168.1.6/PHDHRM/backend/api',
+    'http://192.168.1.4/PHDHRM/backend/api',
     'http://192.168.1.7/PHDHRM/backend/api',
     'http://192.168.1.2/PHDHRM/backend/api',
   ];
@@ -25,21 +31,54 @@ class ApiConfig {
   static List<String>? _storedBaseUrls;
   static String? _lastSuccessfulBaseUrl;
 
+  // IPs known to be outdated — removed automatically on startup so the
+  // app does not get stuck trying unreachable hosts across reboots.
+  static const List<String> _staleHostPatterns = <String>[
+    '192.168.1.2',
+    '192.168.1.4',
+    '192.168.1.7',
+  ];
+
+  static bool _isStaleUrl(String url) {
+    return _staleHostPatterns.any((pattern) => url.contains(pattern));
+  }
+
   static Future<void> initialize() async {
     final storedBaseUrls = await _storageService.readConfiguredBaseUrls();
-    _lastSuccessfulBaseUrl = normalizeBaseUrl(
-      await _storageService.readLastSuccessfulBaseUrl() ?? '',
-    );
+    final rawLastSuccessful =
+        await _storageService.readLastSuccessfulBaseUrl() ?? '';
+
+    // Clear stale last-successful URL so it doesn't force-prioritize an old IP.
+    if (_isStaleUrl(rawLastSuccessful)) {
+      await _storageService.clearLastSuccessfulBaseUrl();
+      _lastSuccessfulBaseUrl = null;
+    } else {
+      _lastSuccessfulBaseUrl = normalizeBaseUrl(rawLastSuccessful);
+    }
+
     if (storedBaseUrls.isEmpty) {
       _storedBaseUrls = null;
       return;
     }
 
-    final normalizedStored = _normalizePersistedBaseUrls(storedBaseUrls);
+    // Strip stale IPs from persisted configured URLs.
+    final freshStored = storedBaseUrls
+        .where((u) => !_isStaleUrl(u))
+        .toList(growable: false);
+    if (freshStored.isEmpty) {
+      // All configured URLs were stale — reset so auto-discovery takes over.
+      _storedBaseUrls = null;
+      await _storageService.clearConfiguredBaseUrls();
+      return;
+    }
+
+    final normalizedStored = _normalizePersistedBaseUrls(freshStored);
     _storedBaseUrls = normalizedStored.isEmpty ? null : normalizedStored;
 
     if (!listEquals(storedBaseUrls, normalizedStored)) {
-      await _storageService.saveConfiguredBaseUrls(normalizedStored);
+      await _storageService.saveConfiguredBaseUrls(
+        normalizedStored.isEmpty ? [] : normalizedStored,
+      );
     }
   }
 

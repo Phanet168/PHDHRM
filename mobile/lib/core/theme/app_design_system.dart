@@ -20,10 +20,33 @@ class AppDesignSystem {
   static const double radiusButton = 14;
   static const double spacing = 8;
 
-  static ThemeData lightTheme() {
+  // Dart weekday: Mon=1 ... Sun=7
+  static Color colorForWeekday(int weekday) {
+    switch (weekday) {
+      case DateTime.sunday:
+        return const Color(0xFFFF0000); // Sunday: Red
+      case DateTime.monday:
+        return const Color(0xFFFFAA1D); // Monday: Bright yellow
+      case DateTime.tuesday:
+        return const Color(0xFF7851A9); // Tuesday: Royal Purple
+      case DateTime.wednesday:
+        return const Color(0xFF808000); // Wednesday: Olive
+      case DateTime.thursday:
+        return const Color(0xFF008000); // Thursday: Green
+      case DateTime.friday:
+        return const Color(0xFF0000A0); // Friday: Blue
+      case DateTime.saturday:
+        return const Color(0xFF301934); // Saturday: Dark Purple
+      default:
+        return primary;
+    }
+  }
+
+  static ThemeData lightTheme({Color? seedColor}) {
+    final brand = seedColor ?? primary;
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: primary,
-      primary: primary,
+      seedColor: brand,
+      primary: brand,
       secondary: secondary,
       error: danger,
       surface: surface,
@@ -53,21 +76,9 @@ class AppDesignSystem {
           fontWeight: FontWeight.w700,
           color: textPrimary,
         ),
-        bodyLarge: TextStyle(
-          fontSize: 15,
-          height: 1.55,
-          color: textPrimary,
-        ),
-        bodyMedium: TextStyle(
-          fontSize: 14,
-          height: 1.55,
-          color: textPrimary,
-        ),
-        bodySmall: TextStyle(
-          fontSize: 13,
-          height: 1.45,
-          color: textSecondary,
-        ),
+        bodyLarge: TextStyle(fontSize: 15, height: 1.55, color: textPrimary),
+        bodyMedium: TextStyle(fontSize: 14, height: 1.55, color: textPrimary),
+        bodySmall: TextStyle(fontSize: 13, height: 1.45, color: textSecondary),
       ),
       appBarTheme: const AppBarTheme(
         centerTitle: false,
@@ -86,7 +97,7 @@ class AppDesignSystem {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: primary,
+          backgroundColor: brand,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
@@ -117,7 +128,10 @@ class AppDesignSystem {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusInput),
           borderSide: const BorderSide(color: border),
@@ -128,22 +142,23 @@ class AppDesignSystem {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusInput),
-          borderSide: const BorderSide(color: primary, width: 1.4),
+          borderSide: BorderSide(color: brand, width: 1.4),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: textPrimary,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: const Color(0xFFE8F4FB),
         selectedColor: const Color(0xFFD9EEF7),
         side: const BorderSide(color: border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-        labelStyle: const TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+        labelStyle: const TextStyle(
+          color: textPrimary,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

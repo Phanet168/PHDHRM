@@ -55,7 +55,7 @@
                             @if ($canUseAttendanceModule)
                                 <li class="{{ request()->routeIs('attendances.workflow') ? 'mm-active' : '' }}">
                                     <a class="dropdown-item"
-                                        href="{{ route('attendances.workflow') }}">{{ localize('attendance_workflow', 'Workflow វត្តមាន') }}</a>
+                                        href="{{ route('attendances.workflow') }}">{{ localize('attendance_workflow', 'Workflow ÃƒÂ¡Ã…Â¾Ã…â€œÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¾Ã‹Å“ÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å“') }}</a>
                                 </li>
                                 @can('create_attendance')
                                     <li class="{{ request()->routeIs('attendances.create') ? 'mm-active' : '' }}">
@@ -95,7 +95,7 @@
                     </li>
                 @endcan
 
-                @if (auth()->user()->can('read_department') || auth()->user()->can('read_positions') || auth()->user()->can('read_setup_rules'))
+                @if (auth()->user()->admin())
                     @php
                         $showAdvancedGovernance = (bool) config('hr_governance.ui.show_advanced_central_governance', false);
                         $masterDataHrActive = request()->routeIs('departments.*')
@@ -115,13 +115,13 @@
                     <li class="{{ $masterDataHrActive ? 'mm-active' : '' }}">
                         <a class="has-arrow material-ripple" href="#">
                             <i class="fa fa-sitemap"></i>
-                            <span>{{ localize('master_data_hr', 'ទិន្នន័យមូលដ្ឋាន HR') }}</span>
+                            <span>{{ localize('master_data_hr', 'Master Data HR') }}</span>
                         </a>
                         <ul class="nav-second-level {{ $masterDataHrActive ? 'mm-show' : '' }}">
                             @can('read_department')
                                 <li class="{{ request()->routeIs('departments.*') ? 'mm-active' : '' }}">
                                     <a class="dropdown-item" href="{{ route('departments.index') }}">
-                                        {{ localize('org_unit_management', 'គ្រប់គ្រងអង្គភាព') }}
+                                        {{ localize('org_unit_management', 'Org Unit Management') }}
                                     </a>
                                 </li>
                                 @php
@@ -143,33 +143,32 @@
                             @can('read_setup_rules')
                                 <li class="{{ request()->routeIs('professional-skills.*') ? 'mm-active' : '' }}">
                                     <a class="dropdown-item" href="{{ route('professional-skills.index') }}">
-                                        {{ localize('professional_skill_management', 'គ្រប់គ្រងជំនាញ') }}
+                                        {{ localize('professional_skill_management', 'Professional Skill Management') }}
                                     </a>
                                 </li>
                             @endcan
                             @can('read_positions')
                                 <li class="{{ request()->routeIs('positions.*') ? 'mm-active' : '' }}">
                                     <a class="dropdown-item" href="{{ route('positions.index') }}">
-                                        {{ localize('positions', 'តួនាទី / មុខតំណែង') }}
+                                        {{ localize('positions', 'Positions') }}
                                     </a>
                                 </li>
                             @endcan
                             @can('read_setup_rules')
                                 <li class="{{ request()->routeIs('pay-levels.*') ? 'mm-active' : '' }}">
                                     <a class="dropdown-item" href="{{ route('pay-levels.index') }}">
-                                        {{ localize('pay_level_management', 'គ្រប់គ្រងកាំប្រាក់') }}
+                                        {{ localize('pay_level_management', 'Pay Level Management') }}
                                     </a>
                                 </li>
                                 <li class="{{ request()->routeIs('salary-scales.*') ? 'mm-active' : '' }}">
                                     <a class="dropdown-item" href="{{ route('salary-scales.index') }}">
-                                        {{ localize('salary_scale_management', 'កំណត់សន្ទស្សន៍ប្រាក់បៀវត្ស') }}
+                                        {{ localize('salary_scale_management', 'Salary Scale Management') }}
                                     </a>
                                 </li>
                             @endcan
                         </ul>
                     </li>
                 @endif
-
                 @can('read_employee')
                     <li class="{{ request()->routeIs('employees*') || request()->routeIs('employee-pay-promotions.*') || request()->routeIs('employee-workplace-transfers.*') || request()->routeIs('employee-retirements.*') ? 'mm-active' : '' }}">
                         <a class="has-arrow material-ripple" href="#">
@@ -186,7 +185,7 @@
                             @can('update_employee')
                                 <li class="{{ request()->routeIs('employee-pay-promotions.*') ? 'mm-active' : '' }}">
                                     <a class="dropdown-item" href="{{ route('employee-pay-promotions.index') }}">
-                                        {{ localize('grade_and_rank_management', 'គ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ') }}
+                                        {{ localize('grade_and_rank_management', 'ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂÃƒÂ¡Ã…Â¸Ã¢â‚¬Â¹ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¾ÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å“ÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¾Ã¢â€šÂ¬ÃƒÂ¡Ã…Â¸Ã¢â‚¬Â¹ ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å“ÃƒÂ¡Ã…Â¾Ã‚Â·ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¾ÃƒÂ¡Ã…Â¾Ã¢â‚¬Â¹ÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å“ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å“ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã…Â¸ÃƒÂ¡Ã…Â¸Ã‚ÂÃƒÂ¡Ã…Â¾Ã¢â€šÂ¬ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¾Ã‚Â·') }}
                                     </a>
                                 </li>
                                 <li class="{{ request()->routeIs('employee-workplace-transfers.*') ? 'mm-active' : '' }}">
@@ -206,6 +205,37 @@
                                         href="{{ route('employee-performances.index') }}">{{ localize('employee_performance ') }}</a>
                                 </li>
                             @endcan
+                        </ul>
+                    </li>
+                @endcan
+
+                @can('planning.view')
+                    <li class="{{ request()->routeIs('planning.*') ? 'mm-active' : '' }}">
+                        <a class="has-arrow material-ripple" href="#">
+                            <i class="fa fa-sitemap"></i>
+                            <span>{{ localize('planning_management', 'Planning') }}</span>
+                        </a>
+                        <ul class="nav-second-level {{ request()->routeIs('planning.*') ? 'mm-show' : '' }}">
+                            <li class="{{ request()->routeIs('planning.dashboard*') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item" href="{{ route('planning.dashboard') }}">
+                                    {{ localize('planning_dashboard', 'Dashboard') }}
+                                </a>
+                            </li>
+                            <li class="{{ request()->routeIs('planning.plans.*') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item" href="{{ route('planning.plans.index') }}">
+                                    {{ localize('planning_plan_list', 'Plan List') }}
+                                </a>
+                            </li>
+                            <li class="{{ request()->routeIs('planning.consolidation.*') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item" href="{{ route('planning.consolidation.index') }}">
+                                    {{ localize('planning_consolidation', 'Consolidation') }}
+                                </a>
+                            </li>
+                            <li class="{{ request()->routeIs('planning.reports.*') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item" href="{{ route('planning.reports.index') }}">
+                                    {{ localize('planning_reports', 'Reports') }}
+                                </a>
+                            </li>
                         </ul>
                     </li>
                 @endcan
@@ -300,20 +330,20 @@
                     <li class="{{ request()->routeIs('correspondence.*') ? 'mm-active' : '' }}">
                         <a class="has-arrow material-ripple" href="#">
                             <i class="fa fa-envelope"></i>
-                            <span>{{ localize('correspondence_management', 'ការគ្រប់គ្រងលិខិតរដ្ឋបាល') }}</span>
+                            <span>{{ localize('correspondence_management', 'ÃƒÂ¡Ã…Â¾Ã¢â€šÂ¬ÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂÃƒÂ¡Ã…Â¸Ã¢â‚¬Â¹ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¾ÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂºÃƒÂ¡Ã…Â¾Ã‚Â·ÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¾Ã‚Â·ÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã…Â ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã¢â‚¬Â¹ÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¾Ã¢â‚¬Âº') }}</span>
                         </a>
                         <ul class="nav-second-level {{ request()->routeIs('correspondence.*') ? 'mm-show' : '' }}">
                             <li class="{{ request()->routeIs('correspondence.index') ? 'mm-active' : '' }}">
                                 <a class="dropdown-item"
-                                    href="{{ route('correspondence.index') }}">{{ localize('dashboard', 'ផ្ទាំងគ្រប់គ្រង') }}</a>
+                                    href="{{ route('correspondence.index') }}">{{ localize('dashboard', 'ÃƒÂ¡Ã…Â¾Ã¢â‚¬Â¢ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã¢â‚¬ËœÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¸Ã¢â‚¬Â ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¾ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂÃƒÂ¡Ã…Â¸Ã¢â‚¬Â¹ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¾') }}</a>
                             </li>
                             <li class="{{ request()->routeIs('correspondence.incoming') ? 'mm-active' : '' }}">
                                 <a class="dropdown-item"
-                                    href="{{ route('correspondence.incoming') }}">{{ localize('incoming_letters', 'លិខិតចូល') }}</a>
+                                    href="{{ route('correspondence.incoming') }}">{{ localize('incoming_letters', 'ÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂºÃƒÂ¡Ã…Â¾Ã‚Â·ÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¾Ã‚Â·ÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¾Ã¢â‚¬Â¦ÃƒÂ¡Ã…Â¾Ã‚Â¼ÃƒÂ¡Ã…Â¾Ã¢â‚¬Âº') }}</a>
                             </li>
                             <li class="{{ request()->routeIs('correspondence.outgoing') ? 'mm-active' : '' }}">
                                 <a class="dropdown-item"
-                                    href="{{ route('correspondence.outgoing') }}">{{ localize('outgoing_letters', 'លិខិតចេញ') }}</a>
+                                    href="{{ route('correspondence.outgoing') }}">{{ localize('outgoing_letters', 'ÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂºÃƒÂ¡Ã…Â¾Ã‚Â·ÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¾Ã‚Â·ÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¾Ã¢â‚¬Â¦ÃƒÂ¡Ã…Â¸Ã‚ÂÃƒÂ¡Ã…Â¾Ã¢â‚¬Â°') }}</a>
                             </li>
                         </ul>
                     </li>
@@ -323,48 +353,48 @@
                     <li class="{{ request()->routeIs('pharmaceutical.*') ? 'mm-active' : '' }}">
                         <a class="has-arrow material-ripple" href="#">
                             <i class="fa fa-pills"></i>
-                            <span>{{ localize('pharmaceutical_management', 'ការគ្រប់គ្រងឱសថ') }}</span>
+                            <span>{{ localize('pharmaceutical_management', 'ÃƒÂ¡Ã…Â¾Ã¢â€šÂ¬ÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂÃƒÂ¡Ã…Â¸Ã¢â‚¬Â¹ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¾ÃƒÂ¡Ã…Â¾Ã‚Â±ÃƒÂ¡Ã…Â¾Ã…Â¸ÃƒÂ¡Ã…Â¾Ã‚Â') }}</span>
                         </a>
                         <ul class="nav-second-level {{ request()->routeIs('pharmaceutical.*') ? 'mm-show' : '' }}">
                             <li class="{{ request()->routeIs('pharmaceutical.index') ? 'mm-active' : '' }}">
                                 <a class="dropdown-item"
-                                    href="{{ route('pharmaceutical.index') }}">{{ localize('dashboard', 'ផ្ទាំងគ្រប់គ្រង') }}</a>
+                                    href="{{ route('pharmaceutical.index') }}">{{ localize('dashboard', 'ÃƒÂ¡Ã…Â¾Ã¢â‚¬Â¢ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã¢â‚¬ËœÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¸Ã¢â‚¬Â ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¾ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂÃƒÂ¡Ã…Â¸Ã¢â‚¬Â¹ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¾') }}</a>
                             </li>
                             @canany(['read_pharmaceutical_management', 'read_pharm_medicines'])
                             <li class="{{ request()->routeIs('pharmaceutical.medicines.*') ? 'mm-active' : '' }}">
                                 <a class="dropdown-item"
-                                    href="{{ route('pharmaceutical.medicines.index') }}">{{ localize('medicines', 'មុខឱសថ') }}</a>
+                                    href="{{ route('pharmaceutical.medicines.index') }}">{{ localize('medicines', 'ÃƒÂ¡Ã…Â¾Ã‹Å“ÃƒÂ¡Ã…Â¾Ã‚Â»ÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¾Ã‚Â±ÃƒÂ¡Ã…Â¾Ã…Â¸ÃƒÂ¡Ã…Â¾Ã‚Â') }}</a>
                             </li>
                             @endcanany
                             @canany(['read_pharmaceutical_management', 'read_pharm_distributions'])
                             <li class="{{ request()->routeIs('pharmaceutical.distributions.*') ? 'mm-active' : '' }}">
                                 <a class="dropdown-item"
-                                    href="{{ route('pharmaceutical.distributions.index') }}">{{ localize('distributions', 'ការចែកចាយ') }}</a>
+                                    href="{{ route('pharmaceutical.distributions.index') }}">{{ localize('distributions', 'ÃƒÂ¡Ã…Â¾Ã¢â€šÂ¬ÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬Â¦ÃƒÂ¡Ã…Â¸Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¾Ã¢â€šÂ¬ÃƒÂ¡Ã…Â¾Ã¢â‚¬Â¦ÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¾Ã¢â€žÂ¢') }}</a>
                             </li>
                             @endcanany
                             @canany(['read_pharmaceutical_management', 'read_pharm_stock'])
                             <li class="{{ request()->routeIs('pharmaceutical.stock') ? 'mm-active' : '' }}">
                                 <a class="dropdown-item"
-                                    href="{{ route('pharmaceutical.stock') }}">{{ localize('stock', 'សន្និធិ') }}</a>
+                                    href="{{ route('pharmaceutical.stock') }}">{{ localize('stock', 'ÃƒÂ¡Ã…Â¾Ã…Â¸ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å“ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å“ÃƒÂ¡Ã…Â¾Ã‚Â·ÃƒÂ¡Ã…Â¾Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã‚Â·') }}</a>
                             </li>
                             @endcanany
                             @canany(['read_pharmaceutical_management', 'read_pharm_dispensings'])
                             <li class="{{ request()->routeIs('pharmaceutical.dispensings.*') ? 'mm-active' : '' }}">
                                 <a class="dropdown-item"
-                                    href="{{ route('pharmaceutical.dispensings.index') }}">{{ localize('dispensing', 'ការផ្តល់ឱសថ') }}</a>
+                                    href="{{ route('pharmaceutical.dispensings.index') }}">{{ localize('dispensing', 'ÃƒÂ¡Ã…Â¾Ã¢â€šÂ¬ÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬Â¢ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã‚ÂÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂºÃƒÂ¡Ã…Â¸Ã¢â‚¬Â¹ÃƒÂ¡Ã…Â¾Ã‚Â±ÃƒÂ¡Ã…Â¾Ã…Â¸ÃƒÂ¡Ã…Â¾Ã‚Â') }}</a>
                             </li>
                             @endcanany
                             @canany(['read_pharmaceutical_management', 'read_pharm_reports'])
                             <li class="{{ request()->routeIs('pharmaceutical.reports.*') ? 'mm-active' : '' }}">
                                 <a class="dropdown-item"
-                                    href="{{ route('pharmaceutical.reports.index') }}">{{ localize('reports', 'របាយការណ៍') }}</a>
+                                    href="{{ route('pharmaceutical.reports.index') }}">{{ localize('reports', 'ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¾Ã¢â€žÂ¢ÃƒÂ¡Ã…Â¾Ã¢â€šÂ¬ÃƒÂ¡Ã…Â¾Ã‚Â¶ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã…Â½ÃƒÂ¡Ã…Â¸Ã‚Â') }}</a>
                             </li>
                             @endcanany
                             @canany(['read_pharmaceutical_management', 'read_pharm_users'])
                             @if(auth()->user() && (int) auth()->user()->user_type_id === 1)
                             <li class="{{ request()->routeIs('pharmaceutical.users.*') ? 'mm-active' : '' }}">
                                 <a class="dropdown-item"
-                                    href="{{ route('pharmaceutical.users.index') }}">{{ localize('user_management', 'គ្រប់គ្រងអ្នកប្រើ') }}</a>
+                                    href="{{ route('pharmaceutical.users.index') }}">{{ localize('user_management', 'ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂÃƒÂ¡Ã…Â¸Ã¢â‚¬Â¹ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¡ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å¾ÃƒÂ¡Ã…Â¾Ã‚Â¢ÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã¢â‚¬Å“ÃƒÂ¡Ã…Â¾Ã¢â€šÂ¬ÃƒÂ¡Ã…Â¾Ã¢â‚¬ÂÃƒÂ¡Ã…Â¸Ã¢â‚¬â„¢ÃƒÂ¡Ã…Â¾Ã…Â¡ÃƒÂ¡Ã…Â¾Ã‚Â¾') }}</a>
                             </li>
                             @endif
                             @endcanany
@@ -654,7 +684,7 @@
                     </li>
                 @endcan
 
-                @can('read_setting')
+                @if(Auth::user()->admin())
                     <li
                         class="{{ request()->is('setting*') || request()->is('role*') || request()->is('applications*') || request()->is('currencies*') || request()->is('mails*') || request()->is('sms*') || request()->is('password*') || request()->is('user*') || request()->is('localize*') || request()->is('database-backup-reset*') ? 'mm-active' : '' }}">
                         @can('read_application')
@@ -664,7 +694,7 @@
                             </a>
                         @endcan
                     </li>
-                @endcan
+                @endif
                 @can('read_messages')
                     <li class="{{ request()->is('message*') ? 'mm-active' : '' }}">
                         <a class="has-arrow material-ripple" href="#">

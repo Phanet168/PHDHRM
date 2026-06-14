@@ -98,7 +98,7 @@ class EmployeeRetirementService
             return [];
         }
 
-        if ((int) $user->user_type_id === 1) {
+        if (method_exists($user, 'admin') ? (bool) $user->admin() : (int) ($user->user_type_id ?? 0) === 1) {
             return null;
         }
 

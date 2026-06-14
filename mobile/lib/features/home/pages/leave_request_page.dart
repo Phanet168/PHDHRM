@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_design_system.dart';
 import '../../auth/models/auth_user.dart';
 import '../models/leave_request_models.dart';
 import '../services/home_leave_service.dart';
@@ -9,6 +10,9 @@ import 'leave_history_page.dart';
 import 'leave_review_page.dart';
 
 // ignore_for_file: lines_longer_than_80_chars
+
+Color _dynamicPrimary() =>
+    AppDesignSystem.colorForWeekday(DateTime.now().weekday);
 
 class LeaveRequestPage extends StatefulWidget {
   LeaveRequestPage({
@@ -188,22 +192,18 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
       final row = pick(def.keywords) ?? fallback();
       final ent = row?.entitlement ?? 0;
       final usedDays = row?.used ?? 0;
+      final pendingDays = row?.pending ?? 0;
       final rem = row?.remaining ?? 0;
-      // Use the API's Khmer name if available, else fall back to hardcoded title
-      final displayTitle =
-          (row != null)
-              ? (row.leaveTypeKm.trim().isNotEmpty
-                  ? row.leaveTypeKm
-                  : (row.leaveType.trim().isNotEmpty
-                      ? row.leaveType
-                      : def.title))
-              : def.title;
+      // Display used+pending together so: used + remaining == entitlement always
+      final displayUsed = usedDays + pendingDays;
+      // Always use hardcoded (correct Khmer spelling) title for balance grid
+      final displayTitle = def.title;
       return _LeaveBalanceDisplay(
         title: displayTitle,
-        used: usedDays,
+        used: displayUsed,
         total: ent,
         remaining: rem,
-        percent: ent <= 0 ? 0.0 : (usedDays / ent).clamp(0.0, 1.0),
+        percent: ent <= 0 ? 0.0 : (displayUsed / ent).clamp(0.0, 1.0),
         tint: def.tint,
         accent: def.accent,
         icon: def.icon,
@@ -214,16 +214,14 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF0B6B58)),
-      );
+      return Center(child: CircularProgressIndicator(color: _dynamicPrimary()));
     }
 
     final balances = _buildBalances();
     final recent = _requests.take(5).toList();
 
     return RefreshIndicator(
-      color: const Color(0xFF0B6B58),
+      color: _dynamicPrimary(),
       onRefresh: _loadAll,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
@@ -234,7 +232,7 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
           ),
           const SizedBox(height: 16),
           _PrimaryButton(
-            label: _tr('request_new_leave', 'ស្នើសុំច្បាប់ថ្មី'),
+            label: _tr('request_new_leave', 'ដាក់សំណើច្បាប់ថ្មី'),
             icon: Icons.add_circle_outline_rounded,
             onPressed: _openForm,
           ),
@@ -261,8 +259,8 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
                 onTap: _openHistory,
                 child: Text(
                   _tr('view_all', 'មើលទាំងអស់  ›'),
-                  style: const TextStyle(
-                    color: Color(0xFF0B6B58),
+                  style: TextStyle(
+                    color: _dynamicPrimary(),
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -340,10 +338,10 @@ class _BalanceSummaryCard extends StatelessWidget {
                           child: Text(
                             '$totalRemaining',
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 32,
                               fontWeight: FontWeight.w900,
-                              color: Color(0xFF0B6B58),
+                              color: _dynamicPrimary(),
                               height: 1.1,
                             ),
                           ),
@@ -371,13 +369,13 @@ class _BalanceSummaryCard extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
+                  color: _dynamicPrimary().withAlpha(20),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   '${DateTime.now().year}',
-                  style: const TextStyle(
-                    color: Color(0xFF10B981),
+                  style: TextStyle(
+                    color: _dynamicPrimary(),
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
@@ -499,6 +497,25 @@ class _LeaveRequestCard extends StatelessWidget {
   final LeaveRequestItem request;
   final Map<String, String> language;
 
+  String _formatDateDisplay(String value) {
+    final text = value.trim();
+    if (text.isEmpty) {
+      return '-';
+    }
+
+    final parsed =
+        DateTime.tryParse(text) ??
+        DateTime.tryParse(text.replaceFirst(' ', 'T'));
+    if (parsed == null) {
+      return text;
+    }
+
+    final day = parsed.day.toString().padLeft(2, '0');
+    final month = parsed.month.toString().padLeft(2, '0');
+    final year = parsed.year.toString().padLeft(4, '0');
+    return '$day-$month-$year';
+  }
+
   @override
   Widget build(BuildContext context) {
     final typeLabel =
@@ -551,7 +568,7 @@ class _LeaveRequestCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${request.startDate}  →  ${request.endDate}',
+                  '${_formatDateDisplay(request.startDate)}  →  ${_formatDateDisplay(request.endDate)}',
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF64748B),
@@ -601,7 +618,7 @@ class _PrimaryButton extends StatelessWidget {
       child: ElevatedButton.icon(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF0B6B58),
+          backgroundColor: _dynamicPrimary(),
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -637,8 +654,8 @@ class _OutlineButton extends StatelessWidget {
       child: OutlinedButton.icon(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
-          foregroundColor: const Color(0xFF0B6B58),
-          side: const BorderSide(color: Color(0xFF0B6B58), width: 1.5),
+          foregroundColor: _dynamicPrimary(),
+          side: BorderSide(color: _dynamicPrimary(), width: 1.5),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),

@@ -28,11 +28,11 @@
                         <div class="col-md-12 mb-3">
                             <div class="row">
                                 <label for="email"
-                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('email') }}<span
-                                        class="text-danger">*</span></label>
+                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('email') }}</label>
                                 <div class="col-sm-9 col-md-12 col-xl-9">
                                     <input type="text" class="form-control" id="email" name="email"
                                         value="{{ old('email') }}">
+                                    <small class="text-muted">{{ localize('optional', 'Optional') }}</small>
                                     <span class="text-danger error_email"></span>
                                 </div>
 
@@ -41,11 +41,11 @@
                         <div class="col-md-12 mb-3">
                             <div class="row">
                                 <label for="contact_no"
-                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('mobile') }}<span
-                                        class="text-danger">*</span></label>
+                                    class="col-form-label col-sm-3 col-md-12 col-xl-3 fw-semibold">{{ localize('mobile') }}</label>
                                 <div class="col-sm-9 col-md-12 col-xl-9">
                                     <input type="text" class="form-control" id="contact_no" name="contact_no"
                                         value="{{ old('contact_no') }}">
+                                    <small class="text-muted">{{ localize('optional', 'Optional') }}</small>
                                     <span class="text-danger error_contact_no"></span>
                                 </div>
 

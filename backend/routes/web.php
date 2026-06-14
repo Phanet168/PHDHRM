@@ -2,12 +2,15 @@
 
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\LocalizationController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DeviceAccessRequestAdminController;
 use App\Http\Controllers\Auth\OtpVerificationController;
 use App\Http\Controllers\Auth\SecurityController;
+use App\Http\Controllers\Auth\TelegramLoginController;
 use App\Http\Controllers\Auth\TelegramPasswordResetController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Modules\HumanResource\Http\Controllers\EmployeeController;
 
 Route::get('/', [HomeController::class, 'rootRedirect'])->name('root.redirect');
 
@@ -17,6 +20,15 @@ Auth::routes([
     'register' => false,
 ]);
 Route::post('/password/telegram', [TelegramPasswordResetController::class, 'send'])->name('password.telegram');
+Route::post('/login/telegram/request', [TelegramLoginController::class, 'requestLink'])
+    ->middleware(['guest', 'throttle:10,1'])
+    ->name('login.telegram.request');
+Route::post('/login/telegram/sync', [TelegramLoginController::class, 'syncAndLogin'])
+    ->middleware(['guest', 'throttle:10,1'])
+    ->name('login.telegram.sync');
+Route::get('/login/telegram/token/{token}', [TelegramLoginController::class, 'consume'])
+    ->middleware(['guest', 'signed', 'throttle:20,1'])
+    ->name('login.telegram.consume');
 
 Route::get('get-localization-strings', [LocalizationController::class, 'index'])->name('get-localization-strings');
 Route::post('get-localization-strings', [LocalizationController::class, 'store']);
@@ -42,12 +54,23 @@ Route::group(['middleware' => ['auth']], function () {
     Route::get('/security/otp', [OtpVerificationController::class, 'show'])->name('security.otp.show');
     Route::post('/security/otp/verify', [OtpVerificationController::class, 'verify'])->name('security.otp.verify');
     Route::post('/security/otp/resend', [OtpVerificationController::class, 'resend'])->name('security.otp.resend');
+
+    // Profile Management Routes
+    Route::post('/profile/update', [ProfileController::class, 'update'])->name('profile.update');
+    Route::post('/profile/change-password', [ProfileController::class, 'changePassword'])->name('profile.changePassword');
+    
+    // Data Management - Admin Only
+    Route::post('/profile/update-data-management', [ProfileController::class, 'updateDataManagement'])->middleware('isAdmin')->name('profile.updateDataManagement');
+    
+    Route::post('/profile/profile-image/{id}', [ProfileController::class, 'updateProfileImage'])->name('profile_image.update');
+    Route::post('/profile/cover-image/{id}', [ProfileController::class, 'updateCoverImage'])->name('profile_cover_image.update');
 });
 
 Route::group(['middleware' => ['auth']], function () {
     Route::get('/dashboard/home', [HomeController::class, 'staffHome'])->name('staffHome');
     Route::get('/dashboard/employee', [HomeController::class, 'myProfile'])->name('myProfile');
-    Route::get('/dashboard/employee/edit', [HomeController::class, 'editMyProfile'])->name('editMyProfile');
+    Route::get('/dashboard/employee/edit', [EmployeeController::class, 'selfEdit'])->name('editMyProfile');
+    Route::patch('/dashboard/employee/edit', [EmployeeController::class, 'selfUpdate'])->name('updateMyProfile');
     // Backward-compatibility: some old links still open /dashboard/employee/{id|undefined}
     Route::get('/dashboard/employee/{legacy}', [HomeController::class, 'redirectLegacyEmployeeProfile'])
         ->where('legacy', '.*');

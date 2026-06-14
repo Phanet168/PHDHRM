@@ -1,0 +1,14 @@
+{
+    "name": "nwidart/planning",
+    "description": "Planning module",
+    "authors": [
+        {
+            "name": "OpenAI Codex"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Modules\\Planning\\": ""
+        }
+    }
+}

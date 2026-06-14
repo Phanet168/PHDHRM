@@ -5,6 +5,42 @@
     $skills = collect($professional_skills ?? []);
     $payLevels = collect($pay_levels ?? []);
 
+    $toDateInputValue = static function ($value): ?string {
+        if (empty($value)) {
+            return null;
+        }
+
+        if ($value instanceof \Carbon\CarbonInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return null;
+            }
+
+            try {
+                return \Carbon\Carbon::parse($trimmed)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return $trimmed;
+            }
+        }
+
+        return null;
+    };
+
+    $activePayLevelName = trim((string) ($emp?->currentPayGradeHistory?->payLevel?->level_name_km ?? ''));
+    $activePayLevelCode = trim((string) ($emp?->currentPayGradeHistory?->payLevel?->level_code ?? ''));
+    $latestPayLevelName = trim((string) ($emp?->latestPayGradeHistory?->payLevel?->level_name_km ?? ''));
+    $latestPayLevelCode = trim((string) ($emp?->latestPayGradeHistory?->payLevel?->level_code ?? ''));
+    $activePayLevelStartDate = $toDateInputValue($emp?->currentPayGradeHistory?->start_date);
+    $latestPayLevelStartDate = $toDateInputValue($emp?->latestPayGradeHistory?->start_date);
+
     $normalizePayLevelKey = static function (?string $value): string {
         $normalized = strtoupper(trim((string) $value));
         $normalized = preg_replace('/\s+/u', '', $normalized) ?? $normalized;
@@ -13,9 +49,24 @@
     };
 
     $currentSkill = old('skill_name', $emp?->skill_name ?: $extra?->current_work_skill);
-    $currentPayLevel = old('employee_grade', $emp?->employee_grade ?: $extra?->current_salary_type);
+    $currentPayLevel = old(
+        'employee_grade',
+        $emp?->employee_grade
+            ?: $extra?->current_salary_type
+            ?: $activePayLevelName
+            ?: $activePayLevelCode
+            ?: $latestPayLevelName
+            ?: $latestPayLevelCode
+    );
     $currentTechnicalRoleType = old('technical_role_type', $extra?->technical_role_type);
     $currentFrameworkType = old('framework_type', $extra?->framework_type);
+    $currentLastPromotionDate = old(
+        'promotion_date',
+        $activePayLevelStartDate
+            ?: $latestPayLevelStartDate
+            ?: $toDateInputValue($emp?->promotion_date)
+            ?: ''
+    );
     $employeeTypes = collect($employee_types ?? []);
     $selectedEmployeeTypeId = old('employee_type_id', (string) ($emp?->employee_type_id ?? ''));
     $isCreateEmployeeForm = $emp === null;
@@ -27,7 +78,7 @@
     }
 
     $currentPositionLabel = $emp?->position?->position_name_km ?: ($emp?->position?->position_name ?: '');
-    $currentPositionStartDate = old('current_position_start_date', $extra?->current_position_start_date?->format('Y-m-d'));
+    $currentPositionStartDate = old('current_position_start_date', $toDateInputValue($extra?->current_position_start_date));
 
     if (empty($currentPositionStartDate) && $emp) {
         $postings = $emp->unitPostings()
@@ -45,11 +96,11 @@
                     break;
                 }
 
-                $resolvedRoleStartDate = optional($posting->start_date)->format('Y-m-d') ?: $resolvedRoleStartDate;
+                $resolvedRoleStartDate = $toDateInputValue($posting->start_date) ?: $resolvedRoleStartDate;
             }
         }
 
-        $currentPositionStartDate = $resolvedRoleStartDate ?: ($emp->service_start_date ?: $emp->joining_date);
+        $currentPositionStartDate = $resolvedRoleStartDate ?: $toDateInputValue($emp->service_start_date ?: $emp->joining_date);
     }
 
     $payLevelKmByCode = [];
@@ -80,9 +131,6 @@
 
 <div class="gov-section-card mb-3">
     <h6 class="gov-section-title">{{ localize('current_work_information') }}</h6>
-    <input type="hidden" name="current_work_skill" id="current_work_skill" value="{{ $currentSkill }}">
-    <input type="hidden" name="current_salary_type" id="current_salary_type" value="{{ $currentPayLevel }}">
-
     <div class="form-group mb-2 mx-0 row">
         <label for="employee_type_id" class="col-lg-3 col-form-label ps-0">
             {{ localize('employee_type') }}
@@ -143,7 +191,7 @@
     </div>
 
     <div class="form-group mb-2 mx-0 row">
-        <label for="employee_grade" class="col-lg-3 col-form-label ps-0">{{ localize('pay_level_type') }}</label>
+        <label for="employee_grade" class="col-lg-3 col-form-label ps-0">{{ app()->getLocale() === 'km' ? 'ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់' : 'Pay framework, rank, and grade' }}</label>
         <div class="col-lg-9">
             @if ($payLevels->isNotEmpty())
                 <select name="employee_grade" id="employee_grade" class="form-select">
@@ -204,7 +252,15 @@
         <div class="col-lg-9">
             <input type="date" name="current_position_document_date" id="current_position_document_date"
                 class="form-control"
-                value="{{ old('current_position_document_date', $extra?->current_position_document_date?->format('Y-m-d')) }}">
+                value="{{ old('current_position_document_date', $toDateInputValue($extra?->current_position_document_date)) }}">
+        </div>
+    </div>
+
+    <div class="form-group mb-2 mx-0 row">
+        <label for="promotion_date" class="col-lg-3 col-form-label ps-0">{{ app()->getLocale() === 'km' ? 'ថ្ងៃឡើងថ្នាក់ចុងក្រោយ' : 'Last promotion date' }}</label>
+        <div class="col-lg-9">
+            <input type="date" name="promotion_date" id="promotion_date" class="form-control"
+                value="{{ $currentLastPromotionDate }}">
         </div>
     </div>
 
@@ -241,7 +297,7 @@
         <label for="registration_date" class="col-lg-3 col-form-label ps-0">{{ localize('registration_date') }}</label>
         <div class="col-lg-9">
             <input type="date" name="registration_date" id="registration_date" class="form-control"
-                value="{{ old('registration_date', $extra?->registration_date?->format('Y-m-d')) }}">
+                value="{{ old('registration_date', $toDateInputValue($extra?->registration_date)) }}">
         </div>
     </div>
 
@@ -277,10 +333,8 @@
         var serviceStartInput = document.getElementById('service_start_date');
         var roleDisplay = document.getElementById('current_role_display');
         var roleStartInput = document.getElementById('current_position_start_date');
-        var skillSelect = document.getElementById('skill_name');
-        var payLevelSelect = document.getElementById('employee_grade');
-        var hiddenSkill = document.getElementById('current_work_skill');
-        var hiddenPayLevel = document.getElementById('current_salary_type');
+        var payLevelInput = document.getElementById('employee_grade');
+        var promotionDateInput = document.getElementById('promotion_date');
 
         var syncCurrentRole = function () {
             if (!positionSelect || !roleDisplay) {
@@ -288,20 +342,6 @@
             }
             var selected = positionSelect.options[positionSelect.selectedIndex];
             roleDisplay.value = selected ? selected.text.trim() : '';
-        };
-
-        var syncCurrentSkill = function () {
-            if (!hiddenSkill || !skillSelect) {
-                return;
-            }
-            hiddenSkill.value = skillSelect.value || '';
-        };
-
-        var syncCurrentPayLevel = function () {
-            if (!hiddenPayLevel || !payLevelSelect) {
-                return;
-            }
-            hiddenPayLevel.value = payLevelSelect.value || '';
         };
 
         var syncRoleStartFromServiceDate = function () {
@@ -314,6 +354,21 @@
             }
         };
 
+        var placePromotionDateNextToPayLevel = function () {
+            if (!payLevelInput || !promotionDateInput) {
+                return;
+            }
+
+            var payLevelRow = payLevelInput.closest('.form-group.row');
+            var promotionDateRow = promotionDateInput.closest('.form-group.row');
+
+            if (!payLevelRow || !promotionDateRow || payLevelRow.nextElementSibling === promotionDateRow) {
+                return;
+            }
+
+            payLevelRow.insertAdjacentElement('afterend', promotionDateRow);
+        };
+
         if (positionSelect) {
             positionSelect.addEventListener('change', syncCurrentRole);
             syncCurrentRole();
@@ -324,17 +379,7 @@
             syncRoleStartFromServiceDate();
         }
 
-        if (skillSelect) {
-            skillSelect.addEventListener('change', syncCurrentSkill);
-            skillSelect.addEventListener('input', syncCurrentSkill);
-            syncCurrentSkill();
-        }
-
-        if (payLevelSelect) {
-            payLevelSelect.addEventListener('change', syncCurrentPayLevel);
-            payLevelSelect.addEventListener('input', syncCurrentPayLevel);
-            syncCurrentPayLevel();
-        }
+        placePromotionDateNextToPayLevel();
     })();
 </script>
 @endpush

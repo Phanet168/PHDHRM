@@ -1,0 +1,8 @@
+{
+    "private": true,
+    "scripts": {
+        "dev": "mix",
+        "watch": "mix watch",
+        "prod": "mix --production"
+    }
+}

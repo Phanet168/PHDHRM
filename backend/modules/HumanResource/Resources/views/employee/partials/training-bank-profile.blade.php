@@ -1,9 +1,40 @@
 @php
     $emp = $employee ?? null;
 
+    $modelDateValue = static function ($model, string $key): string {
+        if (!is_object($model)) {
+            return '';
+        }
+
+        if (method_exists($model, 'getRawOriginal')) {
+            $raw = trim((string) $model->getRawOriginal($key));
+            if ($raw !== '') {
+                return $raw;
+            }
+        }
+
+        $value = $model->{$key} ?? null;
+        if ($value instanceof \Carbon\CarbonInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        return trim((string) $value);
+    };
+
     $educationRows = old('education_histories');
     if (!is_array($educationRows)) {
-        $educationRows = $emp ? $emp->educationHistories->map(fn($r) => $r->toArray())->toArray() : [];
+        $educationRows = $emp
+            ? $emp->educationHistories->map(function ($r) use ($modelDateValue) {
+                return [
+                    'institution_name' => $r->institution_name,
+                    'start_date' => $modelDateValue($r, 'start_date'),
+                    'end_date' => $modelDateValue($r, 'end_date'),
+                    'degree_level' => $r->degree_level,
+                    'major_subject' => $r->major_subject,
+                    'note' => $r->note,
+                ];
+            })->toArray()
+            : [];
     }
     if (empty($educationRows)) {
         $educationRows = [[]];
@@ -11,7 +42,20 @@
 
     $languageRows = old('foreign_languages');
     if (!is_array($languageRows)) {
-        $languageRows = $emp ? $emp->foreignLanguages->map(fn($r) => $r->toArray())->toArray() : [];
+        $languageRows = $emp
+            ? $emp->foreignLanguages->map(function ($r) use ($modelDateValue) {
+                return [
+                    'language_name' => $r->language_name,
+                    'speaking_level' => $r->speaking_level,
+                    'reading_level' => $r->reading_level,
+                    'writing_level' => $r->writing_level,
+                    'institution_name' => $r->institution_name,
+                    'start_date' => $modelDateValue($r, 'start_date'),
+                    'end_date' => $modelDateValue($r, 'end_date'),
+                    'result' => $r->result,
+                ];
+            })->toArray()
+            : [];
     }
     if (empty($languageRows)) {
         $languageRows = [[]];

@@ -203,33 +203,9 @@ class OrgHierarchyAccessService
                 => null,
 
             default  // self_and_children
-                => $this->isOwnOnlyDepartment($departmentId)
-                    ? [$departmentId]
-                    : $this->orgUnitRuleService->branchIdsIncludingSelf($departmentId),
+                // Use the same standard hierarchy expansion for hospitals and all other units.
+                => $this->orgUnitRuleService->branchIdsIncludingSelf($departmentId),
         };
-    }
-
-    /**
-     * Provincial hospital should manage own unit only.
-     */
-    protected function isOwnOnlyDepartment(int $departmentId): bool
-    {
-        $dept = Department::withoutGlobalScopes()
-            ->with('unitType:id,code')
-            ->select('id', 'unit_type_id')
-            ->find($departmentId);
-
-        if (!$dept) {
-            return false;
-        }
-
-        $unitTypeCode = (string) optional($dept->unitType)->code;
-        if ($unitTypeCode !== '') {
-            return $unitTypeCode === 'provincial_hospital';
-        }
-
-        // Fallback for legacy data where relation/code is unavailable.
-        return (int) $dept->unit_type_id === 6;
     }
 
     /**

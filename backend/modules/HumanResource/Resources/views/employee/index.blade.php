@@ -210,6 +210,15 @@
         #employee-table tr.employee-unit-group-row td {
             white-space: normal;
         }
+
+        .profile-completion-popover {
+            text-decoration: none;
+            line-height: 1;
+        }
+
+        .profile-completion-popover:focus {
+            box-shadow: none;
+        }
     </style>
 @endpush
 @section('content')
@@ -358,6 +367,95 @@
             }
 
             var $ = window.jQuery;
+            var authReloadPending = false;
+
+            function initProfileCompletionPopovers(scope) {
+                if (!window.bootstrap || !window.bootstrap.Popover) {
+                    return;
+                }
+
+                var elements = (scope || document).querySelectorAll('.profile-completion-popover');
+                elements.forEach(function(el) {
+                    var existing = window.bootstrap.Popover.getInstance(el);
+                    if (existing) {
+                        existing.dispose();
+                    }
+
+                    new window.bootstrap.Popover(el, {
+                        container: 'body',
+                        sanitize: false
+                    });
+                });
+            }
+
+            function escapeHtml(value) {
+                return String(value || '').replace(/[&<>"']/g, function(char) {
+                    return ({
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#039;'
+                    })[char] || char;
+                });
+            }
+
+            $(document).on('click', '.profile-completion-popover', function(e) {
+                var title = this.getAttribute('data-profile-title') || 'ស្ថានភាពព័ត៌មាន';
+                var message = this.getAttribute('data-profile-message') || '';
+                var html = escapeHtml(message).replace(/\n/g, '<br>');
+
+                if (window.Swal && typeof window.Swal.fire === 'function') {
+                    e.preventDefault();
+                    window.Swal.fire({
+                        title: title,
+                        html: html,
+                        icon: 'info',
+                        confirmButtonText: 'បិទ'
+                    });
+                }
+            });
+
+            function showAjaxError(message) {
+                var text = message || 'មានបញ្ហាក្នុងការទាញយកបញ្ជីមន្រ្តី។ សូម refresh ទំព័រម្តងទៀត។';
+
+                if (window.Swal && typeof window.Swal.fire === 'function') {
+                    window.Swal.fire({
+                        icon: 'warning',
+                        text: text,
+                        confirmButtonText: 'យល់ព្រម'
+                    });
+                    return;
+                }
+
+                window.alert(text);
+            }
+
+            function handleDataTableAjaxIssue(xhr) {
+                var status = xhr && typeof xhr.status !== 'undefined' ? Number(xhr.status) : 0;
+
+                if (status === 401 || status === 419) {
+                    if (!authReloadPending) {
+                        authReloadPending = true;
+                        showAjaxError('Session បានផុតកំណត់។ ប្រព័ន្ធនឹង reload ទំព័រវិញ។');
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1200);
+                    }
+                    return true;
+                }
+
+                if (status >= 500) {
+                    showAjaxError('Server មានបញ្ហាក្នុងការទាញយកបញ្ជីមន្រ្តី។ សូមសាកម្តងទៀត។');
+                    return true;
+                }
+
+                return false;
+            }
+
+            if ($.fn.dataTable && $.fn.dataTable.ext) {
+                $.fn.dataTable.ext.errMode = 'none';
+            }
 
             function renderGroups($table) {
                 var dt = $table.DataTable();
@@ -408,6 +506,18 @@
                     return segments.length ? segments : ['-'];
                 };
 
+                var buildGroupRowHtml = function(depth, numbering, label, stats) {
+                    var indentPx = depth * 18;
+                    var prefix = depth > 0 ? '- ' : '';
+                    var rowClass = 'employee-unit-group-row depth-' + depth + (depth === 0 ? ' employee-unit-main-group-row' : ' employee-unit-sub-group-row');
+
+                    return '<tr class="' + rowClass + '"><td colspan="' + colCount + '">' +
+                        '<span style="display:inline-block;padding-left:' + indentPx + 'px;">' +
+                        escapeHtml(prefix + toKhmerDigits(numbering) + ' ' + label) +
+                        ' <span class="ms-2 text-muted fw-normal">(' + escapeHtml(statsLabel(stats)) + ')</span>' +
+                        '</span></td></tr>';
+                };
+
                 $table.find('tbody tr.employee-unit-main-group-row, tbody tr.employee-unit-sub-group-row, tbody tr.employee-unit-group-row').remove();
 
                 // First pass: aggregate totals for each hierarchy node path on current page.
@@ -450,21 +560,11 @@
                         lastPathByDepth.length = d + 1;
 
                         var numbering = counters.slice(0, d + 1).join('.');
-                        var khNumbering = toKhmerDigits(numbering);
                         var stats = groupStats[key] || initStats();
-                        var indentPx = d * 18;
-                        var prefix = d > 0 ? '- ' : '';
-                        var rowClass = 'employee-unit-group-row depth-' + d + (d === 0 ? ' employee-unit-main-group-row' : ' employee-unit-sub-group-row');
 
                         $(rows)
                             .eq(i)
-                            .before(
-                                '<tr class="' + rowClass + '"><td colspan="' + colCount + '">' +
-                                '<span style="display:inline-block;padding-left:' + indentPx + 'px;">' +
-                                escapeHtml(prefix + khNumbering + ' ' + segments[d]) +
-                                ' <span class="ms-2 text-muted fw-normal">(' + escapeHtml(statsLabel(stats)) + ')</span>' +
-                                '</span></td></tr>'
-                            );
+                            .before(buildGroupRowHtml(d, numbering, segments[d], stats));
 
                         emitted[key] = true;
                     }
@@ -477,14 +577,27 @@
                 }
                 if ($table.data('employee-group-bound') === true) {
                     renderGroups($table);
+                    initProfileCompletionPopovers($table[0]);
                     return;
                 }
 
                 $table.data('employee-group-bound', true);
+                $table.on('xhr.dt.employeeGroup', function(e, settings, json, xhr) {
+                    handleDataTableAjaxIssue(xhr);
+                });
+                $table.on('error.dt.employeeGroup', function(e, settings, techNote, message) {
+                    if (settings && settings.jqXHR && handleDataTableAjaxIssue(settings.jqXHR)) {
+                        return;
+                    }
+
+                    showAjaxError(message || 'មានបញ្ហាក្នុងការទាញយកបញ្ជីមន្រ្តី។');
+                });
                 $table.on('draw.dt.employeeGroup', function() {
                     renderGroups($table);
+                    initProfileCompletionPopovers($table[0]);
                 });
                 renderGroups($table);
+                initProfileCompletionPopovers($table[0]);
             }
 
             function tryBindNow() {

@@ -33,7 +33,7 @@ class EmployeeStatusTransitionService
         $toStatusName = $this->normalizeKhmerText($toStatusName);
 
         $transitionType = trim((string) ($payload['transition_type'] ?? 'status_change'));
-        if (in_array($transitionType, ['transfer', 'transfer_in', 'transfer_out'], true)) {
+        if (in_array($transitionType, ['transfer', 'transfer_in'], true)) {
             $toStatusName = $this->defaultActiveStatusName();
         }
 
@@ -42,6 +42,7 @@ class EmployeeStatusTransitionService
         }
 
         $classification = $this->classifyEmploymentStatusFromName($toStatusName);
+        $classification = $this->applyForcedClassificationOverrides($classification, $payload);
 
         $from = [
             'work_status_name' => trim((string) ($employee->work_status_name ?? '')),
@@ -181,7 +182,7 @@ class EmployeeStatusTransitionService
 
     protected function latestWorkHistoryRecord(Employee $employee): ?EmployeeWorkHistory
     {
-        return EmployeeWorkHistory::query()
+        $query = EmployeeWorkHistory::query()
             ->where('employee_id', $employee->id)
             ->whereNotNull('work_status_name')
             ->where('work_status_name', '<>', '')
@@ -189,8 +190,15 @@ class EmployeeStatusTransitionService
             ->orderByDesc('start_date')
             ->orderByRaw('CASE WHEN document_date IS NULL THEN 1 ELSE 0 END ASC')
             ->orderByDesc('document_date')
-            ->orderByDesc('id')
-            ->first();
+            ->orderByDesc('id');
+
+        foreach ($query->cursor() as $history) {
+            if ($this->canDriveCurrentStatusFromWorkHistory($history->work_status_name)) {
+                return $history;
+            }
+        }
+
+        return null;
     }
 
     protected function classifyEmploymentStatusFromName(string $status): array
@@ -235,6 +243,26 @@ class EmployeeStatusTransitionService
         ];
     }
 
+    protected function applyForcedClassificationOverrides(array $classification, array $payload): array
+    {
+        $forcedState = trim((string) ($payload['force_service_state'] ?? ''));
+        if (in_array($forcedState, ['active', 'suspended', 'inactive'], true)) {
+            $classification['service_state'] = $forcedState;
+            $classification['is_active'] = $forcedState !== 'inactive';
+            $classification['is_left'] = $forcedState === 'inactive';
+        }
+
+        if (array_key_exists('force_is_active', $payload)) {
+            $classification['is_active'] = (bool) $payload['force_is_active'];
+        }
+
+        if (array_key_exists('force_is_left', $payload)) {
+            $classification['is_left'] = (bool) $payload['force_is_left'];
+        }
+
+        return $classification;
+    }
+
     protected function masterTransitionGroupByStatusName(string $statusName): ?string
     {
         $normalized = $this->normalizeStatusKey($statusName);
@@ -247,7 +275,7 @@ class EmployeeStatusTransitionService
         }
 
         $selectColumns = [];
-        foreach (['name_en', 'name_km', 'transition_group'] as $column) {
+        foreach (['name_en', 'name_km', 'transition_group', 'is_active'] as $column) {
             if (Schema::hasColumn('employee_statuses', $column)) {
                 $selectColumns[] = $column;
             }
@@ -268,6 +296,11 @@ class EmployeeStatusTransitionService
             }
 
             $group = trim((string) ($row->transition_group ?? ''));
+            $isMasterActive = !array_key_exists('is_active', $row->getAttributes()) || (bool) ($row->is_active ?? true);
+            if (!$isMasterActive && $this->isTransferOutStatusName((string) ($row->name_km ?? ''), (string) ($row->name_en ?? ''))) {
+                return 'inactive';
+            }
+
             if (in_array($group, ['active', 'suspended', 'inactive'], true)) {
                 return $group;
             }
@@ -291,6 +324,74 @@ class EmployeeStatusTransitionService
         }
 
         return null;
+    }
+
+    protected function isTransferOutStatusName(string ...$candidates): bool
+    {
+        foreach ($candidates as $candidate) {
+            $normalized = trim((string) $this->normalizeKhmerText($candidate));
+            if ($normalized !== '' && str_contains($normalized, 'ផ្ទេរបុគ្គលិកចេញ')) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function canDriveCurrentStatusFromWorkHistory(?string $statusName): bool
+    {
+        $statusName = trim((string) $this->normalizeKhmerText((string) $statusName));
+        if ($statusName === '') {
+            return false;
+        }
+
+        if ($this->masterTransitionGroupByStatusName($statusName) !== null) {
+            return true;
+        }
+
+        $statusKey = $this->normalizeStatusKey($statusName);
+        if ($statusKey === '') {
+            return false;
+        }
+
+        $legacyMeta = $this->legacyWorkStatusMeta();
+        if (isset($legacyMeta['by_key'][$statusKey])) {
+            return true;
+        }
+
+        $defaultActiveKey = $this->normalizeStatusKey($this->defaultActiveStatusName());
+        if ($defaultActiveKey !== '' && $statusKey === $defaultActiveKey) {
+            return true;
+        }
+
+        $value = mb_strtolower($statusName);
+
+        return $this->statusContainsAny($value, [
+            'active',
+            'in service',
+            'returned',
+            'reinstated',
+            'return to work',
+            'back to work',
+            'retired',
+            'retire',
+            'deceased',
+            'dead',
+            'death',
+            'dismissed',
+            'terminated',
+            'removed',
+            'transfer out',
+            'resigned',
+            'inactive',
+            'without pay',
+            'absent without pay',
+            'suspend',
+            'suspended',
+            'study leave',
+            'no salary',
+            'leave without pay',
+        ]);
     }
 
     protected function inferServiceStateFromStatusKeywords(string $status): string

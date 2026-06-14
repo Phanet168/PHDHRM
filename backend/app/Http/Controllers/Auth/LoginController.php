@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Providers\RouteServiceProvider;
+use App\Services\Security\EmployeeLoginResolver;
 use Illuminate\Foundation\Auth\AuthenticatesUsers;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class LoginController extends Controller {
 
@@ -36,7 +36,7 @@ class LoginController extends Controller {
      *
      * @return void
      */
-    public function __construct() {
+    public function __construct(private readonly EmployeeLoginResolver $employeeLoginResolver) {
         $this->middleware('guest')->except('logout');
     }
 
@@ -49,13 +49,16 @@ class LoginController extends Controller {
         $request->merge([$this->username() => $login]);
 
         $request->validate([
-            $this->username() => ['required', 'string'],
+            $this->username() => [
+                'required',
+                'string',
+            ],
             'password' => ['required', 'string'],
         ]);
     }
 
     /**
-     * Use a single login field that accepts email or username.
+     * Use a single login field that accepts official code or username.
      */
     public function username(): string
     {
@@ -68,13 +71,11 @@ class LoginController extends Controller {
     protected function credentials(Request $request): array
     {
         $login = trim((string) $request->input($this->username(), $request->input('email', '')));
-        $field = filter_var($login, FILTER_VALIDATE_EMAIL) ? 'email' : 'user_name';
-        $normalizedLogin = $field === 'user_name' ? mb_strtolower($login, 'UTF-8') : $login;
+        $lookup = $this->employeeLoginResolver->resolveCredentialsLookup($login);
 
-        return [
-            $field => $normalizedLogin,
+        return array_merge($lookup, [
             'password' => (string) $request->input('password'),
-        ];
+        ]);
     }
 
     public function showLoginForm() {

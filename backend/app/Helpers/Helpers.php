@@ -3,6 +3,7 @@
 use Carbon\Carbon;
 use App\Models\Appsetting;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Modules\Accounts\Entities\AccCoa;
 use Modules\Localize\Entities\Language;
 use Modules\Accounts\Entities\AccVoucher;
@@ -51,12 +52,24 @@ function parentMenu($menuId)
 if (!function_exists('app_setting')) {
     function app_setting()
     {
-        $appSetting = Cache::remember('appSetting', 3600, function () {
-            return Application::with(['currency', 'lang'])->first();
-        });
+        try {
+            $appSetting = Cache::remember('appSetting', 3600, function () {
+                return Application::with(['currency', 'lang'])->first();
+            });
+        } catch (\Throwable $e) {
+            Log::warning('Failed to load application settings.', [
+                'message' => $e->getMessage(),
+            ]);
+
+            $appSetting = null;
+        }
 
         if (!$appSetting) {
-            return new Application();
+            $appSetting = new Application();
+        }
+
+        if (empty($appSetting->title)) {
+            $appSetting->title = (string) config('app.name', 'HRM');
         }
 
         if (!empty($appSetting->logo) && file_exists(storage_path('app/public/' . $appSetting->logo))) {
@@ -95,21 +108,34 @@ if (!function_exists('app_setting')) {
 if (!function_exists('otp_setting')) {
     function otp_setting(): ?Appsetting
     {
-        return Cache::remember('otp_setting', 300, function () {
-            return Appsetting::query()->first();
-        });
+        try {
+            return Cache::remember('otp_setting', 300, function () {
+                return Appsetting::query()->first();
+            });
+        } catch (\Throwable $e) {
+            Log::warning('Failed to load OTP settings.', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 }
 
 if (!function_exists('otp_required')) {
     function otp_required(): bool
     {
+        $configRequired = (bool) config('security.otp.required', false);
+        if ($configRequired === false) {
+            return false;
+        }
+
         $setting = otp_setting();
         if ($setting && $setting->otp_required !== null) {
             return (bool) $setting->otp_required;
         }
 
-        return (bool) config('security.otp.required', true);
+        return $configRequired;
     }
 }
 

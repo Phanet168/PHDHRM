@@ -1,5 +1,6 @@
 @extends('backend.layouts.app')
-@section('title', 'គ្រប់គ្រងផ្លាស់ប្តូរកន្លែងការងារ')
+@section('title', 'គ្រប់គ្រងផ្ទេរកន្លែងការងារ')
+
 @push('css')
     <style>
         .employee-org-combo {
@@ -192,10 +193,15 @@
     @include('humanresource::employee_header')
     @include('backend.layouts.common.validation')
 
+    @php
+        $canAdminEdit = auth()->check() && auth()->user()->admin() && auth()->user()->can('update_employee');
+        $canAdminDelete = auth()->check() && auth()->user()->admin() && auth()->user()->can('delete_employee');
+    @endphp
+
     <div class="card mb-3 fixed-tab-body">
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <h6 class="fs-17 fw-semi-bold mb-0">គ្រប់គ្រងផ្លាស់ប្តូរកន្លែងការងារ</h6>
+                <h6 class="fs-17 fw-semi-bold mb-0">គ្រប់គ្រងផ្ទេរកន្លែងការងារ</h6>
                 <form method="GET" action="{{ route('employee-workplace-transfers.index') }}" class="d-flex gap-2">
                     <input type="number" class="form-control form-control-sm" name="year" value="{{ $year }}"
                         min="1950" max="2100" style="width: 120px;">
@@ -206,15 +212,22 @@
 
         <div class="card-body">
             <div class="alert alert-info mb-3">
-                រាល់ពេលផ្លាស់ប្តូរកន្លែងការងារ ប្រព័ន្ធនឹងកត់ត្រាទៅក្នុង <strong>ប្រវត្តការងារ</strong> និង
-                <strong>ប្រវត្តសេវាកម្ម</strong> ដោយស្វ័យប្រវត្តិ។
+                រាល់ពេលផ្ទេរកន្លែងការងារ ប្រព័ន្ធនឹងកត់ត្រាទៅក្នុង <strong>ប្រវត្តិការងារ</strong> និង
+                <strong>ប្រវត្តិសេវាកម្ម</strong> ដោយស្វ័យប្រវត្តិ។
             </div>
 
             <form action="{{ route('employee-workplace-transfers.store') }}" method="POST" class="mb-4">
                 @csrf
 
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label class="form-label">ប្រភេទផ្ទេរ <span class="text-danger">*</span></label>
+                        <select id="transfer_scope" name="transfer_scope" class="form-select" required>
+                            <option value="internal" {{ old('transfer_scope', 'internal') === 'internal' ? 'selected' : '' }}>ផ្ទេរក្នុងអង្គភាព/ក្នុងខេត្ត</option>
+                            <option value="external" {{ old('transfer_scope') === 'external' ? 'selected' : '' }}>ផ្ទេរចេញក្រៅខេត្ត/ក្រៅក្រសួង</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label">ជ្រើសមន្ត្រី <span class="text-danger">*</span></label>
                         <select id="employee_id" name="employee_id" class="form-select" required>
                             <option value="">-- ជ្រើសមន្ត្រី --</option>
@@ -228,12 +241,12 @@
                         </select>
                     </div>
 
-                    <div class="col-md-4">
+                    <div id="current-unit-col" class="col-md-3">
                         <label class="form-label">អង្គភាពបច្ចុប្បន្ន</label>
                         <input type="text" id="current_unit_label" class="form-control bg-light" readonly value="-">
                     </div>
 
-                    <div class="col-md-4">
+                    <div id="department-target-col" class="col-md-3">
                         <label class="form-label">អង្គភាពថ្មី (គោលដៅ) <span class="text-danger">*</span></label>
                         <div id="target-department-tree-combo" class="employee-org-combo"
                             data-all-label="{{ localize('select_department') }}">
@@ -272,9 +285,35 @@
                     </div>
                 </div>
 
+                <div id="transfer-out-fields" class="row g-3 mt-0 d-none">
+                    <div class="col-md-6">
+                        <label class="form-label">ស្ថានភាពការងារសម្រាប់ផ្ទេរចេញ <span class="text-danger">*</span></label>
+                        <select id="out_status_id" name="out_status_id" class="form-select">
+                            <option value="">-- ជ្រើសស្ថានភាពការងារ --</option>
+                            @foreach (($transfer_out_statuses ?? collect()) as $status)
+                                <option value="{{ $status->id }}" {{ (int) old('out_status_id') === (int) $status->id ? 'selected' : '' }}>
+                                    {{ $status->display_name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @if ($errors->has('out_status_id'))
+                            <div class="text-danger small mt-1">{{ $errors->first('out_status_id') }}</div>
+                        @endif
+                    </div>
+
+                    <div class="col-md-6">
+                        <label class="form-label">ទីតាំង/ក្រសួងគោលដៅ</label>
+                        <input type="text" id="target_location" name="target_location" class="form-control"
+                            value="{{ old('target_location') }}" placeholder="ឧ. ក្រសួងមហាផ្ទៃ / ខេត្តកំពង់ចាម">
+                        @if ($errors->has('target_location'))
+                            <div class="text-danger small mt-1">{{ $errors->first('target_location') }}</div>
+                        @endif
+                    </div>
+                </div>
+
                 <div class="row g-3 mt-0">
                     <div class="col-md-3">
-                        <label class="form-label">ថ្ងៃមានប្រសិទ្ធិភាព <span class="text-danger">*</span></label>
+                        <label class="form-label">ថ្ងៃមានប្រសិទ្ធភាព <span class="text-danger">*</span></label>
                         <input type="date" name="effective_date" class="form-control"
                             value="{{ old('effective_date', now()->toDateString()) }}" required>
                     </div>
@@ -312,32 +351,64 @@
                             <th>មន្ត្រី</th>
                             <th>អង្គភាពចាស់</th>
                             <th>អង្គភាពថ្មី</th>
-                            <th>ថ្ងៃមានប្រសិទ្ធិភាព</th>
+                            <th>ថ្ងៃមានប្រសិទ្ធភាព</th>
                             <th>លេខលិខិត</th>
                             <th>ថ្ងៃខែលិខិត</th>
                             <th>សម្គាល់</th>
+                            @if ($canAdminEdit || $canAdminDelete)
+                                <th width="12%">Action</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse ($transfers as $transfer)
-                            @php
-                                $newUnit = $transfer->department?->department_name ?: '-';
-                                $oldUnit = $previous_unit_labels[$transfer->id] ?? '-';
-                                $displayNote = trim(str_replace('[WORKPLACE_TRANSFER] |', '', (string) $transfer->note));
-                            @endphp
+                        @forelse (($transfer_rows ?? collect()) as $transfer)
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
-                                <td>{{ $transfer->employee?->employee_id }} - {{ $transfer->employee?->full_name ?? '-' }}</td>
-                                <td>{{ $oldUnit }}</td>
-                                <td>{{ $newUnit }}</td>
-                                <td>{{ display_date($transfer->start_date) }}</td>
-                                <td>{{ $transfer_documents[$transfer->id]['document_reference'] ?? '-' }}</td>
-                                <td>{{ display_date($transfer_documents[$transfer->id]['document_date'] ?? null) }}</td>
-                                <td>{{ $displayNote !== '' ? $displayNote : '-' }}</td>
+                                <td>{{ $transfer['employee_label'] }}</td>
+                                <td>{{ $transfer['from_unit'] }}</td>
+                                <td>{{ $transfer['to_unit'] }}</td>
+                                <td>{{ display_date($transfer['effective_date'] ?? null) }}</td>
+                                <td>{{ $transfer['document_reference'] ?: '-' }}</td>
+                                <td>{{ display_date($transfer['document_date'] ?? null) }}</td>
+                                <td>{{ $transfer['note'] }}</td>
+                                @if ($canAdminEdit || $canAdminDelete)
+                                    <td>
+                                        @if ($transfer['editable'])
+                                            <div class="d-flex gap-1">
+                                            @if ($canAdminEdit)
+                                                <button type="button"
+                                                    class="btn btn-sm btn-outline-primary js-edit-workplace-transfer"
+                                                    data-id="{{ $transfer['source_model']->id }}"
+                                                    data-employee="{{ $transfer['employee_label'] }}"
+                                                    data-department-id="{{ $transfer['source_model']->department_id }}"
+                                                    data-effective-date="{{ $transfer['effective_date'] ?? '' }}"
+                                                    data-document-reference="{{ $transfer['document_reference'] ?? '' }}"
+                                                    data-document-date="{{ $transfer['document_date'] ?? '' }}"
+                                                    data-note="{{ $transfer['note'] }}">
+                                                    <i class="fa fa-pencil"></i>
+                                                </button>
+                                            @endif
+                                            @if ($canAdminDelete)
+                                                <form action="{{ route('employee-workplace-transfers.destroy', $transfer['source_model']->id) }}"
+                                                    method="POST"
+                                                    onsubmit="return confirm('Delete this workplace transfer record?');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                        <i class="fa fa-trash"></i>
+                                                    </button>
+                                                </form>
+                                            @endif
+                                            </div>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
+                                    </td>
+                                @endif
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="8" class="text-center text-muted">មិនទាន់មានទិន្នន័យផ្លាស់ប្តូរកន្លែងការងារក្នុងឆ្នាំនេះទេ</td>
+                                <td colspan="{{ ($canAdminEdit || $canAdminDelete) ? 9 : 8 }}" class="text-center text-muted">មិនទាន់មានទិន្នន័យផ្ទេរកន្លែងការងារក្នុងឆ្នាំនេះទេ</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -345,6 +416,62 @@
             </div>
         </div>
     </div>
+
+    @if ($canAdminEdit)
+        <div class="modal fade" id="editWorkplaceTransferModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+                <div class="modal-content">
+                    <form id="editWorkplaceTransferForm" method="POST">
+                        @csrf
+                        @method('PATCH')
+                        <div class="modal-header">
+                            <h5 class="modal-title">Edit Workplace Transfer</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Employee</label>
+                                    <input type="text" id="edit_transfer_employee" class="form-control bg-light" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Target Department <span class="text-danger">*</span></label>
+                                    <select name="department_id" id="edit_transfer_department_id" class="form-select" required>
+                                        <option value="">{{ localize('select_department') }}</option>
+                                        @foreach (($org_unit_options ?? collect()) as $unit)
+                                            <option value="{{ $unit->id }}">
+                                                {{ $unit->path ?? $unit->label ?? ('#' . $unit->id) }}
+                                            </option>
+                                        @endforeach
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Effective Date <span class="text-danger">*</span></label>
+                                    <input type="date" name="effective_date" id="edit_transfer_effective_date" class="form-control" required>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Document Ref.</label>
+                                    <input type="text" name="document_reference" id="edit_transfer_document_reference" class="form-control">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Document Date</label>
+                                    <input type="date" name="document_date" id="edit_transfer_document_date" class="form-control">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Note</label>
+                                    <input type="text" name="note" id="edit_transfer_note" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                            <button type="submit" class="btn btn-primary">Save changes</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    @endif
 @endsection
 
 @push('js')
@@ -354,6 +481,12 @@
 
             var employeeSelect = document.getElementById('employee_id');
             var currentUnitInput = document.getElementById('current_unit_label');
+            var transferScopeSelect = document.getElementById('transfer_scope');
+            var departmentCol = document.getElementById('department-target-col');
+            var currentUnitCol = document.getElementById('current-unit-col');
+            var transferOutFields = document.getElementById('transfer-out-fields');
+            var departmentInput = document.getElementById('department_id');
+            var outStatusInput = document.getElementById('out_status_id');
 
             function refreshCurrentUnit() {
                 if (!employeeSelect || !currentUnitInput) {
@@ -369,10 +502,38 @@
                 currentUnitInput.value = option.getAttribute('data-current-unit') || '-';
             }
 
+            function refreshTransferScope() {
+                if (!transferScopeSelect) {
+                    return;
+                }
+
+                var isExternal = transferScopeSelect.value === 'external';
+
+                if (departmentCol) {
+                    departmentCol.classList.toggle('d-none', isExternal);
+                }
+                if (currentUnitCol) {
+                    currentUnitCol.classList.toggle('d-none', isExternal);
+                }
+                if (transferOutFields) {
+                    transferOutFields.classList.toggle('d-none', !isExternal);
+                }
+                if (departmentInput) {
+                    departmentInput.required = !isExternal;
+                }
+                if (outStatusInput) {
+                    outStatusInput.required = isExternal;
+                }
+            }
+
             if (employeeSelect) {
                 employeeSelect.addEventListener('change', refreshCurrentUnit);
             }
+            if (transferScopeSelect) {
+                transferScopeSelect.addEventListener('change', refreshTransferScope);
+            }
             refreshCurrentUnit();
+            refreshTransferScope();
         })();
 
         (function($) {
@@ -554,5 +715,37 @@
 
             markTreeSelection($department.val());
         })(window.jQuery);
+
+        (function() {
+            "use strict";
+
+            var modalElement = document.getElementById('editWorkplaceTransferModal');
+            var form = document.getElementById('editWorkplaceTransferForm');
+            if (!modalElement || !form || !window.bootstrap) {
+                return;
+            }
+
+            var modal = new bootstrap.Modal(modalElement);
+            var employeeInput = document.getElementById('edit_transfer_employee');
+            var departmentInput = document.getElementById('edit_transfer_department_id');
+            var effectiveDateInput = document.getElementById('edit_transfer_effective_date');
+            var documentReferenceInput = document.getElementById('edit_transfer_document_reference');
+            var documentDateInput = document.getElementById('edit_transfer_document_date');
+            var noteInput = document.getElementById('edit_transfer_note');
+            var baseAction = @json(url('hr/employee-workplace-transfers'));
+
+            document.querySelectorAll('.js-edit-workplace-transfer').forEach(function(button) {
+                button.addEventListener('click', function() {
+                    form.action = baseAction + '/' + button.getAttribute('data-id');
+                    employeeInput.value = button.getAttribute('data-employee') || '';
+                    departmentInput.value = button.getAttribute('data-department-id') || '';
+                    effectiveDateInput.value = button.getAttribute('data-effective-date') || '';
+                    documentReferenceInput.value = button.getAttribute('data-document-reference') || '';
+                    documentDateInput.value = button.getAttribute('data-document-date') || '';
+                    noteInput.value = button.getAttribute('data-note') || '';
+                    modal.show();
+                });
+            });
+        })();
     </script>
 @endpush

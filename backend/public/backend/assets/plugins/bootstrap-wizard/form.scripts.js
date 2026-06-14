@@ -18,6 +18,67 @@ function bar_progress(progress_line_object, direction) {
     progress_line_object.attr('style', 'width: ' + new_value + '%;').data('now-value', new_value);
 }
 
+function wizardShouldValidateField($field) {
+    if (typeof shouldValidateRequiredField === 'function') {
+        return shouldValidateRequiredField($field);
+    }
+
+    return $field.is(':enabled') && $field.is(':visible') && !$field.hasClass('skip-required');
+}
+
+function wizardFieldHasValue($form, $field) {
+    if (typeof fieldHasValue === 'function') {
+        return fieldHasValue($form, $field);
+    }
+
+    var type = (($field.attr('type') || '') + '').toLowerCase();
+
+    if (type === 'radio' || type === 'checkbox') {
+        var name = $field.attr('name');
+        if (!name) {
+            return $field.is(':checked');
+        }
+        return $form.find('[name="' + name + '"]:checked').length > 0;
+    }
+
+    if ($field.is('select') && $field.prop('multiple')) {
+        var values = $field.val() || [];
+        return Array.isArray(values) ? values.length > 0 : false;
+    }
+
+    return $.trim(($field.val() || '') + '') !== '';
+}
+
+function wizardValidationMessage() {
+    if (typeof validationMessage === 'function') {
+        return validationMessage();
+    }
+    return 'Please fill all required fields.';
+}
+
+function wizardFocusFirstError($form) {
+    if (typeof jumpToFirstValidationError === 'function') {
+        jumpToFirstValidationError($form);
+        return;
+    }
+
+    var $firstError = $form.find('.input-error, .is-invalid').filter(':enabled:visible').first();
+    if (!$firstError.length) {
+        return;
+    }
+
+    $('html, body').stop().animate({ scrollTop: Math.max($firstError.offset().top - 120, 0) }, 0);
+    $firstError.trigger('focus');
+}
+
+function wizardShowValidationError($form) {
+    if (typeof toastr !== 'undefined' && toastr && typeof toastr.error === 'function') {
+        toastr.error(wizardValidationMessage());
+    }
+
+    wizardFocusFirstError($form);
+}
+
 jQuery(document).ready(function () {
 
     // Form
@@ -30,6 +91,7 @@ jQuery(document).ready(function () {
 
     // next step
     $('.f1 .btn-next').on('click', function () {
+        var $form = $(this).parents('.f1');
         var parent_fieldset = $(this).parents('fieldset');
         var next_step = true;
         // navigation steps / progress steps
@@ -38,11 +100,17 @@ jQuery(document).ready(function () {
 
         // fields validation
         parent_fieldset.find('.required-field').each(function () {
-            if ($(this).val() === "") {
-                $(this).addClass('input-error');
+            var $field = $(this);
+            if (!wizardShouldValidateField($field)) {
+                $field.removeClass('input-error');
+                return;
+            }
+
+            if (!wizardFieldHasValue($form, $field)) {
+                $field.addClass('input-error');
                 next_step = false;
             } else {
-                $(this).removeClass('input-error');
+                $field.removeClass('input-error');
             }
         });
         // fields validation
@@ -58,6 +126,8 @@ jQuery(document).ready(function () {
                 // scroll window to beginning of the form
                 scroll_to_class($('.f1'), 20);
             });
+        } else {
+            wizardShowValidationError($form);
         }
 
     });
@@ -82,17 +152,30 @@ jQuery(document).ready(function () {
 
     // submit
     $('.f1').on('submit', function (e) {
+        var $form = $(this);
+        var hasError = false;
 
         // fields validation
-        $(this).find('.required-field').each(function () {
-            if ($(this).val() === "") {
-                e.preventDefault();
-                $(this).addClass('input-error');
+        $form.find('.required-field').each(function () {
+            var $field = $(this);
+            if (!wizardShouldValidateField($field)) {
+                $field.removeClass('input-error');
+                return;
+            }
+
+            if (!wizardFieldHasValue($form, $field)) {
+                hasError = true;
+                $field.addClass('input-error');
             } else {
-                $(this).removeClass('input-error');
+                $field.removeClass('input-error');
             }
         });
         // fields validation
+
+        if (hasError) {
+            e.preventDefault();
+            wizardShowValidationError($form);
+        }
 
     });
 

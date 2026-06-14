@@ -176,6 +176,7 @@
         }
 
         $declarationLead = $applicantPronoun . ' ';
+
     @endphp
 
     <style>
@@ -275,6 +276,7 @@
             height: 5.2cm;
             border: 1px solid #000;
             display: inline-block;
+            background: #fff;
         }
 
         .header-line {

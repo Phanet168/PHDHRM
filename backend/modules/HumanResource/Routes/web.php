@@ -84,111 +84,113 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
 
     Route::get('dashboard', [HumanResourceController::class, 'index'])->name('hr.dashboard');
 
-    Route::get('departments/import-template', [DepartmentController::class, 'importTemplate'])->name('departments.import-template');
-    Route::resource('departments', DepartmentController::class);
-    Route::get('sub-departments', [DepartmentController::class, 'getSubDepartments'])->name('sub-departments.index');
-    Route::get('get-employees', [DepartmentController::class, 'getEmployees'])->name('get-employees-department');
+    Route::middleware(['isAdmin', 'permission:read_human_resource_menu', 'permission:read_department|read_positions|read_setup_rules|read_org_governance'])->group(function () {
+        Route::get('departments/import-template', [DepartmentController::class, 'importTemplate'])->name('departments.import-template');
+        Route::resource('departments', DepartmentController::class);
+        Route::get('sub-departments', [DepartmentController::class, 'getSubDepartments'])->name('sub-departments.index');
+        Route::get('get-employees', [DepartmentController::class, 'getEmployees'])->name('get-employees-department');
 
-    Route::resource('genders', GenderController::class);
-    Route::resource('divisions', DivisionController::class);
-    Route::resource('positions', PositionController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy',
-    ]);
-    // Guard against malformed update submissions that target /positions without an id.
-    Route::match(['put', 'patch'], 'positions', [PositionController::class, 'index'])
-        ->name('positions.update.fallback');
-    Route::resource('professional-skills', ProfessionalSkillController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy',
-    ]);
-    Route::resource('employee-statuses', EmployeeStatusController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy',
-    ]);
-    Route::resource('org-unit-types', OrgUnitTypeController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy',
-    ]);
-    Route::resource('org-unit-type-positions', OrgUnitTypePositionController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy',
-    ]);
-    if ((bool) config('hr_governance.ui.show_advanced_central_governance', false)) {
-        Route::resource('user-org-roles', UserOrgRoleController::class)->only([
+        Route::resource('genders', GenderController::class);
+        Route::resource('divisions', DivisionController::class);
+        Route::resource('positions', PositionController::class)->only([
             'index',
             'store',
             'update',
             'destroy',
         ]);
-        Route::resource('user-assignments', UserAssignmentController::class)->only([
+        // Guard against malformed update submissions that target /positions without an id.
+        Route::match(['put', 'patch'], 'positions', [PositionController::class, 'index'])
+            ->name('positions.update.fallback');
+        Route::resource('professional-skills', ProfessionalSkillController::class)->only([
             'index',
             'store',
             'update',
             'destroy',
         ]);
-        Route::resource('responsibility-templates', ResponsibilityTemplateController::class)->only([
+        Route::resource('employee-statuses', EmployeeStatusController::class)->only([
             'index',
             'store',
             'update',
             'destroy',
         ]);
-        Route::resource('org-role-module-permissions', OrgRoleModulePermissionController::class)->only([
+        Route::resource('org-unit-types', OrgUnitTypeController::class)->only([
             'index',
             'store',
             'update',
             'destroy',
         ]);
-        Route::resource('system-roles', SystemRoleController::class)->only([
+        Route::resource('org-unit-type-positions', OrgUnitTypePositionController::class)->only([
             'index',
             'store',
             'update',
             'destroy',
         ]);
-        Route::get('user-org-roles-user-options', [UserOrgRoleController::class, 'userOptions'])
-            ->name('user-org-roles.user-options');
-        Route::get('user-assignments-user-options', [UserAssignmentController::class, 'userOptions'])
-            ->name('user-assignments.user-options');
-        Route::get('user-assignments-user-placement/{user}', [UserAssignmentController::class, 'userPlacement'])
-            ->name('user-assignments.user-placement');
-        Route::get('workflow-policies', [WorkflowPolicyController::class, 'index'])
-            ->name('workflow-policies.index');
-        Route::post('workflow-policies', [WorkflowPolicyController::class, 'store'])
-            ->name('workflow-policies.store');
-        Route::get('workflow-policies/preview', [WorkflowPolicyController::class, 'preview'])
-            ->name('workflow-policies.preview');
-        Route::patch('workflow-policies/{workflow_policy}', [WorkflowPolicyController::class, 'update'])
-            ->name('workflow-policies.update');
-        Route::delete('workflow-policies/{workflow_policy}', [WorkflowPolicyController::class, 'destroy'])
-            ->name('workflow-policies.destroy');
-    }
-    Route::get('org-structure/help/{article?}', [EmployeeHelpController::class, 'orgGovernanceHelp'])
-        ->middleware('permission:read_org_governance|read_department')
-        ->name('org-structure.help');
-    Route::resource('pay-levels', GovPayLevelController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy',
-    ]);
-    Route::resource('salary-scales', GovSalaryScaleController::class)->only([
-        'index',
-        'store',
-        'update',
-        'destroy',
-    ]);
-    Route::post('salary-scales/{uuid}/values', [GovSalaryScaleController::class, 'updateValues'])
-        ->name('salary-scales.values.update');
+        if ((bool) config('hr_governance.ui.show_advanced_central_governance', false)) {
+            Route::resource('user-org-roles', UserOrgRoleController::class)->only([
+                'index',
+                'store',
+                'update',
+                'destroy',
+            ]);
+            Route::resource('user-assignments', UserAssignmentController::class)->only([
+                'index',
+                'store',
+                'update',
+                'destroy',
+            ]);
+            Route::resource('responsibility-templates', ResponsibilityTemplateController::class)->only([
+                'index',
+                'store',
+                'update',
+                'destroy',
+            ]);
+            Route::resource('org-role-module-permissions', OrgRoleModulePermissionController::class)->only([
+                'index',
+                'store',
+                'update',
+                'destroy',
+            ]);
+            Route::resource('system-roles', SystemRoleController::class)->only([
+                'index',
+                'store',
+                'update',
+                'destroy',
+            ]);
+            Route::get('user-org-roles-user-options', [UserOrgRoleController::class, 'userOptions'])
+                ->name('user-org-roles.user-options');
+            Route::get('user-assignments-user-options', [UserAssignmentController::class, 'userOptions'])
+                ->name('user-assignments.user-options');
+            Route::get('user-assignments-user-placement/{user}', [UserAssignmentController::class, 'userPlacement'])
+                ->name('user-assignments.user-placement');
+            Route::get('workflow-policies', [WorkflowPolicyController::class, 'index'])
+                ->name('workflow-policies.index');
+            Route::post('workflow-policies', [WorkflowPolicyController::class, 'store'])
+                ->name('workflow-policies.store');
+            Route::get('workflow-policies/preview', [WorkflowPolicyController::class, 'preview'])
+                ->name('workflow-policies.preview');
+            Route::patch('workflow-policies/{workflow_policy}', [WorkflowPolicyController::class, 'update'])
+                ->name('workflow-policies.update');
+            Route::delete('workflow-policies/{workflow_policy}', [WorkflowPolicyController::class, 'destroy'])
+                ->name('workflow-policies.destroy');
+        }
+        Route::get('org-structure/help/{article?}', [EmployeeHelpController::class, 'orgGovernanceHelp'])
+            ->middleware('permission:read_org_governance|read_department')
+            ->name('org-structure.help');
+        Route::resource('pay-levels', GovPayLevelController::class)->only([
+            'index',
+            'store',
+            'update',
+            'destroy',
+        ]);
+        Route::resource('salary-scales', GovSalaryScaleController::class)->only([
+            'index',
+            'store',
+            'update',
+            'destroy',
+        ]);
+        Route::post('salary-scales/{uuid}/values', [GovSalaryScaleController::class, 'updateValues'])
+            ->name('salary-scales.values.update');
+    });
 
     Route::get('employees/help/{article?}', [EmployeeHelpController::class, 'index'])
         ->middleware('permission:read_employee')
@@ -202,11 +204,17 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
     Route::get('employee-pay-promotions/{proposal}/review', [EmployeePayPromotionController::class, 'review'])->name('employee-pay-promotions.review');
     Route::post('employee-pay-promotions/batch-action', [EmployeePayPromotionController::class, 'batchAction'])->name('employee-pay-promotions.batch-action');
     Route::post('employee-pay-promotions', [EmployeePayPromotionController::class, 'store'])->name('employee-pay-promotions.store');
+    Route::patch('employee-pay-promotions/{pay_history}', [EmployeePayPromotionController::class, 'updateHistory'])->name('employee-pay-promotions.update');
+    Route::delete('employee-pay-promotions/{pay_history}', [EmployeePayPromotionController::class, 'destroyHistory'])->name('employee-pay-promotions.destroy');
     Route::get('employee-position-promotions', [EmployeePositionPromotionController::class, 'index'])->name('employee-position-promotions.index');
     Route::get('employee-position-promotions/export', [EmployeePositionPromotionController::class, 'export'])->name('employee-position-promotions.export');
     Route::post('employee-position-promotions', [EmployeePositionPromotionController::class, 'store'])->name('employee-position-promotions.store');
+    Route::patch('employee-position-promotions/{employee_unit_posting}', [EmployeePositionPromotionController::class, 'update'])->name('employee-position-promotions.update');
+    Route::delete('employee-position-promotions/{employee_unit_posting}', [EmployeePositionPromotionController::class, 'destroy'])->name('employee-position-promotions.destroy');
     Route::get('employee-workplace-transfers', [EmployeeWorkplaceTransferController::class, 'index'])->name('employee-workplace-transfers.index');
     Route::post('employee-workplace-transfers', [EmployeeWorkplaceTransferController::class, 'store'])->name('employee-workplace-transfers.store');
+    Route::patch('employee-workplace-transfers/{employee_unit_posting}', [EmployeeWorkplaceTransferController::class, 'update'])->name('employee-workplace-transfers.update');
+    Route::delete('employee-workplace-transfers/{employee_unit_posting}', [EmployeeWorkplaceTransferController::class, 'destroy'])->name('employee-workplace-transfers.destroy');
     Route::get('employee-retirements', [EmployeeRetirementController::class, 'index'])->name('employee-retirements.index');
     Route::get('employee-retirements/report', [EmployeeRetirementController::class, 'report'])->name('employee-retirements.report');
     Route::post('employee-retirements/report/template', [EmployeeRetirementController::class, 'uploadTemplate'])->name('employee-retirements.report.template.upload');
@@ -222,6 +230,8 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
     Route::get('employee/download/{id:id}', [EmployeeController::class, 'download'])->name('employee.download');
     Route::get('employees/{id:id}/profile-print', [EmployeeController::class, 'printProfile'])->name('employees.profile.print');
     Route::get('employees/{id:id}/profile-print-detail', [EmployeeController::class, 'printDetailProfile'])->name('employees.profile.print-detail');
+    Route::get('employees/{id:id}/civil-servant-biography-download', [EmployeeController::class, 'downloadCivilServantBiography'])->name('employees.profile.download-civil-servant-biography');
+    Route::get('employees/{id:id}/civil-servant-biography-print', [EmployeeController::class, 'printCivilServantBiography'])->name('employees.profile.print-civil-servant-biography');
     Route::post('employee/profile-picture-update/{id:id}', [EmployeeController::class, 'profilePictureUpdate'])->name('employee.profile_picture_update');
     Route::post('employee/skill-type', [EmployeeController::class, 'skillTypeStore'])->name('employee.skill_type_store');
     Route::get('employee/get-skill-type', [EmployeeController::class, 'getSkillType'])->name('employee.get_skill_type');
@@ -485,6 +495,7 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
         Route::controller(IdcardController::class)->group(function () {
             Route::get('/id/print/student/index', 'studentindex')->name('studentindex');
             Route::get('/id/print/employee/index', 'employeeindex')->name('employeeindex');
+            Route::get('/id/print/my-card', 'selfEmployeeCard')->name('my-card');
             Route::get('/id/show/student/{idprint:uuid}', 'studentshow')->name('studentshow');
             Route::get('/id/show/employee/{idprint:uuid}', 'employeeshow')->name('employeeshow');
         });
@@ -547,6 +558,9 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
     Route::get('reports/employee-wise-attendance-summery', [ReportController::class, 'employeeWiseAttendanceSummery'])->name('reports.employee_wise_attendance_summery');
     Route::get('reports/employee-wise-attendance-summery-reports', [ReportController::class, 'employeeWiseAttendanceSummeryReports'])->name('reports.employee_wise_attendance_summery_reports');
 });
+
+Route::get('staff-card/{employee:uuid}', [IdcardController::class, 'publicProfile'])
+    ->name('idprint.public-profile');
 
 /*Routes for Notices */
 Route::group(['prefix' => 'notice', 'middleware' => ['auth']], function () {

@@ -5,6 +5,7 @@ import '../../../core/config/app_routes.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/localization/laravel_language_service.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_design_system.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../correspondence/pages/correspondence_page.dart';
 import '../models/attendance_day_record.dart';
@@ -23,6 +24,9 @@ import '../services/home_mission_service.dart';
 import '../services/home_notification_service.dart';
 import '../services/home_profile_service.dart';
 import '../../auth/models/auth_user.dart';
+
+Color _dynamicPrimary() =>
+    AppDesignSystem.colorForWeekday(DateTime.now().weekday);
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key, required this.authController});
@@ -90,7 +94,7 @@ class _HomePageState extends State<HomePage> {
   String _menuTitle(_HomeMenuItem item, Map<String, String> language) {
     switch (item) {
       case _HomeMenuItem.dashboard:
-        return 'វត្តមានការងារ';
+        return 'វត្តមាន';
       case _HomeMenuItem.attendance:
         return _tr(language, 'attendance_history', 'ប្រវត្តិវត្តមាន');
       case _HomeMenuItem.leave:
@@ -222,6 +226,8 @@ class _HomePageState extends State<HomePage> {
       case 'late_and_early_leave':
         return _tr(language, 'late_and_early_leave', 'មកយឺត និងចេញមុន');
       case 'incomplete':
+      case 'partial':
+      case 'unpaired_punch':
         return _tr(language, 'incomplete', 'មិនពេញលេញ');
       default:
         return status!.replaceAll('_', ' ').trim();
@@ -258,6 +264,25 @@ class _HomePageState extends State<HomePage> {
     return '${uri.scheme}://${uri.host}$portPart';
   }
 
+  String _apiRoot() {
+    final uri = Uri.parse(ApiConfig.baseUrl);
+    var path = uri.path;
+
+    if (path.endsWith('/')) {
+      path = path.substring(0, path.length - 1);
+    }
+
+    if (path.endsWith('/api')) {
+      path = path.substring(0, path.length - 4);
+    }
+
+    if (path.isEmpty) {
+      return _apiOrigin();
+    }
+
+    return '${_apiOrigin()}$path';
+  }
+
   String? _resolveProfileImageUrl(String? rawValue) {
     final value = rawValue?.trim();
     if (value == null || value.isEmpty) {
@@ -265,6 +290,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     final origin = _apiOrigin();
+    final apiRoot = _apiRoot();
 
     if (value.startsWith('http://') || value.startsWith('https://')) {
       final uri = Uri.tryParse(value);
@@ -286,14 +312,17 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (value.startsWith('/')) {
+      if (value.startsWith('/storage/')) {
+        return '$apiRoot$value';
+      }
       return '$origin$value';
     }
 
     if (value.startsWith('storage/')) {
-      return '$origin/$value';
+      return '$apiRoot/$value';
     }
 
-    return '$origin/storage/$value';
+    return '$apiRoot/storage/$value';
   }
 
   AttendanceDayRecord? _findTodayRecord(List<AttendanceDayRecord> records) {
@@ -412,7 +441,7 @@ class _HomePageState extends State<HomePage> {
         ),
         _AdditionalServiceCard(
           icon: Icons.fact_check_outlined,
-          title: _tr(language, 'attendance_adjustment', 'កែវត្តមាន'),
+          title: _tr(language, 'attendance_adjustment', 'កែសម្រួលវត្តមាន'),
           onTap: () {
             setState(() {
               _selectedMenu = _HomeMenuItem.attendance;
@@ -532,7 +561,7 @@ class _HomePageState extends State<HomePage> {
     } else {
       avatar = CircleAvatar(
         radius: 44,
-        backgroundColor: const Color(0xFF188754),
+        backgroundColor: _dynamicPrimary(),
         child: Text(
           (user.name as String).isNotEmpty
               ? (user.name as String)[0].toUpperCase()
@@ -964,6 +993,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildDrawer(dynamic user, Map<String, String> language) {
+    final primary = _dynamicPrimary();
+
     return Drawer(
       backgroundColor: Colors.white,
       child: SafeArea(
@@ -972,10 +1003,10 @@ class _HomePageState extends State<HomePage> {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-              decoration: const BoxDecoration(
-                color: Color(0xFF0B6B58),
+              decoration: BoxDecoration(
+                color: primary,
                 gradient: LinearGradient(
-                  colors: [Color(0xFF0B6B58), Color(0xFF174C88)],
+                  colors: [primary, AppDesignSystem.secondary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -987,8 +1018,8 @@ class _HomePageState extends State<HomePage> {
                     backgroundColor: Colors.white,
                     child: Text(
                       _userInitial(user),
-                      style: const TextStyle(
-                        color: Color(0xFF0B6B58),
+                      style: TextStyle(
+                        color: primary,
                         fontWeight: FontWeight.w800,
                         fontSize: 18,
                       ),
@@ -1181,6 +1212,9 @@ class _HomePageState extends State<HomePage> {
                     department: user?.departmentName ?? '-',
                     position: positionText,
                     initial: _userInitial(user),
+                    profileImageUrl: _resolveProfileImageUrl(
+                      user?.profilePic?.toString(),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   _DashboardTodayCard(
@@ -1223,7 +1257,7 @@ class _HomePageState extends State<HomePage> {
                         title: _tr(
                           language,
                           'attendance_adjustment',
-                          'កែវត្តមាន',
+                          'កែសម្រួលវត្តមាន',
                         ),
                         tint: const Color(0xFFEAF7EE),
                         iconColor: const Color(0xFF4F9C6F),
@@ -1253,7 +1287,7 @@ class _HomePageState extends State<HomePage> {
                               message: _tr(
                                 language,
                                 'service_redirect_leave',
-                                'Please submit a leave request and wait for approval.',
+                                'សូមដាក់សំណើច្បាប់ រួចរង់ចាំការអនុម័ត។',
                               ),
                             ),
                       ),
@@ -1272,7 +1306,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 16),
                   _DashboardSectionRow(
-                    title: _tr(language, 'attendance_history', 'ប្រវត្តិខ្លី'),
+                    title: _tr(language, 'recent_history', 'ប្រវត្តិថ្មីៗ'),
                     onPressed: () => _openAttendanceHistory(language),
                   ),
                   const SizedBox(height: 8),
@@ -1304,7 +1338,7 @@ class _HomePageState extends State<HomePage> {
                       itemBuilder: (context, index) {
                         final record = recentRecords[index];
                         return _CompactAttendanceRecordCard(
-                          date: record.date,
+                          date: _formatDateDisplay(record.date),
                           inTime: record.timeIn,
                           outTime: record.timeOut,
                           status: _attendanceStatusLabel(
@@ -1463,7 +1497,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(height: 14),
                 _AttendanceSectionHeader(
                   title: historyTitle,
-                  subtitle: _tr(language, 'latest_records', 'កំណត់ត្រាថ្មីៗ'),
+                  subtitle: _tr(language, 'latest_records', 'ព័ត៌មានថ្មីៗ'),
                 ),
                 const SizedBox(height: 10),
                 _SectionCard(
@@ -1543,7 +1577,7 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 10),
               for (final record in recentRecords) ...[
                 _AttendanceRecordCard(
-                  date: record.date,
+                  date: _formatDateDisplay(record.date),
                   timeInLabel: _tr(language, 'in_time', 'ម៉ោងចូល'),
                   timeIn: record.timeIn,
                   timeOutLabel: _tr(language, 'out_time', 'ម៉ោងចេញ'),
@@ -1633,7 +1667,7 @@ class _HomePageState extends State<HomePage> {
                   description: _tr(
                     language,
                     'no_missions',
-                    'មិនទាន់មានបេសកម្ម',
+                    'មិនទាន់មានបេសកកម្ម',
                   ),
                 ),
               ],
@@ -1648,7 +1682,8 @@ class _HomePageState extends State<HomePage> {
                   title: mission.title.isEmpty ? '-' : mission.title,
                   destination:
                       mission.destination.isEmpty ? '-' : mission.destination,
-                  dateRange: '${mission.startDate} - ${mission.endDate}',
+                  dateRange:
+                      '${_formatDateDisplay(mission.startDate)} - ${_formatDateDisplay(mission.endDate)}',
                   status: mission.status,
                   employeeCount: mission.employeeCount,
                   language: language,
@@ -1980,22 +2015,23 @@ class _DrawerMenuTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = _dynamicPrimary();
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       child: Material(
-        color: selected ? const Color(0xFFE9F4F1) : Colors.transparent,
+        color: selected ? primary.withAlpha(24) : Colors.transparent,
         borderRadius: BorderRadius.circular(8),
         child: ListTile(
           minLeadingWidth: 22,
           leading: Icon(
             icon,
-            color: selected ? const Color(0xFF0B6B58) : const Color(0xFF66746E),
+            color: selected ? primary : const Color(0xFF66746E),
           ),
           title: Text(
             title,
             style: TextStyle(
-              color:
-                  selected ? const Color(0xFF0B6B58) : const Color(0xFF24332E),
+              color: selected ? primary : const Color(0xFF24332E),
               fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
             ),
           ),
@@ -2020,6 +2056,7 @@ class _HomeBottomNavigation extends StatelessWidget {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final selectedIndex = (currentIndex == 1) ? 1 : 0;
+    final primary = _dynamicPrimary();
     const labels = [
       '\u1796\u17d0\u178f\u17cc\u1798\u17b6\u1793', // ព័ត៌មាន
       '\u179f\u17d2\u1780\u17c1\u1793', // ស្កេន
@@ -2038,12 +2075,16 @@ class _HomeBottomNavigation extends StatelessWidget {
             Icons.qr_code_scanner_rounded,
             Icons.calendar_month_outlined,
           ],
-          tabSize: 52,
-          tabBarHeight: 60,
-          textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+          tabSize: 56,
+          tabBarHeight: 66,
+          textStyle: const TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w800,
+            fontFamilyFallback: ['Noto Sans Khmer', 'Public Sans'],
+          ),
           tabIconSize: 22,
           tabIconSelectedSize: 26,
-          tabSelectedColor: const Color(0xFF16A34A),
+          tabSelectedColor: primary,
           tabIconSelectedColor: Colors.white,
           tabIconColor: const Color(0xFF9CA3AF),
           tabBarColor: Colors.white,
@@ -2278,7 +2319,7 @@ class _QuickActionShortcut extends StatelessWidget {
         onTap: item.onTap,
         borderRadius: BorderRadius.circular(16),
         child: Ink(
-          padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
+          padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
@@ -2295,25 +2336,26 @@ class _QuickActionShortcut extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 40,
+                height: 40,
                 decoration: BoxDecoration(
                   color: item.tint,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(item.icon, color: item.iconColor, size: 19),
+                child: Icon(item.icon, color: item.iconColor, size: 21),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
                 item.title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  color: Color(0xFF425566),
-                  fontSize: 11.5,
+                  color: Color(0xFF1F3342),
+                  fontSize: 12.5,
                   height: 1.35,
                   fontWeight: FontWeight.w700,
+                  fontFamilyFallback: ['Noto Sans Khmer', 'Public Sans'],
                 ),
               ),
             ],
@@ -2381,11 +2423,12 @@ class _DashboardTodayCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _statusTone();
+    final primary = _dynamicPrimary();
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFFE4EAEE)),
         boxShadow: const [
           BoxShadow(
@@ -2396,143 +2439,221 @@ class _DashboardTodayCard extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Header row: title + status chip
             Row(
               children: [
-                const Icon(
-                  Icons.check_circle,
-                  color: Color(0xFF2E7D61),
-                  size: 22,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: primary.withAlpha(24),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.today_rounded, color: primary, size: 20),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  '$title :',
-                  style: const TextStyle(
-                    color: Color(0xFF173B33),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      color: Color(0xFF10211B),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      fontFamilyFallback: ['Noto Sans Khmer', 'Public Sans'],
+                    ),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withAlpha(22),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    statusValue,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      fontFamilyFallback: const [
+                        'Noto Sans Khmer',
+                        'Public Sans',
+                      ],
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
+            // Big in/out time display
             Container(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFF1F8F5), Color(0xFFF7FBFA)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(14),
+                color: const Color(0xFFF4F8F6),
+                borderRadius: BorderRadius.circular(16),
               ),
-              child: Column(
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _TodayPrimaryMetric(
-                          label: shiftLabel,
-                          value: inTime,
-                          icon: Icons.calendar_today_outlined,
-                          accent: const Color(0xFF2D7864),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.login_rounded, size: 13, color: primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              inTimeLabel,
+                              style: const TextStyle(
+                                color: Color(0xFF5C7068),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                fontFamilyFallback: [
+                                  'Noto Sans Khmer',
+                                  'Public Sans',
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _TodayPrimaryMetric(
-                          label: outTimeLabel,
-                          value: outTime,
-                          icon: Icons.logout_rounded,
-                          accent: const Color(0xFF7A8B98),
+                        const SizedBox(height: 4),
+                        Text(
+                          inTime,
+                          style: TextStyle(
+                            color: primary,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            fontFamilyFallback: const [
+                              'Noto Sans Khmer',
+                              'Public Sans',
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _TodaySecondaryLine(
-                          label: shiftLabel,
-                          value: shiftValue,
-                          valueColor: const Color(0xFF35576A),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _TodaySecondaryLine(
-                          label: totalLabel,
-                          value: totalHours,
-                          valueColor: const Color(0xFF35576A),
-                        ),
-                      ),
-                    ],
+                  Container(
+                    width: 1,
+                    height: 44,
+                    margin: const EdgeInsets.symmetric(horizontal: 12),
+                    color: const Color(0xFFCCDDD8),
                   ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _TodaySecondaryLine(
-                          label: lateLabel,
-                          value: '${lateMinutes ?? 0} នាទី',
-                          valueColor: const Color(0xFFD16D61),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.logout_rounded,
+                              size: 13,
+                              color: Color(0xFF5D79C8),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              outTimeLabel,
+                              style: const TextStyle(
+                                color: Color(0xFF5C7068),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                fontFamilyFallback: [
+                                  'Noto Sans Khmer',
+                                  'Public Sans',
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _TodaySecondaryLine(
-                          label: earlyLeaveLabel,
-                          value: '${earlyLeaveMinutes ?? 0} នាទី',
-                          valueColor: const Color(0xFFD16D61),
+                        const SizedBox(height: 4),
+                        Text(
+                          outTime,
+                          style: const TextStyle(
+                            color: Color(0xFF3D5A8A),
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.5,
+                            fontFamilyFallback: [
+                              'Noto Sans Khmer',
+                              'Public Sans',
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 10),
-            Row(
+            // Stat chips row
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
               children: [
-                Expanded(
-                  child: Text(
-                    '$statusLabel: $statusValue',
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                _StatChip(
+                  icon: Icons.schedule_outlined,
+                  label: shiftLabel,
+                  value: shiftValue,
+                  color: const Color(0xFF2D7864),
                 ),
-                Text(
-                  '$punchesLabel: $punchCount',
-                  style: const TextStyle(
-                    color: Color(0xFF718392),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+                _StatChip(
+                  icon: Icons.timer_outlined,
+                  label: totalLabel,
+                  value: totalHours,
+                  color: const Color(0xFF1D4F91),
                 ),
+                _StatChip(
+                  icon: Icons.touch_app_outlined,
+                  label: punchesLabel,
+                  value: punchCount,
+                  color: const Color(0xFF5C7068),
+                ),
+                if ((lateMinutes ?? 0) > 0)
+                  _StatChip(
+                    icon: Icons.warning_amber_rounded,
+                    label: lateLabel,
+                    value: '$lateMinutes នាទី',
+                    color: const Color(0xFFCC7A1B),
+                  ),
+                if ((earlyLeaveMinutes ?? 0) > 0)
+                  _StatChip(
+                    icon: Icons.outbox_outlined,
+                    label: earlyLeaveLabel,
+                    value: '$earlyLeaveMinutes នាទី',
+                    color: const Color(0xFFD34B5F),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
+            // Scan button
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: onPressed,
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF5FA47B),
+                  backgroundColor: primary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
                 icon: const Icon(Icons.qr_code_scanner_rounded),
-                label: Text(buttonText),
+                label: Text(
+                  buttonText,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    fontFamilyFallback: ['Noto Sans Khmer', 'Public Sans'],
+                  ),
+                ),
               ),
             ),
           ],
@@ -2769,6 +2890,7 @@ class _WelcomePanel extends StatelessWidget {
     required this.department,
     required this.position,
     required this.initial,
+    this.profileImageUrl,
   });
 
   final String greeting;
@@ -2778,114 +2900,237 @@ class _WelcomePanel extends StatelessWidget {
   final String department;
   final String? position;
   final String initial;
+  final String? profileImageUrl;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final primary = _dynamicPrimary();
     final subtitle =
         position?.trim().isNotEmpty == true ? position!.trim() : department;
+    final now = DateTime.now();
+    const months = [
+      'មករា',
+      'កុម្ភៈ',
+      'មីនា',
+      'មេសា',
+      'ឧសភា',
+      'មិថុនា',
+      'កក្កដា',
+      'សីហា',
+      'កញ្ញា',
+      'តុលា',
+      'វិច្ឆិកា',
+      'ធ្នូ',
+    ];
+    const weekDays = [
+      'ច័ន្ទ',
+      'អង្គារ',
+      'ពុធ',
+      'ព្រហស្បតិ៍',
+      'សុក្រ',
+      'សៅរ៍',
+      'អាទិត្យ',
+    ];
+    final dateText =
+        '${weekDays[now.weekday - 1]} ទី${now.day} ${months[now.month - 1]} ${now.year}';
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2EAE7)),
-        boxShadow: const [
+        borderRadius: BorderRadius.circular(22),
+        gradient: LinearGradient(
+          colors: [primary, AppDesignSystem.secondary],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0A14211D),
-            blurRadius: 14,
-            offset: Offset(0, 6),
+            color: primary.withAlpha(66),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      child: Stack(
+        children: [
+          Positioned(
+            top: -24,
+            right: -16,
+            child: Container(
+              width: 110,
+              height: 110,
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(18),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -28,
+            right: 50,
+            child: Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(12),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: const Color(0xFFDFF2E9),
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      color: Color(0xFF0B6B58),
-                      fontWeight: FontWeight.w800,
-                      fontSize: 15,
+                Row(
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(36),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white.withAlpha(70)),
+                      ),
+                      child: ClipOval(
+                        child:
+                            profileImageUrl != null &&
+                                    profileImageUrl!.trim().isNotEmpty
+                                ? Image.network(
+                                  profileImageUrl!,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) {
+                                    return Center(
+                                      child: Text(
+                                        initial,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                )
+                                : Center(
+                                  child: Text(
+                                    initial,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                ),
+                      ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            greeting,
+                            style: const TextStyle(
+                              color: Color(0xFFB2DDD3),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              fontFamilyFallback: [
+                                'Noto Sans Khmer',
+                                'Public Sans',
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 19,
+                              fontWeight: FontWeight.w900,
+                              fontFamilyFallback: [
+                                'Noto Sans Khmer',
+                                'Public Sans',
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle.isEmpty ? department : subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFFCCE8E0),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              fontFamilyFallback: [
+                                'Noto Sans Khmer',
+                                'Public Sans',
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(28),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withAlpha(45)),
+                      ),
+                      child: Column(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today_outlined,
+                            color: Colors.white,
+                            size: 14,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${now.day}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              height: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  dateText,
+                  style: const TextStyle(
+                    color: Color(0xFFCCEAE3),
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    fontFamilyFallback: ['Noto Sans Khmer', 'Public Sans'],
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF10211B),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        subtitle.isEmpty ? department : subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF5C7068),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE9F4F1),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    greeting,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF0B6B58),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    _HeroPill(icon: Icons.badge_outlined, label: employeeId),
+                    _HeroPill(
+                      icon: Icons.apartment_outlined,
+                      label: department,
                     ),
-                  ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _SoftPill(
-                  icon: Icons.badge_outlined,
-                  label: employeeId,
-                  backgroundColor: const Color(0xFFE9F4F1),
-                ),
-                _SoftPill(
-                  icon: Icons.apartment_outlined,
-                  label: department,
-                  backgroundColor: const Color(0xFFEAF1FF),
-                ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -3235,9 +3480,9 @@ class _AttendanceScanActionCard extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.qr_code_scanner_outlined,
-                    color: Color(0xFF174C88),
+                    color: _dynamicPrimary(),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -3331,7 +3576,7 @@ class _TodayAttendanceStatusCard extends StatelessWidget {
     if (normalized.contains('on time') ||
         normalized.contains('មានវត្តមាន') ||
         normalized == 'on_time') {
-      return const Color(0xFF0B6B58);
+      return _dynamicPrimary();
     }
     if (normalized.contains('late') || normalized.contains('យឺត')) {
       return const Color(0xFFA85C00);
@@ -3466,11 +3711,13 @@ class _ProminentScanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = _dynamicPrimary();
+
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0B6B58), Color(0xFF16508A)],
+        gradient: LinearGradient(
+          colors: [primary, AppDesignSystem.secondary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -3540,7 +3787,7 @@ class _ProminentScanCard extends StatelessWidget {
                     onPressed: onPressed,
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF0B6B58),
+                      foregroundColor: primary,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
@@ -3576,6 +3823,8 @@ class _AdditionalServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primary = _dynamicPrimary();
+
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -3606,10 +3855,10 @@ class _AdditionalServiceCard extends StatelessWidget {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE9F4F1),
+                      color: primary.withAlpha(22),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Icon(icon, color: const Color(0xFF0B6B58), size: 18),
+                    child: Icon(icon, color: primary, size: 18),
                   ),
                   const Spacer(),
                   const Icon(
@@ -3713,6 +3962,8 @@ class _AttendanceRecordCard extends StatelessWidget {
     }
     if (normalized == 'absent' ||
         normalized == 'a' ||
+        normalized.contains('partial') ||
+        normalized.contains('unpaired') ||
         normalized.contains('incomplete') ||
         hasException) {
       return const Color(0xFFFFEEF1);
@@ -3726,7 +3977,7 @@ class _AttendanceRecordCard extends StatelessWidget {
     if (normalized == 'on_time' ||
         normalized == 'present' ||
         normalized == 'p') {
-      return const Color(0xFF0B6B58);
+      return _dynamicPrimary();
     }
     if (normalized == 'late' || normalized == 'l') {
       return const Color(0xFFA85C00);
@@ -3751,6 +4002,8 @@ class _AttendanceRecordCard extends StatelessWidget {
     }
     if (normalized == 'absent' ||
         normalized == 'a' ||
+        normalized.contains('partial') ||
+        normalized.contains('unpaired') ||
         normalized.contains('incomplete') ||
         hasException) {
       return const Color(0xFFD34B5F);
@@ -3790,12 +4043,12 @@ class _AttendanceRecordCard extends StatelessWidget {
                   width: 46,
                   height: 46,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE9F4F1),
+                    color: _dynamicPrimary().withAlpha(24),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.access_time_outlined,
-                    color: Color(0xFF0B6B58),
+                    color: _dynamicPrimary(),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -3905,7 +4158,7 @@ class _MissionRecordCard extends StatelessWidget {
     final normalized = value.trim().toLowerCase();
     switch (normalized) {
       case 'approved':
-        return const Color(0xFF0B6B58);
+        return _dynamicPrimary();
       case 'pending':
         return const Color(0xFFA85C00);
       case 'rejected':
@@ -4082,7 +4335,7 @@ class _SoftPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: const Color(0xFF0B6B58)),
+          Icon(icon, size: 15, color: _dynamicPrimary()),
           const SizedBox(width: 6),
           Flexible(
             child: Text(
@@ -4094,6 +4347,87 @@ class _SoftPill extends StatelessWidget {
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroPill extends StatelessWidget {
+  const _HeroPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(30),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withAlpha(50)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: Colors.white),
+          const SizedBox(width: 5),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 180),
+            child: Text(
+              label.isEmpty ? '-' : label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                fontFamilyFallback: ['Noto Sans Khmer', 'Public Sans'],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withAlpha(18),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Text(
+            '$label: $value',
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              fontFamilyFallback: const ['Noto Sans Khmer', 'Public Sans'],
             ),
           ),
         ],
@@ -4185,7 +4519,7 @@ class _InfoBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: const Color(0xFF0B6B58)),
+          Icon(icon, size: 14, color: _dynamicPrimary()),
           const SizedBox(width: 6),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 220),
@@ -4241,12 +4575,16 @@ class _ProfileHeroCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final visibleBadges =
         badges.where((widget) => widget is! SizedBox).toList();
+    final primary = _dynamicPrimary();
 
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0F4C5C), Color(0xFF15443E)],
+        gradient: LinearGradient(
+          colors: [
+            Color.lerp(primary, Colors.black, 0.30)!,
+            Color.lerp(primary, Colors.black, 0.45)!,
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -4471,7 +4809,7 @@ class _ProfileSectionState extends State<_ProfileSection> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFDCE9E4)),
+        border: Border.all(color: _dynamicPrimary().withAlpha(45)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x10142721),
@@ -4487,9 +4825,9 @@ class _ProfileSectionState extends State<_ProfileSection> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(18, 14, 16, 14),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF4F8F6),
-              borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+              color: _dynamicPrimary().withAlpha(18),
+              borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
               ),
@@ -4501,13 +4839,13 @@ class _ProfileSectionState extends State<_ProfileSection> {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFDDEEE6),
+                      color: _dynamicPrimary().withAlpha(32),
                       borderRadius: BorderRadius.circular(13),
                     ),
                     child: Icon(
                       widget.icon,
                       size: 20,
-                      color: const Color(0xFF0B6B58),
+                      color: _dynamicPrimary(),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -4518,18 +4856,18 @@ class _ProfileSectionState extends State<_ProfileSection> {
                     children: [
                       Text(
                         widget.title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w800,
                           fontSize: 15.5,
-                          color: Color(0xFF123E34),
+                          color: _dynamicPrimary(),
                         ),
                       ),
                       const SizedBox(height: 3),
                       Text(
                         widget.subtitle,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11.5,
-                          color: Color(0xFF3F5A51),
+                          color: _dynamicPrimary().withAlpha(180),
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -4546,15 +4884,15 @@ class _ProfileSectionState extends State<_ProfileSection> {
                     decoration: BoxDecoration(
                       color:
                           _expanded
-                              ? const Color(0xFFD5EAE1)
-                              : const Color(0xFFE5F0EB),
+                              ? _dynamicPrimary().withAlpha(55)
+                              : _dynamicPrimary().withAlpha(28),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       _expanded
                           ? Icons.keyboard_arrow_up_rounded
                           : Icons.keyboard_arrow_down_rounded,
-                      color: const Color(0xFF0B6B58),
+                      color: _dynamicPrimary(),
                       size: 22,
                     ),
                   ),
@@ -4652,15 +4990,15 @@ class _ProfileSectionState extends State<_ProfileSection> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: const Color(0xFFE8F3EE),
+              color: _dynamicPrimary().withAlpha(28),
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
               sub.label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1A5A4C),
+                color: _dynamicPrimary(),
                 letterSpacing: 0.2,
               ),
             ),

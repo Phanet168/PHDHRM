@@ -9,6 +9,7 @@ use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\EmployeeProfileExtra;
+use Modules\HumanResource\Entities\EmployeeServiceHistory;
 use Modules\HumanResource\Entities\EmployeeUnitPosting;
 use Modules\HumanResource\Entities\EmployeeWorkHistory;
 use Modules\HumanResource\Entities\Position;
@@ -21,6 +22,8 @@ class EmployeePositionPromotionController extends Controller
     {
         $this->middleware(['permission:read_employee'])->only('index', 'export');
         $this->middleware(['permission:update_employee'])->only('store');
+        $this->middleware(['isAdmin', 'permission:update_employee'])->only('update');
+        $this->middleware(['isAdmin', 'permission:delete_employee'])->only('destroy');
     }
 
     public function index(Request $request, OrgUnitRuleService $orgUnitRuleService)
@@ -312,6 +315,152 @@ class EmployeePositionPromotionController extends Controller
         }
     }
 
+    public function update(
+        Request $request,
+        EmployeeUnitPosting $employee_unit_posting,
+        OrgUnitRuleService $orgUnitRuleService
+    ) {
+        if (!$this->isPositionPromotionPosting($employee_unit_posting)) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'position_id' => 'required|exists:positions,id',
+            'effective_date' => 'required|date',
+            'document_reference' => 'nullable|string|max:191',
+            'document_date' => 'nullable|date',
+            'note' => 'nullable|string',
+        ]);
+
+        $employee = Employee::query()
+            ->with('primaryUnitPosting')
+            ->where('id', (int) $employee_unit_posting->employee_id)
+            ->firstOrFail();
+        $this->assertCanManageEmployee($employee, $orgUnitRuleService);
+
+        $newPosition = Position::query()
+            ->where('id', (int) $validated['position_id'])
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $oldMeta = $this->extractTaggedNoteValues((string) $employee_unit_posting->note, ['Old', 'New']);
+        $relatedWorkHistory = $this->findPromotionWorkHistory($employee_unit_posting, $oldMeta);
+        $effectiveDate = Carbon::parse($validated['effective_date'])->toDateString();
+        $documentDate = !empty($validated['document_date'])
+            ? Carbon::parse($validated['document_date'])->toDateString()
+            : null;
+        $normalizedNote = trim((string) ($validated['note'] ?? ''));
+
+        DB::beginTransaction();
+        try {
+            $employee_unit_posting->position_id = (int) $newPosition->id;
+            $employee_unit_posting->start_date = $effectiveDate;
+            $employee_unit_posting->department_id = (int) ($employee_unit_posting->department_id ?: ($employee->sub_department_id ?: $employee->department_id));
+            $employee_unit_posting->save();
+
+            $this->rebuildEmployeePostingTimeline($employee);
+            $employee->refresh();
+            $employee_unit_posting->refresh();
+
+            $oldPositionLabel = $this->previousPositionLabelForPosting($employee_unit_posting) ?: ($oldMeta['Old'] ?? '-');
+            $newPositionLabel = $newPosition->position_name_km ?: $newPosition->position_name;
+
+            $employee_unit_posting->note = $this->buildPositionPromotionNote(
+                $oldPositionLabel,
+                $newPositionLabel,
+                $validated['document_reference'] ?? null,
+                $documentDate,
+                $normalizedNote
+            );
+            $employee_unit_posting->save();
+
+            $this->syncPromotionWorkHistory(
+                $employee,
+                $employee_unit_posting,
+                $relatedWorkHistory,
+                $oldPositionLabel,
+                $newPositionLabel,
+                $validated['document_reference'] ?? null,
+                $documentDate,
+                $normalizedNote
+            );
+
+            $this->syncPostingServiceHistory(
+                $employee_unit_posting,
+                $employee->id,
+                'position_change',
+                'Position changed',
+                "Changed position from {$oldPositionLabel} to {$newPositionLabel}",
+                $effectiveDate,
+                $oldPositionLabel,
+                $newPositionLabel,
+                [
+                    'document_reference' => $validated['document_reference'] ?? null,
+                    'document_date' => $documentDate,
+                ]
+            );
+
+            $this->syncCurrentPositionProfileExtra($employee);
+
+            DB::commit();
+            Toastr::success('Position promotion updated successfully.', 'Success');
+
+            return redirect()->route('employee-position-promotions.index', [
+                'year' => Carbon::parse($effectiveDate)->year,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            activity()->causedBy(auth()->user())->log('An error occurred: ' . $e->getMessage());
+            Toastr::error('Failed to update position promotion.', 'Error');
+            return redirect()->back()->withInput();
+        }
+    }
+
+    public function destroy(
+        EmployeeUnitPosting $employee_unit_posting,
+        OrgUnitRuleService $orgUnitRuleService
+    ) {
+        if (!$this->isPositionPromotionPosting($employee_unit_posting)) {
+            abort(404);
+        }
+
+        $employee = Employee::query()
+            ->with('primaryUnitPosting')
+            ->where('id', (int) $employee_unit_posting->employee_id)
+            ->firstOrFail();
+        $this->assertCanManageEmployee($employee, $orgUnitRuleService);
+
+        $meta = $this->extractTaggedNoteValues((string) $employee_unit_posting->note, ['Old', 'New']);
+        $relatedWorkHistory = $this->findPromotionWorkHistory($employee_unit_posting, $meta);
+        $fallbackPositionId = $this->resolvePositionIdByLabel($meta['Old'] ?? null);
+        $year = optional($employee_unit_posting->start_date)->year ?: now()->year;
+
+        DB::beginTransaction();
+        try {
+            if ($relatedWorkHistory) {
+                $relatedWorkHistory->delete();
+            }
+
+            $this->deletePostingServiceHistory($employee_unit_posting);
+            $employee_unit_posting->delete();
+
+            $this->rebuildEmployeePostingTimeline($employee, $fallbackPositionId);
+            $this->syncCurrentPositionProfileExtra($employee);
+
+            DB::commit();
+            Toastr::success('Position promotion deleted successfully.', 'Success');
+
+            return redirect()->route('employee-position-promotions.index', [
+                'year' => $year,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            activity()->causedBy(auth()->user())->log('An error occurred: ' . $e->getMessage());
+            Toastr::error('Failed to delete position promotion.', 'Error');
+            return redirect()->back();
+        }
+    }
+
     protected function currentPositionLabels($employees): array
     {
         $labels = [];
@@ -402,6 +551,301 @@ class EmployeePositionPromotionController extends Controller
         return $position?->position_name_km ?: $position?->position_name;
     }
 
+    protected function isPositionPromotionPosting(EmployeeUnitPosting $posting): bool
+    {
+        return str_starts_with(trim((string) $posting->note), '[POSITION_PROMOTION]');
+    }
+
+    protected function buildPositionPromotionNote(
+        string $oldPositionLabel,
+        string $newPositionLabel,
+        ?string $documentReference,
+        ?string $documentDate,
+        ?string $note
+    ): string {
+        $parts = [
+            '[POSITION_PROMOTION]',
+            'Old: ' . (trim($oldPositionLabel) !== '' ? trim($oldPositionLabel) : '-'),
+            'New: ' . (trim($newPositionLabel) !== '' ? trim($newPositionLabel) : '-'),
+        ];
+
+        $documentReference = trim((string) $documentReference);
+        if ($documentReference !== '') {
+            $parts[] = 'Doc: ' . $documentReference;
+        }
+
+        $documentDate = trim((string) $documentDate);
+        if ($documentDate !== '') {
+            $parts[] = 'DocDate: ' . $documentDate;
+        }
+
+        $note = trim((string) $note);
+        if ($note !== '') {
+            $parts[] = $note;
+        }
+
+        return implode(' | ', $parts);
+    }
+
+    protected function extractTaggedNoteValues(string $note, array $keys): array
+    {
+        $result = [];
+        foreach ($keys as $key) {
+            $result[$key] = null;
+        }
+
+        $segments = array_map('trim', explode('|', $note));
+        foreach ($segments as $segment) {
+            foreach ($keys as $key) {
+                $prefix = $key . ':';
+                if (!str_starts_with($segment, $prefix)) {
+                    continue;
+                }
+
+                $result[$key] = trim(substr($segment, strlen($prefix)));
+            }
+        }
+
+        return $result;
+    }
+
+    protected function findPromotionWorkHistory(EmployeeUnitPosting $posting, array $meta = []): ?EmployeeWorkHistory
+    {
+        $query = EmployeeWorkHistory::query()
+            ->where('employee_id', (int) $posting->employee_id)
+            ->whereDate('start_date', optional($posting->start_date)->toDateString())
+            ->where('work_status_name', 'ឡើងតួនាទី')
+            ->orderByDesc('id');
+
+        $oldLabel = trim((string) ($meta['Old'] ?? ''));
+        $newLabel = trim((string) ($meta['New'] ?? ''));
+
+        if ($oldLabel !== '') {
+            $query->where('note', 'like', '%' . $oldLabel . '%');
+        }
+        if ($newLabel !== '') {
+            $query->where('note', 'like', '%' . $newLabel . '%');
+        }
+
+        return $query->first();
+    }
+
+    protected function syncPromotionWorkHistory(
+        Employee $employee,
+        EmployeeUnitPosting $posting,
+        ?EmployeeWorkHistory $history,
+        string $oldPositionLabel,
+        string $newPositionLabel,
+        ?string $documentReference,
+        ?string $documentDate,
+        ?string $note
+    ): void {
+        $noteParts = [
+            'តួនាទីចាស់: ' . ($oldPositionLabel !== '' ? $oldPositionLabel : '-'),
+            'តួនាទីថ្មី: ' . ($newPositionLabel !== '' ? $newPositionLabel : '-'),
+        ];
+
+        $note = trim((string) $note);
+        if ($note !== '') {
+            $noteParts[] = $note;
+        }
+
+        if (!$history) {
+            $history = new EmployeeWorkHistory();
+            $history->employee_id = $employee->id;
+            $history->work_status_name = 'ឡើងតួនាទី';
+        }
+
+        $history->start_date = optional($posting->start_date)->toDateString();
+        $history->document_reference = trim((string) $documentReference) !== '' ? trim((string) $documentReference) : null;
+        $history->document_date = trim((string) $documentDate) !== '' ? trim((string) $documentDate) : null;
+        $history->note = implode(' | ', $noteParts);
+        $history->save();
+    }
+
+    protected function syncPostingServiceHistory(
+        EmployeeUnitPosting $posting,
+        int $employeeId,
+        string $eventType,
+        string $title,
+        string $details,
+        string $eventDate,
+        string $fromValue,
+        string $toValue,
+        array $metadata = []
+    ): void {
+        $history = EmployeeServiceHistory::query()
+            ->where('reference_type', 'employee_unit_posting')
+            ->where('reference_id', (int) $posting->id)
+            ->latest('id')
+            ->first();
+
+        if (!$history) {
+            app(EmployeeServiceHistoryService::class)->log(
+                $employeeId,
+                $eventType,
+                $title,
+                $details,
+                $eventDate,
+                $fromValue,
+                $toValue,
+                'employee_unit_posting',
+                (int) $posting->id,
+                $metadata
+            );
+
+            return;
+        }
+
+        $history->employee_id = $employeeId;
+        $history->event_type = $eventType;
+        $history->event_date = $eventDate;
+        $history->title = $title;
+        $history->details = $details;
+        $history->from_value = $fromValue;
+        $history->to_value = $toValue;
+        $history->metadata = $metadata;
+        $history->save();
+    }
+
+    protected function deletePostingServiceHistory(EmployeeUnitPosting $posting): void
+    {
+        EmployeeServiceHistory::query()
+            ->where('reference_type', 'employee_unit_posting')
+            ->where('reference_id', (int) $posting->id)
+            ->delete();
+    }
+
+    protected function rebuildEmployeePostingTimeline(Employee $employee, ?int $fallbackPositionId = null): void
+    {
+        $postings = EmployeeUnitPosting::query()
+            ->where('employee_id', (int) $employee->id)
+            ->orderBy('start_date')
+            ->orderBy('id')
+            ->get()
+            ->values();
+
+        $lastPosting = null;
+
+        foreach ($postings as $index => $posting) {
+            $nextPosting = $postings->get($index + 1);
+            $newEndDate = null;
+
+            if ($nextPosting) {
+                $candidateEndDate = Carbon::parse($nextPosting->start_date)->subDay()->toDateString();
+                $startDate = optional($posting->start_date)->toDateString();
+                $newEndDate = ($startDate && $candidateEndDate < $startDate)
+                    ? $startDate
+                    : $candidateEndDate;
+            }
+
+            $shouldBePrimary = $index === ($postings->count() - 1);
+            $dirty = false;
+
+            if ((bool) $posting->is_primary !== $shouldBePrimary) {
+                $posting->is_primary = $shouldBePrimary;
+                $dirty = true;
+            }
+
+            $normalizedCurrentEnd = optional($posting->end_date)->toDateString();
+            if ($normalizedCurrentEnd !== $newEndDate) {
+                $posting->end_date = $newEndDate;
+                $dirty = true;
+            }
+
+            if ($dirty) {
+                $posting->save();
+            }
+
+            if ($shouldBePrimary) {
+                $lastPosting = $posting;
+            }
+        }
+
+        $employee->refresh();
+
+        if ($lastPosting && (int) ($lastPosting->position_id ?? 0) > 0) {
+            $employee->position_id = (int) $lastPosting->position_id;
+            $employee->save();
+            return;
+        }
+
+        if ($fallbackPositionId && (int) $fallbackPositionId > 0) {
+            $employee->position_id = (int) $fallbackPositionId;
+            $employee->save();
+        }
+    }
+
+    protected function previousPositionLabelForPosting(EmployeeUnitPosting $posting): ?string
+    {
+        $rows = EmployeeUnitPosting::query()
+            ->where('employee_id', (int) $posting->employee_id)
+            ->whereNotNull('position_id')
+            ->orderBy('start_date')
+            ->orderBy('id')
+            ->get()
+            ->values();
+
+        $index = $rows->search(fn ($row) => (int) $row->id === (int) $posting->id);
+        if ($index === false || $index === 0) {
+            return null;
+        }
+
+        $previous = $rows->get($index - 1);
+        return $this->positionNameById((int) ($previous->position_id ?? 0));
+    }
+
+    protected function resolvePositionIdByLabel(?string $label): ?int
+    {
+        $label = trim((string) $label);
+        if ($label === '' || $label === '-') {
+            return null;
+        }
+
+        $position = Position::withoutGlobalScopes()
+            ->where(function ($query) use ($label) {
+                $query->where('position_name_km', $label)
+                    ->orWhere('position_name', $label);
+            })
+            ->orderByDesc('id')
+            ->first();
+
+        return $position ? (int) $position->id : null;
+    }
+
+    protected function syncCurrentPositionProfileExtra(Employee $employee): void
+    {
+        $latestPromotion = EmployeeUnitPosting::query()
+            ->where('employee_id', (int) $employee->id)
+            ->where('note', 'like', '[POSITION_PROMOTION]%')
+            ->orderByDesc('start_date')
+            ->orderByDesc('id')
+            ->first();
+
+        if (!$latestPromotion) {
+            EmployeeProfileExtra::updateOrCreate(
+                ['employee_id' => $employee->id],
+                [
+                    'current_position_start_date' => null,
+                    'current_position_document_number' => null,
+                    'current_position_document_date' => null,
+                ]
+            );
+            return;
+        }
+
+        $workHistory = $this->findPromotionWorkHistory($latestPromotion, $this->extractTaggedNoteValues((string) $latestPromotion->note, ['Old', 'New']));
+
+        EmployeeProfileExtra::updateOrCreate(
+            ['employee_id' => $employee->id],
+            [
+                'current_position_start_date' => optional($latestPromotion->start_date)->toDateString(),
+                'current_position_document_number' => $workHistory?->document_reference,
+                'current_position_document_date' => optional($workHistory?->document_date)->toDateString(),
+            ]
+        );
+    }
+
     protected function normalizeKhmerText(?string $text): string
     {
         $value = trim((string) $text);
@@ -479,7 +923,13 @@ class EmployeePositionPromotionController extends Controller
     protected function isSystemAdmin(): bool
     {
         $user = auth()->user();
-        return $user && (int) $user->user_type_id === 1;
+        if (!$user) {
+            return false;
+        }
+
+        return method_exists($user, 'admin')
+            ? (bool) $user->admin()
+            : (int) ($user->user_type_id ?? 0) === 1;
     }
 
     protected function currentUserRootUnitId(): ?int

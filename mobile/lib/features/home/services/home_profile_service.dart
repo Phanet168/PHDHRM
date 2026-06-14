@@ -57,6 +57,10 @@ class HomeProfileService {
         _toInt(response['id']) ?? _toInt(response['employee_id']) ?? 0;
     final userId =
         _toInt(response['user_id']) ?? _toInt(response['auth_user_id']) ?? 0;
+    final profilePic =
+        response['profile_pic'] as String? ??
+        response['profile_image'] as String? ??
+        response['avatar'] as String?;
 
     return AuthUser(
       employeeId: employeeId,
@@ -70,7 +74,7 @@ class HomeProfileService {
       hasEmployeeProfile:
           (_toBool(response['has_employee_profile']) ?? false) ||
           employeeId > 0,
-      profilePic: response['profile_pic'] as String?,
+      profilePic: profilePic,
       fcmToken: null,
       role:
           response['roles'] != null

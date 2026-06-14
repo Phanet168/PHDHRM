@@ -71,6 +71,30 @@
                             $currentCivilPhaseLabel = old('is_full_right_officer', '0') === '1' ? $fullRightStatusLabel : $probationStatusLabel;
                             $medicalInformationTitle = $isKhmerUi ? 'ព័ត៌មានវេជ្ជសាស្ត្រ' : 'Medical information';
                         @endphp
+                        @if ($errors->has('employee_save_error'))
+                            <div class="alert alert-danger text-start">
+                                {{ $errors->first('employee_save_error') }}
+                            </div>
+                        @endif
+
+                        @if ($errors->any())
+                            @php
+                                $summaryErrors = collect($errors->all())
+                                    ->filter()
+                                    ->unique()
+                                    ->values();
+                            @endphp
+                            @if ($summaryErrors->isNotEmpty())
+                                <div class="alert alert-warning text-start">
+                                    <div class="fw-semibold mb-2">{{ localize('please_check_the_form', 'Please check the form and try again.') }}</div>
+                                    <ul class="mb-0 ps-3">
+                                        @foreach ($summaryErrors as $message)
+                                            <li>{{ $message }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+                        @endif
                         <div class="f1-steps">
                             <div class="f1-progress">
                                 <div class="f1-progress-line" data-now-value="14.2857" data-number-of-steps="7"
@@ -368,6 +392,7 @@
 
                                         $singleStatusId = $findStatusId(['single', 'នៅលីវ']);
                                         $marriedStatusId = $findStatusId(['married', 'រៀបការ']);
+                                        $divorcedStatusId = $findStatusId(['divorced', 'លែងលះ']);
                                         $widowedStatusId = $findStatusId(['widow', 'widowed', 'មេម៉ាយ', 'ពោះម៉ាយ']);
                                         $selectedMaritalStatusId = old('marital_status_id');
 
@@ -376,6 +401,10 @@
                                         if (!empty($marriedStatusId)) {
                                             $statusOptions[] = ['id' => $marriedStatusId, 'key' => 'married', 'label' => localize('marital_married')];
                                             $renderedStatusIds[] = (int) $marriedStatusId;
+                                        }
+                                        if (!empty($divorcedStatusId)) {
+                                            $statusOptions[] = ['id' => $divorcedStatusId, 'key' => 'divorced', 'label' => 'លែងលះ'];
+                                            $renderedStatusIds[] = (int) $divorcedStatusId;
                                         }
                                         if (!empty($singleStatusId)) {
                                             $statusOptions[] = ['id' => $singleStatusId, 'key' => 'single', 'label' => localize('marital_single')];
@@ -399,6 +428,7 @@
                                             <select name="marital_status_id" id="marital_status_id" class="form-select"
                                                 data-single-id="{{ $singleStatusId }}"
                                                 data-married-id="{{ $marriedStatusId }}"
+                                                data-divorced-id="{{ $divorcedStatusId }}"
                                                 data-widowed-id="{{ $widowedStatusId }}">
                                                 <option value="">{{ localize('select_marital_status') }}</option>
                                                 @foreach ($statusOptions as $statusOption)
@@ -567,7 +597,13 @@
                                 </div>
                                 <div class="col-md-6">
                                     <h5 class="my-2">{{ localize('user_setup') }}</h5>
-                                    @input(['input_name' => 'email', 'type' => 'email', 'required' => false, 'disabled' => true, 'additional_id' => 'employee-email'])
+                                    <div class="form-group mb-2 mx-0 row">
+                                        <label for="employee-email" class="col-lg-3 col-form-label ps-0">{{ localize('email') }}</label>
+                                        <div class="col-lg-9">
+                                            <input type="email" id="employee-email" class="form-control" value="{{ old('email') }}" readonly tabindex="-1">
+                                            <small class="text-muted d-block mt-1">{{ localize('login_email_preview_hint', 'បង្ហាញពីអ៊ីមែលខាងលើសម្រាប់គណនីចូលប្រើ') }}</small>
+                                        </div>
+                                    </div>
                                     @input(['input_name' => 'password', 'type' => 'password', 'required' => true, 'additional_class' => 'required-field'])
                                 </div>
                             </div>
@@ -584,15 +620,15 @@
     </div>
 @endsection
 @push('js')
-    <script src="{{ asset('backend/assets/plugins/bootstrap-wizard/form.scripts.js') }}"></script>
-    <script src="{{ module_asset('HumanResource/js/employee_form_wiz.js') }}"></script>
+    <script src="{{ asset('backend/assets/plugins/bootstrap-wizard/form.scripts.js') }}?v={{ @filemtime(public_path('backend/assets/plugins/bootstrap-wizard/form.scripts.js')) }}"></script>
+    <script src="{{ module_asset('HumanResource/js/employee_form_wiz.js') }}?v={{ @filemtime(public_path('module-assets/HumanResource/js/employee_form_wiz.js')) }}"></script>
     <script src="{{ module_asset('HumanResource/js/employee-create.js') }}?v={{ @filemtime(public_path('module-assets/HumanResource/js/employee-create.js')) }}"></script>
     <script>
         window.employeeCascadeConfig = {
             orgUnitTree: @json($org_unit_tree ?? [])
         };
     </script>
-    <script src="{{ module_asset('HumanResource/js/employee-cascade.js') }}"></script>
+    <script src="{{ module_asset('HumanResource/js/employee-cascade.js') }}?v={{ @filemtime(public_path('module-assets/HumanResource/js/employee-cascade.js')) }}"></script>
     <script>
         (function($) {
             "use strict";
@@ -605,7 +641,7 @@
                 var text = String(value).trim();
                 var iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
                 if (iso) {
-                    return iso[3] + "/" + iso[2] + "/" + iso[1];
+                    return iso[3] + "-" + iso[2] + "-" + iso[1];
                 }
 
                 var mon = text.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
@@ -613,7 +649,7 @@
                     var map = { jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06", jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12" };
                     var m = map[(mon[2] || "").toLowerCase()];
                     if (m) {
-                        return String(parseInt(mon[1], 10)).padStart(2, "0") + "/" + m + "/" + mon[3];
+                        return String(parseInt(mon[1], 10)).padStart(2, "0") + "-" + m + "-" + mon[3];
                     }
                 }
 
@@ -625,8 +661,8 @@
                     return "";
                 }
 
-                var t = String(value).trim().replace(/[-.]/g, "/");
-                var m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                var t = String(value).trim().replace(/[\/.]/g, "-");
+                var m = t.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
                 if (!m) {
                     return null;
                 }
@@ -653,21 +689,21 @@
                     var currentValue = toUiDate($input.val());
                     $input.attr("type", "text");
                     $input.addClass("hard-ddmmyyyy-date");
-                    $input.attr("placeholder", "DD/MM/YYYY");
+                    $input.attr("placeholder", "DD-MM-YYYY");
                     $input.attr("autocomplete", "off");
                     $input.attr("inputmode", "numeric");
 
                     if (typeof $.fn.datetimepicker === "function") {
                         $input.datetimepicker({
                             timepicker: false,
-                            format: "d/m/Y",
+                            format: "d-m-Y",
                             scrollInput: false,
                             closeOnDateSelect: true,
                             lang: "km"
                         });
                     } else if (typeof $.fn.datepicker === "function") {
                         $input.datepicker({
-                            dateFormat: "dd/mm/yy",
+                            dateFormat: "dd-mm-yy",
                             changeMonth: true,
                             changeYear: true,
                             showAnim: "slideDown"
@@ -687,12 +723,17 @@
 
                 $form.on("submit", function(e) {
                     var invalid = false;
-                    $form.find("input.hard-ddmmyyyy-date").each(function() {
+                    var $firstInvalid = $();
+
+                    $form.find("input.hard-ddmmyyyy-date:enabled:not([readonly])").each(function() {
                         var $input = $(this);
                         var converted = toStorageDate($input.val());
                         if (converted === null) {
                             invalid = true;
                             $input.addClass("is-invalid");
+                            if (!$firstInvalid.length) {
+                                $firstInvalid = $input;
+                            }
                             return;
                         }
 
@@ -702,7 +743,20 @@
 
                     if (invalid) {
                         e.preventDefault();
-                        alert("សូមបញ្ចូលកាលបរិច្ឆេទជា DD/MM/YYYY ឲ្យត្រឹមត្រូវ។");
+                        if (typeof toastr !== "undefined") {
+                            toastr.error("សូមបញ្ចូលកាលបរិច្ឆេទជា DD-MM-YYYY ឲ្យត្រឹមត្រូវ។");
+                        } else {
+                            alert("សូមបញ្ចូលកាលបរិច្ឆេទជា DD-MM-YYYY ឲ្យត្រឹមត្រូវ។");
+                        }
+
+                        if ($firstInvalid.length) {
+                            var $targetFieldset = $firstInvalid.closest("fieldset");
+                            if ($targetFieldset.length && typeof setWizardStepByFieldset === "function") {
+                                setWizardStepByFieldset($form, $targetFieldset);
+                            }
+                            $("html, body").stop().animate({ scrollTop: Math.max($firstInvalid.offset().top - 120, 0) }, 0);
+                            $firstInvalid.trigger("focus");
+                        }
                     }
                 });
 

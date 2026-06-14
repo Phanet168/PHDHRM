@@ -623,9 +623,16 @@ function initFamilyBirthCascades() {
     });
 }
 
+function selectedMaritalStatusKey() {
+    return (($("#marital_status_id option:selected").data("statusKey") || "") + "").trim();
+}
+
 function isSingleMaritalStatusSelected() {
-    var key = ($("#marital_status_id option:selected").data("statusKey") || "") + "";
-    return key === "single";
+    return selectedMaritalStatusKey() === "single";
+}
+
+function isDivorcedMaritalStatusSelected() {
+    return selectedMaritalStatusKey() === "divorced";
 }
 
 function updateWidowedMaritalLabel() {
@@ -650,6 +657,9 @@ function updateWidowedMaritalLabel() {
 function allowedSalutationsByRelationAndGender(relationValue, genderKey) {
     var relation = normalizeFamilyRelationValue(relationValue);
 
+    if (relation === "son" || relation === "daughter") {
+        return ["boy", "girl", "mr", "miss", "mrs"];
+    }
     if (relation === "mother") {
         return ["mrs", "lok_chumteav"];
     }
@@ -697,6 +707,7 @@ function updateFamilySummaryCounts() {
     var spouseCount = 0;
     var kidsCount = 0;
     var isSingle = isSingleMaritalStatusSelected();
+    var isDivorced = isDivorcedMaritalStatusSelected();
 
     $("#family-members-table tbody tr").each(function () {
         var relation = normalizeFamilyRelationValue($(this).find(".family-relation-type").val());
@@ -708,8 +719,10 @@ function updateFamilySummaryCounts() {
         }
     });
 
-    if (isSingle) {
+    if (isSingle || isDivorced) {
         spouseCount = 0;
+    }
+    if (isSingle) {
         kidsCount = 0;
     }
 
@@ -719,6 +732,7 @@ function updateFamilySummaryCounts() {
 
 function applyFamilySectionRules() {
     var isSingle = isSingleMaritalStatusSelected();
+    var isDivorced = isDivorcedMaritalStatusSelected();
     var employeeGender = selectedEmployeeGenderKey();
 
     $("#spouse_count, #no_of_kids").prop("readonly", true);
@@ -738,6 +752,8 @@ function applyFamilySectionRules() {
         if (isSingle) {
             $relation.find("option[value='wife'], option[value='husband'], option[value='son'], option[value='daughter']")
                 .prop("disabled", true);
+        } else if (isDivorced) {
+            $relation.find("option[value='wife'], option[value='husband']").prop("disabled", true);
         } else {
             if (employeeGender === "male") {
                 $relation.find("option[value='husband']").prop("disabled", true);
@@ -1046,9 +1062,12 @@ $(document).on("click", ".repeater-remove", function () {
 });
 
 $(document).ready(function () {
-    $("#email").on("change", function () {
-        $("#employee-email").val($(this).val());
-    });
+    var syncEmployeeEmailPreview = function () {
+        $("#employee-email").val($("#email").val());
+    };
+
+    $("#email").on("input change", syncEmployeeEmailPreview);
+    syncEmployeeEmailPreview();
 
     toggleCivilServantWorkflowFields();
     $("#employee_type_id").on("change", toggleCivilServantWorkflowFields);

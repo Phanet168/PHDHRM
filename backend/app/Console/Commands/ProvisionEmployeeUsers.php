@@ -90,7 +90,7 @@ class ProvisionEmployeeUsers extends Command
                                 $user->user_name = $username;
                                 $user->email = $email;
                                 $user->contact_no = $contactNo;
-                                $user->password = Hash::make($username);
+                                $user->password = Hash::make('123456');
                                 $user->is_active = 1;
                                 $user->save();
                                 $user->syncRoles([$employeeRole->id]);
@@ -112,7 +112,7 @@ class ProvisionEmployeeUsers extends Command
                             if ($linkedUser->user_name !== $preferredUsername) {
                                 if (!$dryRun) {
                                     $linkedUser->user_name = $preferredUsername;
-                                    $linkedUser->password = Hash::make($preferredUsername);
+                                    $linkedUser->password = Hash::make('123456');
                                     $linkedUser->save();
                                 }
 
@@ -148,7 +148,7 @@ class ProvisionEmployeeUsers extends Command
         if (!$dryRun) {
             $this->newLine();
             $this->warn('Default login for newly created employees:');
-            $this->warn('Username = Official 10-digit code (or fallback), Password = same as username');
+            $this->warn('Username = Official 10-digit code (or fallback), Password = 123456');
         }
 
         return $errors > 0 ? self::FAILURE : self::SUCCESS;

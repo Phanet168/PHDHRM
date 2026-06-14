@@ -239,6 +239,20 @@
         $employeeUnit = trim((string) (data_get($profile, 'department_name', data_get($employee, 'department.department_name_km', data_get($employee, 'department.department_name')))));
         $employeeSkill = trim((string) data_get($profile, 'current_work_skill', data_get($profile, 'technical_skill', data_get($employee, 'skill_name', ''))));
         $employeeWorkStatus = trim((string) data_get($profile, 'work_status_name', data_get($employee, 'work_status_name', '')));
+        $employeeServiceState = trim((string) data_get($profile, 'service_state', data_get($employee, 'service_state', 'active')));
+        $normalizedEmployeeWorkStatusKey = mb_strtolower($employeeWorkStatus, 'UTF-8');
+        if ($normalizedEmployeeWorkStatusKey === 'active' || str_contains($normalizedEmployeeWorkStatusKey, 'in service') || $employeeWorkStatus === 'កំពុងបំរើការងារ' || $employeeWorkStatus === 'កំពុងបម្រើការងារ') {
+            $employeeWorkStatus = 'កំពុងបម្រើការងារ';
+        } elseif (str_contains($normalizedEmployeeWorkStatusKey, 'without pay') || str_contains($normalizedEmployeeWorkStatusKey, 'leave without pay') || str_contains($employeeWorkStatus, 'ទំនេរគ្មានបៀវត្ស')) {
+            $employeeWorkStatus = 'ទំនេរគ្មានបៀវត្ស';
+        }
+        if ($employeeWorkStatus !== '' && str_contains(strtolower($employeeWorkStatus), 'pay grade promotion')) {
+            $employeeWorkStatus = match ($employeeServiceState) {
+                'suspended' => 'ផ្អាកបណ្ដោះអាសន្ន',
+                'inactive' => 'អសកម្ម',
+                default => 'កំពុងបម្រើការងារ',
+            };
+        }
         $employeeSalaryLevel = trim((string) data_get($profile, 'current_salary_grade', data_get($employee, 'employee_grade', '')));
         $employeeType = trim((string) data_get($profile, 'employee_type_name', data_get($employee, 'employee_type.name', data_get($employee, 'employee_type.employee_type_name'))));
 

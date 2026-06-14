@@ -9,9 +9,10 @@
                 @csrf
                 <div class="modal-body">
                     <div class="alert alert-light border mb-3">
-                        <div class="fw-semibold mb-1">{{ localize('org_role_assign_help_title', 'អត្ថន័យការកំណត់នេះ') }}</div>
-                        <div>{{ localize('org_role_assign_help_1', 'Role = តួនាទីអ្នកចុះហត្ថលេខា/អនុម័ត') }}</div>
-                        <div>{{ localize('org_role_assign_help_2', 'Scope: តែអង្គភាពខ្លួនឯង ឬរួមទាំងអង្គភាពរង') }}</div>
+                        <div class="fw-semibold mb-1">{{ localize('org_role_assign_help_title', 'របៀបបំពេញ') }}</div>
+                        <div>{{ localize('org_role_assign_help_1', '1) ជ្រើសអ្នកប្រើប្រាស់') }}</div>
+                        <div>{{ localize('org_role_assign_help_2', '2) ជ្រើសអង្គភាព និងតួនាទី') }}</div>
+                        <div>{{ localize('org_role_assign_help_3', '3) ជ្រើសវិសាលភាព ហើយរក្សាទុក') }}</div>
                     </div>
 
                     <div class="row">
@@ -30,7 +31,7 @@
                                     @endif
                                 </select>
                                 <small class="text-muted">
-                                    {{ localize('org_role_user_prefill_hint', 'បើបានជ្រើសអ្នកប្រើប្រាស់ក្នុងតម្រងខាងលើរួច ប្រព័ន្ធនឹងបំពេញជាមុនដោយស្វ័យប្រវត្តិ។') }}
+                                    {{ localize('org_role_user_prefill_hint', 'បើអ្នកបានជ្រើសអ្នកប្រើនៅតម្រងខាងលើរួច វានឹងបញ្ចូលជាមុនឲ្យស្វ័យប្រវត្តិ។') }}
                                 </small>
                             </div>
                         </div>
@@ -82,7 +83,7 @@
                                     @endforeach
                                 </select>
                                 <small class="text-muted">
-                                    {{ localize('scope_hint_text', 'បើជ្រើស "អង្គភាពខ្លួនឯង និងអង្គភាពរង" អ្នកប្រើនឹងអាចដំណើរការលើឯកសាររបស់អង្គភាពរងបានផង។') }}
+                                    {{ localize('scope_hint_text', 'ជាទូទៅ ប្រើ "អង្គភាពខ្លួនឯង និងអង្គភាពរង" សម្រាប់ប្រធាន ឬអ្នកគ្រប់គ្រង។') }}
                                 </small>
                             </div>
                         </div>

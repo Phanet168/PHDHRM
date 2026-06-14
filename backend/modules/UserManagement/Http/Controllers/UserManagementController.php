@@ -95,15 +95,20 @@ class UserManagementController extends Controller
             $validator = Validator::make($request->all(), [
                 'full_name' => 'required|string|max:191',
                 'email' => [
-                    'required',
+                    'nullable',
                     'email',
                     'max:191',
-                    Rule::unique('users', 'email')->ignore($id),
+                    Rule::unique('users', 'email')
+                        ->whereNull('deleted_at')
+                        ->ignore($id),
                 ],
                 'contact_no' => [
                     'nullable',
+                    'string',
                     'max:30',
-                    Rule::unique('users', 'contact_no')->ignore($id),
+                    Rule::unique('users', 'contact_no')
+                        ->whereNull('deleted_at')
+                        ->ignore($id),
                 ],
                 'signature' => 'nullable|file|mimes:jpeg,png,jpg,gif,svg,pdf|max:5120',
                 'profile_image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
@@ -117,13 +122,13 @@ class UserManagementController extends Controller
                 ], 422);
             }
 
+            $this->releaseSoftDeletedUserUniqueClaims($request->email, $request->contact_no, null, (int) $id);
+
             $profileUpdate = User::with('employee')->findOrFail($id);
             $profileUpdate->full_name = $request->full_name;
 
-            $profileUpdate->email = $request->email;
-            if ($request->filled('contact_no')) {
-                $profileUpdate->contact_no = $request->contact_no;
-            }
+            $profileUpdate->email = $this->trimToNull($request->email);
+            $profileUpdate->contact_no = $this->trimToNull($request->contact_no);
 
             if ($request->hasFile('signature')) {
                 $destination = public_path('storage/' . $profileUpdate->signature ?? null);
@@ -164,10 +169,8 @@ class UserManagementController extends Controller
                     $updateEmployee->last_name = count($nameParts) > 1 ? implode(' ', array_slice($nameParts, 1)) : ($updateEmployee->last_name ?? '');
                 }
 
-                $updateEmployee->email = $request->email;
-                if ($request->filled('contact_no')) {
-                    $updateEmployee->phone = $request->contact_no;
-                }
+                $updateEmployee->email = $this->trimToNull($request->email);
+                $updateEmployee->phone = $this->trimToNull($request->contact_no);
 
                 if ($request->hasFile('signature')) {
                     $destination = public_path('storage/' . $updateEmployee->signature ?? null);
@@ -354,8 +357,17 @@ class UserManagementController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'full_name' => 'required',
-            'email' => 'required|email|unique:users,email',
-            'contact_no' => 'required',
+            'email' => [
+                'nullable',
+                'email',
+                Rule::unique('users', 'email')->whereNull('deleted_at'),
+            ],
+            'contact_no' => [
+                'nullable',
+                'string',
+                'max:30',
+                Rule::unique('users', 'contact_no')->whereNull('deleted_at'),
+            ],
             'password' => 'required|min:6',
             'role_id' => 'required',
             'user_type_id' => 'required',
@@ -364,10 +376,10 @@ class UserManagementController extends Controller
         ],
             [
                 'full_name.required' => 'The full name field is required.',
-                'email.required' => 'The email field is required.',
                 'email.email' => 'The email must be a valid email address.',
                 'email.unique' => 'The email has already been taken.',
-                'contact_no.required' => 'The mobile field is required.',
+                'contact_no.max' => 'The mobile may not be greater than 30 characters.',
+                'contact_no.unique' => 'The mobile has already been taken.',
                 'user_type_id.required' => 'The User Type field is required.',
                 'password.required' => 'The password field is required.',
                 'password.min' => 'The password must be at least 6 characters.',
@@ -389,6 +401,9 @@ class UserManagementController extends Controller
 
         DB::beginTransaction();
         try {
+            $this->cleanupStaleEmployeeLinks();
+            $this->releaseSoftDeletedUserUniqueClaims($request->email, $request->contact_no);
+
             $selectedEmployeeId = $request->filled('employee_id') ? (int) $request->employee_id : null;
             $selectedEmployee = null;
             if ($selectedEmployeeId) {
@@ -420,8 +435,8 @@ class UserManagementController extends Controller
             $user->user_type_id = $request->user_type_id;
             $user->is_active = $request->status;
             $user->full_name = $request->full_name;
-            $user->email = $request->email;
-            $user->contact_no = $request->contact_no;
+            $user->email = $this->trimToNull($request->email);
+            $user->contact_no = $this->trimToNull($request->contact_no);
 
             if ($request->hasFile('profile_image')) {
                 $request_file = $request->file('profile_image');
@@ -481,8 +496,21 @@ class UserManagementController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'full_name' => 'required',
-                'email' => 'required|email|unique:users,email,' . $request->id,
-                'contact_no' => 'required',
+                'email' => [
+                    'nullable',
+                    'email',
+                    Rule::unique('users', 'email')
+                        ->whereNull('deleted_at')
+                        ->ignore((int) $request->id),
+                ],
+                'contact_no' => [
+                    'nullable',
+                    'string',
+                    'max:30',
+                    Rule::unique('users', 'contact_no')
+                        ->whereNull('deleted_at')
+                        ->ignore((int) $request->id),
+                ],
                 'user_type_id' => 'required',
                 'role_id' => 'required',
                 'password' => 'nullable|min:6',
@@ -491,10 +519,10 @@ class UserManagementController extends Controller
             ], [
                 'role_id.required' => 'The Role field is required.',
                 'full_name.required' => 'The full name field is required.',
-                'email.required' => 'The email field is required.',
                 'email.email' => 'The email must be a valid email address.',
                 'email.unique' => 'The email has already been taken.',
-                'contact_no.required' => 'The mobile field is required.',
+                'contact_no.max' => 'The mobile may not be greater than 30 characters.',
+                'contact_no.unique' => 'The mobile has already been taken.',
                 'user_type_id.required' => 'The User Type field is required.',
                 'password.min' => 'The password must be at least 6 characters.',
                 'employee_id.exists' => 'The selected employee does not exist.',
@@ -511,6 +539,8 @@ class UserManagementController extends Controller
                 ]);
             }
             DB::beginTransaction();
+            $this->cleanupStaleEmployeeLinks();
+            $this->releaseSoftDeletedUserUniqueClaims($request->email, $request->contact_no, null, (int) $request->id);
             $user = User::with(['userRole', 'employee'])->findOrFail($request->id);
             $selectedEmployeeId = $request->filled('employee_id') ? (int) $request->employee_id : null;
             $currentLinkedEmployee = $this->resolveLinkedEmployeeForUser((int) $user->id);
@@ -544,8 +574,8 @@ class UserManagementController extends Controller
             $user->full_name = $request->full_name;
             $user->user_type_id = $request->user_type_id;
             $user->is_active = $request->status;
-            $user->email = $request->email;
-            $user->contact_no = $request->contact_no;
+            $user->email = $this->trimToNull($request->email);
+            $user->contact_no = $this->trimToNull($request->contact_no);
 
             if ($request->password != null) {
                 $user->password = Hash::make($request->password);
@@ -838,16 +868,24 @@ class UserManagementController extends Controller
             ], 422);
         }
 
-        foreach ($user->userRole as $role) {
-            $user->removeRole($role->id);
-        }
+        DB::transaction(function () use ($user) {
+            Employee::query()
+                ->where('user_id', (int) $user->id)
+                ->update(['user_id' => null]);
 
-        $destination = public_path('storage/' . $user->profile_image ?? null);
-        if ($user->profile_image != null && file_exists($destination)) {
-            unlink($destination);
-        }
+            foreach ($user->userRole as $role) {
+                $user->removeRole($role->id);
+            }
 
-        $user->delete();
+            $destination = public_path('storage/' . $user->profile_image ?? null);
+            if ($user->profile_image != null && file_exists($destination)) {
+                unlink($destination);
+            }
+
+            $this->archiveDeletedUserUniqueFields($user);
+            $user->tokens()->delete();
+            $user->delete();
+        });
 
         return response()->json(['status' => 'success', 'message' => 'User Deleted Successfully']);
     }
@@ -876,12 +914,122 @@ class UserManagementController extends Controller
 
     private function employeeOptionsForUser(?int $userId = null)
     {
+        $this->cleanupStaleEmployeeLinks();
+
         return Employee::query()
             ->orderByRaw('CASE WHEN user_id IS NULL THEN 0 ELSE 1 END')
             ->orderBy('employee_id')
             ->orderBy('first_name')
             ->orderBy('last_name')
             ->get();
+    }
+
+    private function cleanupStaleEmployeeLinks(): void
+    {
+        Employee::query()
+            ->whereNotNull('user_id')
+            ->whereDoesntHave('user')
+            ->update(['user_id' => null]);
+    }
+
+    private function releaseSoftDeletedUserUniqueClaims(
+        ?string $email = null,
+        ?string $contactNo = null,
+        ?string $userName = null,
+        ?int $ignoreUserId = null
+    ): void {
+        $email = $this->trimToNull($email);
+        $contactNo = $this->trimToNull($contactNo);
+        $userName = $this->trimToNull($userName);
+
+        if ($email === null && $contactNo === null && $userName === null) {
+            return;
+        }
+
+        $query = User::onlyTrashed();
+
+        if ($ignoreUserId !== null && $ignoreUserId > 0) {
+            $query->where('id', '!=', $ignoreUserId);
+        }
+
+        $query->where(function ($builder) use ($email, $contactNo, $userName) {
+            $hasCondition = false;
+
+            if ($email !== null) {
+                $builder->where('email', $email);
+                $hasCondition = true;
+            }
+
+            if ($contactNo !== null) {
+                if ($hasCondition) {
+                    $builder->orWhere('contact_no', $contactNo);
+                } else {
+                    $builder->where('contact_no', $contactNo);
+                    $hasCondition = true;
+                }
+            }
+
+            if ($userName !== null) {
+                if ($hasCondition) {
+                    $builder->orWhere('user_name', $userName);
+                } else {
+                    $builder->where('user_name', $userName);
+                }
+            }
+        });
+
+        $query->get()->each(function (User $deletedUser) {
+            $this->archiveDeletedUserUniqueFields($deletedUser);
+        });
+    }
+
+    private function archiveDeletedUserUniqueFields(User $user): void
+    {
+        $hasChanges = false;
+
+        $email = $this->trimToNull($user->email);
+        if ($email !== null) {
+            $user->email = $this->buildArchivedUniqueValue('email', $email, (int) $user->id, 191);
+            $hasChanges = true;
+        }
+
+        $contactNo = $this->trimToNull($user->contact_no);
+        if ($contactNo !== null) {
+            $user->contact_no = $this->buildArchivedUniqueValue('contact', $contactNo, (int) $user->id, 191);
+            $hasChanges = true;
+        }
+
+        $userName = $this->trimToNull($user->user_name);
+        if ($userName !== null) {
+            $user->user_name = $this->buildArchivedUniqueValue('username', $userName, (int) $user->id, 191);
+            $hasChanges = true;
+        }
+
+        if ($hasChanges) {
+            $user->saveQuietly();
+        }
+    }
+
+    private function buildArchivedUniqueValue(string $label, string $originalValue, int $userId, int $maxLength = 191): string
+    {
+        $normalizedOriginal = preg_replace('/\s+/', '_', trim($originalValue)) ?: 'value';
+        $timestamp = now()->format('YmdHis');
+        $prefix = "deleted-{$label}-{$userId}-{$timestamp}";
+        $separator = '--';
+        $remaining = $maxLength - strlen($prefix) - strlen($separator);
+
+        if ($remaining <= 0) {
+            return substr($prefix, 0, $maxLength);
+        }
+
+        return $prefix . $separator . substr($normalizedOriginal, 0, $remaining);
+    }
+
+    private function trimToNull($value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
     }
 
     private function revokeUserDeviceTokens(MobileDeviceRegistration $device): void

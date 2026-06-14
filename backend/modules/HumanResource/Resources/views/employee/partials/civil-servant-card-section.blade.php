@@ -1,6 +1,34 @@
 @php
     $emp = $employee ?? null;
     $extra = $emp?->profileExtra;
+    $civilServiceCardDateValue = static function ($value): ?string {
+        if (empty($value)) {
+            return null;
+        }
+
+        if ($value instanceof \Carbon\CarbonInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if (is_string($value)) {
+            $trimmed = trim($value);
+            if ($trimmed === '') {
+                return null;
+            }
+
+            try {
+                return \Carbon\Carbon::parse($trimmed)->format('Y-m-d');
+            } catch (\Throwable $e) {
+                return $trimmed;
+            }
+        }
+
+        return null;
+    };
     $workPermitValue = (string) old('work_permit', (string) (int) ($emp?->work_permit ?? 0));
 @endphp
 
@@ -39,7 +67,7 @@
         <div class="col-lg-9">
             <input type="date" name="civil_service_card_expiry_date" id="civil_service_card_expiry_date"
                 class="form-control"
-                value="{{ old('civil_service_card_expiry_date', optional($extra?->civil_service_card_expiry_date)->format('Y-m-d')) }}">
+                value="{{ old('civil_service_card_expiry_date', $civilServiceCardDateValue($extra?->civil_service_card_expiry_date)) }}">
             @if ($errors->has('civil_service_card_expiry_date'))
                 <div class="error text-danger text-start">{{ $errors->first('civil_service_card_expiry_date') }}</div>
             @endif

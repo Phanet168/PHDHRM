@@ -5,6 +5,7 @@ import '../../auth/models/auth_user.dart';
 import '../models/attendance_day_record.dart';
 import 'attendance_scan_page.dart';
 import '../services/home_attendance_service.dart';
+import '../../../core/theme/app_design_system.dart';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const _kBg = Color(0xFFF6F7FB);
@@ -180,6 +181,10 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
         return const _CellStyle(dotColor: _kEarlyLeaveDot);
       case 'incomplete':
         return const _CellStyle(dotColor: _kIncompleteDot);
+      case 'partial':
+      case 'unpaired_punch':
+      case 'unpaired':
+        return const _CellStyle(dotColor: _kIncompleteDot);
       case 'absent':
       case 'a':
         return const _CellStyle(dotColor: _kAbsentDot);
@@ -200,6 +205,10 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
         return 'យឺត & ចេញមុន';
       case 'incomplete':
         return 'មិនគ្រប់';
+      case 'partial':
+      case 'unpaired_punch':
+      case 'unpaired':
+        return 'មិនគ្រប់ (partial)';
       case 'mission':
       case 'm':
         return 'បេសកកម្ម';
@@ -214,7 +223,7 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
         return 'ថ្ងៃឈប់';
       case 'day_off':
       case 'd':
-        return 'ថ្ងៃឈប់';
+        return 'ថ្ងៃសម្រាក';
       default:
         return '-';
     }
@@ -232,6 +241,10 @@ class _AttendanceHistoryPageState extends State<AttendanceHistoryPage> {
       case 'early_leave':
         return _kEarlyLeaveDot;
       case 'incomplete':
+        return _kIncompleteDot;
+      case 'partial':
+      case 'unpaired_punch':
+      case 'unpaired':
         return _kIncompleteDot;
       case 'mission':
       case 'm':
@@ -1892,12 +1905,18 @@ class _CalendarBottomNav extends StatelessWidget {
             Icons.qr_code_scanner_rounded,
             Icons.calendar_month_outlined,
           ],
-          tabSize: 52,
-          tabBarHeight: 60,
-          textStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+          tabSize: 56,
+          tabBarHeight: 66,
+          textStyle: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            fontFamilyFallback: ['Noto Sans Khmer', 'Public Sans'],
+          ),
           tabIconSize: 22,
           tabIconSelectedSize: 26,
-          tabSelectedColor: const Color(0xFF16A34A),
+          tabSelectedColor: AppDesignSystem.colorForWeekday(
+            DateTime.now().weekday,
+          ),
           tabIconSelectedColor: Colors.white,
           tabIconColor: const Color(0xFF9CA3AF),
           tabBarColor: Colors.white,

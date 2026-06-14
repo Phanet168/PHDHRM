@@ -125,17 +125,20 @@ class _LeaveHistoryPageState extends State<LeaveHistoryPage> {
   }
 
   DateTime? _parseDate(String s) {
-    if (s.isEmpty) return null;
-    try {
-      final parts = s.split('-');
-      if (parts.length >= 3) {
-        return DateTime(
-          int.parse(parts[0]),
-          int.parse(parts[1]),
-          int.parse(parts[2]),
-        );
-      }
-    } catch (_) {}
+    final text = s.trim();
+    if (text.isEmpty) return null;
+
+    final parsed =
+        DateTime.tryParse(text) ??
+        DateTime.tryParse(text.replaceFirst(' ', 'T'));
+    if (parsed != null) {
+      return parsed;
+    }
+
+    if (text.contains(' ')) {
+      return _parseDate(text.split(' ').first);
+    }
+
     return null;
   }
 
@@ -486,6 +489,25 @@ class _HistoryCard extends StatelessWidget {
   final Map<String, String> language;
   final VoidCallback onTap;
 
+  String _formatDateDisplay(String value) {
+    final text = value.trim();
+    if (text.isEmpty) {
+      return '-';
+    }
+
+    final parsed =
+        DateTime.tryParse(text) ??
+        DateTime.tryParse(text.replaceFirst(' ', 'T'));
+    if (parsed == null) {
+      return text;
+    }
+
+    final day = parsed.day.toString().padLeft(2, '0');
+    final month = parsed.month.toString().padLeft(2, '0');
+    final year = parsed.year.toString().padLeft(4, '0');
+    return '$day-$month-$year';
+  }
+
   @override
   Widget build(BuildContext context) {
     final typeLabel =
@@ -553,7 +575,7 @@ class _HistoryCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        '${request.startDate}  →  ${request.endDate}',
+                        '${_formatDateDisplay(request.startDate)}  →  ${_formatDateDisplay(request.endDate)}',
                         style: const TextStyle(
                           fontSize: 12,
                           color: Color(0xFF64748B),

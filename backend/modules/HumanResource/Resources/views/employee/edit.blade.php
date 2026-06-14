@@ -3,24 +3,39 @@
 @push('css')
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/intl-tel-input/17.0.13/css/intlTelInput.css">
     <link rel="stylesheet" href="{{ asset('backend/assets/plugins/tagsinput/bootstrap-tagsinput.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
     <link rel="stylesheet" href="{{ module_asset('HumanResource/css/employee.css') }}">
 @endpush
 @section('content')
+    @php
+        $selfServiceMode = (bool) ($selfServiceMode ?? false);
+        $formAction = $selfServiceMode ? route('updateMyProfile') : route('employees.update', $employee->uuid);
+        $pageTitle = $selfServiceMode
+            ? localize('edit_my_profile', 'កែព័ត៌មានផ្ទាល់ខ្លួន')
+            : localize('edit_employee_information');
+    @endphp
 
-    @include('humanresource::employee_header')
+    @unless($selfServiceMode)
+        @include('humanresource::employee_header')
+    @endunless
 
     <div class="card mb-3 fixed-tab-body">
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h6 class="fs-17 fw-semi-bold mb-0">{{ localize('edit_employee_information') }}</h6>
+                    <h6 class="fs-17 fw-semi-bold mb-0">{{ $pageTitle }}</h6>
                 </div>
                 <div class="text-end">
                     <div class="actions">
-                        @can('read_employee')
-                            <a href="{{ route('employees.index') }}" class="btn btn-success btn-sm"><i class="fa fa-list"></i> {{ localize('employee_list') }}</a>
-
-                        @endcan
+                        @if ($selfServiceMode)
+                            <a href="{{ route('myProfile') }}" class="btn btn-outline-secondary btn-sm">
+                                <i class="fa fa-arrow-left"></i> {{ localize('back') }}
+                            </a>
+                        @else
+                            @can('read_employee')
+                                <a href="{{ route('employees.index') }}" class="btn btn-success btn-sm"><i class="fa fa-list"></i> {{ localize('employee_list') }}</a>
+                            @endcan
+                        @endif
                     </div>
                 </div>
             </div>
@@ -28,7 +43,7 @@
         <div class="card-body">
             <div class="row justify-content-center">
                 <div class="col-md-12 text-center">
-                    <form action="{{ route('employees.update', $employee->uuid) }}" method="POST" class="f1" novalidate
+                    <form action="{{ $formAction }}" method="POST" class="f1" novalidate
                         enctype="multipart/form-data">
                         @method('PATCH')
                         @csrf
@@ -74,7 +89,20 @@
                             $serviceStateDisplay = $currentServiceState === 'suspended'
                                 ? localize('suspended_temporary')
                                 : ($currentServiceState === 'inactive' ? localize('inactive') : localize('active'));
-                            $currentWorkStatusDisplay = $employee->work_status_name ?: ($isKhmerUi ? 'កំពុងបម្រើការងារ' : 'Active in service');
+                            $rawWorkStatusDisplay = trim((string) ($employee->work_status_name ?? ''));
+                            $hidePromotionWorkStatus = $rawWorkStatusDisplay !== '' && str_contains(strtolower($rawWorkStatusDisplay), 'pay grade promotion');
+                            $normalizedVisibleWorkStatus = '';
+                            if ($rawWorkStatusDisplay !== '') {
+                                $normalizedWorkStatusKey = mb_strtolower($rawWorkStatusDisplay, 'UTF-8');
+                                if ($normalizedWorkStatusKey === 'active' || str_contains($normalizedWorkStatusKey, 'in service') || $rawWorkStatusDisplay === 'កំពុងបំរើការងារ' || $rawWorkStatusDisplay === 'កំពុងបម្រើការងារ') {
+                                    $normalizedVisibleWorkStatus = 'កំពុងបម្រើការងារ';
+                                } elseif (str_contains($normalizedWorkStatusKey, 'without pay') || str_contains($normalizedWorkStatusKey, 'leave without pay') || str_contains($rawWorkStatusDisplay, 'ទំនេរគ្មានបៀវត្ស')) {
+                                    $normalizedVisibleWorkStatus = 'ទំនេរគ្មានបៀវត្ស';
+                                }
+                            }
+                            $currentWorkStatusDisplay = $hidePromotionWorkStatus
+                                ? ($currentServiceState === 'active' ? 'កំពុងបម្រើការងារ' : $serviceStateDisplay)
+                                : ($normalizedVisibleWorkStatus !== '' ? $normalizedVisibleWorkStatus : ($rawWorkStatusDisplay !== '' ? $rawWorkStatusDisplay : ($isKhmerUi ? 'កំពុងបម្រើការងារ' : 'Active in service')));
                             $civilServicePhaseLabel = $isKhmerUi ? 'ស្ថានភាពមន្ត្រីក្របខ័ណ្ឌ' : 'Civil servant phase';
                             $probationStatusLabel = $isKhmerUi ? 'មន្ត្រីចុះកម្មសិក្សា' : 'Probationary officer';
                             $fullRightStatusLabel = $isKhmerUi ? 'មន្ត្រីពេញសិទ្ធ' : 'Full-right officer';
@@ -86,36 +114,88 @@
                                 ? $fullRightStatusLabel
                                 : $probationStatusLabel;
                             $medicalInformationTitle = $isKhmerUi ? 'ព័ត៌មានវេជ្ជសាស្ត្រ' : 'Medical information';
+                            $displayDate = static function ($value): string {
+                                if (blank($value)) {
+                                    return '-';
+                                }
+
+                                try {
+                                    return \Illuminate\Support\Carbon::parse($value)->format('d-m-Y');
+                                } catch (\Throwable $exception) {
+                                    return trim((string) $value) !== '' ? trim((string) $value) : '-';
+                                }
+                            };
                         @endphp
+
+                        @if ($errors->has('employee_update_error'))
+                            <div class="alert alert-danger text-start">
+                                {{ $errors->first('employee_update_error') }}
+                            </div>
+                        @endif
+
+                        @if ($errors->any())
+                            @php
+                                $summaryErrors = collect($errors->all())
+                                    ->filter()
+                                    ->unique()
+                                    ->values();
+                            @endphp
+                            @if ($summaryErrors->isNotEmpty())
+                                <div class="alert alert-warning text-start">
+                                    <div class="fw-semibold mb-2">{{ localize('please_check_the_form', 'Please check the form and try again.') }}</div>
+                                    <ul class="mb-0 ps-3">
+                                        @foreach ($summaryErrors as $message)
+                                            <li>{{ $message }}</li>
+                                        @endforeach
+                                    </ul>
+                                </div>
+                            @endif
+                        @endif
 
                         <div class="gov-action-bar d-flex justify-content-between align-items-center mb-3">
                             <div class="d-flex align-items-center gap-2">
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fa fa-save me-1"></i> {{ localize('save') }}
                                 </button>
-                                @can('read_employee')
-                                    <a href="{{ route('employees.profile.print', $employee->id) }}" class="btn btn-outline-info" target="_blank" rel="noopener">
-                                        <i class="fa fa-print me-1"></i> {{ localize('print_employee_profile', 'បោះពុម្ពប្រវត្តិរូប') }}
+                                @if ($selfServiceMode)
+                                    <a href="{{ route('idprint.my-card') }}" class="btn btn-outline-success" target="_blank" rel="noopener">
+                                        <i class="fa fa-id-card me-1"></i> {{ localize('print_my_id_card', 'បោះពុម្ពកាតខ្លួនឯង') }}
                                     </a>
-                                @endcan
-                                <a href="{{ route('employees.career_management.edit', $employee->id) }}" class="btn btn-outline-primary">
-                                    <i class="fa fa-sitemap me-1"></i> {{ localize('manage_career_history') }}
-                                </a>
-                                <a href="{{ route('employee-position-promotions.index') }}" class="btn btn-outline-primary">
-                                    <i class="fa fa-level-up me-1"></i> {{ localize('manage_position_promotions') }}
-                                </a>
-                                <a href="{{ route('employee-pay-promotions.index') }}" class="btn btn-outline-secondary">
-                                    <i class="fa fa-line-chart me-1"></i> {{ app()->getLocale() === 'en' ? 'Grade and rank management' : 'គ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ' }}
-                                </a>
-                                <a href="{{ route('employee-workplace-transfers.index') }}" class="btn btn-outline-secondary">
-                                    <i class="fa fa-exchange me-1"></i> {{ localize('manage_workplace_transfers') }}
-                                </a>
+                                    <a href="{{ route('idprint.public-profile', $employee->uuid) }}" class="btn btn-outline-dark" target="_blank" rel="noopener">
+                                        <i class="fa fa-qrcode me-1"></i> {{ localize('view_e_card', 'មើល e-Card') }}
+                                    </a>
+                                @endif
+                                @unless($selfServiceMode)
+                                    @can('read_employee')
+                                        <a href="{{ route('employees.profile.print', $employee->id) }}" class="btn btn-outline-info" target="_blank" rel="noopener">
+                                            <i class="fa fa-print me-1"></i> {{ localize('print_employee_profile', 'បោះពុម្ពប្រវត្តិរូប') }}
+                                        </a>
+                                    @endcan
+                                    <a href="{{ route('employees.career_management.edit', $employee->id) }}" class="btn btn-outline-primary">
+                                        <i class="fa fa-sitemap me-1"></i> {{ localize('manage_career_history') }}
+                                    </a>
+                                    <a href="{{ route('employee-position-promotions.index') }}" class="btn btn-outline-primary">
+                                        <i class="fa fa-level-up me-1"></i> {{ localize('manage_position_promotions') }}
+                                    </a>
+                                    <a href="{{ route('employee-pay-promotions.index') }}" class="btn btn-outline-secondary">
+                                        <i class="fa fa-line-chart me-1"></i> {{ app()->getLocale() === 'en' ? 'Grade and rank management' : 'គ្រប់គ្រងថ្នាក់ និងឋានន្តរស័ក្តិ' }}
+                                    </a>
+                                    <a href="{{ route('employee-workplace-transfers.index') }}" class="btn btn-outline-secondary">
+                                        <i class="fa fa-exchange me-1"></i> {{ localize('manage_workplace_transfers') }}
+                                    </a>
+                                @endunless
                             </div>
                             <div class="d-flex align-items-center gap-2">
                                 <span class="badge {{ $statusBadgeClass }} px-3 py-2">{{ $statusText }}</span>
-                                <span class="badge bg-light text-dark px-3 py-2">{{ localize('work_status') }} - {{ $employee->work_status_name ?: '-' }}</span>
+                                <span class="badge bg-light text-dark px-3 py-2">{{ localize('work_status') }} - {{ $currentWorkStatusDisplay }}</span>
                             </div>
                         </div>
+
+                        @if ($selfServiceMode)
+                            <div class="alert alert-info text-start mb-3">
+                                {{ localize('self_service_profile_note', 'អ្នកអាចកែព័ត៌មានផ្ទាល់ខ្លួនបាន។ ព័ត៌មានអង្គភាព តួនាទី និងស្ថានភាពមន្ត្រី ត្រូវបានរក្សាទុកជា read-only។ Email និង phone នៅលើទម្រង់នេះជាព័ត៌មានបុគ្គលិក មិនប្ដូរទិន្នន័យគណនីចូលប្រើដោយស្វ័យប្រវត្តិទេ។') }}
+                            </div>
+                        @endif
 
                         <div class="gov-officer-header card mb-3">
                             <div class="card-body">
@@ -123,14 +203,24 @@
                                     <div class="col-lg-4">
                                         <div class="d-flex align-items-center h-100 gov-profile-box">
                                             <div class="me-3">
-                                                <img src="{{ $employee->profile_img_location ? asset('storage/' . $employee->profile_img_location) : asset('backend/assets/img/avatar-1.jpg') }}"
-                                                    alt="{{ localize('officer_photo') }}" class="rounded-circle gov-avatar">
+                                                <img src="{{ $employee->profile_img_location ? asset('storage/' . $employee->profile_img_location) : asset('backend/assets/dist/img/avatar-1.jpg') }}"
+                                                    alt="{{ localize('officer_photo') }}" class="rounded-circle gov-avatar"
+                                                    id="employee-photo-preview">
                                             </div>
                                             <div>
                                                 <h5 class="mb-1 fw-bold">{{ $employee->full_name }}</h5>
                                                 <div class="text-muted small mb-1">{{ localize('official_id') }}: {{ $employee->official_id_10 ?: '-' }}</div>
                                                 <div class="text-muted small mb-1">{{ localize('employee_id') }}: {{ $employee->employee_id ?: '-' }}</div>
                                                 <div class="text-muted small">{{ localize('phone') }}: {{ $employee->phone ?: '-' }}</div>
+                                                <div class="mt-2">
+                                                    <input type="file" name="profile_image" id="header_profile_image_input" accept="image/*" class="d-none">
+                                                    <label for="header_profile_image_input" class="btn btn-sm btn-outline-primary js-change-photo-trigger mb-0">
+                                                        <i class="fa fa-camera me-1"></i>{{ app()->getLocale() === 'km' ? 'ប្តូររូបថត' : 'Change photo' }}
+                                                    </label>
+                                                    @if ($errors->has('profile_image'))
+                                                        <div class="text-danger small mt-2 text-start">{{ $errors->first('profile_image') }}</div>
+                                                    @endif
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -151,7 +241,7 @@
                                             <div class="col-md-6 col-xl-3">
                                                 <div class="gov-mini-card h-100">
                                                     <div class="gov-mini-title">{{ localize('service_start_date') }}</div>
-                                                    <div class="gov-mini-value">{{ $employee->service_start_date ?: $employee->joining_date ?: '-' }}</div>
+                                                    <div class="gov-mini-value">{{ $displayDate($employee->service_start_date ?: $employee->joining_date) }}</div>
                                                 </div>
                                             </div>
                                             <div class="col-md-6 col-xl-3">
@@ -161,6 +251,29 @@
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="modal fade" id="employeePhotoCropModal" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-dialog-centered modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">{{ localize('crop_photo', 'កាត់រូបថត') }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ localize('close', 'Close') }}"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="text-muted small mb-3 text-start">
+                                            {{ localize('crop_photo_hint', 'អូស ឬ ពង្រីករូប ដើម្បីកាត់យកផ្នែកដែលចង់ប្រើជារូបប្រវត្តិរូប។') }}
+                                        </div>
+                                        <div class="bg-light rounded-3 p-3">
+                                            <img src="" alt="{{ localize('crop_photo_preview', 'Crop preview') }}" id="employee-photo-cropper-image" style="display:block; max-width:100%;">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{{ localize('cancel', 'Cancel') }}</button>
+                                        <button type="button" class="btn btn-primary" id="employee-photo-crop-apply">{{ localize('apply', 'Apply') }}</button>
                                     </div>
                                 </div>
                             </div>
@@ -221,6 +334,9 @@
                                         @input(['input_name' => 'password_confirmation', 'label' => ($isKhmerUi ? 'បញ្ជាក់ពាក្យសម្ងាត់ថ្មី' : 'Confirm new password'), 'type' => 'password', 'required' => false])
                                         @input(['input_name' => 'phone', 'label' => localize('phone'), 'required' => false, 'value' => $employee->phone])
                                         @input(['input_name' => 'alternate_phone', 'label' => localize('alternate_phone'), 'required' => false, 'value' => $employee->alternate_phone])
+                                        <div class="small text-muted mb-3">
+                                            {{ localize('employee_contact_info_note', 'Email និង phone នៅទីនេះជាព័ត៌មានបុគ្គលិក។ ទិន្នន័យគណនីចូលប្រើត្រូវបានគ្រប់គ្រងដាច់ដោយឡែក។') }}
+                                        </div>
                                         <div class="form-group mb-2 mx-0 row">
                                             <label for="telegram_account" class="col-lg-3 col-form-label ps-0">{{ $telegramLabel }}</label>
                                             <div class="col-lg-9">
@@ -475,6 +591,7 @@
 
                                         $singleStatusId = $findStatusId(['single', 'នៅលីវ']);
                                         $marriedStatusId = $findStatusId(['married', 'រៀបការ']);
+                                        $divorcedStatusId = $findStatusId(['divorced', 'លែងលះ']);
                                         $widowedStatusId = $findStatusId(['widow', 'widowed', 'មេម៉ាយ', 'ពោះម៉ាយ']);
                                         $selectedMaritalStatusId = old('marital_status_id', $employee->marital_status_id);
 
@@ -483,6 +600,10 @@
                                         if (!empty($marriedStatusId)) {
                                             $statusOptions[] = ['id' => $marriedStatusId, 'key' => 'married', 'label' => localize('marital_married')];
                                             $renderedStatusIds[] = (int) $marriedStatusId;
+                                        }
+                                        if (!empty($divorcedStatusId)) {
+                                            $statusOptions[] = ['id' => $divorcedStatusId, 'key' => 'divorced', 'label' => 'លែងលះ'];
+                                            $renderedStatusIds[] = (int) $divorcedStatusId;
                                         }
                                         if (!empty($singleStatusId)) {
                                             $statusOptions[] = ['id' => $singleStatusId, 'key' => 'single', 'label' => localize('marital_single')];
@@ -506,6 +627,7 @@
                                             <select name="marital_status_id" id="marital_status_id" class="form-select"
                                                 data-single-id="{{ $singleStatusId }}"
                                                 data-married-id="{{ $marriedStatusId }}"
+                                                data-divorced-id="{{ $divorcedStatusId }}"
                                                 data-widowed-id="{{ $widowedStatusId }}">
                                                 <option value="">{{ localize('select_marital_status') }}</option>
                                                 @foreach ($statusOptions as $statusOption)
@@ -537,13 +659,6 @@
                                     <input type="hidden" name="no_of_kids" id="no_of_kids" value="{{ old('no_of_kids', $employee->no_of_kids ?? 0) }}">
                                     <input type="hidden" name="spouse_count" id="spouse_count" value="{{ old('spouse_count', $employee->spouse_count ?? 0) }}">
                                     <small class="text-muted d-block offset-3 mb-2">{{ localize('family_summary_auto') }}</small>
-                                    @input(['input_name' => 'profile_image', 'type' => 'file', 'accept' => 'image/*', 'tooltip' => 'Attached Passport Size photo', 'required' => false])
-                                    @if ($employee->profile_img_location)
-                                        <div class="col-md-4">
-                                            <img width="70"
-                                                src="{{ asset('storage/' . $employee->profile_img_location) }}">
-                                        </div>
-                                    @endif
                                 </div>
                                 <div class="col-md-6">
                                     <h5>{{ localize('emergency_contact') }}</h5>
@@ -697,15 +812,16 @@
     </div>
 @endsection
 @push('js')
-    <script src="{{ asset('backend/assets/plugins/bootstrap-wizard/form.scripts.js') }}"></script>
-    <script src="{{ module_asset('HumanResource/js/employee_form_wiz.js') }}"></script>
+    <script src="{{ asset('backend/assets/plugins/bootstrap-wizard/form.scripts.js') }}?v={{ @filemtime(public_path('backend/assets/plugins/bootstrap-wizard/form.scripts.js')) }}"></script>
+    <script src="{{ module_asset('HumanResource/js/employee_form_wiz.js') }}?v={{ @filemtime(public_path('module-assets/HumanResource/js/employee_form_wiz.js')) }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
     <script src="{{ module_asset('HumanResource/js/employee-edit.js') }}?v={{ @filemtime(public_path('module-assets/HumanResource/js/employee-edit.js')) }}"></script>
     <script>
         window.employeeCascadeConfig = {
             orgUnitTree: @json($org_unit_tree ?? [])
         };
     </script>
-    <script src="{{ module_asset('HumanResource/js/employee-cascade.js') }}"></script>
+    <script src="{{ module_asset('HumanResource/js/employee-cascade.js') }}?v={{ @filemtime(public_path('module-assets/HumanResource/js/employee-cascade.js')) }}"></script>
     <script>
         (function($) {
             "use strict";
@@ -718,7 +834,7 @@
                 var text = String(value).trim();
                 var iso = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
                 if (iso) {
-                    return iso[3] + "/" + iso[2] + "/" + iso[1];
+                    return iso[3] + "-" + iso[2] + "-" + iso[1];
                 }
 
                 var mon = text.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
@@ -726,7 +842,7 @@
                     var map = { jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06", jul: "07", aug: "08", sep: "09", oct: "10", nov: "11", dec: "12" };
                     var m = map[(mon[2] || "").toLowerCase()];
                     if (m) {
-                        return String(parseInt(mon[1], 10)).padStart(2, "0") + "/" + m + "/" + mon[3];
+                        return String(parseInt(mon[1], 10)).padStart(2, "0") + "-" + m + "-" + mon[3];
                     }
                 }
 
@@ -738,8 +854,8 @@
                     return "";
                 }
 
-                var t = String(value).trim().replace(/[-.]/g, "/");
-                var m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                var t = String(value).trim().replace(/[\/.]/g, "-");
+                var m = t.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
                 if (!m) {
                     return null;
                 }
@@ -766,21 +882,21 @@
                     var currentValue = toUiDate($input.val());
                     $input.attr("type", "text");
                     $input.addClass("hard-ddmmyyyy-date");
-                    $input.attr("placeholder", "DD/MM/YYYY");
+                    $input.attr("placeholder", "DD-MM-YYYY");
                     $input.attr("autocomplete", "off");
                     $input.attr("inputmode", "numeric");
 
                     if (typeof $.fn.datetimepicker === "function") {
                         $input.datetimepicker({
                             timepicker: false,
-                            format: "d/m/Y",
+                            format: "d-m-Y",
                             scrollInput: false,
                             closeOnDateSelect: true,
                             lang: "km"
                         });
                     } else if (typeof $.fn.datepicker === "function") {
                         $input.datepicker({
-                            dateFormat: "dd/mm/yy",
+                            dateFormat: "dd-mm-yy",
                             changeMonth: true,
                             changeYear: true,
                             showAnim: "slideDown"
@@ -800,12 +916,17 @@
 
                 $form.on("submit", function(e) {
                     var invalid = false;
-                    $form.find("input.hard-ddmmyyyy-date").each(function() {
+                    var $firstInvalid = $();
+
+                    $form.find("input.hard-ddmmyyyy-date:enabled:not([readonly])").each(function() {
                         var $input = $(this);
                         var converted = toStorageDate($input.val());
                         if (converted === null) {
                             invalid = true;
                             $input.addClass("is-invalid");
+                            if (!$firstInvalid.length) {
+                                $firstInvalid = $input;
+                            }
                             return;
                         }
 
@@ -815,7 +936,20 @@
 
                     if (invalid) {
                         e.preventDefault();
-                        alert("សូមបញ្ចូលកាលបរិច្ឆេទជា DD/MM/YYYY ឲ្យត្រឹមត្រូវ។");
+                        if (typeof toastr !== "undefined") {
+                            toastr.error("សូមបញ្ចូលកាលបរិច្ឆេទជា DD-MM-YYYY ឲ្យត្រឹមត្រូវ។");
+                        } else {
+                            alert("សូមបញ្ចូលកាលបរិច្ឆេទជា DD-MM-YYYY ឲ្យត្រឹមត្រូវ។");
+                        }
+
+                        if ($firstInvalid.length) {
+                            var $targetFieldset = $firstInvalid.closest("fieldset");
+                            if ($targetFieldset.length && typeof setWizardStepByFieldset === "function") {
+                                setWizardStepByFieldset($form, $targetFieldset);
+                            }
+                            $("html, body").stop().animate({ scrollTop: Math.max($firstInvalid.offset().top - 120, 0) }, 0);
+                            $firstInvalid.trigger("focus");
+                        }
                     }
                 });
 
@@ -833,4 +967,56 @@
             $(document).on("focus", "form.f1 input.hard-ddmmyyyy-date, form.f1 input[type='date']", hardFixEditPageDateUi);
         })(jQuery);
     </script>
+    @if ($selfServiceMode)
+        <script>
+            (function($) {
+                "use strict";
+
+                function lockSelfServiceHrFields() {
+                    var selectors = [
+                        "select[name='department_id']",
+                        "select[name='position_id']",
+                        "#service_start_date",
+                        "#employee_type_id",
+                        "#employee_grade",
+                        "#current_position_start_date",
+                        "#current_position_document_number",
+                        "#current_position_document_date",
+                        "#technical_role_type",
+                        "#framework_type",
+                        "#registration_date",
+                        "#professional_registration_no",
+                        "#institution_contact_no",
+                        "#institution_email",
+                        "#is_full_right_officer",
+                        "#full_right_date",
+                        "#legal_document_type",
+                        "#legal_document_number",
+                        "#legal_document_date",
+                        "#legal_document_subject",
+                        "#official_id_10",
+                        "#card_no",
+                        "#civil_service_card_expiry_date",
+                        "input[name='work_permit']",
+                        "input[name='is_supervisor']"
+                    ];
+
+                    selectors.forEach(function(selector) {
+                        var $fields = $(selector);
+                        if (!$fields.length) {
+                            return;
+                        }
+
+                        $fields.prop("disabled", true);
+                        $fields.closest(".form-group, .gov-section-card, .border.rounded").addClass("opacity-75");
+                    });
+
+                    $(".gov-org-form .btn-outline-primary, .gov-action-bar .btn-outline-primary, .gov-action-bar .btn-outline-secondary, .gov-action-bar .btn-outline-info").remove();
+                }
+
+                $(document).ready(lockSelfServiceHrFields);
+                $(window).on("load", lockSelfServiceHrFields);
+            })(jQuery);
+        </script>
+    @endif
 @endpush

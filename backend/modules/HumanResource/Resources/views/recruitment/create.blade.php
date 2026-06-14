@@ -214,7 +214,7 @@
     </div>
 @endsection
 @push('js')
-    <script src="{{ asset('backend/assets/plugins/bootstrap-wizard/form.scripts.js') }}"></script>
+    <script src="{{ asset('backend/assets/plugins/bootstrap-wizard/form.scripts.js') }}?v={{ @filemtime(public_path('backend/assets/plugins/bootstrap-wizard/form.scripts.js')) }}"></script>
 
     <script src="{{ module_asset('HumanResource/js/candidate-create.js') }}"></script>
 @endpush

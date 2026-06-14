@@ -1,0 +1,15 @@
+{
+    "name": "Planning",
+    "alias": "planning",
+    "description": "Organizational planning and consolidation module",
+    "keywords": [
+        "planning",
+        "budget",
+        "workflow"
+    ],
+    "priority": 0,
+    "providers": [
+        "Modules\\Planning\\Providers\\PlanningServiceProvider"
+    ],
+    "files": []
+}

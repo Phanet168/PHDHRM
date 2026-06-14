@@ -117,7 +117,8 @@ function validateDmyFieldValue(value) {
         return true;
     }
 
-    var match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    var normalized = text.replace(/[\/.]/g, "-");
+    var match = normalized.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
     if (!match) {
         return false;
     }
@@ -153,7 +154,7 @@ function validateFieldsetForNextStep($form, $fieldset) {
             }
         });
 
-    $fieldset.find("input.hard-ddmmyyyy-date:enabled:visible").each(function () {
+    $fieldset.find("input.hard-ddmmyyyy-date:enabled:visible:not([readonly])").each(function () {
         var $field = $(this);
         if (!validateDmyFieldValue($field.val())) {
             $field.addClass("input-error");
@@ -380,11 +381,11 @@ jQuery(document).ready(function () {
 
     // submit
     $(".f1").on("submit", function (e) {
-        // fields validation
+        var $form = $(this);
         var hasError = false;
         var $firstError = null;
 
-        $(this)
+        $form
             .find(".required-field")
             .each(function () {
                 var $field = $(this);
@@ -393,7 +394,7 @@ jQuery(document).ready(function () {
                     return;
                 }
 
-                if ($field.val() === "") {
+                if (!fieldHasValue($form, $field)) {
                     hasError = true;
                     $field.addClass("input-error");
                     if (!$firstError) {
@@ -404,17 +405,34 @@ jQuery(document).ready(function () {
                 }
             });
 
+        $form.find("input.hard-ddmmyyyy-date:enabled:not([readonly])").each(function () {
+            var $field = $(this);
+            if (!validateDmyFieldValue($field.val())) {
+                hasError = true;
+                $field.addClass("input-error");
+                if (!$firstError) {
+                    $firstError = $field;
+                }
+            } else {
+                $field.removeClass("input-error");
+            }
+        });
+
         if (hasError) {
             e.preventDefault();
             if (typeof toastr !== "undefined") {
                 toastr.error(validationMessage());
             }
             if ($firstError) {
+                var $targetFieldset = $firstError.closest("fieldset");
+                if ($targetFieldset.length) {
+                    setWizardStepByFieldset($form, $targetFieldset);
+                }
                 scroll_to_class($firstError, 120);
                 $firstError.trigger("focus");
             }
+            jumpToFirstValidationError($form);
         }
-        // fields validation
     });
 
     //show and hide disability input

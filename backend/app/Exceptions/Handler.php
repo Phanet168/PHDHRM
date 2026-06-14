@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Session\TokenMismatchException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -45,6 +46,25 @@ class Handler extends ExceptionHandler
     {
         $this->reportable(function (Throwable $e) {
             //
+        });
+
+        $this->renderable(function (TokenMismatchException $exception, $request) {
+            $message = localize(
+                'session_expired_login_again',
+                'សម័យប្រើប្រាស់បានផុតកំណត់ សូមចូលប្រើម្តងទៀត។'
+            );
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $message,
+                    'redirect' => route('login'),
+                ], 419);
+            }
+
+            return redirect()
+                ->route('login')
+                ->withInput($request->except(['password', 'password_confirmation']))
+                ->with('warning', $message);
         });
     }
 }

@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_design_system.dart';
 import '../../auth/models/auth_user.dart';
 import '../models/leave_request_models.dart';
 import '../services/home_leave_service.dart';
@@ -75,7 +76,9 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
     final id = _selectedHandoverEmployeeId;
     if (id == null) return null;
     try {
-      return widget.handoverEmployees.firstWhere((employee) => employee.id == id);
+      return widget.handoverEmployees.firstWhere(
+        (employee) => employee.id == id,
+      );
     } catch (_) {
       return null;
     }
@@ -220,10 +223,7 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
       return;
     }
     if ((_selectedHandoverEmployeeId ?? 0) <= 0) {
-      _showMsg(
-        _tr('handover_employee', 'សូមជ្រើសរើសអ្នកជំនួស'),
-        isError: true,
-      );
+      _showMsg(_tr('handover_employee', 'សូមជ្រើសរើសអ្នកជំនួស'), isError: true);
       return;
     }
     final reason = _reasonController.text.trim();
@@ -417,7 +417,7 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
                             children: <Widget>[
                               Expanded(
                                 child: _DatePickerTile(
-                                  label: 'ថ្ងៃចាប់ផ្តើម',
+                                  label: 'ថ្ងៃចាប់ផ្ដើម',
                                   value: _fmt(_startDate),
                                   hasValue: _startDate != null,
                                   onTap: _submitting ? null : _pickStart,
@@ -484,7 +484,8 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
                       title:
                           (_selectedType?.requiresAttachment ?? false)
                               ? 'ឯកសារភ្ជាប់ *'
-                              : 'ឯកសារភ្ជាប់ (ស្រេចចិត្ត)',
+                              : 'ឯកសារភ្ជាប់ (ឯកលក្ខណ៍)',
+
                       child: _AttachmentPicker(
                         file: _attachment,
                         disabled: _submitting,
@@ -538,7 +539,9 @@ class _LeaveFormPageState extends State<LeaveFormPage> {
                         child: ElevatedButton.icon(
                           onPressed: _submitting ? null : _submit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF0B6B58),
+                            backgroundColor: AppDesignSystem.colorForWeekday(
+                              DateTime.now().weekday,
+                            ),
                             foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(13),
@@ -735,9 +738,10 @@ class _SearchablePickerField extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: hasValue ? FontWeight.w600 : FontWeight.w400,
-                      color: hasValue
-                          ? const Color(0xFF0F172A)
-                          : const Color(0xFF94A3B8),
+                      color:
+                          hasValue
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFF94A3B8),
                       height: 1.35,
                     ),
                   ),
@@ -845,15 +849,16 @@ class _HandoverEmployeePickerSheetState
             decoration: InputDecoration(
               hintText: widget.searchHint,
               prefixIcon: const Icon(Icons.search_rounded),
-              suffixIcon: _query.trim().isEmpty
-                  ? null
-                  : IconButton(
-                      onPressed: () {
-                        _searchController.clear();
-                        setState(() => _query = '');
-                      },
-                      icon: const Icon(Icons.close_rounded),
-                    ),
+              suffixIcon:
+                  _query.trim().isEmpty
+                      ? null
+                      : IconButton(
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _query = '');
+                        },
+                        icon: const Icon(Icons.close_rounded),
+                      ),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
               border: OutlineInputBorder(
@@ -866,114 +871,129 @@ class _HandoverEmployeePickerSheetState
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFF0B6B58), width: 1.5),
+                borderSide: const BorderSide(
+                  color: Color(0xFF0B6B58),
+                  width: 1.5,
+                ),
               ),
             ),
           ),
           const SizedBox(height: 12),
           Expanded(
-            child: employees.isEmpty
-                ? const Center(
-                    child: Text(
-                      'មិនមានឈ្មោះត្រូវនឹងការស្វែងរកទេ',
-                      style: TextStyle(color: Color(0xFF64748B)),
-                    ),
-                  )
-                : ListView.separated(
-                    itemCount: employees.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final employee = employees[index];
-                      final isSelected = employee.id == widget.selectedId;
+            child:
+                employees.isEmpty
+                    ? const Center(
+                      child: Text(
+                        'មិនមានឈ្មោះត្រូវនឹងការស្វែងរកទេ',
+                        style: TextStyle(color: Color(0xFF64748B)),
+                      ),
+                    )
+                    : ListView.separated(
+                      itemCount: employees.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final employee = employees[index];
+                        final isSelected = employee.id == widget.selectedId;
 
-                      return Material(
-                        color: isSelected
-                            ? const Color(0xFFE6F6F2)
-                            : const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(14),
-                        child: InkWell(
+                        return Material(
+                          color:
+                              isSelected
+                                  ? const Color(0xFFE6F6F2)
+                                  : const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(14),
-                          onTap: () => Navigator.of(context).pop(employee.id),
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: isSelected
-                                    ? const Color(0xFF0B6B58)
-                                    : const Color(0xFFE2E8F0),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(14),
+                            onTap: () => Navigator.of(context).pop(employee.id),
+                            child: Container(
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color:
+                                      isSelected
+                                          ? const Color(0xFF0B6B58)
+                                          : const Color(0xFFE2E8F0),
+                                ),
                               ),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: <Widget>[
-                                Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0B6B58).withValues(alpha: 0.10),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                    Icons.person_outline_rounded,
-                                    color: Color(0xFF0B6B58),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: <Widget>[
-                                      Text(
-                                        employee.fullName.trim().isNotEmpty
-                                            ? employee.fullName.trim()
-                                            : employee.fullNameLatin.trim(),
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF0F172A),
-                                        ),
-                                      ),
-                                      if (employee.fullNameLatin.trim().isNotEmpty &&
-                                          employee.fullNameLatin.trim() != employee.fullName.trim()) ...<Widget>[
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          employee.fullNameLatin.trim(),
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Color(0xFF64748B),
-                                          ),
-                                        ),
-                                      ],
-                                      if (employee.employeeNo.trim().isNotEmpty) ...<Widget>[
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          'លេខបុគ្គលិក៖ ${employee.employeeNo.trim()}',
-                                          style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Color(0xFF0B6B58),
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                                if (isSelected)
-                                  const Padding(
-                                    padding: EdgeInsets.only(left: 8),
-                                    child: Icon(
-                                      Icons.check_circle_rounded,
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Container(
+                                    width: 38,
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color: const Color(
+                                        0xFF0B6B58,
+                                      ).withValues(alpha: 0.10),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
+                                      Icons.person_outline_rounded,
                                       color: Color(0xFF0B6B58),
                                     ),
                                   ),
-                              ],
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: <Widget>[
+                                        Text(
+                                          employee.fullName.trim().isNotEmpty
+                                              ? employee.fullName.trim()
+                                              : employee.fullNameLatin.trim(),
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                        if (employee.fullNameLatin
+                                                .trim()
+                                                .isNotEmpty &&
+                                            employee.fullNameLatin.trim() !=
+                                                employee.fullName
+                                                    .trim()) ...<Widget>[
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            employee.fullNameLatin.trim(),
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ],
+                                        if (employee.employeeNo
+                                            .trim()
+                                            .isNotEmpty) ...<Widget>[
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'លេខបុគ្គលិក៖ ${employee.employeeNo.trim()}',
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Color(0xFF0B6B58),
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  if (isSelected)
+                                    const Padding(
+                                      padding: EdgeInsets.only(left: 8),
+                                      child: Icon(
+                                        Icons.check_circle_rounded,
+                                        color: Color(0xFF0B6B58),
+                                      ),
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        );
+                      },
+                    ),
           ),
         ],
       ),
@@ -1002,7 +1022,7 @@ class _BalancePill extends StatelessWidget {
           Icon(Icons.info_outline_rounded, size: 14, color: color),
           const SizedBox(width: 6),
           Text(
-            'នៅសល់ $rem ថ្ងៃ  (ប្រើប្រាស់ ${balance.used}/${balance.entitlement})',
+            'នៅសល់ $rem ថ្ងៃ  (ប្រើប្រាស់ ${balance.used + balance.pending}/${balance.entitlement})',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
@@ -1153,7 +1173,7 @@ class _DayCountBanner extends StatelessWidget {
                   ),
                 if (hasPolicyWarning && perRequestLimit != null)
                   Text(
-                    'លើសកំណត់ក្នុងមួយសំណើ ($perRequestLimit ថ្ងៃ)',
+                    'លើសកំណត់ក្នុងមួយសំណើ (${perRequestLimit! % 1 == 0 ? perRequestLimit!.toInt() : perRequestLimit} ថ្ងៃ)',
                     style: TextStyle(
                       fontSize: 11,
                       color: color,

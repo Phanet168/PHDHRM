@@ -10,12 +10,14 @@
     <meta name="author" content="Bdtask">
     @php
         $appSetting = app_setting();
+        $appTitle = trim((string) ($appSetting->title ?? config('app.name', 'HRM')));
+        $appFavicon = trim((string) ($appSetting->favicon ?? asset('assets/favicon.png')));
         $isKhmerUi = app()->getLocale() === 'km' || (string) ($appSetting->lang?->value ?? '') === 'km';
     @endphp
-    <title>@yield('title')</title>
+    <title>@yield('title', $appTitle)</title>
 
     <!-- App favicon -->
-    <link rel="shortcut icon" class="favicon_show" href="{{ $appSetting->favicon }}">
+    <link rel="shortcut icon" class="favicon_show" href="{{ $appFavicon }}">
 
     @if ($isKhmerUi)
         <style>

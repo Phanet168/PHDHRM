@@ -8,7 +8,7 @@ use Modules\Setting\Http\Controllers\SettingController;
 use Modules\Setting\Http\Controllers\ApplicationController;
 use Modules\Setting\Http\Controllers\DocExpiredSettingController;
 
-Route::middleware(['web', 'auth'])->group(function () {
+Route::middleware(['web', 'auth', 'isAdmin'])->group(function () {
 
     Route::get('/settings', [SettingController::class, 'settings'])->name('settings');
     Route::get('/applications', [ApplicationController::class, 'application'])->name('applications.application');
@@ -22,7 +22,7 @@ Route::middleware(['web', 'auth'])->group(function () {
 });
 
 
-Route::prefix('database-backup-reset')->as('backup.')->middleware('auth')->group(function () {
+Route::prefix('database-backup-reset')->as('backup.')->middleware(['auth', 'isAdmin'])->group(function () {
     Route::get('/', [BackupController::class, 'index'])->name('index');
     Route::post('/create', [BackupController::class, 'createBackup'])->name('create');
     Route::get('/download', [BackupController::class, 'download'])->name('download');
@@ -38,7 +38,7 @@ Route::prefix('database-backup-reset')->as('backup.')->middleware('auth')->group
     Route::post('/password-check',  [BackupController::class, 'passwordCheck'])->name('password_check');
 });
 
-Route::group(['prefix' => 'setting', 'middleware' => 'auth'], function () {
+Route::group(['prefix' => 'setting', 'middleware' => ['auth', 'isAdmin']], function () {
     Route::name('sale.')->group(function () {
         Route::controller(SettingController::class)->group(function () {
             Route::get('/sale-settings', 'sale_settings')->name('setting.index');
@@ -81,7 +81,7 @@ Route::group(['prefix' => 'setting', 'middleware' => 'auth'], function () {
         });
     });
 
-    Route::group(['prefix' => 'apimenuszkt', 'middleware' => ['auth']], function () {
+    Route::group(['prefix' => 'apimenuszkt', 'middleware' => ['auth', 'isAdmin']], function () {
         Route::name('zktSetup.')->group(function () {
             Route::controller(ZktController::class)->group(function () {
                 Route::get('zkt/add', 'create')->name('add');
@@ -98,6 +98,8 @@ Route::group(['prefix' => 'setting', 'middleware' => 'auth'], function () {
     Route::post('docexpired-setup', [DocExpiredSettingController::class, 'store'])->name('docexpired-setup.store');
 });
 
-Route::get('/activity-log', [SettingController::class, 'activityLog'])->name('activity_log');
-Route::delete('/activity-log-destroy/{id:id}', [SettingController::class, 'activityLogDestroy'])->name('activity_log_destroy');
-Route::delete('/multiple-activity-log-destroy', [SettingController::class, 'multipleDeleteActivityLog'])->name('multiple_delete_activity_log');
+Route::middleware(['web', 'auth', 'isAdmin'])->group(function () {
+    Route::get('/activity-log', [SettingController::class, 'activityLog'])->name('activity_log');
+    Route::delete('/activity-log-destroy/{id:id}', [SettingController::class, 'activityLogDestroy'])->name('activity_log_destroy');
+    Route::delete('/multiple-activity-log-destroy', [SettingController::class, 'multipleDeleteActivityLog'])->name('multiple_delete_activity_log');
+});

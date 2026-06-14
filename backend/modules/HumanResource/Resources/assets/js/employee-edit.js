@@ -127,14 +127,20 @@ function isNonCadreEmployeeType() {
 }
 
 function toggleCadreClassificationFields() {
-    var disableCadreFields = isNonCadreEmployeeType();
+    var nonCadreEmployee = isNonCadreEmployeeType();
     ["#employee_grade", "#framework_type"].forEach(function (selector) {
         var $field = $(selector);
         if ($field.length === 0) {
             return;
         }
 
-        $field.prop("required", false).prop("disabled", disableCadreFields);
+        // HR managers may still need to correct these values manually even for non-cadre records.
+        $field.prop("required", false).prop("disabled", false);
+        if (nonCadreEmployee) {
+            $field.attr("data-non-cadre", "1");
+        } else {
+            $field.removeAttr("data-non-cadre");
+        }
         $field.closest(".form-group").show();
     });
 }
@@ -257,6 +263,48 @@ function toggleEthnicMinorityFields() {
     if (!isOther) {
         $otherField.val("");
     }
+}
+
+function bindEmployeePhotoActions() {
+    var $photoInput = $("#header_profile_image_input");
+    var $photoPreview = $("#employee-photo-preview");
+    var $photoTrigger = $(".js-change-photo-trigger");
+    var previewObjectUrl = "";
+
+    if (!$photoInput.length || !$photoPreview.length) {
+        return;
+    }
+
+    function clearObjectUrl(url) {
+        if (url) {
+            URL.revokeObjectURL(url);
+        }
+    }
+
+    $photoPreview.css("cursor", "pointer").off("click.employeePhoto").on("click.employeePhoto", function () {
+        $photoInput.trigger("click");
+    });
+
+    $photoTrigger.off("click.employeePhoto");
+
+    $photoInput.off("change.employeePhoto").on("change.employeePhoto", function () {
+        var file = this.files && this.files[0] ? this.files[0] : null;
+        var fileName = file && file.name ? String(file.name).toLowerCase() : "";
+        var hasImageMimeType = !!(file && file.type && /^image\//i.test(file.type));
+        var hasImageExtension = /\.(jpe?g|png|webp)$/i.test(fileName);
+
+        if (!file) {
+            return;
+        }
+
+        if (!hasImageMimeType && !hasImageExtension) {
+            return;
+        }
+
+        clearObjectUrl(previewObjectUrl);
+        previewObjectUrl = URL.createObjectURL(file);
+        $photoPreview.attr("src", previewObjectUrl);
+    });
 }
 
 function selectedEmployeeGenderKey() {
@@ -623,9 +671,16 @@ function initFamilyBirthCascades() {
     });
 }
 
+function selectedMaritalStatusKey() {
+    return (($("#marital_status_id option:selected").data("statusKey") || "") + "").trim();
+}
+
 function isSingleMaritalStatusSelected() {
-    var key = ($("#marital_status_id option:selected").data("statusKey") || "") + "";
-    return key === "single";
+    return selectedMaritalStatusKey() === "single";
+}
+
+function isDivorcedMaritalStatusSelected() {
+    return selectedMaritalStatusKey() === "divorced";
 }
 
 function updateWidowedMaritalLabel() {
@@ -650,6 +705,9 @@ function updateWidowedMaritalLabel() {
 function allowedSalutationsByRelationAndGender(relationValue, genderKey) {
     var relation = normalizeFamilyRelationValue(relationValue);
 
+    if (relation === "son" || relation === "daughter") {
+        return ["boy", "girl", "mr", "miss", "mrs"];
+    }
     if (relation === "mother") {
         return ["mrs", "lok_chumteav"];
     }
@@ -697,6 +755,7 @@ function updateFamilySummaryCounts() {
     var spouseCount = 0;
     var kidsCount = 0;
     var isSingle = isSingleMaritalStatusSelected();
+    var isDivorced = isDivorcedMaritalStatusSelected();
 
     $("#family-members-table tbody tr").each(function () {
         var relation = normalizeFamilyRelationValue($(this).find(".family-relation-type").val());
@@ -708,8 +767,10 @@ function updateFamilySummaryCounts() {
         }
     });
 
-    if (isSingle) {
+    if (isSingle || isDivorced) {
         spouseCount = 0;
+    }
+    if (isSingle) {
         kidsCount = 0;
     }
 
@@ -719,6 +780,7 @@ function updateFamilySummaryCounts() {
 
 function applyFamilySectionRules() {
     var isSingle = isSingleMaritalStatusSelected();
+    var isDivorced = isDivorcedMaritalStatusSelected();
     var employeeGender = selectedEmployeeGenderKey();
 
     $("#spouse_count, #no_of_kids").prop("readonly", true);
@@ -738,6 +800,8 @@ function applyFamilySectionRules() {
         if (isSingle) {
             $relation.find("option[value='wife'], option[value='husband'], option[value='son'], option[value='daughter']")
                 .prop("disabled", true);
+        } else if (isDivorced) {
+            $relation.find("option[value='wife'], option[value='husband']").prop("disabled", true);
         } else {
             if (employeeGender === "male") {
                 $relation.find("option[value='husband']").prop("disabled", true);
@@ -1046,10 +1110,7 @@ $(document).on("click", ".repeater-remove", function () {
 });
 
 $(document).ready(function () {
-    $("#email").on("change", function () {
-        $("#employee-email").val($(this).val());
-    });
-
+    bindEmployeePhotoActions();
     toggleCivilServantWorkflowFields();
     $("#employee_type_id").on("change", toggleCivilServantWorkflowFields);
     $("#is_full_right_officer").on("change", function () {

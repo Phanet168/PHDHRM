@@ -43,6 +43,11 @@ class TelegramLinkService
         return sprintf('https://t.me/%s?start=link_%s', ltrim($botUsername, '@'), $token);
     }
 
+    public function startCommand(User $user): string
+    {
+        return '/start link_' . $this->ensureLinkToken($user);
+    }
+
     public function syncFromTelegram(User $user): array
     {
         $botToken = trim((string) config('security.otp.telegram.bot_token', ''));
@@ -69,6 +74,13 @@ class TelegramLinkService
                 ]);
 
             if (!$response->successful()) {
+                if ($response->status() === 401) {
+                    return [
+                        'ok' => false,
+                        'message' => localize('telegram_bot_token_invalid', 'Telegram Bot Token មិនត្រឹមត្រូវទេ។ សូមពិនិត្យ Bot Token ម្តងទៀត។'),
+                    ];
+                }
+
                 if ($response->status() === 409) {
                     return [
                         'ok' => false,
@@ -192,9 +204,14 @@ class TelegramLinkService
         // Examples:
         // /start link_xxx
         // /start@mybot link_xxx
+        // link_xxx
         $parts = preg_split('/\s+/', $text);
         $first = strtolower((string) ($parts[0] ?? ''));
         $second = (string) ($parts[1] ?? '');
+
+        if (hash_equals($targetStart, trim($text))) {
+            return true;
+        }
 
         if (!Str::startsWith($first, '/start')) {
             return false;

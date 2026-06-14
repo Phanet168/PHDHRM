@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/app_design_system.dart';
 import '../models/attendance_scan_result.dart';
+
+Color _dynamicPrimary() =>
+    AppDesignSystem.colorForWeekday(DateTime.now().weekday);
 
 class AttendanceScanResultPage extends StatelessWidget {
   const AttendanceScanResultPage({
@@ -75,11 +79,13 @@ class AttendanceScanResultPage extends StatelessWidget {
   }
 
   Color _statusColor() {
-    return result.isSuccess ? const Color(0xFF0B6B58) : const Color(0xFFD34B5F);
+    return result.isSuccess ? _dynamicPrimary() : const Color(0xFFD34B5F);
   }
 
   Color _statusBgColor() {
-    return result.isSuccess ? const Color(0xFFE9F4F1) : const Color(0xFFFFEEF1);
+    return result.isSuccess
+        ? _dynamicPrimary().withAlpha(22)
+        : const Color(0xFFFFEEF1);
   }
 
   @override
@@ -103,7 +109,7 @@ class AttendanceScanResultPage extends StatelessWidget {
                   border: Border.all(
                     color:
                         result.isSuccess
-                            ? const Color(0xFFCDE4DB)
+                            ? _dynamicPrimary().withAlpha(60)
                             : const Color(0xFFF0CED5),
                   ),
                   boxShadow: const [
@@ -228,7 +234,7 @@ class AttendanceScanResultPage extends StatelessWidget {
                 icon: const Icon(Icons.done_all_outlined),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
-                  backgroundColor: const Color(0xFF0B6B58),
+                  backgroundColor: _dynamicPrimary(),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -278,7 +284,7 @@ class _ResultInfoRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: const Color(0xFFDCEAE3)),
               ),
-              child: Icon(icon, size: 18, color: const Color(0xFF0B6B58)),
+              child: Icon(icon, size: 18, color: _dynamicPrimary()),
             ),
             const SizedBox(width: 10),
             Expanded(

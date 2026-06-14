@@ -2,7 +2,7 @@
 
 return [
     'otp' => [
-        'required' => (bool) env('OTP_REQUIRED', true),
+        'required' => (bool) env('OTP_REQUIRED', false),
 
         // log | sms_http
         'channel' => env('OTP_CHANNEL', 'log'),
@@ -25,6 +25,7 @@ return [
             'bot_username' => env('OTP_TELEGRAM_BOT_USERNAME', ''),
             'timeout_seconds' => (int) env('OTP_TELEGRAM_TIMEOUT', 10),
             'get_updates_limit' => (int) env('OTP_TELEGRAM_GET_UPDATES_LIMIT', 100),
+            'login_link_ttl_minutes' => (int) env('OTP_TELEGRAM_LOGIN_LINK_TTL', 10),
             'template' => env('OTP_TELEGRAM_TEMPLATE', 'Your OTP code is {code}'),
         ],
     ],

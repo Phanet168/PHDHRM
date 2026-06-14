@@ -46,10 +46,8 @@ $('#userForm').submit(function (e) {
         success: function (data) {
             if (data.status == 'success') {
                 toastr.success(data.message);
-                $('#user-table').DataTable().ajax.reload();
                 $('#addUser').modal('hide');
-                $('#userForm').trigger('reset');
-                $('#employee_id').val('').trigger('change');
+                window.location.reload();
             }else{
                 if (data.errors.full_name) {
                     $('.error_full_name').html(data.errors.full_name[0]);
@@ -136,7 +134,7 @@ function deleteUser(id) {
                 success: function (data) {
                     if (data.status == 'success') {
                         toastr.success(data.message);
-                        $('#user-table').DataTable().ajax.reload();
+                        window.location.reload();
                     }
                 }
             });

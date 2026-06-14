@@ -3,6 +3,7 @@
 namespace Modules\HumanResource\DataTables;
 
 use Illuminate\Database\Eloquent\Builder as QueryBuilder;
+use Illuminate\Support\Carbon;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\GovPayLevel;
 use Modules\HumanResource\Support\OrgHierarchyAccessService;
@@ -32,6 +33,13 @@ class InactiveEmployeeDataTable extends DataTable
             ->editColumn('official_id_10', function ($employee) {
                 return $employee->official_id_10 ?: '-';
             })
+            ->editColumn('date_of_birth', function ($employee) {
+                if (empty($employee->date_of_birth)) {
+                    return '-';
+                }
+
+                return Carbon::parse($employee->date_of_birth)->format('d-m-Y');
+            })
             ->editColumn('full_name', function ($employee) {
                 return ucwords($employee->full_name);
             })
@@ -56,7 +64,7 @@ class InactiveEmployeeDataTable extends DataTable
                 return $employee->gender?->gender_name ?: '-';
             })
             ->editColumn('work_status_name', function ($employee) {
-                return $employee->work_status_name ?: '-';
+                return $this->displayWorkStatusName($employee);
             })
             ->addColumn('unit_name', function ($employee) {
                 $unit = $employee->sub_department ?: $employee->department;
@@ -133,6 +141,7 @@ class InactiveEmployeeDataTable extends DataTable
             ->with([
                 'department',
                 'sub_department',
+                'profileExtra',
                 'currentPayGradeHistory.payLevel',
                 'latestPayGradeHistory.payLevel',
             ]);
@@ -199,8 +208,71 @@ class InactiveEmployeeDataTable extends DataTable
             ->orderBy('employees.id', 'ASC');
     }
 
+    protected function displayWorkStatusName($employee): string
+    {
+        $status = trim((string) ($employee->work_status_name ?? ''));
+        if ($status !== '') {
+            $normalized = $this->normalizeVisibleWorkStatusName($status);
+            if ($normalized !== '') {
+                return $normalized;
+            }
+        }
+
+        if ($this->shouldSuppressWorkStatusName($status) || $status === '') {
+            return $this->serviceStateLabel($employee);
+        }
+
+        return $status;
+    }
+
+    protected function shouldSuppressWorkStatusName(string $status): bool
+    {
+        $normalized = strtolower(trim($status));
+        return $normalized !== '' && str_contains($normalized, 'pay grade promotion');
+    }
+
+    protected function serviceStateLabel($employee): string
+    {
+        return match ((string) ($employee->service_state ?? 'inactive')) {
+            'suspended' => localize('suspended_temporary'),
+            'active' => 'កំពុងបម្រើការងារ',
+            default => localize('inactive'),
+        };
+    }
+
+    protected function normalizeVisibleWorkStatusName(string $status): string
+    {
+        $trimmed = trim($status);
+        $normalized = mb_strtolower($trimmed, 'UTF-8');
+
+        if ($normalized === 'active' || str_contains($normalized, 'in service') || $trimmed === 'កំពុងបំរើការងារ' || $trimmed === 'កំពុងបម្រើការងារ') {
+            return 'កំពុងបម្រើការងារ';
+        }
+
+        if (str_contains($normalized, 'without pay') || str_contains($normalized, 'leave without pay') || str_contains($trimmed, 'ទំនេរគ្មានបៀវត្ស')) {
+            return 'ទំនេរគ្មានបៀវត្ស';
+        }
+
+        return '';
+    }
+
     protected function resolvePayLevelKmLabel($employee): string
     {
+        $direct = trim((string) (
+            $employee->employee_grade
+            ?: ($employee->profileExtra->current_salary_type ?? null)
+            ?: ''
+        ));
+        if ($direct !== '') {
+            $byCode = $this->payLevelKmByCode();
+            $lookupKey = $this->normalizePayCodeKey($direct);
+            if ($lookupKey !== '' && isset($byCode[$lookupKey]) && trim((string) $byCode[$lookupKey]) !== '') {
+                return trim((string) $byCode[$lookupKey]);
+            }
+
+            return $this->normalizePayCodeToKhmer($direct);
+        }
+
         $current = $employee->currentPayGradeHistory?->payLevel;
         if ($current) {
             $km = trim((string) ($current->level_name_km ?? ''));
@@ -384,7 +456,7 @@ class InactiveEmployeeDataTable extends DataTable
                 ->title(localize('role')),
 
             Column::make('pay_level')
-                ->title(localize('pay_level_type')),
+                ->title(app()->getLocale() === 'km' ? 'ក្របខណ្ឌឋានន្តរស័ក្កិ និងថ្នាក់' : 'Pay framework, rank, and grade'),
 
             Column::make('phone')
                 ->title(localize('mobile_no')),

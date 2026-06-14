@@ -4,6 +4,7 @@ namespace App\Actions;
 
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class Localizer
 {
@@ -32,20 +33,54 @@ class Localizer
     }
 
     /**
+     * Only allow runtime translation-file writes in local/dev style environments.
+     */
+    protected function shouldPersistRuntimeTranslations(): bool
+    {
+        if (app()->environment('local')) {
+            return true;
+        }
+
+        return (bool) config('app.debug', false);
+    }
+
+    /**
+     * Ensure the target localization directory exists before file writes.
+     */
+    protected function ensureLocalizeDirectory(string $locale): void
+    {
+        $directory = dirname($this->getLocalizePath($locale));
+
+        if (! File::exists($directory)) {
+            File::makeDirectory($directory, 0755, true, true);
+        }
+    }
+
+    /**
      * Create the localization file for the given locale.
      */
     public function createLocalizeFile(string $locale, ?string $builder_local = null): void
     {
+        $targetLocale = $locale;
         // get localize path
-        $localizePath = $this->getLocalizePath($locale);
+        $localizePath = $this->getLocalizePath($targetLocale);
         //
         if ($builder_local) {
             $locale = $this->getLocalizeData($builder_local);
         } else {
             $locale = [];
         }
-        //    create a php file and push empty array
-        File::put($localizePath, '<?php return '.var_export($locale, true).';');
+
+        try {
+            $this->ensureLocalizeDirectory($targetLocale);
+            File::put($localizePath, '<?php return '.var_export($locale, true).';');
+        } catch (\Throwable $e) {
+            Log::warning('Failed to create localization file.', [
+                'locale' => $targetLocale,
+                'path' => $localizePath,
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function updateLocalizeFile(string $old_locale, string $new_local, ?string $builder_local = null): void
@@ -87,13 +122,19 @@ class Localizer
     public function getLocalizeData(string $locale)
     {
         // check if locale data is empty
-        if (empty($this->localData[$locale])) {
+        if (! array_key_exists($locale, $this->localData)) {
             // get localize path
             $localizePath = $this->getLocalizePath($locale);
             // check if localize file exists
             if (! File::exists($localizePath)) {
-                // create a php file and push empty array
-                $this->createLocalizeFile($locale);
+                if ($this->shouldPersistRuntimeTranslations()) {
+                    // create a php file and push empty array
+                    $this->createLocalizeFile($locale);
+                } else {
+                    $this->localData[$locale] = [];
+
+                    return $this->localData[$locale];
+                }
             }
             // Use include instead of require_once to ensure the file is evaluated
             $localData = include $localizePath;
@@ -142,19 +183,21 @@ class Localizer
             // Auto-translate to Khmer when locale is km and value is still English.
             $value = $this->maybeAutoTranslate((string) $value, $locale);
 
-            // Store the default value in the localization file.
-            $this->storeLocal($key, $value, $locale);
+            // Store the default value only in local/debug environments.
+            if ($this->shouldPersistRuntimeTranslations()) {
+                $this->storeLocal($key, $value, $locale);
+            }
         } else {
             // If the key is found, use the localized value.
             $value = $this->normalizeLocalizedValue((string) $local[$formattedKey]);
 
-            if ($value !== (string) $local[$formattedKey]) {
+            if ($value !== (string) $local[$formattedKey] && $this->shouldPersistRuntimeTranslations()) {
                 $this->storeLocal($key, $value, $locale);
             }
 
             // If current km value is English, translate once and persist.
             $translatedValue = $this->maybeAutoTranslate((string) $value, $locale);
-            if ($translatedValue !== (string) $value) {
+            if ($translatedValue !== (string) $value && $this->shouldPersistRuntimeTranslations()) {
                 $value = $translatedValue;
                 $this->storeLocal($key, $value, $locale);
             }
@@ -217,8 +260,17 @@ class Localizer
         // Update the localization data.
         $local[$formattedKey] = $value;
 
-        // Write language PHP file
-        File::put($localizePath, '<?php return '.var_export($local, true).';');
+        try {
+            $this->ensureLocalizeDirectory($locale);
+            File::put($localizePath, '<?php return '.var_export($local, true).';');
+        } catch (\Throwable $e) {
+            Log::warning('Failed to persist localized value.', [
+                'locale' => $locale,
+                'key' => $formattedKey,
+                'path' => $localizePath,
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         // Update the cached data for this locale.
         $this->localData[$locale] = $local;
@@ -315,8 +367,16 @@ class Localizer
         $localData = $this->getLocalizeData($locale);
         // marge two array
         $local = array_merge($localData, $local);
-        // Write the updated data back to the file.
-        File::put($localizePath, '<?php return '.var_export($local, true).';');
+        try {
+            $this->ensureLocalizeDirectory($locale);
+            File::put($localizePath, '<?php return '.var_export($local, true).';');
+        } catch (\Throwable $e) {
+            Log::warning('Failed to bulk persist localized values.', [
+                'locale' => $locale,
+                'path' => $localizePath,
+                'message' => $e->getMessage(),
+            ]);
+        }
         // Update the cached data for this locale.
         $this->localData[$locale] = $local;
     }
@@ -338,8 +398,17 @@ class Localizer
         // Remove the key from the localization data.
         unset($local[$formattedKey]);
 
-        // Write the updated data back to the file.
-        File::put($localizePath, '<?php return '.var_export($local, true).';');
+        try {
+            $this->ensureLocalizeDirectory($locale);
+            File::put($localizePath, '<?php return '.var_export($local, true).';');
+        } catch (\Throwable $e) {
+            Log::warning('Failed to delete localized value from file.', [
+                'locale' => $locale,
+                'key' => $formattedKey,
+                'path' => $localizePath,
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         // Update the cached data for this locale.
         $this->localData[$locale] = $local;

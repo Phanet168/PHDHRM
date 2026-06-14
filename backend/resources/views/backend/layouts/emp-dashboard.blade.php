@@ -60,6 +60,22 @@
                                     <span class="fw-bold">{{ucwords(localize('hrm_dashboard'))}}</span>
                                     , {{$user_info->full_name}}
                                 </p>
+                                @php
+                                    $selfCardUuid = optional($userInfo->employee)->uuid;
+                                @endphp
+                                <div class="mt-3 d-flex flex-wrap gap-2">
+                                    <a href="{{ route('editMyProfile') }}" class="btn btn-success btn-sm">
+                                        <i class="fa fa-user-edit me-1"></i>{{ localize('edit_my_profile', 'កែព័ត៌មានផ្ទាល់ខ្លួន') }}
+                                    </a>
+                                    @if ($selfCardUuid)
+                                        <a href="{{ route('idprint.my-card') }}" class="btn btn-outline-primary btn-sm" target="_blank" rel="noopener">
+                                            <i class="fa fa-id-card me-1"></i>{{ localize('print_my_id_card', 'បោះពុម្ពកាតខ្លួនឯង') }}
+                                        </a>
+                                        <a href="{{ route('idprint.public-profile', $selfCardUuid) }}" class="btn btn-outline-info btn-sm" target="_blank" rel="noopener">
+                                            <i class="fa fa-qrcode me-1"></i>{{ localize('view_e_card', 'មើល e-Card') }}
+                                        </a>
+                                    @endif
+                                </div>
                             </div>
                         </div>
                     </div>

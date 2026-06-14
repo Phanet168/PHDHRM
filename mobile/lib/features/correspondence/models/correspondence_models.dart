@@ -88,7 +88,7 @@ class CorrespondenceLetter {
   String getLocalizedStatus(Map<String, String> language) {
     switch (status) {
       case 'pending':
-        return language['pending'] ?? 'ស្ថិតក្នុងរង្វង់ចាប់ផ្តើម';
+        return language['pending'] ?? 'រង់ចាំ';
       case 'in_progress':
         return language['in_progress'] ?? 'កំពុងដំណើរការ';
       case 'completed':

@@ -38,16 +38,19 @@ class AuthService {
     );
 
     final loginResponse = LoginResponse.fromJson(response);
-    await _tokenStorageService.saveToken(
-      loginResponse.tokenId ??
-          '${loginResponse.userId}:${loginResponse.user.employeeId}',
-    );
+    final token = loginResponse.tokenId?.trim();
+    if (token == null || token.isEmpty) {
+      throw const FormatException('Login response missing access token.');
+    }
+
+    await _tokenStorageService.saveToken(token);
     await _userSessionStorageService.saveUser(loginResponse.user);
 
     return loginResponse;
   }
 
   Future<void> logout() async {
+    await _apiService.post('/auth/logout', throwOnError: false);
     await _tokenStorageService.clearToken();
     await _userSessionStorageService.clearUser();
   }

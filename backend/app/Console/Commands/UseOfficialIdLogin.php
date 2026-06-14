@@ -78,7 +78,7 @@ class UseOfficialIdLogin extends Command
 
                         if ($resetPassword) {
                             if (!$dryRun) {
-                                $user->password = Hash::make($desired);
+                                $user->password = Hash::make('123456');
                                 $user->save();
                             }
                             $updatedPassword++;
@@ -98,7 +98,7 @@ class UseOfficialIdLogin extends Command
         $this->line('Errors           : ' . $errors);
 
         if (!$dryRun && $resetPassword) {
-            $this->warn('Password policy applied: password = username');
+            $this->warn('Password policy applied: password = 123456');
         }
 
         return $errors > 0 ? self::FAILURE : self::SUCCESS;

@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../auth/models/auth_user.dart';
+import '../../../core/theme/app_design_system.dart';
 import '../models/attendance_scan_result.dart';
 import 'attendance_scan_result_page.dart';
 import '../services/home_attendance_service.dart';
@@ -31,13 +32,16 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
   bool _isSubmitting = false;
   bool _torchEnabled = false;
   String _statusMessage = '';
-  Color _statusColor = const Color(0xFF0B6B58);
+  late Color _statusColor;
+
+  Color _dp() => AppDesignSystem.colorForWeekday(DateTime.now().weekday);
 
   @override
   void initState() {
     super.initState();
+    _statusColor = _dp();
     WidgetsBinding.instance.addObserver(this);
-    _statusMessage = _tr('qr_scan', 'Scan QR attendance code');
+    _statusMessage = _tr('qr_scan', 'ស្កេនកូដ QR');
     _scannerController = MobileScannerController(
       detectionSpeed: DetectionSpeed.unrestricted,
       detectionTimeoutMs: 300,
@@ -102,11 +106,8 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
     }
 
     setState(() {
-      _statusMessage = _tr(
-        'qr_detected',
-        'QR detected, preparing attendance submission...',
-      );
-      _statusColor = const Color(0xFF1D4F91);
+      _statusMessage = _tr('qr_detected', 'បានរកឃើញ QR កំពុងបញ្ជូនវត្តមាន...');
+      _statusColor = _dp();
     });
 
     await _submitAttendance(rawValue);
@@ -137,7 +138,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
   Future<void> _submitAttendance(String rawValue) async {
     final qrToken = _extractQrToken(rawValue);
     if (qrToken == null || qrToken.isEmpty) {
-      final invalidQrMessage = _tr('invalid_qr', 'Invalid QR data');
+      final invalidQrMessage = _tr('invalid_qr', 'ទិន្នន័យ QR មិនត្រឹមត្រូវ');
       await widget.attendanceService.reportScanIssue(
         widget.user,
         status: 'client_error',
@@ -158,9 +159,9 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
       _isSubmitting = true;
       _statusMessage = _tr(
         'checking_attendance',
-        'Checking location and saving attendance...',
+        'កំពុងពិនិត្យទីតាំង និងរក្សាទុកវត្តមាន...',
       );
-      _statusColor = const Color(0xFF0B6B58);
+      _statusColor = _dp();
     });
 
     await _scannerController.stop();
@@ -283,11 +284,12 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
       return null;
     }
 
-    final normalized = text
-        .replaceAll('\n', '&')
-        .replaceAll('\r', '&')
-        .replaceAll(';', '&')
-        .trim();
+    final normalized =
+        text
+            .replaceAll('\n', '&')
+            .replaceAll('\r', '&')
+            .replaceAll(';', '&')
+            .trim();
 
     if (normalized.startsWith('{')) {
       try {
@@ -321,8 +323,9 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
       }
     }
 
-    final fromRegex =
-        RegExp(r'(?:qr_token|token)=([^&\s]+)').firstMatch(normalized);
+    final fromRegex = RegExp(
+      r'(?:qr_token|token)=([^&\s]+)',
+    ).firstMatch(normalized);
     if (fromRegex != null) {
       return Uri.decodeQueryComponent(fromRegex.group(1)!);
     }
@@ -363,8 +366,8 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
   Future<void> _restartScan() async {
     setState(() {
       _isSubmitting = false;
-      _statusMessage = _tr('qr_scan', 'Scan QR attendance code');
-      _statusColor = const Color(0xFF0B6B58);
+      _statusMessage = _tr('qr_scan', 'ស្កេនកូដ QR');
+      _statusColor = _dp();
     });
     await _scannerController.start();
   }
@@ -372,20 +375,20 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
   String _normalizeErrorMessage(Object error) {
     final text = error.toString().replaceFirst('Exception: ', '').trim();
     if (text == 'ERR_NO_GPS_SERVICE') {
-      return _tr('location_service_disabled', 'Location service is disabled');
+      return _tr('location_service_disabled', 'សេវាទីតាំងត្រូវបានបិទ');
     }
     if (text == 'ERR_NO_GPS_PERMISSION') {
-      return _tr('location_permission_denied', 'Location permission denied');
+      return _tr('location_permission_denied', 'មិនបានអនុញ្ញាតប្រើទីតាំង');
     }
     if (text == 'ERR_NO_GPS_PERMISSION_PERMANENT') {
       return _tr(
         'location_permission_denied_permanent',
-        'Location permission permanently denied',
+        'មិនបានអនុញ្ញាតប្រើទីតាំងជាអចិន្ត្រៃយ៍',
       );
     }
 
     if (text.isEmpty) {
-      return _tr('unexpected_error', 'Unexpected error');
+      return _tr('unexpected_error', 'កំហុសដែលមិននឹកស្មាន');
     }
 
     return text;
@@ -422,16 +425,16 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_tr('qr_scan', 'Scan Attendance')),
+        title: Text(_tr('qr_scan', 'ស្កេនកូដ QR')),
         actions: [
           IconButton(
             onPressed: _isSubmitting ? null : _openManualTokenDialog,
-            tooltip: _tr('manual_token', 'Manual token'),
+            tooltip: _tr('manual_token', 'បញ្ចូលដោយដៃ'),
             icon: const Icon(Icons.keyboard_alt_outlined),
           ),
           IconButton(
             onPressed: _toggleTorch,
-            tooltip: _tr('flashlight', 'Torch'),
+            tooltip: _tr('flashlight', 'ភ្លើងពិល'),
             icon: Icon(
               _torchEnabled
                   ? Icons.flash_on_outlined
@@ -449,19 +452,16 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE9F4F1),
+                  color: _dp().withAlpha(28),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFFCDE4DB)),
+                  border: Border.all(color: _dp().withAlpha(60)),
                 ),
                 child: Text(
                   _tr(
                     'scan_qr_instruction',
-                    'Align the unit QR code inside the frame, then wait for auto submit.',
+                    'ដាក់កូដ QR របស់អង្គភាពនៅក្នុងស៊ុម ហើយរង់ចាំការបញ្ជូនដោយស្វ័យប្រវត្តិ',
                   ),
-                  style: const TextStyle(
-                    color: Color(0xFF173F35),
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: TextStyle(color: _dp(), fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(height: 14),
@@ -482,7 +482,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
                               error.errorDetails?.message ??
                                   _tr(
                                     'camera_access_failed',
-                                    'Unable to access camera',
+                                    'មិនអាចប្រើកាមេរ៉ា',
                                   ),
                               textAlign: TextAlign.center,
                               style: const TextStyle(
@@ -532,7 +532,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
               OutlinedButton.icon(
                 onPressed: _isSubmitting ? null : _restartScan,
                 icon: const Icon(Icons.qr_code_scanner_outlined),
-                label: Text(_tr('scan_again', 'Scan Again')),
+                label: Text(_tr('scan_again', 'ស្កេនម្ដងទៀត')),
               ),
             ],
           ),
@@ -548,7 +548,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: Text(_tr('manual_qr_token', 'Manual QR token')),
+          title: Text(_tr('manual_qr_token', 'បញ្ចូល QR Token ដោយដៃ')),
           content: TextField(
             controller: controller,
             maxLines: 3,
@@ -556,19 +556,19 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
             decoration: InputDecoration(
               hintText: _tr(
                 'manual_qr_hint',
-                'Paste qr_token or QR payload text',
+                'ចម្លង qr_token ឬអត្ថបទ QR មកបញ្ចូលទីនេះ',
               ),
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: Text(_tr('cancel', 'Cancel')),
+              child: Text(_tr('cancel', 'បោះបង់')),
             ),
             FilledButton(
               onPressed:
                   () => Navigator.of(context).pop(controller.text.trim()),
-              child: Text(_tr('submit', 'Submit')),
+              child: Text(_tr('submit', 'បញ្ជូន')),
             ),
           ],
         );
@@ -581,5 +581,4 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
 
     await _submitAttendance(token);
   }
-
 }

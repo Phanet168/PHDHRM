@@ -157,6 +157,25 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
     return widget.language[key] ?? fallback;
   }
 
+  String _formatDateDisplay(String value) {
+    final text = value.trim();
+    if (text.isEmpty) {
+      return '-';
+    }
+
+    final parsed =
+        DateTime.tryParse(text) ??
+        DateTime.tryParse(text.replaceFirst(' ', 'T'));
+    if (parsed == null) {
+      return text;
+    }
+
+    final day = parsed.day.toString().padLeft(2, '0');
+    final month = parsed.month.toString().padLeft(2, '0');
+    final year = parsed.year.toString().padLeft(4, '0');
+    return '$day-$month-$year';
+  }
+
   void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -267,33 +286,35 @@ class _LeaveReviewPageState extends State<LeaveReviewPage> {
                                 ),
                                 const SizedBox(height: 6),
                                 if (item.employeeNo?.isNotEmpty == true)
-                                  Text('លេខបុគ្គលិក: ${item.employeeNo}'),
+                                  Text('លេខបុគ្គលិក៖ ${item.employeeNo}'),
                                 Text(
                                   item.leaveTypeKm.trim().isNotEmpty
                                       ? item.leaveTypeKm
                                       : item.leaveType,
                                 ),
-                                Text('${item.startDate} ដល់ ${item.endDate}'),
                                 Text(
-                                  '${_tr('day_leave', 'ចំនួនថ្ងៃ')}: ${item.requestedDays}',
+                                  '${_formatDateDisplay(item.startDate)} ដល់ ${_formatDateDisplay(item.endDate)}',
+                                ),
+                                Text(
+                                  '${_tr('day_leave', 'ចំនួនថ្ងៃ')}៖ ${item.requestedDays}',
                                 ),
                                 if (item.workflowCurrentStepName
                                         ?.trim()
                                         .isNotEmpty ==
                                     true)
                                   Text(
-                                    'ជំហាន: ${item.workflowCurrentStepName!.trim()}',
+                                    'ជំហាន៖ ${item.workflowCurrentStepName!.trim()}',
                                   ),
                                 if (item.workflowCurrentActorName
                                         ?.trim()
                                         .isNotEmpty ==
                                     true)
                                   Text(
-                                    'អ្នកទទួលបន្ទុកបច្ចុប្បន្ន: ${item.workflowCurrentActorName!.trim()}',
+                                    'អ្នកទទួលបន្ទុកបច្ចុប្បន្ន៖ ${item.workflowCurrentActorName!.trim()}',
                                   ),
                                 if (item.handoverEmployeeName.trim().isNotEmpty)
                                   Text(
-                                    '${_tr('handover_employee', 'Replacement employee')}: ${item.handoverEmployeeName}',
+                                    '${_tr('handover_employee', 'អ្នកជំនួស')}៖ ${item.handoverEmployeeName}',
                                   ),
                                 if (item.reason.trim().isNotEmpty) ...[
                                   const SizedBox(height: 6),
