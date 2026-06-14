@@ -1,3 +1,5 @@
 *
 !procurement
 !.gitignore
+!templates/
+!templates/*.docx

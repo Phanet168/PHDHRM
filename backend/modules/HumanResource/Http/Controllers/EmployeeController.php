@@ -1890,26 +1890,20 @@ class EmployeeController extends Controller
                     ]);
                 }
             }
+
+            clearstatcache(true, $docxPath);
+            if (!is_file($docxPath) || filesize($docxPath) === 0) {
+                @unlink($docxPath);
+                return null;
+            }
+
+            @ini_set('zlib.output_compression', '0');
             while (ob_get_level() > 0) {
                 @ob_end_clean();
             }
 
-            return response()->streamDownload(
-                function () use ($docxPath): void {
-                    $stream = @fopen($docxPath, 'rb');
-                    if ($stream === false) {
-                        return;
-                    }
-
-                    try {
-                        while (!feof($stream)) {
-                            echo fread($stream, 8192);
-                        }
-                    } finally {
-                        fclose($stream);
-                        @unlink($docxPath);
-                    }
-                },
+            return response()->download(
+                $docxPath,
                 $fileName,
                 [
                     'Content-Type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -1918,7 +1912,7 @@ class EmployeeController extends Controller
                     'Pragma' => 'no-cache',
                     'Expires' => '0',
                 ]
-            );
+            )->deleteFileAfterSend(true);
         } catch (\Throwable $exception) {
             Log::warning('Word template civil servant biography DOCX export failed.', [
                 'template' => $templatePath,
@@ -2981,21 +2975,6 @@ class EmployeeController extends Controller
 
     protected function resolvePreferredCivilServantBiographyWordTemplatePath(array $requiredPlaceholders = []): ?string
     {
-        $asciiTemplateV4 = $this->resolvePrintableFilePath(storage_path('app/public/templates/civil-servant-biography-template-v4.docx'));
-        if ($asciiTemplateV4) {
-            return $asciiTemplateV4;
-        }
-
-        $asciiTemplateV3 = $this->resolvePrintableFilePath(storage_path('app/public/templates/civil-servant-biography-template-v3.docx'));
-        if ($asciiTemplateV3) {
-            return $asciiTemplateV3;
-        }
-
-        $asciiTemplateV2 = $this->resolvePrintableFilePath(storage_path('app/public/templates/civil-servant-biography-template-v2.docx'));
-        if ($asciiTemplateV2) {
-            return $asciiTemplateV2;
-        }
-
         $asciiTemplate = $this->resolvePrintableFilePath(storage_path('app/public/templates/civil-servant-biography-template.docx'));
         if ($asciiTemplate) {
             return $asciiTemplate;
