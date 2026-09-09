@@ -224,6 +224,25 @@
 @section('content')
     @include('humanresource::employee_header')
     @include('backend.layouts.common.validation')
+    @php
+        $ethnicMinorityOptions = [
+            ['value' => 'kuy', 'label' => 'កួយ (Kuy)'],
+            ['value' => 'phnong', 'label' => 'ព្នង (Phnong)'],
+            ['value' => 'tumpuon', 'label' => 'ទំពួន (Tumpuon)'],
+            ['value' => 'jarai', 'label' => 'ចារ៉ាយ (Jarai)'],
+            ['value' => 'kreung', 'label' => 'ក្រឹង (Kreung)'],
+            ['value' => 'brao', 'label' => 'ប្រៅ (Brao)'],
+            ['value' => 'kavet', 'label' => 'កាវ៉ែត (Kavet)'],
+            ['value' => 'kachok', 'label' => 'កាចក់ (Kachok)'],
+            ['value' => 'stieng', 'label' => 'ស្ទៀង (Stieng)'],
+            ['value' => 'por', 'label' => 'ព័រ (Por)'],
+            ['value' => 'saoch', 'label' => 'ស្អូច (Sa\'och)'],
+            ['value' => 'lun', 'label' => 'លុន (Lun)'],
+            ['value' => 'mil', 'label' => 'មិល (Mil)'],
+            ['value' => 'chong', 'label' => 'ចុង (Chong)'],
+            ['value' => 'other', 'label' => 'ផ្សេងៗ (Other)'],
+        ];
+    @endphp
     <div class="card mb-4 fixed-tab-body">
         <div class="card-header">
             <div class="d-flex justify-content-between align-items-center">
@@ -336,6 +355,39 @@
                                                 @endphp
                                                 <option value="{{ $gender->id }}">{{ $gLabel }}
                                                 </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2 mb-4">
+                                        <select id="service_state" class="select-basic-single">
+                                            <option value="">{{ localize('service_status', 'ស្ថានភាពសេវា') }}</option>
+                                            @foreach (($service_state_options ?? []) as $serviceState)
+                                                <option value="{{ $serviceState }}">
+                                                    {{ ucfirst($serviceState) }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="col-md-2 mb-4">
+                                        <input type="text" id="nationality" class="form-control"
+                                            placeholder="{{ localize('nationality') }}">
+                                    </div>
+                                    <div class="col-md-2 mb-4">
+                                        <input type="text" id="ethnic_group" class="form-control"
+                                            placeholder="{{ localize('ethnic_group') }}">
+                                    </div>
+                                    <div class="col-md-2 mb-4">
+                                        <select id="is_ethnic_minority" class="select-basic-single">
+                                            <option value="">{{ localize('ethnic_minority', 'ជនជាតិភាគតិច') }}</option>
+                                            <option value="1">{{ localize('yes', 'បាទ/ចាស') }}</option>
+                                            <option value="0">{{ localize('no', 'ទេ') }}</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-3 mb-4" id="ethnic-minority-name-filter-wrap" hidden>
+                                        <select id="ethnic_minority_name" class="select-basic-single" disabled>
+                                            <option value="">{{ localize('select_ethnic_minority', 'ជ្រើសរើសជនជាតិភាគតិច') }}</option>
+                                            @foreach ($ethnicMinorityOptions as $minorityOption)
+                                                <option value="{{ $minorityOption['value'] }}">{{ $minorityOption['label'] }}</option>
                                             @endforeach
                                         </select>
                                     </div>

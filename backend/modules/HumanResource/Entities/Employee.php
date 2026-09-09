@@ -14,6 +14,7 @@ use Modules\HumanResource\Entities\Attendance;
 use Modules\HumanResource\Entities\Department;
 use Modules\HumanResource\Entities\DutyType;
 use Modules\HumanResource\Entities\EmployeeAllowenceDeduction;
+use Modules\HumanResource\Entities\EmployeeAcademicInfo;
 use Modules\HumanResource\Entities\EmployeeDocs;
 use Modules\HumanResource\Entities\EmployeeFamilyMember;
 use Modules\HumanResource\Entities\EmployeeFile;
@@ -27,6 +28,7 @@ use Modules\HumanResource\Entities\EmployeeSectionAttachment;
 use Modules\HumanResource\Entities\EmployeeServiceHistory;
 use Modules\HumanResource\Entities\EmployeeUnitPosting;
 use Modules\HumanResource\Entities\EmployeeWorkHistory;
+use Modules\HumanResource\Entities\EmployeeWorkExperience;
 use Modules\HumanResource\Entities\EmployeeSalaryType;
 use Modules\HumanResource\Entities\EmployeeType;
 use Modules\HumanResource\Entities\Gender;
@@ -400,6 +402,11 @@ class Employee extends Model
         return $this->hasMany(EmployeeForeignLanguage::class, 'employee_id', 'id');
     }
 
+    public function academicInfos()
+    {
+        return $this->hasMany(EmployeeAcademicInfo::class, 'employee_id', 'id');
+    }
+
     public function vaccinations()
     {
         return $this->hasMany(EmployeeVaccination::class, 'employee_id', 'id');
@@ -431,6 +438,11 @@ class Employee extends Model
     public function workHistories()
     {
         return $this->hasMany(EmployeeWorkHistory::class, 'employee_id', 'id');
+    }
+
+    public function workExperiences()
+    {
+        return $this->hasMany(EmployeeWorkExperience::class, 'employee_id', 'id');
     }
 
     public function incentives()

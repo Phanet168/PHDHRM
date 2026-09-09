@@ -11,6 +11,7 @@ class EmployeeForeignLanguage extends Model
 
     protected $fillable = [
         'employee_id',
+        'country_name',
         'language_name',
         'speaking_level',
         'reading_level',

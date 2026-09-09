@@ -162,7 +162,15 @@ class EmployeeUpdateRequest extends FormRequest
             'family_members.*.present_address_village' => 'nullable|string|max:191',
             'family_members.*.phone' => 'nullable|string|max:60',
             'family_members.*.is_deceased' => 'nullable|in:0,1',
+            'general_education' => 'array',
+            'general_education.country_name' => 'nullable|string|max:120',
+            'general_education.institution_name' => 'nullable|string|max:191',
+            'general_education.start_date' => 'nullable|string|max:20',
+            'general_education.end_date' => 'nullable|string|max:20',
+            'general_education.degree_level' => 'nullable|string|max:191',
+            'general_education.note' => 'nullable|string',
             'education_histories' => 'array',
+            'education_histories.*.country_name' => 'nullable|string|max:120',
             'education_histories.*.institution_name' => 'nullable|string|max:191',
             'education_histories.*.start_date' => 'nullable|date',
             'education_histories.*.end_date' => 'nullable|date',
@@ -170,14 +178,33 @@ class EmployeeUpdateRequest extends FormRequest
             'education_histories.*.major_subject' => 'nullable|string|max:191',
             'education_histories.*.note' => 'nullable|string',
             'foreign_languages' => 'array',
+            'foreign_languages.*.country_name' => 'nullable|string|max:120',
             'foreign_languages.*.language_name' => 'nullable|string|max:120',
-            'foreign_languages.*.speaking_level' => 'nullable|string|max:10',
-            'foreign_languages.*.reading_level' => 'nullable|string|max:10',
-            'foreign_languages.*.writing_level' => 'nullable|string|max:10',
+            'foreign_languages.*.speaking_level' => 'nullable|string|max:20',
+            'foreign_languages.*.reading_level' => 'nullable|string|max:20',
+            'foreign_languages.*.writing_level' => 'nullable|string|max:20',
             'foreign_languages.*.institution_name' => 'nullable|string|max:191',
             'foreign_languages.*.start_date' => 'nullable|date',
             'foreign_languages.*.end_date' => 'nullable|date',
             'foreign_languages.*.result' => 'nullable|string|max:191',
+            'academic_infos' => 'array',
+            'academic_infos.*.exam_title' => 'nullable|string|max:191',
+            'academic_infos.*.certificate_type' => 'nullable|string|max:120',
+            'academic_infos.*.certificate_type_other' => 'nullable|string|max:191',
+            'academic_infos.*.country_name' => 'nullable|string|max:120',
+            'academic_infos.*.institute_name' => 'nullable|string|max:191',
+            'academic_infos.*.result' => 'nullable|string|max:191',
+            'academic_infos.*.start_date' => 'nullable|date',
+            'academic_infos.*.end_date' => 'nullable|date',
+            'academic_infos.*.graduation_year' => 'nullable|string|max:20',
+            'work_experiences' => 'array',
+            'work_experiences.*.id' => 'nullable|integer',
+            'work_experiences.*.sector_category' => 'nullable|string|max:191',
+            'work_experiences.*.start_date' => 'nullable|date',
+            'work_experiences.*.end_date' => 'nullable|date',
+            'work_experiences.*.position_title' => 'nullable|string|max:191',
+            'work_experiences.*.institution_name' => 'nullable|string|max:191',
+            'work_experiences.*.note' => 'nullable|string',
             'bank_accounts' => 'array',
             'bank_accounts.*.account_name' => 'nullable|string|max:191',
             'bank_accounts.*.account_number' => 'nullable|string|max:120',
@@ -262,7 +289,8 @@ class EmployeeUpdateRequest extends FormRequest
     {
         $rows = $this->normalizeFamilyMemberRows((array) $this->input('family_members', []));
         $educationRows = $this->normalizeYearOnlyRows((array) $this->input('education_histories', []));
-        $languageRows = $this->normalizeYearOnlyRows((array) $this->input('foreign_languages', []));
+        $languageRows = $this->normalizeLanguageLevelRows($this->normalizeYearOnlyRows((array) $this->input('foreign_languages', [])));
+        $academicRows = $this->normalizeYearOnlyRows((array) $this->input('academic_infos', []));
         [$spouseCount, $kidsCount] = $this->calculateFamilySummary($rows);
 
         $selectedMaritalStatus = (int) $this->input('marital_status_id');
@@ -302,6 +330,7 @@ class EmployeeUpdateRequest extends FormRequest
             'family_members' => $rows,
             'education_histories' => $educationRows,
             'foreign_languages' => $languageRows,
+            'academic_infos' => $academicRows,
             'spouse_count' => $spouseCount,
             'no_of_kids' => $kidsCount,
         ]);
@@ -316,10 +345,44 @@ class EmployeeUpdateRequest extends FormRequest
 
             $row['start_date'] = $this->normalizeYearOnlyDate($row['start_date'] ?? null);
             $row['end_date'] = $this->normalizeYearOnlyDate($row['end_date'] ?? null);
+            if (array_key_exists('graduation_year', $row)) {
+                $row['graduation_year'] = $this->normalizeGraduationYear($row['graduation_year'] ?? null, $row['end_date'] ?? null);
+            }
             $rows[$index] = $row;
         }
 
         return $rows;
+    }
+
+    protected function normalizeGraduationYear($value, $fallbackDate = null): ?string
+    {
+        $text = trim((string) $value);
+        if ($text !== '') {
+            if (preg_match('/^\d{4}$/', $text)) {
+                return $text;
+            }
+
+            try {
+                return Carbon::parse($text)->format('Y');
+            } catch (\Throwable $e) {
+                return $text;
+            }
+        }
+
+        $fallback = trim((string) $fallbackDate);
+        if ($fallback === '') {
+            return null;
+        }
+
+        if (preg_match('/^(\d{4})/', $fallback, $matches)) {
+            return $matches[1];
+        }
+
+        try {
+            return Carbon::parse($fallback)->format('Y');
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     protected function normalizeYearOnlyDate($value): ?string
@@ -783,32 +846,97 @@ class EmployeeUpdateRequest extends FormRequest
     public function messages()
     {
         return [
-            'gender_id.required' => 'សូមជ្រើសភេទ។',
-            'position_id.required' => 'សូមជ្រើសមុខតំណែង។',
-            'department_id.required' => 'សូមជ្រើសអង្គភាព។',
-            'birth_place_state_id.required' => 'សូមជ្រើសទីកន្លែងកំណើត - ខេត្ត/រាជធានី។',
-            'birth_place_city_id.required' => 'សូមជ្រើសទីកន្លែងកំណើត - ក្រុង/ស្រុក/ខណ្ឌ។',
-            'birth_place_commune_id.required' => 'សូមជ្រើសទីកន្លែងកំណើត - ឃុំ/សង្កាត់។',
-            'birth_place_village_id.required' => 'សូមជ្រើសទីកន្លែងកំណើត - ភូមិ។',
-            'present_address_state_id.required' => 'សូមជ្រើសអាសយដ្ឋានបច្ចុប្បន្ន - ខេត្ត/រាជធានី។',
-            'present_address_city_id.required' => 'សូមជ្រើសអាសយដ្ឋានបច្ចុប្បន្ន - ក្រុង/ស្រុក/ខណ្ឌ។',
-            'present_address_commune_id.required' => 'សូមជ្រើសអាសយដ្ឋានបច្ចុប្បន្ន - ឃុំ/សង្កាត់។',
-            'present_address_village_id.required' => 'សូមជ្រើសអាសយដ្ឋានបច្ចុប្បន្ន - ភូមិ។',
-            'is_full_right_officer.required' => 'សូមបញ្ជាក់ស្ថានភាពមន្ត្រីក្របខណ្ឌពេញសិទ្ធិ។',
-            'official_id_10.required_if' => 'សូមបញ្ចូលអត្តលេខមន្ត្រី 10 ខ្ទង់ សម្រាប់មន្ត្រីក្របខណ្ឌពេញសិទ្ធិ។',
-            'official_id_10.regex' => 'អត្តលេខមន្ត្រីត្រូវមានតែ 10 ខ្ទង់ប៉ុណ្ណោះ។',
-            'official_id_10.unique' => 'អត្តលេខមន្ត្រីនេះមានរួចហើយ។',
-            'legal_document_type.required_if' => 'សូមជ្រើសប្រភេទឯកសារច្បាប់។',
-            'legal_document_number.required_if' => 'សូមបញ្ចូលលេខឯកសារច្បាប់។',
-            'legal_document_date.required_if' => 'សូមជ្រើសកាលបរិច្ឆេទឯកសារច្បាប់។',
-            'legal_document_subject.required_if' => 'សូមបញ្ចូលកម្មវត្ថុនៃឯកសារច្បាប់។',
+            'gender_id.required' => '????????????',
+            'position_id.required' => '?????????????????',
+            'department_id.required' => '????????????????',
+            'birth_place_state_id.required' => '????????????????????? - ?????/????????',
+            'birth_place_city_id.required' => '????????????????????? - ?????/?????/?????',
+            'birth_place_commune_id.required' => '????????????????????? - ???/????????',
+            'birth_place_village_id.required' => '????????????????????? - ?????',
+            'present_address_state_id.required' => '???????????????????????????? - ?????/????????',
+            'present_address_city_id.required' => '???????????????????????????? - ?????/?????/?????',
+            'present_address_commune_id.required' => '???????????????????????????? - ???/????????',
+            'present_address_village_id.required' => '???????????????????????????? - ?????',
+            'is_full_right_officer.required' => '????????????????????????????????????????????',
+            'official_id_10.required_if' => '??????????????????????? 10 ????? ?????????????????????????????????',
+            'official_id_10.regex' => '???????????????????????? 10 ??????????????',
+            'official_id_10.unique' => '???????????????????????????',
+            'legal_document_type.required_if' => '??????????????????????????',
+            'legal_document_number.required_if' => '????????????????????????',
+            'legal_document_date.required_if' => '???????????????????????????????',
+            'legal_document_subject.required_if' => '????????????????????????????????',
+            'email.email' => '??????????????????????????',
+            'email.unique' => '???????????????????',
+            'phone.unique' => '????????????????????????',
+            'max.string' => ':attribute ?????????????????????? :max ????? ?????????',
         ];
     }
 
+    public function attributes()
+    {
+        return [
+            'foreign_languages.*.country_name' => '?????? (?????????)',
+            'foreign_languages.*.language_name' => '?????????',
+            'foreign_languages.*.speaking_level' => '?????????',
+            'foreign_languages.*.reading_level' => '??????',
+            'foreign_languages.*.writing_level' => '????????',
+            'foreign_languages.*.institution_name' => '???????????????? (?????????)',
+            'foreign_languages.*.result' => '?????????/????????????/?????????????',
+            'education_histories.*.country_name' => '?????? (??????????????)',
+            'education_histories.*.institution_name' => '???????????????? (??????????????)',
+            'education_histories.*.major_subject' => '?????????/???????????',
+            'academic_infos.*.exam_title' => '?????????/?????????????????????',
+            'academic_infos.*.certificate_type' => '???????????????',
+            'academic_infos.*.certificate_type_other' => '???????????????????',
+            'academic_infos.*.country_name' => '?????? (???????????????????)',
+            'academic_infos.*.institute_name' => '???????????????? (???????????????????)',
+            'academic_infos.*.result' => '?????????/????????????/????????????? (???????????????????)',
+        ];
+    }
+
+    protected function normalizeLanguageLevelRows(array $rows): array
+    {
+        $map = [
+            'a' => 'expert',
+            'b' => 'good',
+            'c' => 'medium',
+            'excellent' => 'expert',
+            'advanced' => 'expert',
+            'proficient' => 'expert',
+            'expert' => 'expert',
+            'good' => 'good',
+            'fair' => 'medium',
+            'intermediate' => 'medium',
+            'average' => 'medium',
+            'medium' => 'medium',
+            'basic' => 'basic',
+            'elementary' => 'basic',
+            'beginner' => 'basic',
+            'poor' => 'basic',
+            '?????????????????' => 'expert',
+            '?????????' => 'good',
+            '???????????' => 'medium',
+            '??????????????' => 'basic',
+            '???????????' => 'expert',
+            '???' => 'good',
+            '?????' => 'medium',
+            '????????' => 'basic',
+        ];
+
+        foreach ($rows as &$row) {
+            foreach (['speaking_level', 'reading_level', 'writing_level'] as $field) {
+                $value = trim((string) ($row[$field] ?? ''));
+                if ($value === '') {
+                    $row[$field] = '';
+                    continue;
+                }
+
+                $normalized = mb_strtolower($value, 'UTF-8');
+                $row[$field] = $map[$normalized] ?? $value;
+            }
+        }
+        unset($row);
+
+        return $rows;
+    }
 }
-
-
-
-
-
-

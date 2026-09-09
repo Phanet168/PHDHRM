@@ -914,6 +914,7 @@ function rowTemplate(repeater, index) {
 
     if (repeater === "education_histories") {
         return "<tr>" +
+            '<td><input type="text" name="education_histories[' + index + '][country_name]" class="form-control" placeholder="' + kh("Country", "ប្រទេស") + '"></td>' +
             '<td><input type="text" name="education_histories[' + index + '][institution_name]" class="form-control"></td>' +
             '<td><input type="number" name="education_histories[' + index + '][start_date]" class="form-control gov-year-input" min="1900" max="2100" step="1" placeholder="' + kh("e.g. 2020", "ឧ. ២០២០") + '"></td>' +
             '<td><input type="number" name="education_histories[' + index + '][end_date]" class="form-control gov-year-input" min="1900" max="2100" step="1" placeholder="' + kh("e.g. 2020", "ឧ. ២០២០") + '"></td>' +
@@ -925,6 +926,7 @@ function rowTemplate(repeater, index) {
     }
     if (repeater === "foreign_languages") {
         return "<tr>" +
+            '<td><input type="text" name="foreign_languages[' + index + '][country_name]" class="form-control" placeholder="' + kh("Country", "ប្រទេស") + '"></td>' +
             '<td><input type="text" name="foreign_languages[' + index + '][language_name]" class="form-control"></td>' +
             '<td><input type="text" name="foreign_languages[' + index + '][speaking_level]" class="form-control" placeholder="A/B/C"></td>' +
             '<td><input type="text" name="foreign_languages[' + index + '][reading_level]" class="form-control" placeholder="A/B/C"></td>' +
@@ -933,6 +935,30 @@ function rowTemplate(repeater, index) {
             '<td><input type="text" name="foreign_languages[' + index + '][start_date]" class="form-control" placeholder="DD/MM/YYYY / ' + kh("e.g. 2020", "ឧ. ២០២០") + '"></td>' +
             '<td><input type="text" name="foreign_languages[' + index + '][end_date]" class="form-control" placeholder="DD/MM/YYYY / ' + kh("e.g. 2020", "ឧ. ២០២០") + '"></td>' +
             '<td><input type="text" name="foreign_languages[' + index + '][result]" class="form-control"></td>' +
+            '<td><button type="button" class="btn btn-sm btn-danger repeater-remove">' + t("delete", kh("Delete", "លុប")) + "</button></td>" +
+            "</tr>";
+    }
+
+    if (repeater === "academic_infos") {
+        return "<tr>" +
+            '<td><input type="text" name="academic_infos[' + index + '][exam_title]" class="form-control"></td>' +
+            '<td><select name="academic_infos[' + index + '][certificate_type]" class="form-select mb-1">'
+                + '<option value="">' + kh("Select certificate type", "\u1787\u17d2\u179a\u17be\u179f\u179a\u17be\u179f\u1794\u17d2\u179a\u1797\u17c1\u1791\u179f\u1789\u17d2\u1789\u17b6\u1794\u178f\u17d2\u179a") + '</option>'
+                + '<option value="\u179c\u17b7\u1789\u17d2\u1789\u17b6\u1794\u1793\u1794\u178f\u17d2\u179a">' + kh("Certificate", "\u179c\u17b7\u1789\u17d2\u1789\u17b6\u1794\u1793\u1794\u178f\u17d2\u179a") + '</option>'
+                + '<option value="\u179f\u1789\u17d2\u1789\u17b6\u1794\u178f\u17d2\u179a">' + kh("Diploma", "\u179f\u1789\u17d2\u1789\u17b6\u1794\u178f\u17d2\u179a") + '</option>'
+                + '<option value="\u179b\u17b7\u1781\u17b7\u178f\u1794\u1789\u17d2\u1787\u17b6\u1780\u17cb">' + kh("Letter of completion", "\u179b\u17b7\u1781\u17b7\u178f\u1794\u1789\u17d2\u1787\u17b6\u1780\u17cb") + '</option>'
+                + '<option value="\u17a2\u17b6\u1787\u17d2\u1789\u17b6\u1794\u178e\u17d2\u178e">' + kh("License", "\u17a2\u17b6\u1787\u17d2\u1789\u17b6\u1794\u178e\u17d2\u178e") + '</option>'
+                + '<option value="\u1794\u179a\u17b7\u1789\u17d2\u1789\u17b6\u1794\u178f\u17d2\u179a\u179a\u1784">' + kh("Associate degree", "\u1794\u179a\u17b7\u1789\u17d2\u1789\u17b6\u1794\u178f\u17d2\u179a\u179a\u1784") + '</option>'
+                + '<option value="\u1794\u179a\u17b7\u1789\u17d2\u1789\u17b6\u1794\u178f\u17d2\u179a">' + kh("Bachelor degree", "\u1794\u179a\u17b7\u1789\u17d2\u1789\u17b6\u1794\u178f\u17d2\u179a") + '</option>'
+                + '<option value="\u1794\u179a\u17b7\u1789\u17d2\u1789\u17b6\u1794\u178f\u17d2\u179a\u1787\u17b6\u1793\u17cb\u1781\u17d2\u1796\u179f\u17cb">' + kh("Master degree", "\u1794\u179a\u17b7\u1789\u17d2\u1789\u17b6\u1794\u178f\u17d2\u179a\u1787\u17b6\u1793\u17cb\u1781\u17d2\u1796\u179f\u17cb") + '</option>'
+                + '<option value="\u1794\u178e\u17d2\u178c\u17b7\u178f">' + kh("Doctorate", "\u1794\u178e\u17d2\u178c\u17b7\u178f") + '</option>'
+                + '<option value="\u1795\u17d2\u179f\u17c1\u1784\u17d7">' + kh("Other", "\u1795\u17d2\u179f\u17c1\u1784\u17d7") + '</option>'
+                + '</select><input type="text" name="academic_infos[' + index + '][certificate_type_other]" class="form-control" placeholder="' + kh("Specify other type", "\u1794\u1789\u17d2\u1787\u17b6\u1780\u17cb\u1794\u17d2\u179a\u1797\u17c1\u1791\u1795\u17d2\u179f\u17c1\u1784\u17d7") + '"></td>' +
+            '<td><input type="text" name="academic_infos[' + index + '][country_name]" class="form-control" placeholder="' + kh("Country", "ប្រទេស") + '"></td>' +
+            '<td><input type="text" name="academic_infos[' + index + '][institute_name]" class="form-control"></td>' +
+            '<td><input type="text" name="academic_infos[' + index + '][result]" class="form-control"></td>' +
+            '<td><input type="text" name="academic_infos[' + index + '][start_date]" class="form-control" placeholder="DD/MM/YYYY / ' + kh("e.g. 2020", "ឧ. ២០២០") + '"></td>' +
+            '<td><input type="text" name="academic_infos[' + index + '][end_date]" class="form-control" placeholder="DD/MM/YYYY / ' + kh("e.g. 2020", "ឧ. ២០២០") + '"><input type="hidden" name="academic_infos[' + index + '][graduation_year]" value=""></td>' +
             '<td><button type="button" class="btn btn-sm btn-danger repeater-remove">' + t("delete", kh("Delete", "លុប")) + "</button></td>" +
             "</tr>";
     }

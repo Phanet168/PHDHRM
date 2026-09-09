@@ -2,29 +2,30 @@
 
 namespace Modules\HumanResource\Entities;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
-class EmployeeAcademicInfo extends Model
+class EmployeeWorkExperience extends Model
 {
     use HasFactory;
 
     protected $fillable = [
         'employee_id',
-        'country_name',
-        'exam_title',
-        'certificate_type',
-        'certificate_type_other',
-        'institute_name',
-        'result',
+        'sector_category',
         'start_date',
         'end_date',
-        'graduation_year',
-        'academic_attachment',
+        'position_title',
+        'institution_name',
+        'note',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
     ];
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
+    }
 }

@@ -142,7 +142,7 @@
                             @endphp
                             @if ($summaryErrors->isNotEmpty())
                                 <div class="alert alert-warning text-start">
-                                    <div class="fw-semibold mb-2">{{ localize('please_check_the_form', 'Please check the form and try again.') }}</div>
+                                    <div class="fw-semibold mb-2">{{ localize('please_check_the_form', 'សូមពិនិត្យទិន្នន័យក្នុង form ហើយព្យាយាមម្ដងទៀត។') }}</div>
                                     <ul class="mb-0 ps-3">
                                         @foreach ($summaryErrors as $message)
                                             <li>{{ $message }}</li>
@@ -311,7 +311,7 @@
                             </div>
                             <div class="f1-step">
                                 <div class="f1-step-icon"><i class="fa fa-info"></i></div>
-                                <p>{{ localize('operation_information') }}</p>
+                                <p>{{ app()->getLocale() === 'km' ? 'បទពិសោធការងារ' : 'Work experience' }}</p>
                             </div>
                         </div>
                         <fieldset>
@@ -794,6 +794,7 @@
                             </div>
                         </fieldset>
                         <fieldset>
+                            @include('humanresource::employee.partials.work-experience-profile', ['employee' => $employee])
                             <div class="row">
                                 <div class="col-md-6">
                                     <h5 class="my-2">{{ $supervisorTitle }}</h5>

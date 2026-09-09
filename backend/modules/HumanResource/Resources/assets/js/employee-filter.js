@@ -1,6 +1,7 @@
 ﻿$(document).ready(function () {
     var $table = $("#employee-table");
     var $department = $("#department");
+    var activeFilters = {};
 
     var $combo = $("#department-tree-combo");
     var $comboToggle = $("#department-tree-combo-toggle");
@@ -26,19 +27,32 @@
             designation: normalizedValue("#designation"),
             official_id_10: normalizedValue("#official_id_10"),
             work_status_name: normalizedValue("#work_status_name"),
+            service_state: normalizedValue("#service_state"),
             employee_status: normalizedValue("#employee_status"),
             gender: normalizedValue("#gender"),
+            nationality: normalizedValue("#nationality"),
+            ethnic_group: normalizedValue("#ethnic_group"),
+            is_ethnic_minority: normalizedValue("#is_ethnic_minority"),
+            ethnic_minority_name: normalizedValue("#ethnic_minority_name"),
         };
     }
 
     function applyFilterAndReload(payload) {
+        activeFilters = $.extend({}, payload);
+        $table.DataTable().ajax.reload();
+    }
+
+    function bindFilterPayload() {
+        if (!$table.length) {
+            return;
+        }
+
         $table.off("preXhr.dt.employeeFilter");
         $table.on("preXhr.dt.employeeFilter", function (e, settings, data) {
-            Object.keys(payload).forEach(function (key) {
-                data[key] = payload[key];
+            Object.keys(activeFilters).forEach(function (key) {
+                data[key] = activeFilters[key];
             });
         });
-        $table.DataTable().ajax.reload();
     }
 
     function setTreeOpenState($item, isOpen) {
@@ -206,6 +220,24 @@
         markTreeSelection($department.val());
     }
 
+    function toggleEthnicMinorityFilter() {
+        var $minorityStatus = $("#is_ethnic_minority");
+        var $minorityNameWrap = $("#ethnic-minority-name-filter-wrap");
+        var $minorityName = $("#ethnic_minority_name");
+
+        if (!$minorityStatus.length || !$minorityNameWrap.length || !$minorityName.length) {
+            return;
+        }
+
+        var shouldShowMinorityName = $minorityStatus.val() === "1";
+        $minorityNameWrap.prop("hidden", !shouldShowMinorityName);
+        $minorityName.prop("disabled", !shouldShowMinorityName);
+
+        if (!shouldShowMinorityName) {
+            $minorityName.val("").trigger("change");
+        }
+    }
+
     $("#filter").on("click", function () {
         applyFilterAndReload(collectFilterPayload());
     });
@@ -216,8 +248,13 @@
         $("#designation").val("").trigger("change");
         $("#official_id_10").val("").trigger("change");
         $("#work_status_name").val("").trigger("change");
+        $("#service_state").val("").trigger("change");
         $("#employee_status").val("").trigger("change");
         $("#gender").val("").trigger("change");
+        $("#nationality").val("");
+        $("#ethnic_group").val("");
+        $("#is_ethnic_minority").val("").trigger("change");
+        $("#ethnic_minority_name").val("").trigger("change");
 
         if ($comboSearch.length) {
             $comboSearch.val("");
@@ -225,6 +262,7 @@
         filterTree("");
         selectDepartment("");
         closeCombo();
+        toggleEthnicMinorityFilter();
 
         applyFilterAndReload({
             employee_name: "",
@@ -232,12 +270,21 @@
             designation: "",
             official_id_10: "",
             work_status_name: "",
+            service_state: "",
             employee_status: "",
             gender: "",
+            nationality: "",
+            ethnic_group: "",
+            is_ethnic_minority: "",
+            ethnic_minority_name: "",
         });
     });
 
     initDepartmentTreeCombo();
+    activeFilters = collectFilterPayload();
+    bindFilterPayload();
+    toggleEthnicMinorityFilter();
+    $(document).on("change", "#is_ethnic_minority", toggleEthnicMinorityFilter);
 });
 
 

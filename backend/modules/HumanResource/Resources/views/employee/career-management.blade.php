@@ -27,6 +27,26 @@
             $workHistoryRows = [[]];
         }
 
+        $workExperienceRows = old('work_experiences');
+        if (!is_array($workExperienceRows)) {
+            $workExperienceRows = $employee->workExperiences
+                ->map(function ($r) {
+                    return [
+                        'id' => $r->id,
+                        'sector_category' => $r->sector_category,
+                        'start_date' => optional($r->start_date)->format('Y-m-d'),
+                        'end_date' => optional($r->end_date)->format('Y-m-d'),
+                        'position_title' => $r->position_title,
+                        'institution_name' => $r->institution_name,
+                        'note' => $r->note,
+                    ];
+                })
+                ->toArray();
+        }
+        if (empty($workExperienceRows)) {
+            $workExperienceRows = [[]];
+        }
+
         $incentiveRows = old('incentives');
         if (!is_array($incentiveRows)) {
             $incentiveRows = $employee->incentives->map(fn($r) => $r->toArray())->toArray();
@@ -39,6 +59,8 @@
         $positionLabel = $employee?->position?->position_name_km ?: ($employee?->position?->position_name ?: '-');
         $workStatusOptions = collect($work_status_options ?? [])->filter()->values();
         $workStatusOptionsJs = $workStatusOptions->values()->all();
+        $workExperienceSectorOptions = collect($work_experience_sector_options ?? [])->filter()->values();
+        $workExperienceSectorOptionsJs = $workExperienceSectorOptions->values()->all();
     @endphp
 
     <div class="card mb-3 fixed-tab-body">
@@ -148,6 +170,62 @@
                         data-repeater="work_histories">+ បន្ថែម</button>
                 </div>
 
+                
+                <div class="gov-section-card mb-3">
+                    <h6 class="gov-section-title">បទពិសោធន៍ការងារតាមវិស័យ</h6>
+                    <div class="small text-muted mb-2">
+                        បំពេញសម្រាប់ប្រវត្តិការងារដែលត្រូវយកទៅដាក់ក្នុងតារាងជីវប្រវត្តិមន្ត្រីរាជការ តាមក្រុមវិស័យនីមួយៗ។
+                    </div>
+                    <div class="table-responsive mb-2">
+                        <table class="table table-bordered" id="work-experience-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 18%;">វិស័យ</th>
+                                    <th style="width: 12%;">ថ្ងៃចូល</th>
+                                    <th style="width: 12%;">ថ្ងៃបញ្ចប់</th>
+                                    <th style="width: 20%;">មុខតំណែង</th>
+                                    <th style="width: 26%;">ក្រសួង/ស្ថាប័ន/អង្គការ</th>
+                                    <th style="width: 12%;">ផ្សេងៗ</th>
+                                    <th width="80">សកម្មភាព</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($workExperienceRows as $idx => $row)
+                                    <tr>
+                                        <td>
+                                            <input type="hidden" name="work_experiences[{{ $idx }}][id]"
+                                                value="{{ $row['id'] ?? '' }}">
+                                            <select name="work_experiences[{{ $idx }}][sector_category]" class="form-select">
+                                                <option value="">-- ជ្រើសវិស័យ --</option>
+                                                @foreach ($workExperienceSectorOptions as $sectorOption)
+                                                    <option value="{{ $sectorOption }}"
+                                                        {{ (($row['sector_category'] ?? '') === $sectorOption) ? 'selected' : '' }}>
+                                                        {{ $sectorOption }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                        <td><input type="date" name="work_experiences[{{ $idx }}][start_date]"
+                                                class="form-control" value="{{ $row['start_date'] ?? '' }}"></td>
+                                        <td><input type="date" name="work_experiences[{{ $idx }}][end_date]"
+                                                class="form-control" value="{{ $row['end_date'] ?? '' }}"></td>
+                                        <td><input type="text" name="work_experiences[{{ $idx }}][position_title]"
+                                                class="form-control" value="{{ $row['position_title'] ?? '' }}"></td>
+                                        <td><input type="text" name="work_experiences[{{ $idx }}][institution_name]"
+                                                class="form-control" value="{{ $row['institution_name'] ?? '' }}"></td>
+                                        <td><input type="text" name="work_experiences[{{ $idx }}][note]"
+                                                class="form-control" value="{{ $row['note'] ?? '' }}"></td>
+                                        <td><button type="button" class="btn btn-sm btn-danger repeater-remove">លុប</button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary repeater-add" data-target="#work-experience-table"
+                        data-repeater="work_experiences">+ បន្ថែម</button>
+                </div>
+
                 <div class="gov-section-card mb-3">
                     <h6 class="gov-section-title">ការលើកទឹកចិត្ត</h6>
                     <div class="table-responsive mb-2">
@@ -205,6 +283,7 @@
             "use strict";
 
             var workStatusOptions = @json($workStatusOptionsJs);
+            var workExperienceSectorOptions = @json($workExperienceSectorOptionsJs);
 
             function escapeHtml(value) {
                 return String(value || "")
@@ -225,6 +304,15 @@
                 return '<select name="work_histories[' + index + '][work_status_name]" class="form-select">' + options + '</select>';
             }
 
+            function workExperienceSectorSelectHtml(index) {
+                var options = '<option value="">-- ជ្រើសវិស័យ --</option>';
+                for (var i = 0; i < workExperienceSectorOptions.length; i++) {
+                    var value = escapeHtml(workExperienceSectorOptions[i]);
+                    options += '<option value="' + value + '">' + value + '</option>';
+                }
+
+                return '<select name="work_experiences[' + index + '][sector_category]" class="form-select">' + options + '</select>';
+            }
             function rowTemplate(repeater, index) {
                 if (repeater === "work_histories") {
                     return '<tr>' +
@@ -238,6 +326,18 @@
                         '</tr>';
                 }
 
+                if (repeater === "work_experiences") {
+                    return '<tr>' +
+                        '<td><input type="hidden" name="work_experiences[' + index + '][id]" value="">' +
+                        workExperienceSectorSelectHtml(index) + '</td>' +
+                        '<td><input type="date" name="work_experiences[' + index + '][start_date]" class="form-control"></td>' +
+                        '<td><input type="date" name="work_experiences[' + index + '][end_date]" class="form-control"></td>' +
+                        '<td><input type="text" name="work_experiences[' + index + '][position_title]" class="form-control"></td>' +
+                        '<td><input type="text" name="work_experiences[' + index + '][institution_name]" class="form-control"></td>' +
+                        '<td><input type="text" name="work_experiences[' + index + '][note]" class="form-control"></td>' +
+                        '<td><button type="button" class="btn btn-sm btn-danger repeater-remove">លុប</button></td>' +
+                        '</tr>';
+                }
                 if (repeater === "incentives") {
                     return '<tr>' +
                         '<td><input type="date" name="incentives[' + index + '][incentive_date]" class="form-control"></td>' +

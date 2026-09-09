@@ -240,6 +240,16 @@ class EmployeeDataTable extends DataTable
         $officialId10 = trim((string) $this->request->get('official_id_10', ''));
         $serviceState = trim((string) $this->request->get('service_state', ''));
         $workStatusName = trim((string) $this->request->get('work_status_name', ''));
+        $nationality = trim((string) $this->request->get('nationality', ''));
+        $ethnicGroup = trim((string) $this->request->get('ethnic_group', ''));
+        $isEthnicMinority = $this->request->get('is_ethnic_minority');
+        $ethnicMinorityName = trim((string) $this->request->get('ethnic_minority_name', ''));
+        $hasServiceStateColumn = Schema::hasColumn('employees', 'service_state');
+        $hasNationalityColumn = Schema::hasColumn('employees', 'nationality');
+        $hasEthnicGroupColumn = Schema::hasColumn('employees', 'ethnic_group');
+        $hasEmployeeProfileExtrasTable = Schema::hasTable('employee_profile_extras');
+        $hasEthnicMinorityFlagColumn = $hasEmployeeProfileExtrasTable && Schema::hasColumn('employee_profile_extras', 'is_ethnic_minority');
+        $hasEthnicMinorityNameColumn = $hasEmployeeProfileExtrasTable && Schema::hasColumn('employee_profile_extras', 'ethnic_minority_name');
         $orgUnitRuleService = app(OrgUnitRuleService::class);
         $managedBranchIds = $this->managedBranchIds($orgUnitRuleService);
         $effectiveLocationCodeSql = "
@@ -293,7 +303,7 @@ class EmployeeDataTable extends DataTable
             ->when($officialId10 !== '', function ($query) use ($officialId10) {
                 return $query->where('official_id_10', 'like', '%' . $officialId10 . '%');
             })
-            ->when($serviceState !== '', function ($query) use ($serviceState) {
+            ->when($hasServiceStateColumn && $serviceState !== '', function ($query) use ($serviceState) {
                 return $query->where('service_state', $serviceState);
             })
             ->when($workStatusName !== '', function ($query) use ($workStatusName) {
@@ -311,6 +321,36 @@ class EmployeeDataTable extends DataTable
             })
             ->when($marital_status, function ($query) use ($marital_status) {
                 return $query->where('marital_status_id', $marital_status);
+            })
+            ->when($hasNationalityColumn && $nationality !== '', function ($query) use ($nationality) {
+                return $query->where('nationality', 'like', '%' . $nationality . '%');
+            })
+            ->when($hasEthnicGroupColumn && $ethnicGroup !== '', function ($query) use ($ethnicGroup) {
+                return $query->where('ethnic_group', 'like', '%' . $ethnicGroup . '%');
+            })
+            ->when(
+                $hasEmployeeProfileExtrasTable && $hasEthnicMinorityFlagColumn && $isEthnicMinority !== null && $isEthnicMinority !== '',
+                function ($query) use ($isEthnicMinority) {
+                if ((string) $isEthnicMinority === '1') {
+                    return $query->whereHas('profileExtra', function ($profileQuery) {
+                        $profileQuery->where('is_ethnic_minority', true);
+                    });
+                }
+
+                return $query->where(function ($employeeQuery) {
+                    $employeeQuery->whereDoesntHave('profileExtra')
+                        ->orWhereHas('profileExtra', function ($profileQuery) {
+                            $profileQuery->where('is_ethnic_minority', false);
+                        });
+                });
+            })
+            ->when(
+                $hasEmployeeProfileExtrasTable && $hasEthnicMinorityFlagColumn && $hasEthnicMinorityNameColumn && $ethnicMinorityName !== '',
+                function ($query) use ($ethnicMinorityName) {
+                return $query->whereHas('profileExtra', function ($profileQuery) use ($ethnicMinorityName) {
+                    $profileQuery->where('is_ethnic_minority', true)
+                        ->where('ethnic_minority_name', $ethnicMinorityName);
+                });
             })
             ->leftJoin('positions as p_order', 'employees.position_id', '=', 'p_order.id')
             ->leftJoin('departments as d_main', 'employees.department_id', '=', 'd_main.id')
@@ -699,11 +739,26 @@ class EmployeeDataTable extends DataTable
      */
     public function html(): HtmlBuilder
     {
+        $filterScript = <<<'JS'
+data.employee_name = $('#employee_name').val() || '';
+data.department = $('#department').val() || '';
+data.designation = $('#designation').val() || '';
+data.official_id_10 = $('#official_id_10').val() || '';
+data.work_status_name = $('#work_status_name').val() || '';
+data.service_state = $('#service_state').val() || '';
+data.employee_status = $('#employee_status').val() || '';
+data.gender = $('#gender').val() || '';
+data.nationality = $('#nationality').val() || '';
+data.ethnic_group = $('#ethnic_group').val() || '';
+data.is_ethnic_minority = $('#is_ethnic_minority').val() || '';
+data.ethnic_minority_name = $('#ethnic_minority_name').prop('disabled') ? '' : ($('#ethnic_minority_name').val() || '');
+JS;
+
         return $this->builder()
             ->setTableId('employee-table')
             ->setTableAttribute('class', 'table table-hover table-bordered align-middle')
             ->columns($this->getColumns())
-            ->minifiedAjax()
+            ->minifiedAjax('', $filterScript)
             ->parameters([
                 'order' => [],
                 'ordering' => false,
@@ -746,6 +801,24 @@ class EmployeeDataTable extends DataTable
                         };
                         var query = $.param(payload);
                         var url = '" . route('employees.export-excel') . "';
+                        window.location.href = query ? (url + '?' + query) : url;
+                    }"),
+                Button::make('excel')
+                    ->className('btn btn-success buttons-excel buttons-html5 btn-sm prints')
+                    ->text('<i class="fa fa-table"></i> ' . e(localize('export_excel_formatted', 'Export Excel (Staff Report)')))
+                    ->action("function(e, dt, node, config) {
+                        var payload = {
+                            employee_name: ($('#employee_name').val() || ''),
+                            department: ($('#department').val() || ''),
+                            designation: ($('#designation').val() || ''),
+                            official_id_10: ($('#official_id_10').val() || ''),
+                            work_status_name: ($('#work_status_name').val() || ''),
+                            employee_status: ($('#employee_status').val() || ''),
+                            gender: ($('#gender').val() || ''),
+                            search: (dt.search() || '')
+                        };
+                        var query = $.param(payload);
+                        var url = '" . route('employees.export-structured-excel') . "';
                         window.location.href = query ? (url + '?' + query) : url;
                     }"),
             ]);

@@ -2,7 +2,7 @@
 <html lang="km">
 <head>
     <meta charset="UTF-8">
-    <title>ជីវប្រវត្តិមន្ត្រីរាជការ</title>
+    <title>áž‡áž¸ážœáž”áŸ’ážšážœážáŸ’ážáž·áž˜áž“áŸ’ážáŸ’ážšáž¸ážšáž¶áž‡áž€áž¶ážš</title>
     @php
         $fontToFileUri = static function (?string $path): ?string {
             if (!$path || !is_file($path)) {
@@ -42,16 +42,16 @@
 
         $toKhmerDigits = static function ($value): string {
             return strtr((string) $value, [
-                '0' => '០',
-                '1' => '១',
-                '2' => '២',
-                '3' => '៣',
-                '4' => '៤',
-                '5' => '៥',
-                '6' => '៦',
-                '7' => '៧',
-                '8' => '៨',
-                '9' => '៩',
+                '0' => 'áŸ ',
+                '1' => 'áŸ¡',
+                '2' => 'áŸ¢',
+                '3' => 'áŸ£',
+                '4' => 'áŸ¤',
+                '5' => 'áŸ¥',
+                '6' => 'áŸ¦',
+                '7' => 'áŸ§',
+                '8' => 'áŸ¨',
+                '9' => 'áŸ©',
             ]);
         };
 
@@ -129,8 +129,8 @@
         $photoUri = $fontToFileUri($photoPath);
 
         $genderText = $clean(data_get($profileData, 'gender', ''));
-        $isMale = str_contains($genderText, 'ប្រុស');
-        $isFemale = str_contains($genderText, 'ស្រី');
+        $isMale = str_contains($genderText, 'áž”áŸ’ážšáž»ážŸ');
+        $isFemale = str_contains($genderText, 'ážŸáŸ’ážšáž¸');
         $genderMark = static function (bool $checked): string {
             return $checked ? '[x]' : '[ ]';
         };
@@ -173,84 +173,25 @@
             'issue_year' => $clean(data_get($profileData, 'issue_year', '')),
         ];
 
-        $trainingRows = collect();
-
-        if (
-            $form['general_education'] !== ''
-            || $form['current_workplace'] !== ''
-        ) {
-            $trainingRows->push([
-                'category' => 'កម្រិតវប្បធម៌ទូទៅ',
-                'country' => 'កម្ពុជា',
-                'place' => $clean(data_get($profileData, 'batch_source', data_get($profileData, 'current_work_place', ''))),
-                'certificate' => $form['general_education'],
-                'from' => '',
-                'to' => '',
-            ]);
-        }
-
-        foreach (($education_histories ?? collect()) as $row) {
-            $degree = $clean(data_get($row, 'degree_level', ''));
-            $major = $clean(data_get($row, 'major_subject', ''));
-            $category = trim(implode(' - ', array_filter([$degree, $major])));
-            $trainingRows->push([
-                'category' => $category !== '' ? $category : 'ការបណ្តុះបណ្តាលជំនាញ',
-                'country' => 'កម្ពុជា',
-                'place' => $clean(data_get($row, 'institution_name', '')),
-                'certificate' => $clean(data_get($row, 'note', '')),
-                'from' => $toKhmerDate(data_get($row, 'start_date')),
-                'to' => $toKhmerDate(data_get($row, 'end_date')),
-            ]);
-        }
-
-        foreach (($academic_infos ?? collect()) as $row) {
-            $trainingRows->push([
-                'category' => $clean(data_get($row, 'exam_title', '')),
-                'country' => 'កម្ពុជា',
-                'place' => $clean(data_get($row, 'institute_name', '')),
-                'certificate' => $clean(data_get($row, 'result', data_get($row, 'exam_title', ''))),
-                'from' => '',
-                'to' => $clean(data_get($row, 'graduation_year', '')),
-            ]);
-        }
-
-        foreach (($foreign_languages ?? collect()) as $row) {
-            $languageName = $clean(data_get($row, 'language_name', ''));
-            $levels = array_filter([
-                $clean(data_get($row, 'speaking_level', '')),
-                $clean(data_get($row, 'reading_level', '')),
-                $clean(data_get($row, 'writing_level', '')),
-            ]);
-
-            $trainingRows->push([
-                'category' => trim('ចំណេះដឹងភាសាបរទេស' . ($languageName !== '' ? ' - ' . $languageName : '')),
-                'country' => 'កម្ពុជា',
-                'place' => $clean(data_get($row, 'institution_name', '')),
-                'certificate' => $clean(data_get($row, 'result', implode(' / ', $levels))),
-                'from' => $toKhmerDate(data_get($row, 'start_date')),
-                'to' => $toKhmerDate(data_get($row, 'end_date')),
-            ]);
-        }
-
-        $trainingRows = $trainingRows
+        $trainingRows = collect($civil_servant_training_rows ?? [])
+            ->map(function ($row) use ($clean, $toKhmerDate) {
+                return [
+                    'category' => $clean(data_get($row, 'category', '')),
+                    'country' => $clean(data_get($row, 'country', '')),
+                    'place' => $clean(data_get($row, 'place', '')),
+                    'certificate' => $clean(data_get($row, 'certificate', '')),
+                    'from' => $clean($toKhmerDate(data_get($row, 'from', ''))),
+                    'to' => $clean($toKhmerDate(data_get($row, 'to', ''))),
+                ];
+            })
             ->filter(function (array $row): bool {
-                return collect($row)->filter(function ($value) {
+                return collect($row)->contains(function ($value) {
                     return trim((string) $value) !== '';
-                })->isNotEmpty();
+                });
             })
             ->take(8)
             ->values();
 
-        while ($trainingRows->count() < 8) {
-            $trainingRows->push([
-                'category' => '',
-                'country' => '',
-                'place' => '',
-                'certificate' => '',
-                'from' => '',
-                'to' => '',
-            ]);
-        }
     @endphp
     <style>
         @if (!empty($khmerBodyFontUri))
@@ -480,12 +421,12 @@
     <table class="top-table">
         <tr>
             <td class="org-block">
-                <div>អង្គភាព</div>
+                <div>áž¢áž„áŸ’áž‚áž—áž¶áž–</div>
                 <div>{{ $form['current_workplace'] !== '' ? $form['current_workplace'] : '................................' }}</div>
             </td>
             <td class="nation-block">
-                <p class="nation-line">ព្រះរាជាណាចក្រកម្ពុជា</p>
-                <p class="nation-line">ជាតិ សាសនា ព្រះមហាក្សត្រ</p>
+                <p class="nation-line">áž–áŸ’ážšáŸ‡ážšáž¶áž‡áž¶ážŽáž¶áž…áž€áŸ’ážšáž€áž˜áŸ’áž–áž»áž‡áž¶</p>
+                <p class="nation-line">áž‡áž¶ážáž· ážŸáž¶ážŸáž“áž¶ áž–áŸ’ážšáŸ‡áž˜áž áž¶áž€áŸ’ážŸážáŸ’ážš</p>
                 <p class="symbol-line">3</p>
                 <p class="symbol-line">3</p>
             </td>
@@ -494,61 +435,61 @@
                     @if ($photoUri)
                         <img src="{{ $photoUri }}" alt="Profile photo">
                     @else
-                        <div>រូបថតថ្មី<br>៤ x ៦</div>
+                        <div>ážšáž¼áž”ážážážáŸ’áž˜áž¸<br>áŸ¤ x áŸ¦</div>
                     @endif
                 </div>
             </td>
         </tr>
     </table>
 
-    <div class="document-title">ជីវប្រវត្តិមន្ត្រីរាជការ</div>
+    <div class="document-title">áž‡áž¸ážœáž”áŸ’ážšážœážáŸ’ážáž·áž˜áž“áŸ’ážáŸ’ážšáž¸ážšáž¶áž‡áž€áž¶ážš</div>
 
-    <div class="section-title">ក-ព័ត៌មានផ្ទាល់ខ្លួន</div>
+    <div class="section-title">áž€-áž–áŸážáŸŒáž˜áž¶áž“áž•áŸ’áž‘áž¶áž›áŸ‹ážáŸ’áž›áž½áž“</div>
 
     <table class="info-table">
         <tr>
-            <td class="label">១. នាមត្រកូល និងនាម</td>
+            <td class="label">áŸ¡. áž“áž¶áž˜ážáŸ’ážšáž€áž¼áž› áž“áž·áž„áž“áž¶áž˜</td>
             <td class="line-cell">{{ $form['full_name'] }}</td>
-            <td class="label">អក្សរឡាតាំង</td>
+            <td class="label">áž¢áž€áŸ’ážŸážšáž¡áž¶ážáž¶áŸ†áž„</td>
             <td class="line-cell">{{ $form['full_name_latin'] }}</td>
-            <td class="gender-cell">ប្រុស {{ $genderMark($isMale) }}</td>
-            <td class="gender-cell">ស្រី {{ $genderMark($isFemale) }}</td>
+            <td class="gender-cell">áž”áŸ’ážšáž»ážŸ {{ $genderMark($isMale) }}</td>
+            <td class="gender-cell">ážŸáŸ’ážšáž¸ {{ $genderMark($isFemale) }}</td>
         </tr>
         <tr>
-            <td class="label">២. ថ្ងៃខែឆ្នាំកំណើត</td>
-            <td colspan="2" class="line-cell">កើតថ្ងៃទី {{ $birthDateParts['day'] }} ខែ {{ $birthDateParts['month'] }} ឆ្នាំ {{ $birthDateParts['year'] }}</td>
-            <td class="label">សញ្ជាតិ</td>
+            <td class="label">áŸ¢. ážáŸ’áž„áŸƒážáŸ‚áž†áŸ’áž“áž¶áŸ†áž€áŸ†ážŽáž¾áž</td>
+            <td colspan="2" class="line-cell">áž€áž¾ážážáŸ’áž„áŸƒáž‘áž¸ {{ $birthDateParts['day'] }} ážáŸ‚ {{ $birthDateParts['month'] }} áž†áŸ’áž“áž¶áŸ† {{ $birthDateParts['year'] }}</td>
+            <td class="label">ážŸáž‰áŸ’áž‡áž¶ážáž·</td>
             <td colspan="2" class="line-cell">{{ $form['nationality'] }}</td>
         </tr>
         <tr>
-            <td class="label">៣. ជនជាតិ</td>
+            <td class="label">áŸ£. áž‡áž“áž‡áž¶ážáž·</td>
             <td class="line-cell">{{ $form['ethnic_group'] }}</td>
-            <td class="label">ទីកន្លែងកំណើត</td>
+            <td class="label">áž‘áž¸áž€áž“áŸ’áž›áŸ‚áž„áž€áŸ†ážŽáž¾áž</td>
             <td colspan="3" class="line-cell">
-                នៅភូមិ {{ $form['birth_village'] }}
-                ឃុំ/សង្កាត់ {{ $form['birth_commune'] }}
-                ក្រុង/ស្រុក {{ $form['birth_district'] }}
-                រាជធានី/ខេត្ត {{ $form['birth_province'] }}
+                áž“áŸ…áž—áž¼áž˜áž· {{ $form['birth_village'] }}
+                ážƒáž»áŸ†/ážŸáž„áŸ’áž€áž¶ážáŸ‹ {{ $form['birth_commune'] }}
+                áž€áŸ’ážšáž»áž„/ážŸáŸ’ážšáž»áž€ {{ $form['birth_district'] }}
+                ážšáž¶áž‡áž’áž¶áž“áž¸/ážáŸážáŸ’áž {{ $form['birth_province'] }}
             </td>
         </tr>
         <tr>
-            <td class="label">៤. អាសយដ្ឋានបច្ចុប្បន្ន</td>
+            <td class="label">áŸ¤. áž¢áž¶ážŸáž™ážŠáŸ’áž‹áž¶áž“áž”áž…áŸ’áž…áž»áž”áŸ’áž”áž“áŸ’áž“</td>
             <td colspan="5" class="line-cell">
                 @if($form['current_address_prefix'] !== '')
                 {{ $form['current_address_prefix'] }}
                 @endif
-                នៅភូមិ {{ $form['current_village'] }}
-                ឃុំ/សង្កាត់ {{ $form['current_commune'] }}
-                ក្រុង/ស្រុក {{ $form['current_district'] }}
-                រាជធានី/ខេត្ត {{ $form['current_province'] }}
+                áž“áŸ…áž—áž¼áž˜áž· {{ $form['current_village'] }}
+                ážƒáž»áŸ†/ážŸáž„áŸ’áž€áž¶ážáŸ‹ {{ $form['current_commune'] }}
+                áž€áŸ’ážšáž»áž„/ážŸáŸ’ážšáž»áž€ {{ $form['current_district'] }}
+                ážšáž¶áž‡áž’áž¶áž“áž¸/ážáŸážáŸ’áž {{ $form['current_province'] }}
             </td>
         </tr>
         <tr>
-            <td class="label">៥. លេខទូរស័ព្ទ</td>
+            <td class="label">áŸ¥. áž›áŸážáž‘áž¼ážšážŸáŸáž–áŸ’áž‘</td>
             <td class="line-cell">{{ $form['phone'] }}</td>
-            <td class="label">ថ្ងៃចូលបម្រើការងារ</td>
+            <td class="label">ážáŸ’áž„áŸƒáž…áž¼áž›áž”áž˜áŸ’ážšáž¾áž€áž¶ážšáž„áž¶ážš</td>
             <td class="line-cell">{{ $serviceDate }}</td>
-            <td class="label">មុខតំណែង</td>
+            <td class="label">áž˜áž»ážážáŸ†ážŽáŸ‚áž„</td>
             <td class="line-cell">{{ $form['position'] }}</td>
         </tr>
     </table>
@@ -557,38 +498,38 @@
         <tr>
             <td>
                 <div class="id-box">
-                    <span class="id-label">លេខសម្គាល់បុគ្គលិក</span>
+                    <span class="id-label">áž›áŸážážŸáž˜áŸ’áž‚áž¶áž›áŸ‹áž”áž»áž‚áŸ’áž‚áž›áž·áž€</span>
                     <span class="id-value">{{ $form['employee_id'] }}</span>
                 </div>
             </td>
             <td>
                 <div class="id-box">
-                    <span class="id-label">អត្តសញ្ញាណប័ណ្ណសញ្ជាតិខ្មែរ</span>
+                    <span class="id-label">áž¢ážáŸ’ážážŸáž‰áŸ’áž‰áž¶ážŽáž”áŸážŽáŸ’ážŽážŸáž‰áŸ’áž‡áž¶ážáž·ážáŸ’áž˜áŸ‚ážš</span>
                     <span class="id-value">{{ $form['national_id_no'] }}</span>
                 </div>
             </td>
             <td>
                 <div class="id-box">
-                    <span class="id-label">អត្តលេខមន្ត្រីរាជការ</span>
+                    <span class="id-label">áž¢ážáŸ’ážáž›áŸážáž˜áž“áŸ’ážáŸ’ážšáž¸ážšáž¶áž‡áž€áž¶ážš</span>
                     <span class="id-value">{{ $form['official_id_10'] }}</span>
                 </div>
             </td>
         </tr>
     </table>
 
-    <p class="role-line">ទីកន្លែងធ្វើការបច្ចុប្បន្នៈ <span class="line-cell small" style="display:inline-block; min-width: 70%;">{{ $form['current_workplace'] }}</span></p>
+    <p class="role-line">áž‘áž¸áž€áž“áŸ’áž›áŸ‚áž„áž’áŸ’ážœáž¾áž€áž¶ážšáž”áž…áŸ’áž…áž»áž”áŸ’áž”áž“áŸ’áž“áŸˆ <span class="line-cell small" style="display:inline-block; min-width: 70%;">{{ $form['current_workplace'] }}</span></p>
 
-    <div class="section-title">ខ-កម្រិតវប្បធម៌ទូទៅ ការបណ្តុះបណ្តាលវិជ្ជាជីវៈ និងការបណ្តុះបណ្តាលបន្ត</div>
+    <div class="section-title">áž-áž€áž˜áŸ’ážšáž·ážážœáž”áŸ’áž”áž’áž˜áŸŒáž‘áž¼áž‘áŸ… áž€áž¶ážšáž”ážŽáŸ’ážáž»áŸ‡áž”ážŽáŸ’ážáž¶áž›ážœáž·áž‡áŸ’áž‡áž¶áž‡áž¸ážœáŸˆ áž“áž·áž„áž€áž¶ážšáž”ážŽáŸ’ážáž»áŸ‡áž”ážŽáŸ’ážáž¶áž›áž”áž“áŸ’áž</div>
 
     <table class="training-table">
         <thead>
         <tr>
-            <th style="width: 19%;">វគ្គ ឬកម្រិតសិក្សា</th>
-            <th style="width: 11%;">ប្រទេស</th>
-            <th style="width: 28%;">គ្រឹះស្ថានសិក្សា ឬកន្លែងបណ្តុះបណ្តាល</th>
-            <th style="width: 20%;">សញ្ញាបត្រ ឬលទ្ធផលដែលទទួលបាន</th>
-            <th style="width: 11%;">ថ្ងៃ.ខែ.ឆ្នាំ ចូល</th>
-            <th style="width: 11%;">ថ្ងៃ.ខែ.ឆ្នាំ បញ្ចប់</th>
+            <th style="width: 19%;">ážœáž‚áŸ’áž‚ áž¬áž€áž˜áŸ’ážšáž·ážážŸáž·áž€áŸ’ážŸáž¶</th>
+            <th style="width: 11%;">áž”áŸ’ážšáž‘áŸážŸ</th>
+            <th style="width: 28%;">áž‚áŸ’ážšáž¹áŸ‡ážŸáŸ’ážáž¶áž“ážŸáž·áž€áŸ’ážŸáž¶ áž¬áž€áž“áŸ’áž›áŸ‚áž„áž”ážŽáŸ’ážáž»áŸ‡áž”ážŽáŸ’ážáž¶áž›</th>
+            <th style="width: 20%;">ážŸáž‰áŸ’áž‰áž¶áž”ážáŸ’ážš áž¬áž›áž‘áŸ’áž’áž•áž›ážŠáŸ‚áž›áž‘áž‘áž½áž›áž”áž¶áž“</th>
+            <th style="width: 11%;">ážáŸ’áž„áŸƒ.ážáŸ‚.áž†áŸ’áž“áž¶áŸ† áž…áž¼áž›</th>
+            <th style="width: 11%;">ážáŸ’áž„áŸƒ.ážáŸ‚.áž†áŸ’áž“áž¶áŸ† áž”áž‰áŸ’áž…áž”áŸ‹</th>
         </tr>
         </thead>
         <tbody>
@@ -606,19 +547,19 @@
     </table>
 
     <p class="declaration">
-        ខ្ញុំសូមធានាថា ព័ត៌មានដែលបានបំពេញក្នុងជីវប្រវត្តិនេះ ពិតជាត្រឹមត្រូវតាមការពិត ហើយបើមានការក្លែងបន្លំ ឬខុសពីការពិត ខ្ញុំសូមទទួលខុសត្រូវចំពោះមុខច្បាប់ជាធរមាន។
+        ážáŸ’áž‰áž»áŸ†ážŸáž¼áž˜áž’áž¶áž“áž¶ážáž¶ áž–áŸážáŸŒáž˜áž¶áž“ážŠáŸ‚áž›áž”áž¶áž“áž”áŸ†áž–áŸáž‰áž€áŸ’áž“áž»áž„áž‡áž¸ážœáž”áŸ’ážšážœážáŸ’ážáž·áž“áŸáŸ‡ áž–áž·ážáž‡áž¶ážáŸ’ážšáž¹áž˜ážáŸ’ážšáž¼ážœážáž¶áž˜áž€áž¶ážšáž–áž·áž áž áž¾áž™áž”áž¾áž˜áž¶áž“áž€áž¶ážšáž€áŸ’áž›áŸ‚áž„áž”áž“áŸ’áž›áŸ† áž¬ážáž»ážŸáž–áž¸áž€áž¶ážšáž–áž·áž ážáŸ’áž‰áž»áŸ†ážŸáž¼áž˜áž‘áž‘áž½áž›ážáž»ážŸážáŸ’ážšáž¼ážœáž…áŸ†áž–áŸ„áŸ‡áž˜áž»ážáž…áŸ’áž”áž¶áž”áŸ‹áž‡áž¶áž’ážšáž˜áž¶áž“áŸ”
     </p>
 
     <table class="signature-table">
         <tr>
             <td>
-                <div>បានឃើញ និងបញ្ជាក់ថា</div>
-                <div>ជីវប្រវត្តិនេះពិតជាត្រឹមត្រូវ</div>
-                <div class="signature-line">ប្រធានអង្គភាព</div>
+                <div>áž”áž¶áž“ážƒáž¾áž‰ áž“áž·áž„áž”áž‰áŸ’áž‡áž¶áž€áŸ‹ážáž¶</div>
+                <div>áž‡áž¸ážœáž”áŸ’ážšážœážáŸ’ážáž·áž“áŸáŸ‡áž–áž·ážáž‡áž¶ážáŸ’ážšáž¹áž˜ážáŸ’ážšáž¼ážœ</div>
+                <div class="signature-line">áž”áŸ’ážšáž’áž¶áž“áž¢áž„áŸ’áž‚áž—áž¶áž–</div>
             </td>
             <td>
-                <div>{{ $form['issue_place'] !== '' ? $form['issue_place'] : 'ធ្វើនៅ' }} ថ្ងៃទី {{ $form['issue_day'] }} ខែ {{ $form['issue_month'] }} ឆ្នាំ {{ $form['issue_year'] }}</div>
-                <div class="signature-line">សាមីខ្លួន</div>
+                <div>{{ $form['issue_place'] !== '' ? $form['issue_place'] : 'áž’áŸ’ážœáž¾áž“áŸ…' }} ážáŸ’áž„áŸƒáž‘áž¸ {{ $form['issue_day'] }} ážáŸ‚ {{ $form['issue_month'] }} áž†áŸ’áž“áž¶áŸ† {{ $form['issue_year'] }}</div>
+                <div class="signature-line">ážŸáž¶áž˜áž¸ážáŸ’áž›áž½áž“</div>
             </td>
         </tr>
     </table>

@@ -11,6 +11,7 @@ class EmployeeEducationHistory extends Model
 
     protected $fillable = [
         'employee_id',
+        'country_name',
         'institution_name',
         'start_date',
         'end_date',

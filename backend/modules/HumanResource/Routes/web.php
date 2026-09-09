@@ -197,6 +197,7 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
         ->name('employees.help');
     Route::resource('employees', EmployeeController::class);
     Route::get('employees-export-excel', [EmployeeController::class, 'exportExcel'])->name('employees.export-excel');
+    Route::get('employees-export-structured-excel', [EmployeeController::class, 'exportStructuredExcel'])->name('employees.export-structured-excel');
     Route::get('employee-pay-promotions', [EmployeePayPromotionController::class, 'index'])->name('employee-pay-promotions.index');
     Route::get('employee-pay-promotions/help/{article?}', [GradeRankHelpController::class, 'index'])
         ->middleware('permission:read_employee')
