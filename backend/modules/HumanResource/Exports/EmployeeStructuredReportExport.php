@@ -5,6 +5,7 @@ namespace Modules\HumanResource\Exports;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Modules\HumanResource\Entities\Department;
+use Modules\HumanResource\Entities\GovPayLevel;
 use Modules\HumanResource\Entities\OrgUnitType;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
@@ -29,6 +30,7 @@ class EmployeeStructuredReportExport implements WithMultipleSheets
     protected array $unitSegmentCache = [];
     protected array $siblingOrdinalCache = [];
     protected array $orgUnitTypeMetaCache = [];
+    protected ?array $payGradeSortOrderCache = null;
 
     public function __construct(Collection $employees, array $meta = [])
     {
@@ -176,6 +178,8 @@ class EmployeeStructuredReportExport implements WithMultipleSheets
                 'segments' => $segments,
                 'sort_key' => $this->buildSegmentSortKey($segments),
                 'unit_name' => $this->resolveStatisticUnitName($segments),
+                'position_rank' => $employee->position?->position_rank ?? PHP_INT_MAX,
+                'pay_grade_order' => $this->resolvePayGradeSortOrder($employee),
                 'official_id' => trim((string) ($employee->official_id_10 ?: '')),
                 'khmer_name' => $this->resolveKhmerName($employee),
             ];
@@ -213,6 +217,17 @@ class EmployeeStructuredReportExport implements WithMultipleSheets
             }
 
             $compare = strcmp((string) ($left['unit_name'] ?? ''), (string) ($right['unit_name'] ?? ''));
+            if ($compare !== 0) {
+                return $compare;
+            }
+
+            // Keep unit sections together, then apply the configured staff hierarchy.
+            $compare = (int) $left['position_rank'] <=> (int) $right['position_rank'];
+            if ($compare !== 0) {
+                return $compare;
+            }
+
+            $compare = $left['pay_grade_order'] <=> $right['pay_grade_order'];
             if ($compare !== 0) {
                 return $compare;
             }
@@ -951,6 +966,39 @@ class EmployeeStructuredReportExport implements WithMultipleSheets
         }
 
         return '';
+    }
+
+    protected function resolvePayGradeSortOrder($employee): int
+    {
+        // Sort by the grade printed in the report, including legacy employee_grade values.
+        $key = $this->normalizePayGradeKey($this->resolvePayGrade($employee));
+        if ($key === '') {
+            return PHP_INT_MAX;
+        }
+
+        if ($this->payGradeSortOrderCache === null) {
+            $this->payGradeSortOrderCache = [];
+            foreach (GovPayLevel::withTrashed()->get(['level_code', 'level_name_km', 'sort_order']) as $level) {
+                foreach ([$level->level_code, $level->level_name_km] as $value) {
+                    $levelKey = $this->normalizePayGradeKey((string) $value);
+                    if ($levelKey !== '') {
+                        $this->payGradeSortOrderCache[$levelKey] = $level->sort_order ?? PHP_INT_MAX;
+                    }
+                }
+            }
+        }
+
+        return $this->payGradeSortOrderCache[$key] ?? PHP_INT_MAX;
+    }
+
+    protected function normalizePayGradeKey(string $value): string
+    {
+        $value = strtr(mb_strtoupper(trim($value), 'UTF-8'), [
+            '០' => '0', '១' => '1', '២' => '2', '៣' => '3', '៤' => '4',
+            '៥' => '5', '៦' => '6', '៧' => '7', '៨' => '8', '៩' => '9',
+        ]);
+
+        return preg_replace('/[\s.\-]+/u', '', $value) ?? $value;
     }
 
     protected function resolveLastPromotionDate($employee)
