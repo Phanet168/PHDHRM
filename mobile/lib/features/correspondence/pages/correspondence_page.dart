@@ -13,9 +13,18 @@ Color _dynamicPrimary() =>
     AppDesignSystem.colorForWeekday(DateTime.now().weekday);
 
 class CorrespondencePage extends StatefulWidget {
-  const CorrespondencePage({super.key, required this.authController});
+  const CorrespondencePage({
+    super.key,
+    required this.authController,
+    this.onRefreshReady,
+  });
 
   final AuthController authController;
+
+  /// Hands the page's own list-reload function up to whatever screen embeds
+  /// it — this page has no topbar of its own (see the home shell's shared
+  /// AppBar), so its refresh action must be triggered from there instead.
+  final ValueChanged<Future<void> Function()>? onRefreshReady;
 
   @override
   State<CorrespondencePage> createState() => _CorrespondencePageState();
@@ -34,17 +43,60 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
   DateTime? _startDate;
   DateTime? _endDate;
 
-  int _selectedTab = 0; // 0 = incoming, 1 = outgoing, 2 = dashboard
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  int _selectedTab = 0; // 0 = incoming, 1 = outgoing, 2 = draft, 3 = dashboard
 
   @override
   void initState() {
     super.initState();
     _service = CorrespondenceService();
     _languageFuture = LaravelLanguageService.instance.load();
+    widget.onRefreshReady?.call(_refresh);
     _incomingFuture = _loadIncoming();
     _outgoingFuture = _loadOutgoing();
     _dashboardFuture = _loadDashboard();
     _dashboardFuture!.then(_syncCreatePermissions).catchError((_) {});
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text.trim());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  /// Draft outgoing letters — those still at the pre-dispatch step, never
+  /// sent — filtered client-side from the same outgoing list the "ផ្ញើ" tab
+  /// already loads, since the backend has no separate draft-only endpoint.
+  List<CorrespondenceLetter> _draftsOf(List<CorrespondenceLetter> letters) {
+    return letters
+        .where((l) => l.currentStep == 'outgoing_draft')
+        .toList(growable: false);
+  }
+
+  List<CorrespondenceLetter> _sentOf(List<CorrespondenceLetter> letters) {
+    return letters
+        .where((l) => l.currentStep != 'outgoing_draft')
+        .toList(growable: false);
+  }
+
+  List<CorrespondenceLetter> _applySearch(List<CorrespondenceLetter> letters) {
+    if (_searchQuery.isEmpty) {
+      return letters;
+    }
+    final query = _searchQuery.toLowerCase();
+    return letters
+        .where(
+          (l) =>
+              l.subject.toLowerCase().contains(query) ||
+              (l.letterNo ?? '').toLowerCase().contains(query) ||
+              (l.registryNo ?? '').toLowerCase().contains(query),
+        )
+        .toList(growable: false);
   }
 
   Future<CorrespondenceListResponse> _loadIncoming({
@@ -121,7 +173,7 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
     try {
       if (_selectedTab == 0) {
         await _incomingFuture;
-      } else if (_selectedTab == 1) {
+      } else if (_selectedTab == 1 || _selectedTab == 2) {
         await _outgoingFuture;
       } else {
         await _dashboardFuture;
@@ -142,44 +194,6 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
     final day = value.day.toString().padLeft(2, '0');
     final month = value.month.toString().padLeft(2, '0');
     return '$day-$month-${value.year}';
-  }
-
-  String _filterSummary(Map<String, String> language) {
-    if (_period != 'custom') {
-      return _periodLabel(_period, language);
-    }
-
-    if (_startDate == null && _endDate == null) {
-      return _tr(language, 'all_date', 'គ្រប់កាលបរិច្ឆេទ');
-    }
-
-    if (_startDate != null && _endDate != null) {
-      return '${_formatDate(_startDate)} - ${_formatDate(_endDate)}';
-    }
-
-    if (_startDate != null) {
-      return '${_tr(language, 'from_date', 'ពីថ្ងៃ')} ${_formatDate(_startDate)}';
-    }
-
-    return '${_tr(language, 'to_date', 'ដល់ថ្ងៃ')} ${_formatDate(_endDate)}';
-  }
-
-  String _periodLabel(String period, Map<String, String> language) {
-    switch (period) {
-      case 'today':
-        return _tr(language, 'today', 'ថ្ងៃនេះ');
-      case 'yesterday':
-        return _tr(language, 'yesterday', 'ម្សិលមិញ');
-      case 'this_week':
-        return _tr(language, 'this_week', 'សប្ដាហ៍នេះ');
-      case 'this_month':
-        return _tr(language, 'this_month', 'ខែនេះ');
-      case 'custom':
-        return _tr(language, 'custom', 'កំណត់ដោយខ្លួនឯង');
-      case 'all':
-      default:
-        return _tr(language, 'all_date', 'គ្រប់កាលបរិច្ឆេទ');
-    }
   }
 
   Future<DateTime?> _pickFilterDate(DateTime? current) async {
@@ -247,91 +261,6 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
     _dashboardFuture?.then(_syncCreatePermissions).catchError((_) {});
   }
 
-  void _clearDateFilter() {
-    setState(() {
-      _period = 'all';
-      _startDate = null;
-      _endDate = null;
-      _incomingFuture = _service.fetchIncomingLetters(period: _period);
-      _outgoingFuture = _service.fetchOutgoingLetters(period: _period);
-      _dashboardFuture = _service.fetchDashboard(period: _period);
-    });
-
-    _dashboardFuture?.then(_syncCreatePermissions).catchError((_) {});
-  }
-
-  Widget _buildDateFilterBar(Map<String, String> language) {
-    final hasFilter = _startDate != null || _endDate != null;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      color: Colors.white,
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => _openDateFilterSheet(language),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.date_range_outlined,
-                      size: 18,
-                      color: _dynamicPrimary(),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _tr(language, 'date', 'កាលបរិច្ឆេទ'),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF64748B),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _filterSummary(language),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF10211B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(Icons.tune_rounded, size: 18),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          if (hasFilter) ...[
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: _clearDateFilter,
-              tooltip: _tr(language, 'clear', 'សម្អាត'),
-              icon: const Icon(Icons.close_rounded),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Future<void> _openLetterDetail(CorrespondenceLetter letter) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -393,77 +322,232 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
       future: _languageFuture,
       builder: (context, snapshot) {
         final language = snapshot.data ?? const <String, String>{};
+        final hasDateFilter =
+            _startDate != null || _endDate != null || _period != 'all';
 
-        return Scaffold(
-          appBar: AppBar(
-            automaticallyImplyLeading: false,
-            title: Text(
-              _tr(language, 'correspondence', 'លិខិតរដ្ឋបាល'),
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            actions: [
-              IconButton(
-                onPressed: _refresh,
-                icon: const Icon(Icons.refresh_rounded),
-                tooltip: _tr(language, 'refresh', 'ធ្វើបច្ចុប្បន្នភាព'),
-              ),
-            ],
-          ),
-          body: Column(
+        final showCreateFab =
+            _selectedTab != 3 && (_canCreateIncoming || _canCreateOutgoing);
+
+        // Plain Container+Stack rather than a nested Scaffold: this page is
+        // always embedded inside the home shell's own Scaffold (which
+        // already owns the persistent bottom navigation bar), and a second
+        // Scaffold's own FloatingActionButton geometry doesn't account for
+        // that outer bar, letting the "+" button float on top of it.
+        return Container(
+          color: const Color(0xFFF7F9F8),
+          child: Stack(
             children: [
-              // Tabs
-              Container(
-                color: Colors.white,
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _TabButton(
-                        label: _tr(language, 'incoming_letter', 'លិខិតចូល'),
-                        isActive: _selectedTab == 0,
-                        onPressed: () => setState(() => _selectedTab = 0),
+              SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    Container(
+                      color: Colors.white,
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  height: 46,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: const Color(0xFFE1E8E4),
+                                    ),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.search_rounded,
+                                        size: 20,
+                                        color: Color(0xFF6D7973),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _searchController,
+                                          decoration: InputDecoration(
+                                            isDense: true,
+                                            isCollapsed: true,
+                                            filled: false,
+                                            contentPadding: EdgeInsets.zero,
+                                            border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            disabledBorder: InputBorder.none,
+                                            hintText: _tr(
+                                              language,
+                                              'search_letter',
+                                              'ស្វែងរកលិខិត...',
+                                            ),
+                                            hintStyle: const TextStyle(
+                                              fontSize: 14,
+                                              color: Color(0xFF6D7973),
+                                            ),
+                                          ),
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            color: Color(0xFF17231D),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () => _openDateFilterSheet(language),
+                                child: Container(
+                                  width: 46,
+                                  height: 46,
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    color:
+                                        hasDateFilter
+                                            ? _dynamicPrimary().withAlpha(26)
+                                            : const Color(0xFFF5F7F6),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color:
+                                          hasDateFilter
+                                              ? _dynamicPrimary()
+                                              : const Color(0xFFE1E8E4),
+                                    ),
+                                  ),
+                                  child: Icon(
+                                    Icons.tune_rounded,
+                                    size: 20,
+                                    color:
+                                        hasDateFilter
+                                            ? _dynamicPrimary()
+                                            : const Color(0xFF6D7973),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8EEEA),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _TabButton(
+                                    label: _tr(
+                                      language,
+                                      'incoming_letter',
+                                      'ទទួល',
+                                    ),
+                                    isActive: _selectedTab == 0,
+                                    onPressed:
+                                        () => setState(() => _selectedTab = 0),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: _TabButton(
+                                    label: _tr(
+                                      language,
+                                      'outgoing_letter',
+                                      'ផ្ញើ',
+                                    ),
+                                    isActive: _selectedTab == 1,
+                                    onPressed:
+                                        () => setState(() => _selectedTab = 1),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: _TabButton(
+                                    label: _tr(
+                                      language,
+                                      'draft_letter',
+                                      'ព្រាង',
+                                    ),
+                                    isActive: _selectedTab == 2,
+                                    onPressed:
+                                        () => setState(() => _selectedTab = 2),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: _TabButton(
+                                    label: _tr(language, 'dashboard', 'សង្ខេប'),
+                                    isActive: _selectedTab == 3,
+                                    onPressed:
+                                        () => setState(() => _selectedTab = 3),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      _TabButton(
-                        label: _tr(language, 'outgoing_letter', 'លិខិតចេញ'),
-                        isActive: _selectedTab == 1,
-                        onPressed: () => setState(() => _selectedTab = 1),
-                      ),
-                      _TabButton(
-                        label: _tr(language, 'dashboard', 'ផ្ទាំងគ្រប់គ្រង'),
-                        isActive: _selectedTab == 2,
-                        onPressed: () => setState(() => _selectedTab = 2),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const Divider(height: 1, color: Color(0xFFE1E8E4)),
+                    Expanded(child: _buildTabContent(language)),
+                  ],
                 ),
               ),
-              const Divider(height: 1),
-              _buildDateFilterBar(language),
-              const Divider(height: 1),
-              // Content
-              Expanded(child: _buildTabContent(language)),
+              if (showCreateFab)
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  // A real FloatingActionButton here is unreliable — its tap
+                  // sometimes falls through to the list card underneath once
+                  // it's layered via Positioned/Stack instead of Scaffold's
+                  // own floatingActionButton slot. GestureDetector+Container
+                  // over a plain circle is the workaround already used
+                  // elsewhere in this app for the same kind of flaky tap.
+                  child: GestureDetector(
+                    onTap: _createNewLetter,
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: _dynamicPrimary(),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.add_rounded,
+                        size: 28,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
-          floatingActionButton:
-              _selectedTab != 2 && (_canCreateIncoming || _canCreateOutgoing)
-                  ? FloatingActionButton.extended(
-                    onPressed: _createNewLetter,
-                    icon: const Icon(Icons.add_rounded),
-                    label: Text(_tr(language, 'new_letter', 'លិខិតថ្មី')),
-                  )
-                  : null,
         );
       },
     );
   }
 
   Widget _buildTabContent(Map<String, String> language) {
-    if (_selectedTab == 0) {
-      return _buildIncomingTab(language);
-    } else if (_selectedTab == 1) {
-      return _buildOutgoingTab(language);
-    } else {
-      return _buildDashboardTab(language);
+    switch (_selectedTab) {
+      case 0:
+        return _buildIncomingTab(language);
+      case 1:
+        return _buildOutgoingTab(language);
+      case 2:
+        return _buildDraftTab(language);
+      default:
+        return _buildDashboardTab(language);
     }
   }
 
@@ -493,7 +577,7 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
         }
 
         final response = snapshot.data;
-        final letters = response?.letters ?? [];
+        final letters = _applySearch(response?.letters ?? []);
 
         if (letters.isEmpty) {
           return Center(
@@ -557,7 +641,7 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
         }
 
         final response = snapshot.data;
-        final letters = response?.letters ?? [];
+        final letters = _applySearch(_sentOf(response?.letters ?? []));
 
         if (letters.isEmpty) {
           return Center(
@@ -568,6 +652,74 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
                 const SizedBox(height: 12),
                 Text(
                   _tr(language, 'no_outgoing_letter', 'មិនមានលិខិតចេញឡើយ'),
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView.separated(
+            padding: const EdgeInsets.all(12),
+            itemCount: letters.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final letter = letters[index];
+              return _CorrespondenceCard(
+                letter: letter,
+                language: language,
+                onTap: () => _openLetterDetail(letter),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDraftTab(Map<String, String> language) {
+    return FutureBuilder<CorrespondenceListResponse>(
+      future: _outgoingFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
+                const SizedBox(height: 12),
+                Text(
+                  '${snapshot.error}',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final response = snapshot.data;
+        final letters = _applySearch(_draftsOf(response?.letters ?? []));
+
+        if (letters.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.edit_note_rounded,
+                  size: 48,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _tr(language, 'no_draft_letter', 'មិនទាន់មានលិខិតព្រាងទេ'),
                   style: TextStyle(color: Colors.grey[600]),
                 ),
               ],
@@ -710,29 +862,26 @@ class _TabButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextButton(
-      onPressed: onPressed,
-      style: TextButton.styleFrom(
-        backgroundColor: isActive ? Colors.transparent : Colors.transparent,
-        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-      ),
-      child: Column(
-        children: [
-          Text(
+    return Material(
+      color: isActive ? Colors.white : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 9),
+          child: Text(
             label,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: isActive ? _dynamicPrimary() : Colors.grey[600],
+              fontSize: 13,
+              color: isActive ? _dynamicPrimary() : const Color(0xFF6D7973),
               fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
             ),
           ),
-          if (isActive)
-            Container(
-              height: 3,
-              width: label.length * 6.0,
-              color: _dynamicPrimary(),
-              margin: const EdgeInsets.only(top: 8),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -751,103 +900,204 @@ class _CorrespondenceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color:
+    final iconBackground =
+        letter.isIncoming ? const Color(0xFFEAF2FC) : const Color(0xFFE8F4EE);
+    final iconColor =
+        letter.isIncoming ? const Color(0xFF1D4F91) : _dynamicPrimary();
+    final counterpart =
+        letter.isIncoming
+            ? (letter.fromOrg?.trim().isNotEmpty == true
+                ? '${_tr('from', 'ពី៖')} ${letter.fromOrg}'
+                : null)
+            : (letter.toOrg?.trim().isNotEmpty == true
+                ? '${_tr('to', 'ទៅ៖')} ${letter.toOrg}'
+                : null);
+    final dateLabel = _formatShortDate(letter.letterDate ?? letter.createdAt);
+    final hasAttachments = (letter.attachments ?? const []).isNotEmpty;
+
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border:
                 letter.isUrgent
-                    ? const Color(0xFFEF4444).withAlpha(76)
-                    : const Color(0xFFE2EAE7),
+                    ? Border.all(color: const Color(0xFFEF4444).withAlpha(76))
+                    : null,
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x1417233B),
+                blurRadius: 10,
+                offset: Offset(0, 3),
+              ),
+            ],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0x0A14211D),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        letter.subject,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF10211B),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      if (letter.letterNo != null)
-                        Text(
-                          'លេខ៖ ${letter.letterNo}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: iconBackground,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  letter.isIncoming
+                      ? Icons.move_to_inbox_outlined
+                      : Icons.outbox_outlined,
+                  size: 20,
+                  color: iconColor,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            letter.letterNo?.trim().isNotEmpty == true
+                                ? 'លេខ ${letter.letterNo}'
+                                : letter.getLocalizedType(language),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: _dynamicPrimary(),
+                            ),
                           ),
                         ),
-                    ],
-                  ),
-                ),
-                if (letter.isUrgent)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
+                        if (letter.isUrgent)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEF4444).withAlpha(26),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              'បន្ទាន់',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFEF4444),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEF4444).withAlpha(26),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'បន្ទាន់',
-                      style: TextStyle(
-                        fontSize: 10,
+                    const SizedBox(height: 5),
+                    Text(
+                      letter.subject,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFFEF4444),
+                        color: Color(0xFF17231D),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  letter.getLocalizedStatus(language),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: _statusColor(letter.status),
-                  ),
+                    if (counterpart != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        counterpart,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF6D7973),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Text(
+                          letter.getLocalizedStatus(language),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _statusColor(letter.status),
+                          ),
+                        ),
+                        if (letter.currentHandlerName != null) ...[
+                          const Text(
+                            '  ·  ',
+                            style: TextStyle(color: Color(0xFF6D7973)),
+                          ),
+                          Expanded(
+                            child: Text(
+                              letter.currentHandlerName!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF6D7973),
+                              ),
+                            ),
+                          ),
+                        ] else
+                          const Spacer(),
+                        if (dateLabel != null)
+                          Text(
+                            dateLabel,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF6D7973),
+                            ),
+                          ),
+                        if (hasAttachments) ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.attach_file_rounded,
+                            size: 14,
+                            color: Color(0xFF6D7973),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
                 ),
-                if (letter.currentHandlerName != null)
-                  Text(
-                    letter.currentHandlerName!,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                  ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  String _tr(String key, String fallback) =>
+      language[key]?.trim().isNotEmpty == true ? language[key]! : fallback;
+
+  String? _formatShortDate(DateTime? value) {
+    if (value == null) return null;
+    const monthNames = [
+      'មករា',
+      'កុម្ភៈ',
+      'មីនា',
+      'មេសា',
+      'ឧសភា',
+      'មិថុនា',
+      'កក្កដា',
+      'សីហា',
+      'កញ្ញា',
+      'តុលា',
+      'វិច្ឆិកា',
+      'ធ្នូ',
+    ];
+    return '${value.day} ${monthNames[value.month - 1]} ${value.year}';
   }
 
   Color _statusColor(String status) {

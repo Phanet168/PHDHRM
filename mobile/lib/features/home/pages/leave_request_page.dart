@@ -5,6 +5,7 @@ import '../../../core/theme/app_design_system.dart';
 import '../../auth/models/auth_user.dart';
 import '../models/leave_request_models.dart';
 import '../services/home_leave_service.dart';
+import 'home/leave_balance_widgets.dart';
 import 'leave_form_page.dart';
 import 'leave_history_page.dart';
 import 'leave_review_page.dart';
@@ -129,95 +130,13 @@ class _LeaveRequestPageState extends State<LeaveRequestPage> {
     if (mounted) await _loadAll();
   }
 
-  // Prioritised balance display definitions
-  static const List<_LeaveBalanceDef> _balanceDefs = <_LeaveBalanceDef>[
-    _LeaveBalanceDef(
-      title: 'ឈប់ប្រចាំឆ្នាំ',
-      tint: Color(0xFFEFF6FF),
-      accent: Color(0xFF3B82F6),
-      icon: Icons.event_note_rounded,
-      keywords: <String>['annual', 'year', 'ប្រចាំឆ្នាំ'],
-    ),
-    _LeaveBalanceDef(
-      title: 'ឈប់រយៈពេលខ្លី',
-      tint: Color(0xFFF0FDF4),
-      accent: Color(0xFF10B981),
-      icon: Icons.hourglass_top_rounded,
-      keywords: <String>['short', 'casual', 'special', 'រយៈពេលខ្លី'],
-    ),
-    _LeaveBalanceDef(
-      title: 'ឈប់លំហែមាតុភាព',
-      tint: Color(0xFFFAF5FF),
-      accent: Color(0xFF8B5CF6),
-      icon: Icons.favorite_border_rounded,
-      keywords: <String>['maternity', 'mater', 'លំហែ'],
-    ),
-    _LeaveBalanceDef(
-      title: 'ឈប់ព្យាបាលជំងឺ',
-      tint: Color(0xFFFFFBEB),
-      accent: Color(0xFFF59E0B),
-      icon: Icons.local_hospital_outlined,
-      keywords: <String>['sick', 'medical', 'ព្យាបាល', 'ជំងឺ'],
-    ),
-  ];
-
-  List<_LeaveBalanceDisplay> _buildBalances() {
-    final source = _summary.types;
-    final used = <int>{};
-
-    LeaveBalanceItem? pick(List<String> keywords) {
-      for (var i = 0; i < source.length; i++) {
-        if (used.contains(i)) continue;
-        final eng = source[i].leaveType.toLowerCase();
-        final km = source[i].leaveTypeKm.toLowerCase();
-        if (keywords.any((k) => eng.contains(k) || km.contains(k))) {
-          used.add(i);
-          return source[i];
-        }
-      }
-      return null;
-    }
-
-    LeaveBalanceItem? fallback() {
-      for (var i = 0; i < source.length; i++) {
-        if (!used.contains(i)) {
-          used.add(i);
-          return source[i];
-        }
-      }
-      return null;
-    }
-
-    return _balanceDefs.map((def) {
-      final row = pick(def.keywords) ?? fallback();
-      final ent = row?.entitlement ?? 0;
-      final usedDays = row?.used ?? 0;
-      final pendingDays = row?.pending ?? 0;
-      final rem = row?.remaining ?? 0;
-      // Display used+pending together so: used + remaining == entitlement always
-      final displayUsed = usedDays + pendingDays;
-      // Always use hardcoded (correct Khmer spelling) title for balance grid
-      final displayTitle = def.title;
-      return _LeaveBalanceDisplay(
-        title: displayTitle,
-        used: displayUsed,
-        total: ent,
-        remaining: rem,
-        percent: ent <= 0 ? 0.0 : (displayUsed / ent).clamp(0.0, 1.0),
-        tint: def.tint,
-        accent: def.accent,
-        icon: def.icon,
-      );
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return Center(child: CircularProgressIndicator(color: _dynamicPrimary()));
     }
 
-    final balances = _buildBalances();
+    final balances = buildLeaveBalanceDisplays(_summary.types, widget.language);
     final recent = _requests.take(5).toList();
 
     return RefreshIndicator(
@@ -296,7 +215,7 @@ class _BalanceSummaryCard extends StatelessWidget {
   });
 
   final int totalRemaining;
-  final List<_LeaveBalanceDisplay> balances;
+  final List<LeaveBalanceDisplay> balances;
 
   @override
   Widget build(BuildContext context) {
@@ -391,97 +310,10 @@ class _BalanceSummaryCard extends StatelessWidget {
               crossAxisCount: 2,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,
-              mainAxisExtent: 136,
+              mainAxisExtent: 108,
             ),
             itemCount: balances.length,
-            itemBuilder: (_, i) => _LeaveBalanceCard(item: balances[i]),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// -- Leave balance grid card --
-
-class _LeaveBalanceCard extends StatelessWidget {
-  const _LeaveBalanceCard({required this.item});
-
-  final _LeaveBalanceDisplay item;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
-      decoration: BoxDecoration(
-        color: item.tint,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: item.accent.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: item.accent.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(item.icon, size: 14, color: item.accent),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            item.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF0F172A),
-              height: 1.3,
-            ),
-          ),
-          const Spacer(),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
-              value: item.percent,
-              minHeight: 4,
-              backgroundColor: item.accent.withValues(alpha: 0.15),
-              color: item.accent,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Flexible(
-                child: Text(
-                  '${item.used}/${item.total}',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ),
-              Flexible(
-                child: Text(
-                  'នៅសល់ ${item.remaining}',
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: item.accent,
-                  ),
-                ),
-              ),
-            ],
+            itemBuilder: (_, i) => LeaveBalanceCard(item: balances[i]),
           ),
         ],
       ),
@@ -754,43 +586,3 @@ class _StatusInfo {
 }
 
 _StatusInfo _statusInfo(String status) => _StatusInfo(status);
-
-// -- Private data models --
-
-class _LeaveBalanceDef {
-  const _LeaveBalanceDef({
-    required this.title,
-    required this.tint,
-    required this.accent,
-    required this.icon,
-    required this.keywords,
-  });
-
-  final String title;
-  final Color tint;
-  final Color accent;
-  final IconData icon;
-  final List<String> keywords;
-}
-
-class _LeaveBalanceDisplay {
-  const _LeaveBalanceDisplay({
-    required this.title,
-    required this.used,
-    required this.total,
-    required this.remaining,
-    required this.percent,
-    required this.tint,
-    required this.accent,
-    required this.icon,
-  });
-
-  final String title;
-  final int used;
-  final int total;
-  final int remaining;
-  final double percent;
-  final Color tint;
-  final Color accent;
-  final IconData icon;
-}

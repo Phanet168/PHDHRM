@@ -1,11 +1,15 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/network/api_exception.dart';
+import '../../../core/theme/app_design_system.dart';
 import '../models/correspondence_models.dart';
 import '../services/correspondence_service.dart';
+
+Color _dynamicPrimary() =>
+    AppDesignSystem.colorForWeekday(DateTime.now().weekday);
 
 class CorrespondenceCreatePage extends StatefulWidget {
   const CorrespondenceCreatePage({
@@ -346,450 +350,573 @@ class _CorrespondenceCreatePageState extends State<CorrespondenceCreatePage> {
             }
 
             return Scaffold(
+              backgroundColor: const Color(0xFFF7F9F8),
+              // Solid accent-color AppBar matching the Correspondence list
+              // page's own topbar (the home shell's shared AppBar) rather
+              // than this page's old standalone gradient header, so the
+              // two screens read as one consistent flow.
               appBar: AppBar(
-                title: Text(_tr(language, 'new_letter', 'បង្កើតលិខិតថ្មី')),
+                backgroundColor: _dynamicPrimary(),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                leading: IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 18,
+                    color: Colors.white,
+                  ),
+                ),
+                title: Text(
+                  _tr(language, 'new_letter', 'លិខិតថ្មី'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
               ),
-              body: Form(
-                key: _formKey,
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    _FormSectionCard(
-                      title: _tr(language, 'correspondence', 'លិខិតរដ្ឋបាល'),
-                      child: Column(
-                        children: [
-                          DropdownButtonFormField<String>(
-                            initialValue: _letterType,
-                            items: [
-                              if (widget.canCreateIncoming)
-                                const DropdownMenuItem(
-                                  value: 'incoming',
-                                  child: Text('លិខិតចូល'),
+              body: SafeArea(
+                child: Form(
+                  key: _formKey,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      _FormSectionCard(
+                        title: _tr(language, 'correspondence', 'លិខិតរដ្ឋបាល'),
+                        child: Column(
+                          children: [
+                            DropdownButtonFormField<String>(
+                              initialValue: _letterType,
+                              items: [
+                                if (widget.canCreateIncoming)
+                                  const DropdownMenuItem(
+                                    value: 'incoming',
+                                    child: Text('លិខិតចូល'),
+                                  ),
+                                if (widget.canCreateOutgoing)
+                                  const DropdownMenuItem(
+                                    value: 'outgoing',
+                                    child: Text('លិខិតចេញ'),
+                                  ),
+                              ],
+                              decoration: InputDecoration(
+                                labelText: _tr(
+                                  language,
+                                  'letter_type',
+                                  'ប្រភេទលិខិត',
                                 ),
-                              if (widget.canCreateOutgoing)
-                                const DropdownMenuItem(
-                                  value: 'outgoing',
-                                  child: Text('លិខិតចេញ'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFE1E8E4),
+                                  ),
                                 ),
-                            ],
-                            decoration: InputDecoration(
-                              labelText: _tr(
-                                language,
-                                'letter_type',
-                                'ប្រភេទលិខិត',
                               ),
-                              border: const OutlineInputBorder(),
+                              onChanged:
+                                  (!widget.canCreateIncoming &&
+                                          !widget.canCreateOutgoing)
+                                      ? null
+                                      : (value) {
+                                        if (value != null) {
+                                          _onLetterTypeChanged(value);
+                                        }
+                                      },
                             ),
-                            onChanged:
-                                (!widget.canCreateIncoming &&
-                                        !widget.canCreateOutgoing)
-                                    ? null
-                                    : (value) {
-                                      if (value != null) {
-                                        _onLetterTypeChanged(value);
-                                      }
-                                    },
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _subjectController,
-                            decoration: InputDecoration(
-                              labelText: _tr(language, 'subject', 'ប្រធានបទ'),
-                              border: const OutlineInputBorder(),
-                            ),
-                            validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'សូមបញ្ចូលប្រធានបទ';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _letterNoController,
-                            decoration: const InputDecoration(
-                              labelText: 'លេខលិខិត',
-                              border: OutlineInputBorder(),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            readOnly: true,
-                            decoration: InputDecoration(
-                              labelText: 'លេខចុះបញ្ជី',
-                              hintText: 'បង្កើតស្វ័យប្រវត្តពេលរក្សាទុក',
-                              border: const OutlineInputBorder(),
-                              filled: true,
-                              fillColor: const Color(0xFFF8FAFC),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    _FormSectionCard(
-                      title: 'ព័ត៌មានបន្ថែម',
-                      child: Column(
-                        children: [
-                          DropdownButtonFormField<String>(
-                            initialValue: _priority,
-                            decoration: const InputDecoration(
-                              labelText: 'អាទិភាព',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'normal',
-                                child: Text('ធម្មតា'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'urgent',
-                                child: Text('បន្ទាន់'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'confidential',
-                                child: Text('សម្ងាត់'),
-                              ),
-                            ],
-                            onChanged: (value) {
-                              if (value != null) {
-                                setState(() => _priority = value);
-                              }
-                            },
-                          ),
-                          if (_letterType == 'incoming') ...[
                             const SizedBox(height: 12),
                             TextFormField(
-                              controller: _fromOrgController,
-                              decoration: const InputDecoration(
-                                labelText: 'អង្គភាពចេញលិខិត',
-                                border: OutlineInputBorder(),
+                              controller: _subjectController,
+                              decoration: InputDecoration(
+                                labelText: _tr(language, 'subject', 'ប្រធានបទ'),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFE1E8E4),
+                                  ),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'សូមបញ្ចូលប្រធានបទ';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _letterNoController,
+                              decoration: InputDecoration(
+                                labelText: 'លេខលិខិត',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFE1E8E4),
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(height: 12),
                             TextFormField(
-                              controller: _toOrgController,
-                              decoration: const InputDecoration(
-                                labelText: 'អង្គភាពទទួល',
-                                border: OutlineInputBorder(),
+                              readOnly: true,
+                              decoration: InputDecoration(
+                                labelText: 'លេខចុះបញ្ជី',
+                                hintText: 'បង្កើតស្វ័យប្រវត្តពេលរក្សាទុក',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFE1E8E4),
+                                  ),
+                                ),
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            _SelectionFieldTile(
-                              label: 'អង្គភាពដើម',
-                              value:
-                                  _originDepartment?.text ??
-                                  'ជ្រើសរើសអង្គភាពដើម',
-                              onTap: () => _selectOriginDepartment(language),
                             ),
                           ],
-                          const SizedBox(height: 12),
-                          TextFormField(
-                            controller: _summaryController,
-                            minLines: 3,
-                            maxLines: 5,
-                            decoration: const InputDecoration(
-                              labelText: 'ខ្លឹមសារសង្ខេប',
-                              border: OutlineInputBorder(),
-                              alignLabelWithHint: true,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    _FormSectionCard(
-                      title: 'កាលបរិច្ឆេទ',
-                      child: Column(
-                        children: [
-                          _DateFieldTile(
-                            label: 'ថ្ងៃលិខិត',
-                            value: _formatDate(_letterDate),
-                            onTap:
-                                () => _pickDate(
-                                  _letterDate,
-                                  (value) => _letterDate = value,
-                                ),
-                          ),
-                          if (_letterType == 'incoming')
-                            _DateFieldTile(
-                              label: 'ថ្ងៃទទួលលិខិត',
-                              value: _formatDate(_receivedDate),
-                              onTap:
-                                  () => _pickDate(
-                                    _receivedDate,
-                                    (value) => _receivedDate = value,
-                                  ),
-                            ),
-                          if (_letterType == 'outgoing')
-                            _DateFieldTile(
-                              label: 'ថ្ងៃផ្ញើចេញ',
-                              value: _formatDate(_sentDate),
-                              onTap:
-                                  () => _pickDate(
-                                    _sentDate,
-                                    (value) => _sentDate = value,
-                                  ),
-                            ),
-                          if (_letterType == 'incoming')
-                            _DateFieldTile(
-                              label: 'ថ្ងៃកំណត់',
-                              value: _formatDate(_dueDate),
-                              onTap:
-                                  () => _pickDate(
-                                    _dueDate,
-                                    (value) => _dueDate = value,
-                                  ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    if (_letterType == 'outgoing') ...[
                       const SizedBox(height: 12),
                       _FormSectionCard(
-                        title: 'អ្នកទទួល',
+                        title: 'ព័ត៌មានបន្ថែម',
+                        child: Column(
+                          children: [
+                            DropdownButtonFormField<String>(
+                              initialValue: _priority,
+                              decoration: InputDecoration(
+                                labelText: 'អាទិភាព',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFE1E8E4),
+                                  ),
+                                ),
+                              ),
+                              items: const [
+                                DropdownMenuItem(
+                                  value: 'normal',
+                                  child: Text('ធម្មតា'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'urgent',
+                                  child: Text('បន្ទាន់'),
+                                ),
+                                DropdownMenuItem(
+                                  value: 'confidential',
+                                  child: Text('សម្ងាត់'),
+                                ),
+                              ],
+                              onChanged: (value) {
+                                if (value != null) {
+                                  setState(() => _priority = value);
+                                }
+                              },
+                            ),
+                            if (_letterType == 'incoming') ...[
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _fromOrgController,
+                                decoration: InputDecoration(
+                                  labelText: 'អង្គភាពចេញលិខិត',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE1E8E4),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              TextFormField(
+                                controller: _toOrgController,
+                                decoration: InputDecoration(
+                                  labelText: 'អង្គភាពទទួល',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                    borderSide: const BorderSide(
+                                      color: Color(0xFFE1E8E4),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _SelectionFieldTile(
+                                label: 'អង្គភាពដើម',
+                                value:
+                                    _originDepartment?.text ??
+                                    'ជ្រើសរើសអង្គភាពដើម',
+                                onTap: () => _selectOriginDepartment(language),
+                              ),
+                            ],
+                            const SizedBox(height: 12),
+                            TextFormField(
+                              controller: _summaryController,
+                              minLines: 3,
+                              maxLines: 5,
+                              decoration: InputDecoration(
+                                labelText: 'ខ្លឹមសារសង្ខេប',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFFE1E8E4),
+                                  ),
+                                ),
+                                alignLabelWithHint: true,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _FormSectionCard(
+                        title: 'កាលបរិច្ឆេទ',
+                        child: Column(
+                          children: [
+                            _DateFieldTile(
+                              label: 'ថ្ងៃលិខិត',
+                              value: _formatDate(_letterDate),
+                              onTap:
+                                  () => _pickDate(
+                                    _letterDate,
+                                    (value) => _letterDate = value,
+                                  ),
+                            ),
+                            if (_letterType == 'incoming')
+                              _DateFieldTile(
+                                label: 'ថ្ងៃទទួលលិខិត',
+                                value: _formatDate(_receivedDate),
+                                onTap:
+                                    () => _pickDate(
+                                      _receivedDate,
+                                      (value) => _receivedDate = value,
+                                    ),
+                              ),
+                            if (_letterType == 'outgoing')
+                              _DateFieldTile(
+                                label: 'ថ្ងៃផ្ញើចេញ',
+                                value: _formatDate(_sentDate),
+                                onTap:
+                                    () => _pickDate(
+                                      _sentDate,
+                                      (value) => _sentDate = value,
+                                    ),
+                              ),
+                            if (_letterType == 'incoming')
+                              _DateFieldTile(
+                                label: 'ថ្ងៃកំណត់',
+                                value: _formatDate(_dueDate),
+                                onTap:
+                                    () => _pickDate(
+                                      _dueDate,
+                                      (value) => _dueDate = value,
+                                    ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (_letterType == 'outgoing') ...[
+                        const SizedBox(height: 12),
+                        _FormSectionCard(
+                          title: 'អ្នកទទួល',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              _SelectionFieldTile(
+                                label: 'ទៅអង្គភាព (To)',
+                                value:
+                                    _toDepartments.isEmpty
+                                        ? 'ជ្រើសរើសអង្គភាព'
+                                        : '${_toDepartments.length} អង្គភាព',
+                                onTap:
+                                    () => _selectDepartments(
+                                      title: 'ជ្រើសរើសអង្គភាព To',
+                                      current: _toDepartments,
+                                      onSelected:
+                                          (value) => _toDepartments = value,
+                                    ),
+                              ),
+                              _SelectedChipWrap(
+                                items: _toDepartments,
+                                onRemove:
+                                    (item) => setState(
+                                      () =>
+                                          _toDepartments =
+                                              _toDepartments
+                                                  .where(
+                                                    (value) =>
+                                                        value.id != item.id,
+                                                  )
+                                                  .toList(),
+                                    ),
+                              ),
+                              const SizedBox(height: 10),
+                              _SelectionFieldTile(
+                                label: 'ជូនចម្លងអង្គភាព (CC)',
+                                value:
+                                    _ccDepartments.isEmpty
+                                        ? 'ជ្រើសរើសអង្គភាព'
+                                        : '${_ccDepartments.length} អង្គភាព',
+                                onTap:
+                                    () => _selectDepartments(
+                                      title: 'ជ្រើសរើសអង្គភាព CC',
+                                      current: _ccDepartments,
+                                      onSelected:
+                                          (value) => _ccDepartments = value,
+                                    ),
+                              ),
+                              _SelectedChipWrap(
+                                items: _ccDepartments,
+                                onRemove:
+                                    (item) => setState(
+                                      () =>
+                                          _ccDepartments =
+                                              _ccDepartments
+                                                  .where(
+                                                    (value) =>
+                                                        value.id != item.id,
+                                                  )
+                                                  .toList(),
+                                    ),
+                              ),
+                              const SizedBox(height: 10),
+                              _SelectionFieldTile(
+                                label: 'ទៅបុគ្គល (To)',
+                                value:
+                                    _toUsers.isEmpty
+                                        ? 'ស្វែងរកអ្នកប្រើ'
+                                        : '${_toUsers.length} នាក់',
+                                onTap:
+                                    () => _selectUsers(
+                                      title: 'ជ្រើសរើសអ្នកទទួល To',
+                                      current: _toUsers,
+                                      onSelected: (value) => _toUsers = value,
+                                    ),
+                              ),
+                              _SelectedChipWrap(
+                                items: _toUsers,
+                                onRemove:
+                                    (item) => setState(
+                                      () =>
+                                          _toUsers =
+                                              _toUsers
+                                                  .where(
+                                                    (value) =>
+                                                        value.id != item.id,
+                                                  )
+                                                  .toList(),
+                                    ),
+                              ),
+                              const SizedBox(height: 10),
+                              _SelectionFieldTile(
+                                label: 'ជូនចម្លងបុគ្គល (CC)',
+                                value:
+                                    _ccUsers.isEmpty
+                                        ? 'ស្វែងរកអ្នកប្រើ'
+                                        : '${_ccUsers.length} នាក់',
+                                onTap:
+                                    () => _selectUsers(
+                                      title: 'ជ្រើសរើសអ្នកទទួល CC',
+                                      current: _ccUsers,
+                                      onSelected: (value) => _ccUsers = value,
+                                    ),
+                              ),
+                              _SelectedChipWrap(
+                                items: _ccUsers,
+                                onRemove:
+                                    (item) => setState(
+                                      () =>
+                                          _ccUsers =
+                                              _ccUsers
+                                                  .where(
+                                                    (value) =>
+                                                        value.id != item.id,
+                                                  )
+                                                  .toList(),
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      _FormSectionCard(
+                        title: 'ឯកសារភ្ជាប់',
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _SelectionFieldTile(
-                              label: 'ទៅអង្គភាព (To)',
-                              value:
-                                  _toDepartments.isEmpty
-                                      ? 'ជ្រើសរើសអង្គភាព'
-                                      : '${_toDepartments.length} អង្គភាព',
-                              onTap:
-                                  () => _selectDepartments(
-                                    title: 'ជ្រើសរើសអង្គភាព To',
-                                    current: _toDepartments,
-                                    onSelected:
-                                        (value) => _toDepartments = value,
+                            InkWell(
+                              onTap: _pickAttachments,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Container(
+                                width: double.infinity,
+                                height: 72,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8F4EE),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: _dynamicPrimary(),
+                                    width: 1.3,
                                   ),
-                            ),
-                            _SelectedChipWrap(
-                              items: _toDepartments,
-                              onRemove:
-                                  (item) => setState(
-                                    () =>
-                                        _toDepartments =
-                                            _toDepartments
-                                                .where(
-                                                  (value) =>
-                                                      value.id != item.id,
-                                                )
-                                                .toList(),
-                                  ),
-                            ),
-                            const SizedBox(height: 10),
-                            _SelectionFieldTile(
-                              label: 'ជូនចម្លងអង្គភាព (CC)',
-                              value:
-                                  _ccDepartments.isEmpty
-                                      ? 'ជ្រើសរើសអង្គភាព'
-                                      : '${_ccDepartments.length} អង្គភាព',
-                              onTap:
-                                  () => _selectDepartments(
-                                    title: 'ជ្រើសរើសអង្គភាព CC',
-                                    current: _ccDepartments,
-                                    onSelected:
-                                        (value) => _ccDepartments = value,
-                                  ),
-                            ),
-                            _SelectedChipWrap(
-                              items: _ccDepartments,
-                              onRemove:
-                                  (item) => setState(
-                                    () =>
-                                        _ccDepartments =
-                                            _ccDepartments
-                                                .where(
-                                                  (value) =>
-                                                      value.id != item.id,
-                                                )
-                                                .toList(),
-                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.attach_file_rounded,
+                                      size: 20,
+                                      color: _dynamicPrimary(),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'ភ្ជាប់ឯកសារ',
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                        color: _dynamicPrimary(),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             ),
                             const SizedBox(height: 10),
-                            _SelectionFieldTile(
-                              label: 'ទៅបុគ្គល (To)',
-                              value:
-                                  _toUsers.isEmpty
-                                      ? 'ស្វែងរកអ្នកប្រើ'
-                                      : '${_toUsers.length} នាក់',
-                              onTap:
-                                  () => _selectUsers(
-                                    title: 'ជ្រើសរើសអ្នកទទួល To',
-                                    current: _toUsers,
-                                    onSelected: (value) => _toUsers = value,
-                                  ),
-                            ),
-                            _SelectedChipWrap(
-                              items: _toUsers,
-                              onRemove:
-                                  (item) => setState(
-                                    () =>
-                                        _toUsers =
-                                            _toUsers
-                                                .where(
-                                                  (value) =>
-                                                      value.id != item.id,
-                                                )
-                                                .toList(),
-                                  ),
-                            ),
-                            const SizedBox(height: 10),
-                            _SelectionFieldTile(
-                              label: 'ជូនចម្លងបុគ្គល (CC)',
-                              value:
-                                  _ccUsers.isEmpty
-                                      ? 'ស្វែងរកអ្នកប្រើ'
-                                      : '${_ccUsers.length} នាក់',
-                              onTap:
-                                  () => _selectUsers(
-                                    title: 'ជ្រើសរើសអ្នកទទួល CC',
-                                    current: _ccUsers,
-                                    onSelected: (value) => _ccUsers = value,
-                                  ),
-                            ),
-                            _SelectedChipWrap(
-                              items: _ccUsers,
-                              onRemove:
-                                  (item) => setState(
-                                    () =>
-                                        _ccUsers =
-                                            _ccUsers
-                                                .where(
-                                                  (value) =>
-                                                      value.id != item.id,
-                                                )
-                                                .toList(),
-                                  ),
-                            ),
+                            if (_attachments.isEmpty)
+                              const Text(
+                                'មិនទាន់មានឯកសារភ្ជាប់',
+                                style: TextStyle(color: Color(0xFF6D7973)),
+                              )
+                            else
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children:
+                                    _attachments
+                                        .map(
+                                          (file) => Chip(
+                                            label: Text(file.name),
+                                            onDeleted:
+                                                () => _removeAttachment(file),
+                                          ),
+                                        )
+                                        .toList(),
+                              ),
                           ],
                         ),
                       ),
-                    ],
-                    const SizedBox(height: 12),
-                    _FormSectionCard(
-                      title: 'ឯកសារភ្ជាប់',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: _pickAttachments,
-                            icon: const Icon(Icons.attach_file_outlined),
-                            label: const Text('បន្ថែមឯកសារ'),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Text(
+                          _letterType == 'outgoing'
+                              ? 'លិខិតចេញអាចរក្សាទុកជា draft ឬរក្សាទុក និងផ្ញើទៅអ្នកទទួល To/CC បាន។'
+                              : 'លិខិតចូលនឹងត្រូវរក្សាទុកជាមូលដ្ឋានសិន ហើយ workflow បន្តអនុវត្តនៅជំហានបន្ទាប់។',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF475569),
                           ),
-                          const SizedBox(height: 10),
-                          if (_attachments.isEmpty)
-                            const Text(
-                              'មិនទាន់មានឯកសារភ្ជាប់',
-                              style: TextStyle(color: Color(0xFF64748B)),
-                            )
-                          else
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children:
-                                  _attachments
-                                      .map(
-                                        (file) => Chip(
-                                          label: Text(file.name),
-                                          onDeleted:
-                                              () => _removeAttachment(file),
-                                        ),
-                                      )
-                                      .toList(),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Text(
-                        _letterType == 'outgoing'
-                            ? 'លិខិតចេញអាចរក្សាទុកជា draft ឬរក្សាទុក និងផ្ញើទៅអ្នកទទួល To/CC បាន។'
-                            : 'លិខិតចូលនឹងត្រូវរក្សាទុកជាមូលដ្ឋានសិន ហើយ workflow បន្តអនុវត្តនៅជំហានបន្ទាប់។',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Color(0xFF475569),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    if (_letterType == 'outgoing')
-                      Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed:
-                                  _submitting
-                                      ? null
-                                      : () => _submit(
-                                        language,
-                                        sendAction: 'draft',
-                                      ),
-                              icon: const Icon(Icons.save_outlined),
-                              label: const Text('រក្សាទុក Draft'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed:
-                                  _submitting
-                                      ? null
-                                      : () =>
-                                          _submit(language, sendAction: 'send'),
-                              icon:
-                                  _submitting
-                                      ? const SizedBox(
-                                        height: 18,
-                                        width: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
+                      const SizedBox(height: 16),
+                      if (_letterType == 'outgoing')
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed:
+                                    _submitting
+                                        ? null
+                                        : () => _submit(
+                                          language,
+                                          sendAction: 'draft',
                                         ),
-                                      )
-                                      : const Icon(Icons.send_outlined),
-                              label: Text(
-                                _submitting
-                                    ? 'កំពុងដំណើរការ...'
-                                    : 'រក្សាទុក និងផ្ញើ',
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: _dynamicPrimary(),
+                                  side: BorderSide(color: _dynamicPrimary()),
+                                  minimumSize: const Size(0, 48),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                icon: const Icon(Icons.save_outlined),
+                                label: const Text('រក្សាទុក Draft'),
                               ),
                             ),
-                          ),
-                        ],
-                      )
-                    else
-                      SizedBox(
-                        height: 52,
-                        child: ElevatedButton.icon(
-                          onPressed:
-                              _submitting
-                                  ? null
-                                  : () =>
-                                      _submit(language, sendAction: 'draft'),
-                          icon:
-                              _submitting
-                                  ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                  : const Icon(Icons.save_outlined),
-                          label: Text(
-                            _submitting ? 'កំពុងរក្សាទុក...' : 'រក្សាទុក',
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed:
+                                    _submitting
+                                        ? null
+                                        : () => _submit(
+                                          language,
+                                          sendAction: 'send',
+                                        ),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _dynamicPrimary(),
+                                  foregroundColor: Colors.white,
+                                  minimumSize: const Size(0, 48),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                                icon:
+                                    _submitting
+                                        ? const SizedBox(
+                                          height: 18,
+                                          width: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                        : const Icon(Icons.send_outlined),
+                                label: Text(
+                                  _submitting
+                                      ? 'កំពុងដំណើរការ...'
+                                      : 'រក្សាទុក និងផ្ញើ',
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      else
+                        SizedBox(
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed:
+                                _submitting
+                                    ? null
+                                    : () =>
+                                        _submit(language, sendAction: 'draft'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _dynamicPrimary(),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            icon:
+                                _submitting
+                                    ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                    : const Icon(Icons.save_outlined),
+                            label: Text(
+                              _submitting ? 'កំពុងរក្សាទុក...' : 'រក្សាទុក',
+                            ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );
@@ -809,16 +936,15 @@ class _FormSectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0F0F172A),
-            blurRadius: 12,
-            offset: Offset(0, 6),
+            color: Color(0x2117233B),
+            blurRadius: 10,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -827,7 +953,11 @@ class _FormSectionCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF17231D),
+            ),
           ),
           const SizedBox(height: 12),
           child,
@@ -858,7 +988,10 @@ class _DateFieldTile extends StatelessWidget {
         child: InputDecorator(
           decoration: InputDecoration(
             labelText: label,
-            border: const OutlineInputBorder(),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE1E8E4)),
+            ),
             suffixIcon: const Icon(Icons.calendar_month_outlined),
           ),
           child: Text(value),
@@ -889,7 +1022,10 @@ class _SelectionFieldTile extends StatelessWidget {
         child: InputDecorator(
           decoration: InputDecoration(
             labelText: label,
-            border: const OutlineInputBorder(),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: Color(0xFFE1E8E4)),
+            ),
             suffixIcon: const Icon(Icons.expand_more_rounded),
           ),
           child: Text(value),
@@ -999,9 +1135,12 @@ class _LookupSingleSelectSheetState extends State<_LookupSingleSelectSheet> {
             const SizedBox(height: 12),
             TextField(
               controller: _searchController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'ស្វែងរក',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE1E8E4)),
+                ),
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: _onQueryChanged,
@@ -1118,9 +1257,12 @@ class _LookupMultiSelectSheetState extends State<_LookupMultiSelectSheet> {
             const SizedBox(height: 12),
             TextField(
               controller: _searchController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'ស្វែងរក',
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE1E8E4)),
+                ),
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: _onQueryChanged,
@@ -1248,9 +1390,12 @@ class _UserLookupMultiSelectSheetState
                 Expanded(
                   child: TextField(
                     controller: _searchController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'ស្វែងរកអ្នកប្រើ',
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE1E8E4)),
+                      ),
                       prefixIcon: Icon(Icons.search),
                     ),
                     onSubmitted: (_) => _search(),

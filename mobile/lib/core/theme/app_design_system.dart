@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppDesignSystem {
   static const Color primary = Color(0xFF0B6B58);
@@ -19,6 +20,23 @@ class AppDesignSystem {
   static const double radiusInput = 10;
   static const double radiusButton = 14;
   static const double spacing = 8;
+
+  // Semantic banner tints shared by every inline notice/alert across the app,
+  // so success/warning/info messages look the same on every screen.
+  static const Color successBg = Color(0xFFEAF7EF);
+  static const Color successBorder = Color(0xFF7AC092);
+  static const Color successIcon = Color(0xFF206B3C);
+
+  static const Color warningBg = Color(0xFFFFF4E8);
+  static const Color warningBorder = Color(0xFFF0B46A);
+  static const Color warningIcon = Color(0xFF9A5B00);
+
+  static const Color dangerBg = Color(0xFFFDECEC);
+  static const Color dangerBorder = Color(0xFFF0A8A8);
+  static const Color dangerIcon = Color(0xFFB91C1C);
+
+  static const Color noticeTitle = Color(0xFF1B2A25);
+  static const Color noticeBody = Color(0xFF42534D);
 
   // Dart weekday: Mon=1 ... Sun=7
   static Color colorForWeekday(int weekday) {
@@ -52,34 +70,53 @@ class AppDesignSystem {
       surface: surface,
     );
 
+    // Kantumruy Pro is Google's Khmer UI typeface (paired Latin+Khmer glyphs
+    // designed together), so mixed Khmer/English text renders with
+    // consistent weight and spacing instead of Roboto falling back to
+    // whatever Khmer font happens to be installed on the device.
+    final baseTextTheme = TextTheme(
+      headlineSmall: const TextStyle(
+        fontSize: 22,
+        height: 1.3,
+        fontWeight: FontWeight.w700,
+        color: textPrimary,
+      ),
+      titleLarge: const TextStyle(
+        fontSize: 18,
+        height: 1.35,
+        fontWeight: FontWeight.w700,
+        color: textPrimary,
+      ),
+      titleMedium: const TextStyle(
+        fontSize: 16,
+        height: 1.4,
+        fontWeight: FontWeight.w700,
+        color: textPrimary,
+      ),
+      bodyLarge: const TextStyle(
+        fontSize: 15,
+        height: 1.55,
+        color: textPrimary,
+      ),
+      bodyMedium: const TextStyle(
+        fontSize: 14,
+        height: 1.55,
+        color: textPrimary,
+      ),
+      bodySmall: const TextStyle(
+        fontSize: 13,
+        height: 1.45,
+        color: textSecondary,
+      ),
+    );
+
     return ThemeData(
       useMaterial3: true,
       colorScheme: colorScheme,
       scaffoldBackgroundColor: bg,
       fontFamilyFallback: const ['Noto Sans Khmer', 'Public Sans'],
-      textTheme: const TextTheme(
-        headlineSmall: TextStyle(
-          fontSize: 22,
-          height: 1.3,
-          fontWeight: FontWeight.w700,
-          color: textPrimary,
-        ),
-        titleLarge: TextStyle(
-          fontSize: 18,
-          height: 1.35,
-          fontWeight: FontWeight.w700,
-          color: textPrimary,
-        ),
-        titleMedium: TextStyle(
-          fontSize: 16,
-          height: 1.4,
-          fontWeight: FontWeight.w700,
-          color: textPrimary,
-        ),
-        bodyLarge: TextStyle(fontSize: 15, height: 1.55, color: textPrimary),
-        bodyMedium: TextStyle(fontSize: 14, height: 1.55, color: textPrimary),
-        bodySmall: TextStyle(fontSize: 13, height: 1.45, color: textSecondary),
-      ),
+      textTheme: GoogleFonts.kantumruyProTextTheme(baseTextTheme),
+      primaryTextTheme: GoogleFonts.kantumruyProTextTheme(baseTextTheme),
       appBarTheme: const AppBarTheme(
         centerTitle: false,
         elevation: 0,

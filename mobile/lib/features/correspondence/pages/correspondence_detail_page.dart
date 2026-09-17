@@ -12,6 +12,7 @@ import '../../../core/theme/app_design_system.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../models/correspondence_models.dart';
 import '../services/correspondence_service.dart';
+import 'correspondence_tracking_page.dart';
 
 Color _dynamicPrimary() =>
     AppDesignSystem.colorForWeekday(DateTime.now().weekday);
@@ -615,54 +616,108 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
       future: _languageFuture,
       builder: (context, langSnap) {
         final lang = langSnap.data ?? const <String, String>{};
-        return Scaffold(
-          appBar: AppBar(
-            title: Text(lang['letter_detail'] ?? 'លម្អិតលិខិត'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.refresh_rounded),
-                onPressed: _reload,
-                tooltip: 'ធ្វើបច្ចុប្បន្នភាព',
-              ),
-            ],
-          ),
-          body: FutureBuilder<CorrespondenceLetter>(
-            future: _letterFuture,
-            builder: (context, snap) {
-              if (snap.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snap.hasError) {
-                return Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: Colors.red,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          '${snap.error}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Color(0xFF475569)),
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: _reload,
-                          child: const Text('ព្យាយាមម្ដងទៀត'),
-                        ),
-                      ],
-                    ),
+        return FutureBuilder<CorrespondenceLetter>(
+          future: _letterFuture,
+          builder: (context, snap) {
+            final letter = snap.data;
+            final actions =
+                letter == null
+                    ? const <_CorrAction>[]
+                    : _availableActions(letter);
+
+            return Scaffold(
+              backgroundColor: const Color(0xFFF7F9F8),
+              // Solid accent-color AppBar matching the Correspondence list
+              // and new-letter pages' shared style, rather than this page's
+              // old standalone gradient header.
+              appBar: AppBar(
+                backgroundColor: _dynamicPrimary(),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                leading: IconButton(
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  icon: const Icon(
+                    Icons.arrow_back_ios_new_rounded,
+                    size: 18,
+                    color: Colors.white,
                   ),
-                );
-              }
-              return _buildBody(context, snap.data!, lang);
-            },
-          ),
+                ),
+                title: Text(
+                  lang['letter_detail'] ?? 'ព័ត៌មានលិខិត',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+                actions: [
+                  if (letter != null)
+                    IconButton(
+                      onPressed: () => _openTracking(letter),
+                      icon: const Icon(
+                        Icons.insights_rounded,
+                        color: Colors.white,
+                      ),
+                      tooltip: 'តាមដានលិខិត',
+                    ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.refresh_rounded,
+                      color: Colors.white,
+                    ),
+                    onPressed: _reload,
+                    tooltip: 'ធ្វើបច្ចុប្បន្នភាព',
+                  ),
+                ],
+              ),
+              body: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child:
+                          snap.connectionState == ConnectionState.waiting
+                              ? const Center(child: CircularProgressIndicator())
+                              : snap.hasError
+                              ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const Icon(
+                                        Icons.error_outline,
+                                        size: 48,
+                                        color: Colors.red,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        '${snap.error}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Color(0xFF475569),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      ElevatedButton(
+                                        onPressed: _reload,
+                                        child: const Text('ព្យាយាមម្ដងទៀត'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                              : _buildBody(context, letter!, lang),
+                    ),
+                  ],
+                ),
+              ),
+              bottomNavigationBar:
+                  (letter != null && actions.isNotEmpty)
+                      ? _buildActionBar(letter, lang, actions)
+                      : null,
+            );
+          },
         );
       },
     );
@@ -690,8 +745,6 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
               ],
               const SizedBox(height: 12),
               _buildWorkflowCard(letter, lang),
-              const SizedBox(height: 12),
-              _buildActionsCard(letter, lang),
               if (_canSendParentFeedback(letter)) ...[
                 const SizedBox(height: 12),
                 _buildParentFeedbackCard(letter, lang),
@@ -726,17 +779,104 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
     CorrespondenceLetter letter,
     Map<String, String> lang,
   ) {
+    final counterpartLabel = letter.isIncoming ? 'ពី' : 'ទៅ';
+    final counterpartName =
+        letter.isIncoming
+            ? (letter.currentHandlerName ?? letter.fromOrg ?? '-')
+            : (letter.toOrg ?? '-');
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _cardDecoration(
-        border:
-            letter.isUrgent
-                ? const Color(0xFFEF4444).withAlpha(80)
-                : const Color(0xFFE2E8F0),
+        border: letter.isUrgent ? const Color(0xFFEF4444).withAlpha(80) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              if (letter.letterNo != null)
+                Expanded(
+                  child: Text(
+                    'លេខ: ${letter.letterNo}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: _dynamicPrimary(),
+                    ),
+                  ),
+                ),
+              if (letter.letterDate != null)
+                Text(
+                  'ថ្ងៃ: ${_formatDate(letter.letterDate)}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6D7973),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 20,
+                backgroundColor: const Color(0xFFE8F4EE),
+                child: Icon(
+                  letter.isIncoming
+                      ? Icons.person_outline
+                      : Icons.business_outlined,
+                  color: _dynamicPrimary(),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      counterpartLabel,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF6D7973),
+                      ),
+                    ),
+                    Text(
+                      counterpartName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF17231D),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          if (letter.isIncoming && letter.toOrg != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              'ទៅ៖ ${letter.toOrg}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF6D7973)),
+            ),
+          ],
+          const Divider(height: 24, color: Color(0xFFE1E8E4)),
+          Text(
+            letter.subject,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF17231D),
+            ),
+          ),
+          const SizedBox(height: 10),
           Row(
             children: [
               _TypeBadge(isIncoming: letter.isIncoming),
@@ -749,42 +889,16 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
               _StatusBadge(status: letter.status),
             ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            letter.subject,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF10211B),
-            ),
-          ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             _stepLabels[letter.currentStep] ?? letter.currentStep,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            style: const TextStyle(fontSize: 12, color: Color(0xFF6D7973)),
           ),
-          if (letter.registryNo != null || letter.letterNo != null) ...[
-            const SizedBox(height: 6),
-            Wrap(
-              spacing: 12,
-              children: [
-                if (letter.registryNo != null)
-                  Text(
-                    'ចុះបញ្ជី៖ ${letter.registryNo}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF94A3B8),
-                    ),
-                  ),
-                if (letter.letterNo != null)
-                  Text(
-                    'លេខ៖ ${letter.letterNo}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF94A3B8),
-                    ),
-                  ),
-              ],
+          if (letter.registryNo != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              'ចុះបញ្ជី៖ ${letter.registryNo}',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6D7973)),
             ),
           ],
         ],
@@ -887,74 +1001,69 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
     final attachments = letter.attachments ?? const <String>[];
 
     return _SectionCard(
-      title: 'ឯកសារពាក់ព័ន្ធ (${attachments.length})',
-      child: Column(
+      title: 'ឯកសារភ្ជាប់ (${attachments.length})',
+      child: Wrap(
+        spacing: 10,
+        runSpacing: 10,
         children: List.generate(attachments.length, (index) {
           final rawPath = attachments[index].trim();
           final fileName = _attachmentFileName(rawPath);
           final ext = _attachmentExtension(fileName);
 
-          return Container(
-            margin: EdgeInsets.only(
-              bottom: index == attachments.length - 1 ? 0 : 8,
-            ),
+          return SizedBox(
+            width:
+                (MediaQuery.of(context).size.width - 16 * 2 - 16 * 2 - 10) / 2,
             child: Material(
-              color: Colors.transparent,
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
               child: InkWell(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(16),
                 onTap: () => _openAttachment(letter, index, ext),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE1E8E4)),
                   ),
                   child: Row(
                     children: [
                       Icon(
                         _fileIconFor(ext),
-                        size: 18,
-                        color: const Color(0xFF1D4F91),
+                        size: 20,
+                        color: _dynamicPrimary(),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
                       Expanded(
-                        child: Text(
-                          fileName,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF10211B),
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              fileName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF17231D),
+                              ),
+                            ),
+                            if (ext.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                ext.toUpperCase(),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF6D7973),
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      if (ext.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1D4F91).withAlpha(24),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            ext.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1D4F91),
-                            ),
-                          ),
-                        ),
-                      const SizedBox(width: 6),
                       const Icon(
-                        Icons.open_in_new_rounded,
-                        size: 16,
-                        color: Color(0xFF64748B),
+                        Icons.download_rounded,
+                        size: 17,
+                        color: Color(0xFF6D7973),
                       ),
                     ],
                   ),
@@ -1058,65 +1167,108 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
 
   // ─── Available workflow actions ────────────────────────────────────────────
 
-  Widget _buildActionsCard(
+  /// Bottom action bar (Figma "Action bar" — icon-over-label buttons) for
+  /// whichever real workflow actions the current user may take on this
+  /// letter at its current step, per `letter.permissions`.
+  Widget _buildActionBar(
     CorrespondenceLetter letter,
     Map<String, String> lang,
+    List<_CorrAction> actions,
   ) {
-    final actions = _availableActions(letter);
-    if (actions.isEmpty) return const SizedBox.shrink();
+    Widget item(String label, IconData icon, Color color, VoidCallback onTap) {
+      return Expanded(
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 19, color: color),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
-    return _SectionCard(
-      title: 'សកម្មភាព',
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children:
-            actions.map((action) {
-              switch (action) {
-                case _CorrAction.delegate:
-                  return _ActionButton(
-                    label: 'ប្រគល់',
-                    icon: Icons.send_and_archive_outlined,
-                    color: _dynamicPrimary(),
-                    onPressed: () => _actDelegate(letter),
-                  );
-                case _CorrAction.officeComment:
-                  return _ActionButton(
-                    label: 'ចំណាំការិយាល័យ',
-                    icon: Icons.comment_outlined,
-                    color: const Color(0xFF5D79C8),
-                    onPressed: () => _actOfficeComment(letter),
-                  );
-                case _CorrAction.deputyReview:
-                  return _ActionButton(
-                    label: 'ពិនិត្យអនុប្រធាន',
-                    icon: Icons.rate_review_outlined,
-                    color: const Color(0xFF6B58D7),
-                    onPressed: () => _actDeputyReview(letter),
-                  );
-                case _CorrAction.directorDecision:
-                  return _ActionButton(
-                    label: 'សម្រេច',
-                    icon: Icons.gavel_outlined,
-                    color: const Color(0xFF0B6B58),
-                    onPressed: () => _actDirectorDecision(letter),
-                  );
-                case _CorrAction.distribute:
-                  return _ActionButton(
-                    label: 'ចែកចាយ',
-                    icon: Icons.share_outlined,
-                    color: const Color(0xFFD79C2E),
-                    onPressed: () => _actDistribute(letter),
-                  );
-                case _CorrAction.close:
-                  return _ActionButton(
-                    label: 'បិទ',
-                    icon: Icons.close_rounded,
-                    color: const Color(0xFF94A3B8),
-                    onPressed: () => _actClose(letter),
-                  );
-              }
-            }).toList(),
+    final buttons =
+        actions.map((action) {
+          switch (action) {
+            case _CorrAction.delegate:
+              return item(
+                'ប្រគល់',
+                Icons.send_and_archive_outlined,
+                _dynamicPrimary(),
+                () => _actDelegate(letter),
+              );
+            case _CorrAction.officeComment:
+              return item(
+                'ចំណាំការិយាល័យ',
+                Icons.comment_outlined,
+                const Color(0xFF5D79C8),
+                () => _actOfficeComment(letter),
+              );
+            case _CorrAction.deputyReview:
+              return item(
+                'ពិនិត្យអនុប្រធាន',
+                Icons.rate_review_outlined,
+                const Color(0xFF6B58D7),
+                () => _actDeputyReview(letter),
+              );
+            case _CorrAction.directorDecision:
+              return item(
+                'សម្រេច',
+                Icons.gavel_outlined,
+                const Color(0xFF0B6B58),
+                () => _actDirectorDecision(letter),
+              );
+            case _CorrAction.distribute:
+              return item(
+                'ចែកចាយ',
+                Icons.share_outlined,
+                const Color(0xFFD79C2E),
+                () => _actDistribute(letter),
+              );
+            case _CorrAction.close:
+              return item(
+                'បិទ',
+                Icons.close_rounded,
+                const Color(0xFF94A3B8),
+                () => _actClose(letter),
+              );
+          }
+        }).toList();
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 70),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFE1E8E4))),
+        ),
+        child: Row(children: buttons),
+      ),
+    );
+  }
+
+  Future<void> _openTracking(CorrespondenceLetter letter) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CorrespondenceTrackingPage(letter: letter),
       ),
     );
   }
@@ -1421,10 +1573,10 @@ class _CorrespondenceDetailPageState extends State<CorrespondenceDetailPage> {
 
   BoxDecoration _cardDecoration({Color? border}) => BoxDecoration(
     color: Colors.white,
-    borderRadius: BorderRadius.circular(12),
-    border: Border.all(color: border ?? const Color(0xFFE2E8F0)),
+    borderRadius: BorderRadius.circular(16),
+    border: border != null ? Border.all(color: border) : null,
     boxShadow: const [
-      BoxShadow(color: Color(0x0A0F172A), blurRadius: 8, offset: Offset(0, 2)),
+      BoxShadow(color: Color(0x2117233B), blurRadius: 10, offset: Offset(0, 3)),
     ],
   );
 }
@@ -1493,16 +1645,15 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A0F172A),
-            blurRadius: 8,
-            offset: Offset(0, 2),
+            color: Color(0x2117233B),
+            blurRadius: 10,
+            offset: Offset(0, 3),
           ),
         ],
       ),
@@ -1514,7 +1665,7 @@ class _SectionCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF10211B),
+              color: Color(0xFF17231D),
             ),
           ),
           const SizedBox(height: 10),

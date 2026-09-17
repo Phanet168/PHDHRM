@@ -1,4 +1,4 @@
-﻿import '../../../core/network/api_exception.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/network/api_service.dart';
 import '../models/home_notification_item.dart';
 
@@ -31,7 +31,9 @@ class HomeNotificationService {
   }
 
   Future<void> markAsRead(String notificationId) async {
-    final raw = await _apiService.post('/v1/notifications/$notificationId/read');
+    final raw = await _apiService.post(
+      '/v1/notifications/$notificationId/read',
+    );
     _asResponse(raw);
   }
 
@@ -79,7 +81,10 @@ class HomeNotificationService {
       ),
       isUnread: row['is_unread'] == true || row['read_at'] == null,
       source: (row['source'] ?? 'notice').toString().trim(),
-      typeLabel: (row['type_label'] ?? _defaultTypeLabel(row['source'])).toString().trim(),
+      typeLabel:
+          (row['type_label'] ?? _defaultTypeLabel(row['source']))
+              .toString()
+              .trim(),
       dateLabel: _formatDateLabel(
         (row['date_display'] ?? '').toString().trim(),
         noticeDateRaw,
@@ -160,4 +165,3 @@ class HomeNotificationService {
     }
   }
 }
-

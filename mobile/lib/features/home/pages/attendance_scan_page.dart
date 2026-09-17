@@ -10,6 +10,8 @@ import '../models/attendance_scan_result.dart';
 import 'attendance_scan_result_page.dart';
 import '../services/home_attendance_service.dart';
 
+enum _ScanMode { qr, gps }
+
 class AttendanceScanPage extends StatefulWidget {
   const AttendanceScanPage({
     super.key,
@@ -29,10 +31,15 @@ class AttendanceScanPage extends StatefulWidget {
 class _AttendanceScanPageState extends State<AttendanceScanPage>
     with WidgetsBindingObserver {
   late final MobileScannerController _scannerController;
+  _ScanMode _mode = _ScanMode.qr;
   bool _isSubmitting = false;
   bool _torchEnabled = false;
   String _statusMessage = '';
   late Color _statusColor;
+
+  Position? _currentPosition;
+  bool _loadingPosition = false;
+  String? _positionError;
 
   Color _dp() => AppDesignSystem.colorForWeekday(DateTime.now().weekday);
 
@@ -61,7 +68,9 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
       return;
     }
 
-    if (state == AppLifecycleState.resumed && !_isSubmitting) {
+    if (state == AppLifecycleState.resumed &&
+        !_isSubmitting &&
+        _mode == _ScanMode.qr) {
       _scannerController.start();
     }
 
@@ -85,6 +94,45 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
     }
 
     return value;
+  }
+
+  Future<void> _setMode(_ScanMode mode) async {
+    if (_mode == mode) {
+      return;
+    }
+
+    setState(() => _mode = mode);
+
+    if (mode == _ScanMode.qr) {
+      await _scannerController.start();
+    } else {
+      await _scannerController.stop();
+      if (_currentPosition == null && !_loadingPosition) {
+        await _loadCurrentPosition();
+      }
+    }
+  }
+
+  Future<void> _loadCurrentPosition() async {
+    setState(() {
+      _loadingPosition = true;
+      _positionError = null;
+    });
+
+    try {
+      final position = await _resolveCurrentPosition();
+      if (!mounted) return;
+      setState(() {
+        _currentPosition = position;
+        _loadingPosition = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _positionError = _normalizeErrorMessage(error);
+        _loadingPosition = false;
+      });
+    }
   }
 
   Future<void> _onDetect(BarcodeCapture capture) async {
@@ -155,6 +203,10 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
       return;
     }
 
+    await _submitCheckIn(qrToken: qrToken);
+  }
+
+  Future<void> _submitCheckIn({required String? qrToken}) async {
     setState(() {
       _isSubmitting = true;
       _statusMessage = _tr(
@@ -167,7 +219,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
     await _scannerController.stop();
 
     try {
-      final position = await _resolveCurrentPosition();
+      final position = _currentPosition ?? await _resolveCurrentPosition();
       final result = await widget.attendanceService.submitAttendanceScan(
         widget.user,
         qrToken: qrToken,
@@ -213,7 +265,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
 
   Future<void> _handleScanResult(
     AttendanceScanResult result, {
-    required String qrToken,
+    required String? qrToken,
     required double latitude,
     required double longitude,
   }) async {
@@ -358,6 +410,7 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
               scannedAt: DateTime.now(),
               latitude: latitude,
               longitude: longitude,
+              scanType: _mode == _ScanMode.qr ? 'QR' : 'GPS',
             ),
       ),
     );
@@ -421,26 +474,50 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
     return 'client_scan_error';
   }
 
+  String _currentTimeLabel() {
+    final now = DateTime.now();
+    final hour24 = now.hour;
+    final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+    final period = hour24 < 12 ? 'AM' : 'PM';
+    final minute = now.minute.toString().padLeft(2, '0');
+    return '${hour12.toString().padLeft(2, '0')}:$minute $period';
+  }
+
+  String _currentShiftLabel() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return _tr('shift_morning', 'ព្រឹក');
+    }
+    if (hour < 18) {
+      return _tr('shift_afternoon', 'ល្ងាច');
+    }
+    return _tr('shift_night', 'យប់');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final accent = _dp();
+
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F7F6),
       appBar: AppBar(
-        title: Text(_tr('qr_scan', 'ស្កេនកូដ QR')),
+        title: Text(_tr('qr_scan_attendance', 'ស្កេន QR វត្តមាន')),
         actions: [
           IconButton(
             onPressed: _isSubmitting ? null : _openManualTokenDialog,
             tooltip: _tr('manual_token', 'បញ្ចូលដោយដៃ'),
             icon: const Icon(Icons.keyboard_alt_outlined),
           ),
-          IconButton(
-            onPressed: _toggleTorch,
-            tooltip: _tr('flashlight', 'ភ្លើងពិល'),
-            icon: Icon(
-              _torchEnabled
-                  ? Icons.flash_on_outlined
-                  : Icons.flash_off_outlined,
+          if (_mode == _ScanMode.qr)
+            IconButton(
+              onPressed: _toggleTorch,
+              tooltip: _tr('flashlight', 'ភ្លើងពិល'),
+              icon: Icon(
+                _torchEnabled
+                    ? Icons.flash_on_outlined
+                    : Icons.flash_off_outlined,
+              ),
             ),
-          ),
         ],
       ),
       body: SafeArea(
@@ -449,95 +526,243 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _dp().withAlpha(28),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _dp().withAlpha(60)),
-                ),
-                child: Text(
-                  _tr(
-                    'scan_qr_instruction',
-                    'ដាក់កូដ QR របស់អង្គភាពនៅក្នុងស៊ុម ហើយរង់ចាំការបញ្ជូនដោយស្វ័យប្រវត្តិ',
-                  ),
-                  style: TextStyle(color: _dp(), fontWeight: FontWeight.w600),
-                ),
+              _MethodTabs(
+                accent: accent,
+                mode: _mode,
+                qrLabel: _tr('qr_scan', 'ស្កេន QR'),
+                gpsLabel: _tr('gps', 'GPS'),
+                onChanged: _setMode,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 17),
               Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      MobileScanner(
-                        controller: _scannerController,
-                        onDetect: _onDetect,
-                        errorBuilder: (context, error, child) {
-                          return Container(
-                            color: Colors.black,
-                            alignment: Alignment.center,
-                            child: Text(
-                              error.errorDetails?.message ??
-                                  _tr(
-                                    'camera_access_failed',
-                                    'មិនអាចប្រើកាមេរ៉ា',
-                                  ),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      IgnorePointer(
-                        child: Center(
-                          child: Container(
-                            width: 240,
-                            height: 240,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Colors.white.withAlpha(220),
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (_isSubmitting)
-                        Container(
-                          color: Colors.black.withAlpha(90),
-                          child: const Center(
-                            child: CircularProgressIndicator(),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text(
-                _statusMessage,
-                style: TextStyle(
-                  color: _statusColor,
-                  fontWeight: FontWeight.w700,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton.icon(
-                onPressed: _isSubmitting ? null : _restartScan,
-                icon: const Icon(Icons.qr_code_scanner_outlined),
-                label: Text(_tr('scan_again', 'ស្កេនម្ដងទៀត')),
+                child:
+                    _mode == _ScanMode.qr
+                        ? _buildQrTab(accent)
+                        : _buildGpsTab(accent),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildQrTab(Color accent) {
+    return ListView(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: SizedBox(
+            height: 340,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Container(color: const Color(0xFF0F1914)),
+                MobileScanner(
+                  controller: _scannerController,
+                  onDetect: _onDetect,
+                  errorBuilder: (context, error, child) {
+                    return Container(
+                      color: const Color(0xFF0F1914),
+                      alignment: Alignment.center,
+                      child: Text(
+                        error.errorDetails?.message ??
+                            _tr('camera_access_failed', 'មិនអាចប្រើកាមេរ៉ា'),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                IgnorePointer(
+                  child: Center(
+                    child: CustomPaint(
+                      size: const Size(220, 220),
+                      painter: _DashedScanFramePainter(color: accent),
+                    ),
+                  ),
+                ),
+                if (_isSubmitting)
+                  Container(
+                    color: Colors.black.withAlpha(90),
+                    child: const Center(child: CircularProgressIndicator()),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          _tr(
+            'scan_qr_instruction',
+            'សូមស្កេនកូដ QR នៅទីតាំងការិយាល័យ',
+          ),
+          style: const TextStyle(color: Color(0xFF6F7C76), fontSize: 13),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _statusMessage,
+          style: TextStyle(color: _statusColor, fontWeight: FontWeight.w700),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _isSubmitting ? null : _restartScan,
+          icon: const Icon(Icons.qr_code_scanner_outlined),
+          label: Text(_tr('scan_again', 'ស្កេនម្ដងទៀត')),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGpsTab(Color accent) {
+    final org = widget.user.departmentName?.trim();
+
+    return ListView(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0A17352B),
+                blurRadius: 10,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                (org?.isNotEmpty ?? false) ? org! : '-',
+                style: const TextStyle(
+                  color: Color(0xFF17352B),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (_loadingPosition)
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _tr('locating', 'កំពុងទាញទីតាំង...'),
+                      style: const TextStyle(
+                        color: Color(0xFF6F7C76),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                )
+              else if (_positionError != null)
+                Text(
+                  _positionError!,
+                  style: const TextStyle(color: Color(0xFFE53935), fontSize: 11),
+                )
+              else if (_currentPosition != null)
+                Text(
+                  '${_currentPosition!.latitude.toStringAsFixed(4)}°N, '
+                  '${_currentPosition!.longitude.toStringAsFixed(4)}°E',
+                  style: const TextStyle(
+                    color: Color(0xFF6F7C76),
+                    fontSize: 11,
+                  ),
+                ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _loadingPosition ? null : _loadCurrentPosition,
+                  icon: const Icon(Icons.my_location_rounded, size: 16),
+                  label: Text(_tr('refresh_location', 'ធ្វើបច្ចុប្បន្នភាពទីតាំង')),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _currentTimeLabel(),
+                style: const TextStyle(
+                  color: Color(0xFF17352B),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 22,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: accent.withAlpha(28),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _currentShiftLabel(),
+                  style: TextStyle(
+                    color: accent,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        FilledButton(
+          onPressed: _isSubmitting ? null : () => _submitCheckIn(qrToken: null),
+          style: FilledButton.styleFrom(
+            backgroundColor: accent,
+            minimumSize: const Size.fromHeight(52),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          child:
+              _isSubmitting
+                  ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                  : Text(
+                    _tr('check_in', 'ចូលវត្តមាន'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
+        ),
+      ],
     );
   }
 
@@ -581,4 +806,129 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
 
     await _submitAttendance(token);
   }
+}
+
+/// Figma "Method tabs" — a two-way segmented control switching between the
+/// camera scanner and the GPS-only check-in flow.
+class _MethodTabs extends StatelessWidget {
+  const _MethodTabs({
+    required this.accent,
+    required this.mode,
+    required this.qrLabel,
+    required this.gpsLabel,
+    required this.onChanged,
+  });
+
+  final Color accent;
+  final _ScanMode mode;
+  final String qrLabel;
+  final String gpsLabel;
+  final ValueChanged<_ScanMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE7ECE9),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _MethodTabButton(
+              label: qrLabel,
+              selected: mode == _ScanMode.qr,
+              accent: accent,
+              onTap: () => onChanged(_ScanMode.qr),
+            ),
+          ),
+          Expanded(
+            child: _MethodTabButton(
+              label: gpsLabel,
+              selected: mode == _ScanMode.gps,
+              accent: accent,
+              onTap: () => onChanged(_ScanMode.gps),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MethodTabButton extends StatelessWidget {
+  const _MethodTabButton({
+    required this.label,
+    required this.selected,
+    required this.accent,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selected ? accent : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: selected ? Colors.white : const Color(0xFF6F7C76),
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedScanFramePainter extends CustomPainter {
+  const _DashedScanFramePainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 3;
+    final rrect = RRect.fromRectAndRadius(
+      Offset.zero & size,
+      const Radius.circular(16),
+    );
+    final path = Path()..addRRect(rrect);
+    const dashWidth = 8.0;
+    const dashSpace = 6.0;
+
+    for (final metric in path.computeMetrics()) {
+      var distance = 0.0;
+      while (distance < metric.length) {
+        final next = distance + dashWidth;
+        canvas.drawPath(
+          metric.extractPath(distance, next.clamp(0, metric.length)),
+          paint,
+        );
+        distance = next + dashSpace;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedScanFramePainter oldDelegate) =>
+      oldDelegate.color != color;
 }

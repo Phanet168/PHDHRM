@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../../core/config/app_routes.dart';
 import '../../../core/device/device_metadata_service.dart';
+import '../../../core/localization/app_translations.dart';
 import '../../../core/localization/laravel_language_service.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/storage/machine_number_storage_service.dart';
+import '../../../core/theme/app_design_system.dart';
+import '../../../shared/widgets/inline_notice_banner.dart';
 import '../controllers/auth_controller.dart';
 import '../services/device_access_request_service.dart';
 
@@ -44,15 +47,6 @@ class _LoginPageState extends State<LoginPage> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  String _tr(Map<String, String> language, String key, String fallback) {
-    final value = language[key]?.trim();
-    if (value == null || value.isEmpty) {
-      return fallback;
-    }
-
-    return value;
   }
 
   String? get _errorText => widget.authController.errorMessage;
@@ -208,20 +202,12 @@ class _LoginPageState extends State<LoginPage> {
 
   String _resolveInlineHeadline(Map<String, String> language) {
     if (_showsDeviceActions) {
-      return _tr(
-        language,
-        'device_approval_required',
-        'ឧបករណ៍នេះមិនទាន់អនុម័ត',
-      );
+      return tr(language, 'device_approval_required', 'ឧបករណ៍នេះមិនទាន់អនុម័ត');
     }
     if (_showsServerActions) {
-      return _tr(
-        language,
-        'server_connection_issue',
-        'មិនអាចភ្ជាប់ទៅម៉ាស៊ីនមេ',
-      );
+      return tr(language, 'server_connection_issue', 'មិនអាចភ្ជាប់ទៅម៉ាស៊ីនមេ');
     }
-    return _tr(language, 'login_failed', 'ចូលគណនីមិនបាន');
+    return tr(language, 'login_failed', 'ចូលគណនីមិនបាន');
   }
 
   String _resolveInlineBody(Map<String, String> language) {
@@ -229,7 +215,53 @@ class _LoginPageState extends State<LoginPage> {
     if (message != null && message.isNotEmpty) {
       return message;
     }
-    return _tr(language, 'please_try_again', 'សូមព្យាយាមម្តងទៀត');
+    return tr(language, 'please_try_again', 'សូមព្យាយាមម្តងទៀត');
+  }
+
+  /// Action buttons shown under an authentication-error banner: device
+  /// approval actions, server configuration actions, or none for a plain
+  /// login failure.
+  List<Widget> _buildErrorActions(Map<String, String> language) {
+    if (_showsDeviceActions) {
+      return [
+        FilledButton.icon(
+          onPressed:
+              _isSubmittingDeviceRequest ? null : _submitDeviceAccessRequest,
+          icon:
+              _isSubmittingDeviceRequest
+                  ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                  : const Icon(Icons.verified_user_outlined),
+          label: Text(
+            _isSubmittingDeviceRequest
+                ? tr(language, 'sending_request', 'កំពុងផ្ញើ...')
+                : tr(language, 'submit_request', 'ផ្ញើសំណើអនុម័ត'),
+          ),
+        ),
+        OutlinedButton(
+          onPressed: _openServerConfiguration,
+          child: Text(tr(language, 'open_settings', 'បើកការកំណត់')),
+        ),
+      ];
+    }
+
+    if (_showsServerActions) {
+      return [
+        FilledButton(
+          onPressed: _openServerConfiguration,
+          child: Text(tr(language, 'configure_server', 'កំណត់ Server/IP')),
+        ),
+        OutlinedButton(
+          onPressed: widget.authController.isSubmitting ? null : _submit,
+          child: Text(tr(language, 'retry', 'សាកម្ដងទៀត')),
+        ),
+      ];
+    }
+
+    return const [];
   }
 
   Widget _buildInlineNotice(Map<String, String> language) {
@@ -239,148 +271,35 @@ class _LoginPageState extends State<LoginPage> {
       return const SizedBox.shrink();
     }
 
-    final showError = _hasInlineError;
-    final backgroundColor =
-        showError
-            ? const Color(0xFFFFF4E8)
-            : (_requestFeedbackIsError
-                ? const Color(0xFFFFF4E8)
-                : const Color(0xFFEAF7EF));
-    final borderColor =
-        showError
-            ? const Color(0xFFF0B46A)
-            : (_requestFeedbackIsError
-                ? const Color(0xFFF0B46A)
-                : const Color(0xFF7AC092));
-    final iconColor =
-        showError
-            ? const Color(0xFF9A5B00)
-            : (_requestFeedbackIsError
-                ? const Color(0xFF9A5B00)
-                : const Color(0xFF206B3C));
-    final title =
-        showError
-            ? _resolveInlineHeadline(language)
-            : (_requestFeedbackIsError
-                ? _tr(language, 'request_failed', 'ផ្ញើសំណើមិនបាន')
-                : _tr(language, 'request_sent', 'បានផ្ញើសំណើរួចហើយ'));
-    final body =
-        showError ? _resolveInlineBody(language) : _requestFeedbackMessage!;
+    if (_hasInlineError) {
+      return InlineNoticeBanner(
+        tone: NoticeTone.warning,
+        title: _resolveInlineHeadline(language),
+        body: _resolveInlineBody(language),
+        actions: _buildErrorActions(language),
+      );
+    }
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                showError || _requestFeedbackIsError
-                    ? Icons.info_outline
-                    : Icons.check_circle_outline,
-                color: iconColor,
-                size: 20,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1B2A25),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      body,
-                      style: const TextStyle(
-                        height: 1.35,
-                        color: Color(0xFF42534D),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    if (_requestFeedbackIsError) {
+      return InlineNoticeBanner(
+        tone: NoticeTone.warning,
+        title: tr(language, 'request_failed', 'ផ្ញើសំណើមិនបាន'),
+        body: _requestFeedbackMessage!,
+      );
+    }
+
+    return InlineNoticeBanner(
+      tone: NoticeTone.success,
+      title: tr(language, 'request_sent', 'បានផ្ញើសំណើរួចហើយ'),
+      body: _requestFeedbackMessage!,
+      actions: [
+        TextButton(
+          onPressed: _openServerConfiguration,
+          child: Text(
+            tr(language, 'view_machine_number', 'ពិនិត្យ Machine Number'),
           ),
-          if (_showsDeviceActions ||
-              _showsServerActions ||
-              !_requestFeedbackIsError)
-            const SizedBox(height: 12),
-          if (_showsDeviceActions)
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                FilledButton.icon(
-                  onPressed:
-                      _isSubmittingDeviceRequest
-                          ? null
-                          : _submitDeviceAccessRequest,
-                  icon:
-                      _isSubmittingDeviceRequest
-                          ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                          : const Icon(Icons.verified_user_outlined),
-                  label: Text(
-                    _isSubmittingDeviceRequest
-                        ? _tr(language, 'sending_request', 'កំពុងផ្ញើ...')
-                        : _tr(language, 'submit_request', 'ផ្ញើសំណើអនុម័ត'),
-                  ),
-                ),
-                OutlinedButton(
-                  onPressed: _openServerConfiguration,
-                  child: Text(_tr(language, 'open_settings', 'បើកការកំណត់')),
-                ),
-              ],
-            ),
-          if (_showsServerActions)
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                FilledButton(
-                  onPressed: _openServerConfiguration,
-                  child: Text(
-                    _tr(language, 'configure_server', 'កំណត់ Server/IP'),
-                  ),
-                ),
-                OutlinedButton(
-                  onPressed:
-                      widget.authController.isSubmitting ? null : _submit,
-                  child: Text(_tr(language, 'retry', 'សាកម្ដងទៀត')),
-                ),
-              ],
-            ),
-          if (!showError && !_requestFeedbackIsError)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(
-                onPressed: _openServerConfiguration,
-                child: Text(
-                  _tr(
-                    language,
-                    'view_machine_number',
-                    'ពិនិត្យ Machine Number',
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -436,7 +355,12 @@ class _LoginPageState extends State<LoginPage> {
               SafeArea(
                 child: Center(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(22, 28, 22, 28),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppDesignSystem.spacing * 2.75,
+                      AppDesignSystem.spacing * 3.5,
+                      AppDesignSystem.spacing * 2.75,
+                      AppDesignSystem.spacing * 3.5,
+                    ),
                     child: SizedBox(
                       width: panelWidth,
                       child: Card(
@@ -444,11 +368,18 @@ class _LoginPageState extends State<LoginPage> {
                         elevation: 12,
                         shadowColor: Colors.black.withAlpha(46),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          side: const BorderSide(color: Color(0xFFE3E9E6)),
+                          borderRadius: BorderRadius.circular(
+                            AppDesignSystem.radiusCard,
+                          ),
+                          side: const BorderSide(color: AppDesignSystem.border),
                         ),
                         child: Padding(
-                          padding: const EdgeInsets.fromLTRB(26, 28, 26, 26),
+                          padding: const EdgeInsets.fromLTRB(
+                            AppDesignSystem.spacing * 3.25,
+                            AppDesignSystem.spacing * 3.5,
+                            AppDesignSystem.spacing * 3.25,
+                            AppDesignSystem.spacing * 3.25,
+                          ),
                           child: Form(
                             key: _formKey,
                             child: Column(
@@ -462,7 +393,9 @@ class _LoginPageState extends State<LoginPage> {
                                     fit: BoxFit.contain,
                                   ),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(
+                                  height: AppDesignSystem.spacing * 2,
+                                ),
                                 Align(
                                   alignment: Alignment.center,
                                   child: Container(
@@ -487,9 +420,11 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                                   ),
                                 ),
-                                const SizedBox(height: 12),
+                                const SizedBox(
+                                  height: AppDesignSystem.spacing * 1.5,
+                                ),
                                 Text(
-                                  _tr(language, 'login', 'ចូលប្រើ'),
+                                  tr(language, 'login', 'ចូលប្រើ'),
                                   textAlign: TextAlign.center,
                                   style: theme.textTheme.headlineSmall
                                       ?.copyWith(
@@ -500,7 +435,7 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  _tr(
+                                  tr(
                                     language,
                                     'welcome_msg',
                                     'សូមស្វាគមន៍មកវិញ',
@@ -512,13 +447,15 @@ class _LoginPageState extends State<LoginPage> {
                                     fontSize: 14,
                                   ),
                                 ),
-                                const SizedBox(height: 26),
+                                const SizedBox(
+                                  height: AppDesignSystem.spacing * 3.25,
+                                ),
                                 _buildInlineNotice(language),
                                 TextFormField(
                                   controller: _emailController,
                                   keyboardType: TextInputType.emailAddress,
                                   decoration: InputDecoration(
-                                    labelText: _tr(language, 'email', 'Email'),
+                                    labelText: tr(language, 'email', 'Email'),
                                     prefixIcon: const Icon(
                                       Icons.mail_outline,
                                       size: 20,
@@ -526,7 +463,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                   validator: (value) {
                                     if (value == null || value.trim().isEmpty) {
-                                      return _tr(
+                                      return tr(
                                         language,
                                         'email_fild_can_not_empty',
                                         'សូមបញ្ចូលអ៊ីមែល',
@@ -537,12 +474,14 @@ class _LoginPageState extends State<LoginPage> {
                                   },
                                   onChanged: (_) => _clearTransientFeedback(),
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(
+                                  height: AppDesignSystem.spacing * 2,
+                                ),
                                 TextFormField(
                                   controller: _passwordController,
                                   obscureText: _obscurePassword,
                                   decoration: InputDecoration(
-                                    labelText: _tr(
+                                    labelText: tr(
                                       language,
                                       'password',
                                       'ពាក្យសម្ងាត់',
@@ -566,7 +505,7 @@ class _LoginPageState extends State<LoginPage> {
                                   ),
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
-                                      return _tr(
+                                      return tr(
                                         language,
                                         'email_pass_cannot_empt',
                                         'សូមបញ្ចូលពាក្យសម្ងាត់',
@@ -578,18 +517,14 @@ class _LoginPageState extends State<LoginPage> {
                                   onChanged: (_) => _clearTransientFeedback(),
                                   onFieldSubmitted: (_) => _submit(),
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(
+                                  height: AppDesignSystem.spacing * 3,
+                                ),
                                 FilledButton(
                                   onPressed:
                                       widget.authController.isSubmitting
                                           ? null
                                           : _submit,
-                                  style: FilledButton.styleFrom(
-                                    minimumSize: const Size.fromHeight(50),
-                                    textStyle: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
                                   child:
                                       widget.authController.isSubmitting
                                           ? const SizedBox(
@@ -600,7 +535,7 @@ class _LoginPageState extends State<LoginPage> {
                                             ),
                                           )
                                           : Text(
-                                            _tr(language, 'sign_in', 'ចូលគណនី'),
+                                            tr(language, 'sign_in', 'ចូលគណនី'),
                                           ),
                                 ),
                               ],

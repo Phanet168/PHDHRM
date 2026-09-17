@@ -6,6 +6,12 @@ import '../models/attendance_scan_result.dart';
 Color _dynamicPrimary() =>
     AppDesignSystem.colorForWeekday(DateTime.now().weekday);
 
+const _failureColor = Color(0xFFE53935);
+const _failureBg = Color(0xFFFDECEB);
+
+/// Figma "ជោគជ័យ / Scan Success" and "បរាជ័យ / Check-in Failed" — a single
+/// page that renders either state from the same [AttendanceScanResult],
+/// centered icon + detail card + full-width action.
 class AttendanceScanResultPage extends StatelessWidget {
   const AttendanceScanResultPage({
     super.key,
@@ -33,11 +39,14 @@ class AttendanceScanResultPage extends StatelessWidget {
     return value;
   }
 
-  String _formatDateTime(DateTime value) {
+  String _formatDate(DateTime value) {
     String two(int input) => input.toString().padLeft(2, '0');
+    return '${two(value.day)}-${two(value.month)}-${value.year}';
+  }
 
-    return '${two(value.day)}-${two(value.month)}-${value.year} '
-        '${two(value.hour)}:${two(value.minute)}:${two(value.second)}';
+  String _formatTime(DateTime value) {
+    String two(int input) => input.toString().padLeft(2, '0');
+    return '${two(value.hour)}:${two(value.minute)}:${two(value.second)}';
   }
 
   String _formatMeters(double? meters) {
@@ -72,174 +81,190 @@ class AttendanceScanResultPage extends StatelessWidget {
     return '${latitude!.toStringAsFixed(6)}, ${longitude!.toStringAsFixed(6)}';
   }
 
-  String _statusLabel() {
-    return result.isSuccess
-        ? _tr('scan_success', 'ជោគជ័យ')
-        : _tr('scan_failed', 'បរាជ័យ');
-  }
-
-  Color _statusColor() {
-    return result.isSuccess ? _dynamicPrimary() : const Color(0xFFD34B5F);
-  }
-
-  Color _statusBgColor() {
-    return result.isSuccess
-        ? _dynamicPrimary().withAlpha(22)
-        : const Color(0xFFFFEEF1);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final statusColor = _statusColor();
-    final statusBgColor = _statusBgColor();
+    final isSuccess = result.isSuccess;
+    final accent = isSuccess ? _dynamicPrimary() : _failureColor;
+    final accentBg = isSuccess ? _dynamicPrimary().withAlpha(28) : _failureBg;
+
+    final rows =
+        isSuccess
+            ? [
+              _DetailRow(
+                label: _tr('scan_time', 'ចូលម៉ោង'),
+                value: _formatTime(scannedAt),
+                emphasize: true,
+                valueColor: const Color(0xFF17221D),
+              ),
+              _DetailRow(
+                label: _tr('scan_date', 'កាលបរិច្ឆេទ'),
+                value: _formatDate(scannedAt),
+              ),
+              _DetailRow(
+                label: _tr('department', 'អង្គភាព'),
+                value: result.workplaceName ?? '-',
+              ),
+              _DetailRow(
+                label: _tr('scan_type', 'ប្រភេទស្កេន'),
+                value: scanType,
+              ),
+              _DetailRow(
+                label: _tr('attendance_type', 'ប្រភេទវត្តមាន'),
+                value: _formatPunchType(result.punchType),
+              ),
+              _DetailRow(
+                label: _tr('location_coordinates', 'ទីតាំង GPS'),
+                value: _formatCoordinates(),
+              ),
+              _DetailRow(
+                label: _tr('distance', 'ចម្ងាយ'),
+                value: _formatMeters(result.rangeMeters),
+              ),
+              _DetailRow(
+                label: _tr('status', 'ស្ថានភាព'),
+                badge: true,
+                badgeText: '${_tr('scan_success', 'ទាន់ពេល')} ✓',
+                accent: accent,
+                accentBg: accentBg,
+              ),
+            ]
+            : [
+              _DetailRow(
+                label: _tr('failure_reason', 'មូលហេតុ'),
+                value: result.message,
+                emphasize: true,
+                valueColor: _failureColor,
+              ),
+              _DetailRow(
+                label: _tr('distance', 'ចម្ងាយ'),
+                value: _formatMeters(result.rangeMeters),
+              ),
+              _DetailRow(
+                label: _tr('scan_time', 'ពេលវេលា'),
+                value: _formatTime(scannedAt),
+              ),
+              _DetailRow(
+                label: _tr('location_coordinates', 'ទីតាំង GPS'),
+                value: _formatCoordinates(),
+              ),
+              _DetailRow(
+                label: _tr('allowed_range', 'ចម្ងាយអនុញ្ញាត'),
+                value: _formatMeters(result.acceptableRangeMeters),
+              ),
+              _DetailRow(
+                label: _tr('status', 'ស្ថានភាព'),
+                badge: true,
+                badgeText: _tr('scan_failed', 'បរាជ័យ'),
+                accent: accent,
+                accentBg: accentBg,
+              ),
+            ];
 
     return Scaffold(
-      appBar: AppBar(title: Text(_tr('scan_result', 'លទ្ធផលស្កេន'))),
+      backgroundColor: const Color(0xFFF5F7F6),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: statusBgColor,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color:
-                        result.isSuccess
-                            ? _dynamicPrimary().withAlpha(60)
-                            : const Color(0xFFF0CED5),
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 116,
+                  height: 116,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: accentBg,
+                    shape: BoxShape.circle,
                   ),
+                  child: Container(
+                    width: 82,
+                    height: 82,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: accent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      isSuccess
+                          ? Icons.check_rounded
+                          : Icons.close_rounded,
+                      color: Colors.white,
+                      size: 40,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                isSuccess
+                    ? _tr('scan_success_title', 'ជោគជ័យ!')
+                    : _tr('scan_failed_title', 'បរាជ័យ!'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: isSuccess ? const Color(0xFF17221D) : accent,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 26,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isSuccess
+                    ? _tr(
+                      'scan_success_subtitle',
+                      'អ្នកបានចុះវត្តមានចូលដោយជោគជ័យ',
+                    )
+                    : result.message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF6F7C76),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
                   boxShadow: const [
                     BoxShadow(
-                      color: Color(0x140F2D26),
-                      blurRadius: 18,
-                      offset: Offset(0, 10),
+                      color: Color(0x120F2D26),
+                      blurRadius: 16,
+                      offset: Offset(0, 8),
                     ),
                   ],
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
                   children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Icon(
-                        result.isSuccess
-                            ? Icons.check_circle_outline
-                            : Icons.error_outline,
-                        color: statusColor,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            _statusLabel(),
-                            style: TextStyle(
-                              color: statusColor,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 18,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            result.message,
-                            style: const TextStyle(
-                              color: Color(0xFF1B2D28),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    for (var i = 0; i < rows.length; i++) ...[
+                      rows[i],
+                      if (i != rows.length - 1) const SizedBox(height: 14),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2EAE7)),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x0F12352C),
-                        blurRadius: 16,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: ListView(
-                    padding: const EdgeInsets.all(14),
-                    children: [
-                      _ResultInfoRow(
-                        icon: Icons.schedule_outlined,
-                        label: _tr('scan_time', 'ម៉ោងស្កេន'),
-                        value: _formatDateTime(scannedAt),
-                      ),
-                      _ResultInfoRow(
-                        icon: Icons.qr_code_scanner_outlined,
-                        label: _tr('scan_type', 'ប្រភេទស្កេន'),
-                        value: scanType,
-                      ),
-                      _ResultInfoRow(
-                        icon: Icons.sync_alt_outlined,
-                        label: _tr('attendance_type', 'ប្រភេទវត្តមាន'),
-                        value: _formatPunchType(result.punchType),
-                      ),
-                      _ResultInfoRow(
-                        icon: Icons.flag_outlined,
-                        label: _tr('status', 'ស្ថានភាព'),
-                        value: _statusLabel(),
-                        valueColor: statusColor,
-                      ),
-                      _ResultInfoRow(
-                        icon: Icons.apartment_outlined,
-                        label: _tr('department', 'អង្គភាព'),
-                        value: result.workplaceName ?? '-',
-                      ),
-                      _ResultInfoRow(
-                        icon: Icons.place_outlined,
-                        label: _tr('location', 'ទីតាំង'),
-                        value: _formatCoordinates(),
-                      ),
-                      _ResultInfoRow(
-                        icon: Icons.straighten_outlined,
-                        label: _tr('distance', 'ចម្ងាយ'),
-                        value: _formatMeters(result.rangeMeters),
-                      ),
-                      _ResultInfoRow(
-                        icon: Icons.rule_outlined,
-                        label: _tr('allowed_range', 'ចម្ងាយអនុញ្ញាត'),
-                        value: _formatMeters(result.acceptableRangeMeters),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              const Spacer(),
               const SizedBox(height: 16),
-              FilledButton.icon(
+              FilledButton(
                 onPressed: () => Navigator.of(context).pop(result.isSuccess),
-                icon: const Icon(Icons.done_all_outlined),
                 style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(50),
-                  backgroundColor: _dynamicPrimary(),
+                  minimumSize: const Size.fromHeight(52),
+                  backgroundColor: accent,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                label: Text(_tr('done', 'រួចរាល់')),
+                child: Text(
+                  isSuccess
+                      ? _tr('back_to_home', 'ត្រឡប់ទៅទំព័រដើម')
+                      : _tr('scan_retry', 'សាកល្បងម្តងទៀត'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                  ),
+                ),
               ),
             ],
           ),
@@ -249,71 +274,74 @@ class AttendanceScanResultPage extends StatelessWidget {
   }
 }
 
-class _ResultInfoRow extends StatelessWidget {
-  const _ResultInfoRow({
-    required this.icon,
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
     required this.label,
-    required this.value,
+    this.value,
+    this.emphasize = false,
     this.valueColor,
+    this.badge = false,
+    this.badgeText,
+    this.accent,
+    this.accentBg,
   });
 
-  final IconData icon;
   final String label;
-  final String value;
+  final String? value;
+  final bool emphasize;
   final Color? valueColor;
+  final bool badge;
+  final String? badgeText;
+  final Color? accent;
+  final Color? accentBg;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF7FBF9),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE3ECE7)),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Color(0xFF6F7C76), fontSize: 11),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFDCEAE3)),
-              ),
-              child: Icon(icon, size: 18, color: _dynamicPrimary()),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: const TextStyle(
-                      color: Color(0xFF4E615A),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+        const SizedBox(width: 10),
+        Expanded(
+          child:
+              badge
+                  ? Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accentBg,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        badgeText ?? '-',
+                        style: TextStyle(
+                          color: accent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    value.isEmpty ? '-' : value,
+                  )
+                  : Text(
+                    (value == null || value!.isEmpty) ? '-' : value!,
+                    textAlign: TextAlign.right,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: valueColor ?? const Color(0xFF152A24),
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
+                      color: valueColor ?? const Color(0xFF17221D),
+                      fontWeight: emphasize ? FontWeight.w800 : FontWeight.w700,
+                      fontSize: emphasize ? 18 : 13,
                     ),
                   ),
-                ],
-              ),
-            ),
-          ],
         ),
-      ),
+      ],
     );
   }
 }

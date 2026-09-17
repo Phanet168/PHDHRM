@@ -548,7 +548,11 @@ class ApiService {
         }
 
         _registerFailure(base);
-      } on http.ClientException {
+      } catch (error) {
+        if (error is! http.ClientException &&
+            !isNetworkErrorMessage(error.toString())) {
+          rethrow;
+        }
         _registerFailure(base);
       }
     }
@@ -673,7 +677,11 @@ class ApiService {
       }
 
       return base;
-    } on http.ClientException {
+    } catch (error) {
+      if (error is! http.ClientException &&
+          !isNetworkErrorMessage(error.toString())) {
+        rethrow;
+      }
       _registerFailure(base);
       return null;
     }

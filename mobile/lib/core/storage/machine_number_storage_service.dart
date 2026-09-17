@@ -59,9 +59,10 @@ class MachineNumberStorageService {
 
     try {
       final android = await deviceInfo.androidInfo;
-      final androidId = android.id.trim().isNotEmpty
-          ? android.id.trim()
-          : android.fingerprint.trim();
+      final androidId =
+          android.id.trim().isNotEmpty
+              ? android.id.trim()
+              : android.fingerprint.trim();
       if (androidId.isNotEmpty) {
         return 'ANDROID-$androidId';
       }

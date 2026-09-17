@@ -30,7 +30,10 @@ class MissionSummary {
       destination: (map['destination'] ?? '').toString().trim(),
       startDate: (map['start_date'] ?? '').toString().trim(),
       endDate: (map['end_date'] ?? '').toString().trim(),
-      status: (map['status'] ?? 'pending').toString().trim(),
+      status:
+          (map['display_status'] ?? map['status'] ?? 'pending')
+              .toString()
+              .trim(),
       employeeCount:
           _toInt(map['assignments_count']) ??
           _toInt(map['employee_count']) ??

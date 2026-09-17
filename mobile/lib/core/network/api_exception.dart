@@ -61,7 +61,9 @@ String extractApiErrorMessage(Object error) {
   final message = match?.group(1)?.trim();
 
   if (message != null && message.isNotEmpty) {
-    final statusMatch = RegExp(r'^ApiException\(statusCode: (\d+|null),').firstMatch(raw);
+    final statusMatch = RegExp(
+      r'^ApiException\(statusCode: (\d+|null),',
+    ).firstMatch(raw);
     final statusText = statusMatch?.group(1)?.trim().toLowerCase();
     final hasHttpStatus = statusText != null && statusText != 'null';
     if (hasHttpStatus) {

@@ -55,6 +55,20 @@ class AuthService {
     await _userSessionStorageService.clearUser();
   }
 
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _apiService.post(
+      '/auth/change-password',
+      body: {
+        'current_password': currentPassword,
+        'new_password': newPassword,
+        'new_password_confirmation': newPassword,
+      },
+    );
+  }
+
   Future<AuthUser?> getCurrentUser() {
     return _getCurrentUserFromCacheOrProfile();
   }

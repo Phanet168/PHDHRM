@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/api_service.dart';
 import '../../auth/models/auth_user.dart';
@@ -16,118 +18,95 @@ class HomeAttendanceService {
     DateTime? toDate,
     int? start,
   }) async {
-    final employeeId = user.employeeId;
-    if (employeeId <= 0) {
-      return <AttendanceDayRecord>[];
-    }
-
+    if (user.employeeId <= 0) return <AttendanceDayRecord>[];
     final now = DateTime.now();
-    final resolvedFromDate =
-        fromDate ?? DateTime(now.year, now.month, 1, 0, 0, 0);
-    final resolvedToDate = toDate ?? DateTime(now.year, now.month + 1, 0);
-
-    final raw = await _apiService.get(
-      '/attendance_datewise',
-      queryParameters: <String, dynamic>{
-        'employee_id': employeeId,
-        'from_date': _formatDateOnly(resolvedFromDate),
-        'to_date': _formatDateOnly(resolvedToDate),
-        if (start != null) 'start': start,
-      },
-      requiresAuth: false,
-    );
-
-    final response = raw['response'];
-    if (response is! Map<String, dynamic>) {
-      throw ApiException(message: 'Invalid response format');
+    final from = fromDate ?? DateTime(now.year, now.month, 1);
+    final to = toDate ?? DateTime(from.year, from.month + 1, 0);
+    if (to.isBefore(from)) {
+      throw ApiException(message: 'End date must be on or after start date.');
     }
-
-    final status = (response['status'] ?? '').toString().toLowerCase();
-    if (status != 'ok') {
-      return <AttendanceDayRecord>[];
-    }
-
-    final groups = response['historydata'];
-    if (groups is! List<dynamic>) {
-      return <AttendanceDayRecord>[];
-    }
-
     final records = <AttendanceDayRecord>[];
-    for (final group in groups) {
-      records.add(_parseGroup(group));
+    var cursor = DateTime(from.year, from.month, from.day);
+    while (!cursor.isAfter(to)) {
+      final limit = DateTime(cursor.year, cursor.month, cursor.day + 30);
+      final end = limit.isBefore(to) ? limit : to;
+      final response = _response(
+        await _apiService.get(
+          '/v1/attendance/history',
+          queryParameters: {'from_date': _date(cursor), 'to_date': _date(end)},
+        ),
+      );
+      final data = response['data'];
+      if (data is! List) {
+        throw ApiException(message: 'Invalid attendance history response');
+      }
+      records.addAll(
+        data.whereType<Map<String, dynamic>>().map(AttendanceDayRecord.fromApi),
+      );
+      cursor = DateTime(end.year, end.month, end.day + 1);
     }
-
     records.sort((a, b) => b.date.compareTo(a.date));
     return records;
   }
 
+  Future<Map<String, dynamic>> fetchToday(AuthUser user) async {
+    _requireEmployee(user);
+    return _response(await _apiService.get('/v1/attendance/today'));
+  }
+
+  Future<List<Map<String, dynamic>>> fetchSchedule(
+    AuthUser user, {
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    _requireEmployee(user);
+    final response = _response(
+      await _apiService.get(
+        '/v1/attendance/schedule',
+        queryParameters: {
+          'from_date': _date(fromDate),
+          'to_date': _date(toDate),
+        },
+      ),
+    );
+    final data = response['data'];
+    if (data is! List) {
+      throw ApiException(message: 'Invalid attendance schedule response');
+    }
+    return data.whereType<Map<String, dynamic>>().toList(growable: false);
+  }
+
   Future<AttendanceScanResult> submitAttendanceScan(
     AuthUser user, {
-    required String qrToken,
+    String? qrToken,
     required double latitude,
     required double longitude,
     DateTime? scanTime,
+    String? requestId,
   }) async {
-    final employeeId = user.employeeId;
-    if (employeeId <= 0) {
-      throw ApiException(
-        message: 'This account does not have an employee profile.',
-      );
-    }
-
-    if (qrToken.trim().isEmpty) {
-      throw ApiException(message: 'QR token is required');
-    }
-
-    final now = scanTime ?? DateTime.now();
+    _requireEmployee(user);
+    // ApiService reuses this body for transport retries. Server time and token
+    // identity are authoritative; the phone cannot backdate or choose an officer.
     final raw = await _apiService.post(
-      '/add_attendance',
-      body: <String, dynamic>{
-        'employee_id': employeeId,
-        'user_id': user.userId,
-        'datetime': _formatDateTime(now),
-        'latitude': latitude.toStringAsFixed(7),
-        'longitude': longitude.toStringAsFixed(7),
-        'qr_token': qrToken.trim(),
+      '/v1/attendance/scan',
+      body: {
+        'request_id': requestId ?? _requestId(),
+        'latitude': latitude,
+        'longitude': longitude,
+        if (qrToken?.trim().isNotEmpty == true) 'qr_token': qrToken!.trim(),
       },
-      requiresAuth: false,
     );
-
-    final response = raw['response'];
-    if (response is! Map<String, dynamic>) {
-      throw ApiException(message: 'Invalid attendance response format');
-    }
-
-    return AttendanceScanResult.fromApi(response);
+    return AttendanceScanResult.fromApi(_response(raw));
   }
 
   Future<String> predictNextPunchType(AuthUser user, {DateTime? day}) async {
-    final targetDay = day ?? DateTime.now();
-    final startOfDay = DateTime(targetDay.year, targetDay.month, targetDay.day);
-    final endOfDay = DateTime(targetDay.year, targetDay.month, targetDay.day);
-
-    try {
-      final records = await fetchAttendanceHistory(
-        user,
-        fromDate: startOfDay,
-        toDate: endOfDay,
-      );
-      final todayKey = _formatDateOnly(targetDay);
-      AttendanceDayRecord? todayRecord;
-
-      for (final record in records) {
-        if (record.date.startsWith(todayKey)) {
-          todayRecord = record;
-          break;
-        }
-      }
-
-      final count = todayRecord?.punchCount ?? 0;
-      return count % 2 == 0 ? 'in' : 'out';
-    } catch (_) {
-      // Fallback if history endpoint fails.
-      return 'in';
+    final response = await fetchToday(user);
+    final meta = response['meta'];
+    final type = meta is Map ? meta['next_punch_type'] : null;
+    if (type != 'in' && type != 'out') {
+      throw ApiException(message: 'Invalid next attendance action');
     }
+    return type as String;
   }
 
   Future<void> reportScanIssue(
@@ -144,347 +123,54 @@ class HomeAttendanceService {
     double? acceptableRangeMeters,
     String? geofenceSource,
   }) async {
-    final now = scanTime ?? DateTime.now();
-
+    if (user.employeeId <= 0) return;
     try {
       await _apiService.post(
-        '/attendance_scan_log',
-        body: <String, dynamic>{
-          'employee_id': user.employeeId > 0 ? user.employeeId : null,
-          'user_id': user.userId > 0 ? user.userId : null,
-          if (workplaceId != null && workplaceId > 0)
-            'workplace_id': workplaceId,
-          'status': status,
-          'error_code': errorCode,
-          'message': message,
-          if (qrToken != null && qrToken.trim().isNotEmpty)
-            'qr_token': qrToken.trim(),
-          if (latitude != null) 'latitude': latitude.toStringAsFixed(7),
-          if (longitude != null) 'longitude': longitude.toStringAsFixed(7),
-          if (rangeMeters != null) 'range': rangeMeters.toStringAsFixed(1),
-          if (acceptableRangeMeters != null)
-            'acceptable_range': acceptableRangeMeters.toStringAsFixed(1),
-          if (geofenceSource != null && geofenceSource.trim().isNotEmpty)
-            'geofence_source': geofenceSource.trim(),
-          'datetime': _formatDateTime(now),
+        '/v1/attendance/scan-issues',
+        body: {
+          'error_code':
+              errorCode.length > 80 ? errorCode.substring(0, 80) : errorCode,
+          'message':
+              message.length > 1000 ? message.substring(0, 1000) : message,
+          if (latitude != null) 'latitude': latitude,
+          if (longitude != null) 'longitude': longitude,
         },
-        requiresAuth: false,
       );
     } catch (_) {
-      // Do not block primary flow if logging endpoint fails.
+      // Issue logging must not block the scan result.
     }
   }
 
-  AttendanceDayRecord _parseGroup(dynamic group) {
-    final parsedDatewise = _parseDatewiseGroup(group);
-    if (parsedDatewise != null) {
-      return parsedDatewise;
-    }
-
-    if (group is List<dynamic> && group.isNotEmpty) {
-      final first = _asMap(group.first);
-      final last = _asMap(group.last);
-      final date = (first['date'] ?? first['mydate'] ?? '').toString().trim();
-      final timeIn = _toTimeDisplay(first['time']);
-      final timeOut = _toTimeDisplay(last['time'] ?? first['time']);
-      final totalHours = _resolveTotalHours(
-        explicit:
-            first['nethours'] ??
-            first['net_hours'] ??
-            first['totalhours'] ??
-            first['total_hours'] ??
-            first['work_hours'],
-        timeIn: timeIn,
-        timeOut: timeOut,
-      );
-
-      return AttendanceDayRecord(
-        date: date.isEmpty ? '-' : date,
-        totalHours: totalHours,
-        timeIn: timeIn,
-        timeOut: timeOut,
-        punchCount: group.length,
+  void _requireEmployee(AuthUser user) {
+    if (user.employeeId <= 0) {
+      throw ApiException(
+        message: 'This account does not have an employee profile.',
       );
     }
+  }
 
-    if (group is Map<String, dynamic> || group is Map) {
-      final map = _asMap(group);
-      final date = (map['date'] ?? map['mydate'] ?? '').toString().trim();
-      final timeIn = _toTimeDisplay(map['time']);
-      final timeOut = _toTimeDisplay(
-        map['outtime'] ?? map['out_time'] ?? map['time'],
-      );
-      final totalHours = _resolveTotalHours(
-        explicit:
-            map['nethours'] ??
-            map['net_hours'] ??
-            map['totalhours'] ??
-            map['total_hours'] ??
-            map['work_hours'],
-        timeIn: timeIn,
-        timeOut: timeOut,
-      );
-
-      return AttendanceDayRecord(
-        date: date.isEmpty ? '-' : date,
-        totalHours: totalHours,
-        timeIn: timeIn,
-        timeOut: timeOut,
-        punchCount: _toInt(map['punch_count']) ?? 1,
+  Map<String, dynamic> _response(Map<String, dynamic> raw) {
+    final response = raw['response'];
+    if (response is! Map<String, dynamic>) {
+      throw ApiException(message: 'Invalid attendance response format');
+    }
+    if (response['status'] != 'ok') {
+      throw ApiException(
+        message: response['message']?.toString() ?? 'Attendance request failed',
       );
     }
-
-    return AttendanceDayRecord(
-      date: '-',
-      totalHours: '0:00:00',
-      timeIn: '-',
-      timeOut: '-',
-      punchCount: 0,
-    );
+    return response;
   }
 
-  AttendanceDayRecord? _parseDatewiseGroup(dynamic group) {
-    final map = _asMap(group);
-    if (map.isEmpty) {
-      return null;
-    }
+  String _date(DateTime date) =>
+      '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
-    final baseRow = _extractBaseRow(map);
-    final date = _toStringOrNull(
-      map['date'] ?? baseRow['date'] ?? baseRow['mydate'],
-    );
-    if (date == null || date.isEmpty) {
-      return null;
-    }
-
-    final timeIn = _toTimeDisplay(
-      map['first_punch'] ??
-          baseRow['intime'] ??
-          baseRow['time'] ??
-          baseRow['in_time'],
-    );
-    final timeOut = _toTimeDisplay(
-      map['last_punch'] ??
-          baseRow['outtime'] ??
-          baseRow['time'] ??
-          baseRow['out_time'],
-    );
-    final totalHours = _resolveTotalHours(
-      explicit:
-          map['nethours'] ??
-          map['net_hours'] ??
-          map['totalhours'] ??
-          map['total_hours'] ??
-          map['work_hours'] ??
-          baseRow['nethours'] ??
-          baseRow['net_hours'] ??
-          baseRow['totalhours'] ??
-          baseRow['total_hours'] ??
-          baseRow['work_hours'],
-      timeIn: timeIn,
-      timeOut: timeOut,
-    );
-
-    return AttendanceDayRecord(
-      date: date,
-      totalHours: totalHours,
-      timeIn: timeIn,
-      timeOut: timeOut,
-      punchCount:
-          _toInt(map['punch_count']) ?? _resolvePunchCount(baseRow, map),
-      attendanceStatus: _toStringOrNull(map['attendance_status']),
-      lateMinutes: _toInt(map['late_minutes']),
-      earlyLeaveMinutes: _toInt(map['early_leave_minutes']),
-      hasException: _toBool(map['has_exception']),
-      exceptionReason: _toStringOrNull(map['exception_reason']),
-    );
-  }
-
-  Map<String, dynamic> _extractBaseRow(Map<String, dynamic> entry) {
-    final candidates = <dynamic>[entry['0'], entry['row'], entry['first']];
-
-    for (final candidate in candidates) {
-      final row = _asMap(candidate);
-      if (row.isNotEmpty) {
-        return row;
-      }
-    }
-
-    return <String, dynamic>{};
-  }
-
-  int _resolvePunchCount(
-    Map<String, dynamic> baseRow,
-    Map<String, dynamic> entry,
-  ) {
-    final fromEntry = _toInt(entry['punch_count']);
-    if (fromEntry != null && fromEntry > 0) {
-      return fromEntry;
-    }
-
-    final fromBase = _toInt(baseRow['punch_count']);
-    if (fromBase != null && fromBase > 0) {
-      return fromBase;
-    }
-
-    return 1;
-  }
-
-  String _toTimeDisplay(dynamic value) {
-    final text = value?.toString().trim();
-    if (text == null || text.isEmpty) {
-      return '-';
-    }
-
-    final parsed = DateTime.tryParse(text);
-    if (parsed != null) {
-      return '${_two(parsed.hour)}:${_two(parsed.minute)}:${_two(parsed.second)}';
-    }
-
-    if (text.contains(' ')) {
-      return text.split(' ').last;
-    }
-
-    return text;
-  }
-
-  int? _toInt(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-
-    if (value is int) {
-      return value;
-    }
-
-    if (value is num) {
-      return value.toInt();
-    }
-
-    return int.tryParse(value.toString().trim());
-  }
-
-  bool? _toBool(dynamic value) {
-    if (value == null) {
-      return null;
-    }
-
-    if (value is bool) {
-      return value;
-    }
-
-    if (value is num) {
-      return value != 0;
-    }
-
-    final text = value.toString().trim().toLowerCase();
-    if (text == 'true' || text == '1' || text == 'yes') {
-      return true;
-    }
-    if (text == 'false' || text == '0' || text == 'no') {
-      return false;
-    }
-
-    return null;
-  }
-
-  String? _toStringOrNull(dynamic value) {
-    final text = value?.toString().trim();
-    if (text == null || text.isEmpty) {
-      return null;
-    }
-
-    return text;
-  }
-
-  Map<String, dynamic> _asMap(dynamic value) {
-    if (value is Map<String, dynamic>) {
-      return value;
-    }
-
-    if (value is Map) {
-      return value.map((key, val) => MapEntry(key.toString(), val));
-    }
-
-    return <String, dynamic>{};
-  }
-
-  String _formatDateOnly(DateTime value) {
-    String two(int input) => input.toString().padLeft(2, '0');
-
-    return '${value.year}-${two(value.month)}-${two(value.day)}';
-  }
-
-  String _formatDateTime(DateTime value) {
-    String two(int input) => input.toString().padLeft(2, '0');
-
-    return '${value.year}-${two(value.month)}-${two(value.day)} '
-        '${two(value.hour)}:${two(value.minute)}:${two(value.second)}';
-  }
-
-  String _two(int input) {
-    return input.toString().padLeft(2, '0');
-  }
-
-  String _resolveTotalHours({
-    required dynamic explicit,
-    required String timeIn,
-    required String timeOut,
-  }) {
-    final explicitText = _toStringOrNull(explicit);
-    if (explicitText != null && !_isZeroDuration(explicitText)) {
-      return explicitText;
-    }
-
-    final computed = _computeDuration(timeIn, timeOut);
-    return computed ?? (explicitText ?? '0:00:00');
-  }
-
-  bool _isZeroDuration(String value) {
-    final normalized = value.trim();
-    return normalized == '0' ||
-        normalized == '0:00' ||
-        normalized == '0:00:00' ||
-        normalized == '00:00' ||
-        normalized == '00:00:00';
-  }
-
-  String? _computeDuration(String timeIn, String timeOut) {
-    final inDuration = _parseClockDuration(timeIn);
-    final outDuration = _parseClockDuration(timeOut);
-    if (inDuration == null || outDuration == null) {
-      return null;
-    }
-
-    var diff = outDuration - inDuration;
-    if (diff.isNegative) {
-      // Handle overnight shift.
-      diff += const Duration(hours: 24);
-    }
-
-    final hours = diff.inHours;
-    final minutes = diff.inMinutes.remainder(60);
-    final seconds = diff.inSeconds.remainder(60);
-    return '$hours:${_two(minutes)}:${_two(seconds)}';
-  }
-
-  Duration? _parseClockDuration(String text) {
-    if (text.trim().isEmpty || text == '-') {
-      return null;
-    }
-
-    final match = RegExp(r'(\d{1,2}):(\d{2})(?::(\d{2}))?$').firstMatch(text);
-    if (match == null) {
-      return null;
-    }
-
-    final hour = int.tryParse(match.group(1)!);
-    final minute = int.tryParse(match.group(2)!);
-    final second = int.tryParse(match.group(3) ?? '0');
-    if (hour == null || minute == null || second == null) {
-      return null;
-    }
-
-    return Duration(hours: hour, minutes: minute, seconds: second);
+  String _requestId() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
   }
 }

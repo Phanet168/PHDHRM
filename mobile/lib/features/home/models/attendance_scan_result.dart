@@ -1,3 +1,5 @@
+import 'attendance_day_record.dart';
+
 class AttendanceScanResult {
   const AttendanceScanResult({
     required this.status,
@@ -11,6 +13,9 @@ class AttendanceScanResult {
     this.geofenceSource,
     this.machineState,
     this.punchType,
+    this.workDate,
+    this.duplicate = false,
+    this.attendance,
   });
 
   final String status;
@@ -24,6 +29,9 @@ class AttendanceScanResult {
   final String? geofenceSource;
   final int? machineState;
   final String? punchType;
+  final String? workDate;
+  final bool duplicate;
+  final AttendanceDayRecord? attendance;
 
   bool get isSuccess => status.toLowerCase() == 'ok';
 
@@ -40,6 +48,14 @@ class AttendanceScanResult {
       geofenceSource: _toStringOrNull(payload['geofence_source']),
       machineState: _toInt(payload['machine_state']),
       punchType: _toStringOrNull(payload['punch_type']),
+      workDate: _toStringOrNull(payload['work_date']),
+      duplicate: payload['duplicate'] == true,
+      attendance:
+          payload['data'] is Map<String, dynamic>
+              ? AttendanceDayRecord.fromApi(
+                payload['data'] as Map<String, dynamic>,
+              )
+              : null,
     );
   }
 

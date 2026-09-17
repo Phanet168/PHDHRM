@@ -2,7 +2,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiBaseUrlStorageService {
   static const String _baseUrlsKey = 'api_base_urls';
-  static const String _lastSuccessfulBaseUrlKey = 'api_last_successful_base_url';
+  static const String _lastSuccessfulBaseUrlKey =
+      'api_last_successful_base_url';
 
   Future<List<String>> readConfiguredBaseUrls() async {
     final prefs = await SharedPreferences.getInstance();

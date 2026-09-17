@@ -144,6 +144,16 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) {
+    return _authService.changePassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+  }
+
   @override
   void dispose() {
     _deviceHeartbeatService.dispose();

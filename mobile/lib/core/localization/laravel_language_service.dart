@@ -113,6 +113,19 @@ class LaravelLanguageService {
     'location': 'ទីតាំង',
     'distance': 'ចម្ងាយ',
     'allowed_range': 'ចម្ងាយអនុញ្ញាត',
+    'no_qr_check_in_gps': 'គ្មាន QR ក្នុងដៃ? ចុះឈ្មោះតាម GPS',
+    'gps_check_in_confirm':
+        'App នឹងកត់ត្រាទីតាំង GPS បច្ចុប្បន្នរបស់អ្នក ជំនួសឲ្យការស្កេន QR ។ សូមប្រាកដថាអ្នកកំពុងនៅកន្លែងធ្វើការ។',
+    'gps_connected': 'GPS បានភ្ជាប់',
+    'gps_not_connected': 'GPS មិនទាន់ភ្ជាប់',
+    'location_connected': 'ទីតាំងបានភ្ជាប់រួច',
+    'location_not_connected': 'សូមបើកទីតាំង',
+    'leave_remaining': 'ច្បាប់នៅសល់',
+    'new_notice_count': 'ជូនដំណឹងថ្មី',
+    'leave_review': 'ពិនិត្យច្បាប់',
+    'pending_requests': 'សំណើរង់ចាំ',
+    'app_title': 'ប្រព័ន្ធគ្រប់គ្រងបុគ្គលិក',
+    'device_connected': 'បានភ្ជាប់',
   };
 
   Future<Map<String, String>> load({bool forceRefresh = false}) {

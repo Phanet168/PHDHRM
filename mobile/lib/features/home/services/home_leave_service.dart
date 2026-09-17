@@ -325,9 +325,10 @@ class HomeLeaveService {
       } on SocketException {
         lastError = NetworkException();
       } on http.ClientException catch (error) {
-        lastError = isNetworkErrorMessage(error.message)
-            ? NetworkException()
-            : ApiException(message: error.message);
+        lastError =
+            isNetworkErrorMessage(error.message)
+                ? NetworkException()
+                : ApiException(message: error.message);
       } catch (error) {
         final message = error.toString().trim();
         if (isNetworkErrorMessage(message)) {
@@ -336,9 +337,10 @@ class HomeLeaveService {
         }
 
         throw ApiException(
-          message: message.isEmpty
-              ? 'Unable to prepare attachment for upload.'
-              : message,
+          message:
+              message.isEmpty
+                  ? 'Unable to prepare attachment for upload.'
+                  : message,
         );
       }
     }

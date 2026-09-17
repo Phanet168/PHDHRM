@@ -77,10 +77,12 @@ class LeaveTypeOption {
       id: _toInt(map['id']),
       name: (map['leave_type'] ?? '').toString(),
       nameKm: (map['leave_type_km'] ?? '').toString(),
-      days: _toInt(map['entitlement_value']) > 0
-          ? _toInt(map['entitlement_value'])
-          : _toInt(map['leave_days']),
-      scope: (map['entitlement_scope'] ?? map['scope'] ?? 'per_year').toString(),
+      days:
+          _toInt(map['entitlement_value']) > 0
+              ? _toInt(map['entitlement_value'])
+              : _toInt(map['leave_days']),
+      scope:
+          (map['entitlement_scope'] ?? map['scope'] ?? 'per_year').toString(),
       maxPerRequest: _toDouble(map['max_per_request']),
       requiresAttachment: requiresAttachment,
       isPaid: _toBool(map['is_paid']),
@@ -102,7 +104,8 @@ class HandoverEmployeeOption {
   final String fullNameLatin;
 
   String displayLabel() {
-    final name = fullName.trim().isNotEmpty ? fullName.trim() : fullNameLatin.trim();
+    final name =
+        fullName.trim().isNotEmpty ? fullName.trim() : fullNameLatin.trim();
     if (employeeNo.trim().isEmpty) {
       return name;
     }
@@ -327,9 +330,10 @@ class LeaveRequestItem {
       reason: (map['reason'] ?? '').toString(),
       status: (map['status'] ?? '').toString(),
       workflowStatus: (map['workflow_status'] ?? '').toString(),
-      workflowCurrentStepOrder: map['workflow_current_step_order'] == null
-          ? null
-          : _toInt(map['workflow_current_step_order']),
+      workflowCurrentStepOrder:
+          map['workflow_current_step_order'] == null
+              ? null
+              : _toInt(map['workflow_current_step_order']),
       workflowCurrentStepName:
           (map['workflow_current_step_name'] as String?)?.trim(),
       workflowCurrentActorName:
@@ -344,9 +348,8 @@ class LeaveRequestItem {
           employeeName?.trim().isEmpty == true ? null : employeeName?.trim(),
       employeeNo:
           employeeNo?.trim().isEmpty == true ? null : employeeNo?.trim(),
-      employeeUserId: employeeUserId == null || employeeUserId <= 0
-          ? null
-          : employeeUserId,
+      employeeUserId:
+          employeeUserId == null || employeeUserId <= 0 ? null : employeeUserId,
       submittedAt: (map['submitted_at'] as String?)?.trim(),
       updatedAt: (map['updated_at'] as String?)?.trim(),
     );
