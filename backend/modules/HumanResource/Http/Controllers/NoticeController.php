@@ -3,6 +3,7 @@
 namespace Modules\HumanResource\Http\Controllers;
 
 use App\Models\User;
+use App\Services\AccessControlService;
 use Brian2694\Toastr\Facades\Toastr;
 use Carbon\Carbon;
 use Illuminate\Contracts\Support\Renderable;
@@ -18,7 +19,6 @@ use Modules\HumanResource\Entities\WorkflowDefinitionStep;
 use Modules\HumanResource\Support\NoticeDispatchService;
 use Modules\HumanResource\Support\OrgHierarchyAccessService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
-use Modules\HumanResource\Support\WorkflowActorResolverService;
 use Modules\HumanResource\Support\WorkflowPolicyService;
 use Spatie\Permission\Models\Role;
 
@@ -416,19 +416,36 @@ class NoticeController extends Controller
             ->first();
     }
 
+    /**
+     * Phase 3D.2: centralized onto AccessControlService::canApprove(), the
+     * same seam Leave (web + API) now uses. canApprove() internally
+     * re-resolves the instance's current step itself and already handles
+     * the system-admin bypass -- the $step parameter is kept only so the
+     * existing call site (which already independently resolves it for
+     * other purposes) doesn't need to change. Notice has no self-approval
+     * (requester) restriction today, so this migration does not add one --
+     * this is "can SEE Notice" vs "can APPROVE Notice" territory, and
+     * visibility filtering is explicitly out of scope for this phase.
+     */
     private function canUserActOnNoticeStep(User $user, Notice $notice, WorkflowDefinitionStep $step): bool
     {
-        if ($this->orgHierarchyAccessService()->isSystemAdmin($user)) {
-            return true;
+        $instance = $notice->workflowInstance;
+        if (!$instance) {
+            return false;
         }
 
-        $context = (array) ($notice->workflowInstance?->context_json ?? []);
+        $context = (array) ($instance->context_json ?? []);
         $sourceDepartmentId = (int) ($context['department_id'] ?? 0);
         if ($sourceDepartmentId <= 0) {
             $sourceDepartmentId = $this->inferNoticeDepartmentId($notice);
         }
 
-        return $this->workflowActorResolverService()->canUserActOnStep($user, $step, $sourceDepartmentId);
+        return $this->accessControlService()->canApprove($user, $instance, $sourceDepartmentId);
+    }
+
+    private function accessControlService(): AccessControlService
+    {
+        return app(AccessControlService::class);
     }
 
     private function applyNoticeWorkflowDecision(
@@ -619,11 +636,6 @@ class NoticeController extends Controller
     private function workflowPolicyService(): WorkflowPolicyService
     {
         return app(WorkflowPolicyService::class);
-    }
-
-    private function workflowActorResolverService(): WorkflowActorResolverService
-    {
-        return app(WorkflowActorResolverService::class);
     }
 
     private function orgHierarchyAccessService(): OrgHierarchyAccessService

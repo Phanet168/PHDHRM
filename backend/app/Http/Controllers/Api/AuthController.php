@@ -446,6 +446,32 @@ class AuthController extends Controller
         ]);
     }
 
+    public function changePassword(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'string'],
+            'new_password'      => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                'status'  => 'error',
+                'code'    => 'current_password_invalid',
+                'message' => 'Current password is incorrect.',
+            ], 422);
+        }
+
+        $user->password = Hash::make($validated['new_password']);
+        $user->save();
+
+        return response()->json([
+            'status'  => 'ok',
+            'message' => 'Password updated successfully.',
+        ]);
+    }
+
     private function buildUserProfilePayload(User $user): array
     {
         $user->loadMissing([

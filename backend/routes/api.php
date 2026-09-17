@@ -10,9 +10,11 @@ use Modules\HumanResource\Http\Controllers\ShiftRosterController;
 use Modules\HumanResource\Http\Controllers\MissionController;
 use Modules\HumanResource\Http\Controllers\AttendanceAdjustmentController;
 use Modules\HumanResource\Http\Controllers\AttendanceSnapshotController;
+use Modules\HumanResource\Http\Controllers\MobileAttendanceController;
 use Modules\HumanResource\Http\Controllers\LeaveRequestApiController;
 use Modules\HumanResource\Http\Controllers\NoticeNotificationApiController;
 use Modules\Correspondence\Http\Controllers\CorrespondenceController;
+use App\Http\Controllers\Api\CapabilityController;
 
 /*
 |--------------------------------------------------------------------------
@@ -28,6 +30,8 @@ use Modules\Correspondence\Http\Controllers\CorrespondenceController;
 Route::middleware('auth:sanctum')->get('/user', [AuthController::class, 'sanctumUser'])->name('api.user');
 
 Route::get('/', [ApiController::class, 'index']);
+Route::get('/missions/{id}/documents/{document}/download', [MissionController::class, 'signedDownload'])
+    ->whereNumber('id')->whereNumber('document')->middleware('signed')->name('api.missions.documents.signed');
 Route::post('/auth/login', [AuthController::class, 'login'])->name('api.auth.login');
 
 // Legacy device access request endpoints (kept for backward compatibility)
@@ -51,6 +55,7 @@ Route::middleware('auth:sanctum')->post('/auth/device-heartbeat', [AuthControlle
 Route::middleware('auth:sanctum')->post('/auth/device_heartbeat', [AuthController::class, 'deviceHeartbeat'])->name('api.auth.device_heartbeat_legacy');
 Route::middleware('auth:sanctum')->match(['get', 'post'], '/auth/profile', [AuthController::class, 'profile'])->name('api.auth.profile');
 Route::middleware('auth:sanctum')->post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
+Route::middleware('auth:sanctum')->post('/auth/change-password', [AuthController::class, 'changePassword'])->name('api.auth.change_password');
 
 Route::controller(ApiController::class)->group(function () {
 
@@ -96,14 +101,45 @@ Route::prefix('integration/v1')
 Route::prefix('v1')
     ->middleware('auth:sanctum')
     ->group(function () {
+        // Phase 2 Access Control Center foundation: additive read-only
+        // capability read model. Does not replace /auth/login or
+        // /auth/profile -- existing Flutter builds are unaffected.
+        Route::get('/me/capabilities', [CapabilityController::class, 'me'])->name('api.v1.me.capabilities');
+
+        Route::prefix('attendance')->name('api.v1.attendance.')->group(function () {
+            Route::get('/units', [\Modules\HumanResource\Http\Controllers\AttendanceDashboardController::class, 'units'])->name('units');
+            Route::get('/dashboard', [\Modules\HumanResource\Http\Controllers\AttendanceDashboardController::class, 'index'])->name('dashboard');
+            Route::get('/today', [MobileAttendanceController::class, 'today'])->name('today');
+            Route::get('/history', [MobileAttendanceController::class, 'history'])->name('history');
+            Route::get('/schedule', [MobileAttendanceController::class, 'schedule'])->name('schedule');
+            Route::post('/scan', [MobileAttendanceController::class, 'scan'])->middleware('throttle:30,1')->name('scan');
+            Route::post('/scan-issues', [MobileAttendanceController::class, 'reportIssue'])->middleware('throttle:30,1')->name('scan_issues');
+        });
+
         Route::get('/shifts', [ShiftController::class, 'index'])->name('api.v1.shifts.index');
         Route::post('/shifts', [ShiftController::class, 'store'])->name('api.v1.shifts.store');
+        Route::put('/shifts/{id}', [ShiftController::class, 'update'])->whereNumber('id')->name('api.v1.shifts.update');
+        Route::delete('/shifts/{id}', [ShiftController::class, 'destroy'])->whereNumber('id')->name('api.v1.shifts.destroy');
 
         Route::get('/shift-rosters', [ShiftRosterController::class, 'index'])->name('api.v1.shift_rosters.index');
         Route::post('/shift-rosters', [ShiftRosterController::class, 'store'])->name('api.v1.shift_rosters.store');
+        Route::delete('/shift-rosters/{id}', [ShiftRosterController::class, 'destroy'])->whereNumber('id')->name('api.v1.shift_rosters.destroy');
 
         Route::get('/missions', [MissionController::class, 'index'])->name('api.v1.missions.index');
         Route::post('/missions', [MissionController::class, 'store'])->name('api.v1.missions.store');
+        Route::get('/missions/employees', [MissionController::class, 'employees'])->name('api.v1.missions.employees');
+        Route::get('/missions/types', [MissionController::class, 'types'])->name('api.v1.missions.types');
+        Route::prefix('missions/{id}')->whereNumber('id')->name('api.v1.missions.')->group(function () {
+            Route::get('/', [MissionController::class, 'show'])->name('show');
+            Route::put('/', [MissionController::class, 'update'])->name('update');
+            Route::delete('/', [MissionController::class, 'destroy'])->name('destroy');
+            foreach (['review', 'cancel', 'start', 'report', 'complete'] as $action) {
+                Route::post('/'.$action, [MissionController::class, $action])->name($action);
+            }
+            Route::post('/documents', [MissionController::class, 'upload'])->name('documents.store');
+            Route::get('/documents/{document}', [MissionController::class, 'download'])->whereNumber('document')->name('documents.download');
+            Route::get('/documents/{document}/signed-url', [MissionController::class, 'signedUrl'])->whereNumber('document')->name('documents.signed_url');
+        });
 
         Route::get('/leave-types', [LeaveRequestApiController::class, 'types'])->name('api.v1.leave_types.index');
         Route::get('/leave-handover-employees', [LeaveRequestApiController::class, 'handoverEmployees'])->name('api.v1.leave_handover_employees.index');

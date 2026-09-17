@@ -402,8 +402,9 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
             ->middleware('permission:read_attendance')
             ->name('help');
 
+        Route::get('/attendances/workflow', [\Modules\HumanResource\Http\Controllers\AttendanceDashboardController::class, 'index'])->name('workflow');
         Route::controller(ManualAttendanceController::class)->group(function () {
-            Route::get('/attendances/workflow', 'workflow')->name('workflow');
+            Route::get('/attendances/settings', 'workflow')->name('settings');
             Route::post('/attendances/workflow/policies', 'storeWorkflowPolicy')
                 ->name('workflow_policies.store');
             Route::put('/attendances/workflow/policies/{policyId}', 'updateWorkflowPolicy')
@@ -436,6 +437,7 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
         Route::post('/shifts', 'store')
             ->middleware('permission:create_shift')
             ->name('store');
+        Route::put('/shifts/{id}', 'update')->middleware('permission:create_shift')->name('update');
         Route::delete('/shifts/{id}', 'destroy')
             ->middleware('permission:create_shift')
             ->name('destroy');
@@ -454,6 +456,28 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
     });
 
     Route::name('missions.')->controller(MissionController::class)->group(function () {
+        Route::get('/missions/dashboard', 'dashboard')->name('dashboard');
+        Route::get('/missions/lunar-date', 'lunarDate')->name('lunar-date');
+        Route::get('/missions/queue/{key}', 'queue')->name('queue');
+        Route::get('/missions/request/create', 'requestCreate')->middleware('permission:create_mission')->name('request.create');
+        Route::post('/missions/request', 'requestStore')->middleware('permission:create_mission')->name('request.store');
+        Route::get('/missions/direct/create', 'directCreate')->middleware('permission:manage_mission_order')->name('direct.create');
+        Route::post('/missions/direct', 'directStore')->middleware('permission:manage_mission_order')->name('direct.store');
+        Route::get('/missions/{id}/order', 'order')->whereNumber('id')->name('order');
+        Route::get('/missions/{id}/order/prepare', 'prepareOrder')->whereNumber('id')->middleware('permission:manage_mission_order')->name('order.prepare');
+        Route::put('/missions/{id}/order', 'updateOrder')->whereNumber('id')->middleware('permission:manage_mission_order')->name('order.update');
+        Route::post('/missions/{id}/order/issue', 'issueOrder')->whereNumber('id')->middleware('permission:manage_mission_order')->name('order.issue');
+        Route::put('/missions/{id}', 'update')->whereNumber('id')->middleware('permission:update_mission')->name('update');
+        Route::post('/missions/{id}/review', 'review')->whereNumber('id')->middleware('permission:approve_mission')->name('review');
+        Route::post('/missions/{id}/decide', 'decide')->whereNumber('id')->name('decide');
+        foreach (['cancel', 'complete'] as $action) {
+            Route::post('/missions/{id}/'.$action, $action)->whereNumber('id')->middleware('permission:update_mission')->name($action);
+        }
+        foreach (['start', 'report'] as $action) {
+            Route::post('/missions/{id}/'.$action, $action)->whereNumber('id')->name($action);
+        }
+        Route::post('/missions/{id}/documents', 'upload')->whereNumber('id')->middleware('permission:update_mission')->name('documents.store');
+        Route::get('/missions/{id}/documents/{document}', 'download')->whereNumber('id')->whereNumber('document')->name('documents.download');
         Route::get('/missions', 'index')
             ->middleware('permission:read_mission')
             ->name('index');
@@ -464,7 +488,7 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
             ->middleware('permission:create_mission')
             ->name('store');
         Route::delete('/missions/{id}', 'destroy')
-            ->middleware('permission:create_mission')
+            ->middleware('permission:delete_mission')
             ->name('destroy');
     });
 
@@ -547,6 +571,7 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
 
         Route::controller(EmployeeReportTemplateController::class)->group(function () {
             Route::get('reports/employee-report-templates', 'index')->name('employee-report-templates.index');
+            Route::post('reports/employee-report-templates/generate', 'generate')->name('employee-report-templates.generate');
             Route::post('reports/employee-report-templates', 'store')->name('employee-report-templates.store');
             Route::patch('reports/employee-report-templates/{uuid}', 'update')->name('employee-report-templates.update');
             Route::delete('reports/employee-report-templates/{uuid}', 'destroy')->name('employee-report-templates.destroy');

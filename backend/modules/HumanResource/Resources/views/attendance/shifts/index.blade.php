@@ -1,176 +1,86 @@
 @extends('backend.layouts.app')
-@section('title', localize('shift_management', 'គ្រប់គ្រង Shift'))
+@section('title', 'ម៉ោងធ្វើការតាមអង្គភាព')
 @section('content')
-    @include('humanresource::attendance_header')
-
-    <div class="row g-3 ams-page">
-        {{-- Left: Shift List --}}
-        <div class="col-lg-8">
-            <div class="card mb-4 ams-card att-card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h6 class="fs-17 fw-semi-bold mb-0 ams-title">
-                        <i class="fa fa-clock text-primary me-1"></i>
-                        {{ localize('shifts', 'បញ្ជី Shift') }}
-                    </h6>
-                    <span class="badge badge-primary-soft">{{ $shifts->total() }}</span>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive ams-table">
-                        <table class="table table-bordered table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>{{ localize('sl', 'លរ') }}</th>
-                                    <th>{{ localize('shift_code', 'កូដ') }}</th>
-                                    <th>{{ localize('shift_name', 'ឈ្មោះ Shift') }}</th>
-                                    <th>{{ localize('start_time', 'ម៉ោងចូល') }}</th>
-                                    <th>{{ localize('end_time', 'ម៉ោងចេញ') }}</th>
-                                    <th>{{ localize('grace_late', 'ត្រួស (យឺត)') }}</th>
-                                    <th>{{ localize('grace_early_leave', 'ត្រួស (ចេញ)') }}</th>
-                                    <th>{{ localize('cross_day', 'ឆ្លងថ្ងៃ') }}</th>
-                                    <th>{{ localize('status', 'ស្ថានភាព') }}</th>
-                                    <th>{{ localize('action', 'សកម្មភាព') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($shifts as $shift)
-                                    <tr>
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td><code>{{ $shift->code ?? '-' }}</code></td>
-                                        <td class="fw-semibold">{{ $shift->name }}</td>
-                                        <td>{{ $shift->start_time }}</td>
-                                        <td>{{ $shift->end_time }}</td>
-                                        <td>{{ $shift->grace_late_minutes }}{{ localize('min', 'ន') }}</td>
-                                        <td>{{ $shift->grace_early_leave_minutes }}{{ localize('min', 'ន') }}</td>
-                                        <td class="text-center">
-                                            @if($shift->is_cross_day)
-                                                <span class="badge badge-info-soft">{{ localize('yes', 'បាទ') }}</span>
-                                            @else
-                                                <span class="badge badge-secondary-soft">{{ localize('no', 'ទេ') }}</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if($shift->is_active)
-                                                <span class="badge badge-success-soft">{{ localize('active', 'សកម្ម') }}</span>
-                                            @else
-                                                <span class="badge badge-danger-soft">{{ localize('inactive', 'អសកម្ម') }}</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @can('create_shift')
-                                                <form action="{{ route('shifts.destroy', $shift->id) }}" method="POST"
-                                                    onsubmit="return confirm('{{ localize('confirm_delete', 'តើអ្នកប្រាកដចង់លុបទេ?') }}')">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button type="submit" class="btn btn-danger btn-sm">
-                                                        <i class="fa fa-trash"></i>
-                                                    </button>
-                                                </form>
-                                            @endcan
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="10" class="text-center py-4 text-muted">
-                                            <i class="fa fa-clock me-2"></i>{{ localize('no_shifts', 'មិនទាន់មាន Shift ទេ') }}
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                    @if($shifts->hasPages())
-                        <div class="p-3">{{ $shifts->links() }}</div>
-                    @endif
-                </div>
+@include('humanresource::attendance_header')
+<div class="card att-card mb-3">
+    <div class="card-body">
+        <h5>ម៉ោងធ្វើការតាមអង្គភាព</h5>
+        <p class="text-muted">១. ជ្រើសរើសអង្គភាព និងកំណត់ម៉ោងធ្វើការ។ ២. រៀបចំតារាងវេនយាមតាមមន្ត្រី។ ៣. ពិនិត្យវត្តមានប្រចាំថ្ងៃ។</p>
+        <form method="GET" class="row align-items-end">
+            @include('humanresource::attendance.unit-filter')
+            <div class="col-md-8 mb-2 d-flex flex-wrap gap-2">
+                @can('read_shift_roster')<a class="btn btn-outline-primary" href="{{ route('shift-rosters.index', ['department_id' => $selectedDepartmentId]) }}">តារាងវេនយាម</a>@endcan
+                @can('read_attendance_snapshot')<a class="btn btn-outline-secondary" href="{{ route('attendance-snapshots.daily', ['department_id' => $selectedDepartmentId]) }}">វត្តមានប្រចាំថ្ងៃ</a>@endcan
             </div>
-        </div>
-
-        {{-- Right: Create Shift Form --}}
-        @can('create_shift')
-            <div class="col-lg-4">
-                <div class="card mb-4 border-primary ams-card att-card">
-                    <div class="card-header bg-primary-soft">
-                        <h6 class="fs-15 fw-semi-bold mb-0 text-primary ams-title">
-                            <i class="fa fa-plus-circle me-1"></i>{{ localize('create_shift', 'បង្កើត Shift ថ្មី') }}
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <form action="{{ route('shifts.store') }}" method="POST">
-                            @csrf
-
-                            @include('backend.layouts.common.validation')
-
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">{{ localize('shift_name', 'ឈ្មោះ Shift') }} <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="name" value="{{ old('name') }}"
-                                    placeholder="{{ localize('eg_morning_shift', 'ឧ: ប្រែវ') }}" required>
-                                @error('name')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">{{ localize('shift_code', 'កូដ Shift') }}</label>
-                                <input type="text" class="form-control" name="code" value="{{ old('code') }}"
-                                    placeholder="{{ localize('eg_M', 'ឧ: M') }}" maxlength="30">
-                                @error('code')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
-                            </div>
-
-                            <div class="row g-2 mb-3">
-                                <div class="col-6">
-                                    <label class="form-label fw-semibold">{{ localize('start_time', 'ម៉ោងចូល') }} <span class="text-danger">*</span></label>
-                                    <input type="time" class="form-control" name="start_time" value="{{ old('start_time') }}" required>
-                                    @error('start_time')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label fw-semibold">{{ localize('end_time', 'ម៉ោងចេញ') }} <span class="text-danger">*</span></label>
-                                    <input type="time" class="form-control" name="end_time" value="{{ old('end_time') }}" required>
-                                    @error('end_time')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
-                                </div>
-                            </div>
-
-                            <div class="row g-2 mb-3">
-                                <div class="col-6">
-                                    <label class="form-label fw-semibold">{{ localize('grace_late_min', 'ត្រួស យឺត (ន)') }}</label>
-                                    <input type="number" class="form-control" name="grace_late_minutes"
-                                        value="{{ old('grace_late_minutes', 0) }}" min="0" max="720">
-                                </div>
-                                <div class="col-6">
-                                    <label class="form-label fw-semibold">{{ localize('grace_early_min', 'ត្រួស ចេញ (ន)') }}</label>
-                                    <input type="number" class="form-control" name="grace_early_leave_minutes"
-                                        value="{{ old('grace_early_leave_minutes', 0) }}" min="0" max="720">
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="is_cross_day" value="1"
-                                        id="is_cross_day" @checked(old('is_cross_day'))>
-                                    <label class="form-check-label" for="is_cross_day">
-                                        {{ localize('shift_cross_day', 'Shift ឆ្លងថ្ងៃ (overnight)') }}
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <div class="form-check form-switch">
-                                    <input class="form-check-input" type="checkbox" name="is_active" value="1"
-                                        id="is_active" @checked(old('is_active', true))>
-                                    <label class="form-check-label" for="is_active">
-                                        {{ localize('shift_active', 'Shift សកម្ម') }}
-                                    </label>
-                                </div>
-                            </div>
-
-                            <button type="submit" class="btn btn-primary w-100 ams-btn-primary">
-                                <i class="fa fa-save me-1"></i>{{ localize('save', 'រក្សាទុក') }}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        @endcan
+        </form>
+        @include('backend.layouts.common.validation')
+        @include('backend.layouts.common.message')
     </div>
+</div>
+<div class="row g-3">
+    <div class="col-xl-8">
+        <div class="card att-card"><div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light"><tr><th>វេន / អង្គភាព</th><th>ម៉ោងធ្វើការ</th><th>អនុគ្រោះ (នាទី)</th><th>ស្ថានភាព</th><th>សកម្មភាព</th></tr></thead>
+                <tbody>
+                @forelse($shifts as $shift)
+                    <tr>
+                        <td><strong>{{ $shift->name }}</strong> <small>{{ $shift->code }}</small><br><small class="text-muted">{{ $shift->department?->department_name ?? 'មិនទាន់កំណត់អង្គភាព' }}</small>
+                            <div>@if($shift->is_default)<span class="badge bg-primary">ម៉ោងគោល</span>@endif @if($shift->is_duty)<span class="badge bg-info text-dark">វេនយាម</span>@endif</div></td>
+                        <td class="text-nowrap">
+                            @if($shift->morning_end_time)
+                                <div>ព្រឹក៖ {{ substr($shift->start_time, 0, 5) }} – {{ substr($shift->morning_end_time, 0, 5) }}</div>
+                                <div>ល្ងាច៖ {{ substr($shift->afternoon_start_time, 0, 5) }} – {{ substr($shift->end_time, 0, 5) }}</div>
+                            @else
+                                {{ substr($shift->start_time, 0, 5) }} – {{ substr($shift->end_time, 0, 5) }}
+                            @endif
+                            @if($shift->is_cross_day)<small class="d-block text-primary">ចេញនៅថ្ងៃបន្ទាប់</small>@endif
+                        </td>
+                        <td>មកយឺត៖ {{ $shift->grace_late_minutes }}<br>ចេញមុន៖ {{ $shift->grace_early_leave_minutes }}</td>
+                        <td>{{ $shift->is_active ? 'កំពុងប្រើ' : 'ផ្អាក' }}</td>
+                        <td>@can('create_shift')
+                            <a class="btn btn-sm btn-outline-primary mb-1" href="{{ route('shifts.index', ['department_id' => $selectedDepartmentId, 'edit' => $shift->id]) }}">កែប្រែ</a>
+                            <form method="POST" action="{{ route('shifts.destroy', $shift->id) }}" onsubmit="return confirm('តើអ្នកចង់លុបវេននេះ?')">@csrf @method('DELETE')<button class="btn btn-sm btn-outline-danger">លុប</button></form>
+                        @endcan</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5" class="text-center text-muted p-4">អង្គភាពនេះមិនទាន់មានម៉ោងធ្វើការ។ សូមបង្កើតម៉ោងគោល ឬវេនយាម។</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div><div class="p-3">{{ $shifts->links() }}</div></div>
+    </div>
+    @can('create_shift')
+    <div class="col-xl-4"><div class="card att-card"><div class="card-body">
+        <h6>{{ $editingShift ? 'កែប្រែវេន' : 'បង្កើតម៉ោងធ្វើការ' }}</h6>
+        <form method="POST" action="{{ $editingShift ? route('shifts.update', $editingShift->id) : route('shifts.store') }}">
+            @csrf @if($editingShift) @method('PUT') @endif
+            <label class="form-label">អង្គភាព</label>
+            <select name="department_id" class="form-select mb-3" required>
+                @foreach($departments as $department)<option value="{{ $department->id }}" @selected(old('department_id', $editingShift?->department_id ?? $selectedDepartmentId) == $department->id)>{{ $department->department_name }}</option>@endforeach
+            </select>
+            <label class="form-label">ឈ្មោះវេន</label><input class="form-control mb-3" name="name" value="{{ old('name', $editingShift?->name) }}" required maxlength="255">
+            <label class="form-label">កូដវេន</label><input class="form-control mb-3" name="code" value="{{ old('code', $editingShift?->code) }}" maxlength="30">
+            <div class="row g-2 mb-3">
+                @foreach(['start_time' => 'ចូលព្រឹក / ចាប់ផ្ដើមវេន', 'morning_end_time' => 'ចេញព្រឹក', 'afternoon_start_time' => 'ចូលល្ងាច', 'end_time' => 'ចេញល្ងាច / បញ្ចប់វេន'] as $field => $label)
+                    <div class="col-6"><label class="form-label">{{ $label }}</label><input type="time" name="{{ $field }}" class="form-control" value="{{ old($field, $editingShift?->$field ? substr($editingShift->$field, 0, 5) : '') }}" @required(in_array($field, ['start_time', 'end_time']))></div>
+                @endforeach
+            </div>
+            <p class="small text-muted">វេនព្រឹក/ល្ងាច៖ បំពេញម៉ោងទាំង ៤។ វេនយាមជាប់គ្នា៖ បំពេញតែម៉ោងចាប់ផ្ដើម និងបញ្ចប់។</p>
+            <div class="row g-2 mb-3">
+                @foreach(['grace_late_minutes' => 'អនុគ្រោះមកយឺត (នាទី)', 'grace_early_leave_minutes' => 'អនុគ្រោះចេញមុន (នាទី)'] as $field => $label)
+                    <div class="col-6"><label class="form-label">{{ $label }}</label><input type="number" name="{{ $field }}" class="form-control" min="0" max="720" value="{{ old($field, $editingShift?->$field ?? 0) }}"></div>
+                @endforeach
+            </div>
+            @foreach(['is_cross_day' => 'វេនឆ្លងថ្ងៃ', 'is_duty' => 'វេនយាម (ត្រូវរៀបចំក្នុងតារាង)', 'is_default' => 'ប្រើជាម៉ោងគោលរបស់អង្គភាព', 'is_active' => 'កំពុងប្រើប្រាស់'] as $field => $label)
+                <input type="hidden" name="{{ $field }}" value="0">
+                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="{{ $field }}" id="{{ $field }}" value="1" @checked(old($field, $editingShift?->$field ?? ($field === 'is_active')))><label class="form-check-label" for="{{ $field }}">{{ $label }}</label></div>
+            @endforeach
+            <p class="small text-muted">វេនយាមមានអាទិភាពលើម៉ោងគោលនៅថ្ងៃដែលបានកំណត់ រួមទាំងថ្ងៃឈប់សម្រាក។</p>
+            <button class="btn btn-primary w-100">រក្សាទុក</button>
+            @if($editingShift)<a class="btn btn-link" href="{{ route('shifts.index', ['department_id' => $selectedDepartmentId]) }}">បោះបង់ការកែប្រែ</a>@endif
+        </form>
+    </div></div></div>
+    @endcan
+</div>
 @endsection
-
-@push('js')
-    <script src="{{ module_asset('HumanResource/js/hrcommon.js') }}"></script>
-@endpush

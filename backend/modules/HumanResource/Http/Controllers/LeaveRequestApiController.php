@@ -3,6 +3,7 @@
 namespace Modules\HumanResource\Http\Controllers;
 
 use App\Models\User;
+use App\Services\AccessControlService;
 use Carbon\Carbon;
 use Throwable;
 use Illuminate\Support\Str;
@@ -1164,18 +1165,35 @@ class LeaveRequestApiController extends Controller
             ->first();
     }
 
+    /**
+     * Phase 3D.2: centralized onto AccessControlService::canApprove(), the
+     * same seam LeaveController (web) now uses, so Web and API converge on
+     * one authorization decision. canApprove() internally re-resolves the
+     * instance's current step itself and already handles the system-admin
+     * bypass -- the $step parameter is kept only so existing call sites
+     * (which already independently resolve it for other purposes) don't
+     * need to change. Self-approval prevention (isRequesterUser) is
+     * Leave-domain business logic canApprove() has no knowledge of, so it
+     * stays here, checked first, exactly as before.
+     */
     private function canUserActOnWorkflowStep(User $user, ApplyLeave $leave, WorkflowDefinitionStep $step): bool
     {
         if ($this->isRequesterUser($leave, $user)) {
             return false;
         }
 
-        if ($this->orgHierarchyAccessService()->isSystemAdmin($user)) {
-            return true;
+        $instance = $leave->workflowInstance;
+        if (!$instance) {
+            return false;
         }
 
         $sourceDepartmentId = $this->resolveLeaveSourceDepartmentId($leave);
-        return $this->workflowActorResolverService()->canUserActOnStep($user, $step, $sourceDepartmentId, 'leave');
+        return $this->accessControlService()->canApprove($user, $instance, $sourceDepartmentId);
+    }
+
+    private function accessControlService(): AccessControlService
+    {
+        return app(AccessControlService::class);
     }
 
     private function isRequesterUser(ApplyLeave $leave, User $user): bool

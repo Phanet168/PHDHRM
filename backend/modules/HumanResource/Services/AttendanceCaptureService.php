@@ -9,6 +9,7 @@ use Modules\HumanResource\Entities\Employee;
 class AttendanceCaptureService
 {
     private const MACHINE_STATE_IN = 1;
+
     private const MACHINE_STATE_OUT = 2;
 
     /**
@@ -28,6 +29,15 @@ class AttendanceCaptureService
      */
     public static function capture(array $payload): Attendance
     {
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($payload) {
+            Employee::query()->whereKey((int) ($payload['employee_id'] ?? 0))->lockForUpdate()->firstOrFail();
+
+            return self::captureLocked($payload);
+        });
+    }
+
+    private static function captureLocked(array $payload): Attendance
+    {
         $employeeId = (int) ($payload['employee_id'] ?? 0);
         $time = self::normalizeTime($payload['time'] ?? null);
         $source = (string) ($payload['attendance_source'] ?? 'manual');
@@ -35,7 +45,7 @@ class AttendanceCaptureService
         $employee = Employee::query()->select('id', 'department_id', 'sub_department_id')->find($employeeId);
         $resolvedWorkplaceId = (int) ($payload['workplace_id'] ?? 0);
         if ($resolvedWorkplaceId <= 0) {
-            $resolvedWorkplaceId = (int) ($employee?->sub_department_id ?: $employee?->department_id ?: 0);
+            $resolvedWorkplaceId = $employee ? \Modules\HumanResource\Support\AttendanceUnitScope::employeeUnit($employee) : 0;
         }
         $resolvedWorkplaceId = $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null;
 
@@ -45,7 +55,8 @@ class AttendanceCaptureService
             ->where('time', $time)
             ->first();
         if ($exact) {
-            self::syncDailyExceptionStatus($employeeId, Carbon::parse($time)->toDateString());
+            self::syncDailyExceptionStatus($employeeId, app(ShiftResolverService::class)->workDateForPunch($employeeId, Carbon::parse($time), (int) $exact->machine_state)->toDateString());
+
             return $exact;
         }
 
@@ -53,15 +64,16 @@ class AttendanceCaptureService
         $windowStart = Carbon::parse($time)->subMinute()->format('Y-m-d H:i:s');
         $windowEnd = Carbon::parse($time)->addMinute()->format('Y-m-d H:i:s');
 
-        // For QR scan flow, block accidental double-scan even if state would toggle.
-        if ($source === 'api_qr') {
+        // Mobile retries must not toggle direction for either QR or GPS capture.
+        if (in_array($source, ['api_qr', 'api_gps'], true)) {
             $recentQr = Attendance::query()
                 ->where('employee_id', $employeeId)
                 ->whereBetween('time', [$windowStart, $windowEnd])
                 ->where('attendance_source', $source)
                 ->first();
             if ($recentQr) {
-                self::syncDailyExceptionStatus($employeeId, Carbon::parse($time)->toDateString());
+                self::syncDailyExceptionStatus($employeeId, app(ShiftResolverService::class)->workDateForPunch($employeeId, Carbon::parse($time), (int) $recentQr->machine_state)->toDateString());
+
                 return $recentQr;
             }
         }
@@ -75,7 +87,8 @@ class AttendanceCaptureService
             ->where('machine_state', $state)
             ->first();
         if ($near) {
-            self::syncDailyExceptionStatus($employeeId, Carbon::parse($time)->toDateString());
+            self::syncDailyExceptionStatus($employeeId, app(ShiftResolverService::class)->workDateForPunch($employeeId, Carbon::parse($time), (int) $near->machine_state)->toDateString());
+
             return $near;
         }
 
@@ -91,7 +104,7 @@ class AttendanceCaptureService
             'time' => $time,
         ]);
 
-        self::syncDailyExceptionStatus($employeeId, Carbon::parse($time)->toDateString());
+        self::syncDailyExceptionStatus($employeeId, app(ShiftResolverService::class)->workDateForPunch($employeeId, Carbon::parse($time), (int) $attendance->machine_state)->toDateString());
 
         return $attendance;
     }
@@ -118,16 +131,27 @@ class AttendanceCaptureService
             }
         }
 
-        $date = Carbon::parse($time)->toDateString();
+        $resolver = app(ShiftResolverService::class);
+        $date = $resolver->workDateForPunch($employeeId, Carbon::parse($time));
+        [$windowStart] = $resolver->punchWindow($employeeId, $date);
+        $shift = $resolver->resolveForDate($employeeId, $date)['shift'] ?? null;
+        if ($shift?->morning_end_time && $shift?->afternoon_start_time) {
+            $morningEnd = Carbon::parse($date->toDateString().' '.$shift->morning_end_time);
+            $afternoonStart = Carbon::parse($date->toDateString().' '.$shift->afternoon_start_time);
+            $boundary = $morningEnd->copy()->addSeconds((int) ($morningEnd->diffInSeconds($afternoonStart) / 2));
+            if (Carbon::parse($time)->gte($boundary)) {
+                $windowStart = $boundary;
+            }
+        }
         $latestPunch = Attendance::query()
             ->where('employee_id', $employeeId)
-            ->whereDate('time', $date)
+            ->where('time', '>=', $windowStart)
             ->where('time', '<=', $time)
             ->orderByDesc('time')
             ->orderByDesc('id')
             ->first(['id', 'machine_state']);
 
-        if (!$latestPunch) {
+        if (! $latestPunch) {
             return self::MACHINE_STATE_IN;
         }
 
@@ -142,36 +166,35 @@ class AttendanceCaptureService
 
         $recordsBeforeCount = Attendance::query()
             ->where('employee_id', $employeeId)
-            ->whereDate('time', $date)
+            ->where('time', '>=', $windowStart)
             ->where('time', '<=', $time)
             ->count();
 
         return ($recordsBeforeCount % 2 === 0) ? self::MACHINE_STATE_IN : self::MACHINE_STATE_OUT;
     }
 
-    /**
-     * A simple and reliable exception rule:
-     * odd punch count in a day = unpaired IN/OUT.
-     */
+    public static function nextPunchType(int $employeeId, Carbon $time): string
+    {
+        return self::resolveMachineState($employeeId, $time->toDateTimeString(), null) === self::MACHINE_STATE_IN ? 'in' : 'out';
+    }
+
+    /** Update exceptions and invalidate the derived daily summary after a capture. */
     public static function syncDailyExceptionStatus(int $employeeId, string $date): void
     {
-        $records = Attendance::query()
-            ->where('employee_id', $employeeId)
-            ->whereDate('time', $date)
-            ->get(['id']);
-
-        if ($records->isEmpty()) {
-            return;
+        $resolver = app(ShiftResolverService::class);
+        $day = Carbon::parse($date);
+        [$start, $end] = $resolver->punchWindow($employeeId, $day);
+        $records = $resolver->punchesForDate($employeeId, $day)->orderBy('time')->get(['id', 'time', 'machine_state']);
+        $shift = $resolver->resolveForDate($employeeId, $day)['shift'] ?? null;
+        $result = (new AttendanceSessionService)->evaluate($records, $shift, $day);
+        $incomplete = $result['attendance_status'] === 'Incomplete';
+        Attendance::whereIn('id', $records->pluck('id'))->update([
+            'exception_flag' => $incomplete,
+            'exception_reason' => $incomplete ? 'UNPAIRED_PUNCH' : null,
+        ]);
+        if (\Illuminate\Support\Facades\Schema::hasTable('attendance_daily_snapshots')) {
+            \Modules\HumanResource\Entities\AttendanceDailySnapshot::where('employee_id', $employeeId)
+                ->whereDate('snapshot_date', $date)->delete();
         }
-
-        $hasUnpairedPunch = ($records->count() % 2) !== 0;
-
-        Attendance::query()
-            ->whereIn('id', $records->pluck('id')->all())
-            ->update([
-                'exception_flag' => $hasUnpairedPunch,
-                'exception_reason' => $hasUnpairedPunch ? 'UNPAIRED_PUNCH' : null,
-            ]);
     }
 }
-

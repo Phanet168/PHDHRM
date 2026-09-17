@@ -31,6 +31,11 @@ class ShiftRoster extends Model
         return $this->belongsTo(Shift::class, 'shift_id', 'id');
     }
 
+    public function setRosterDateAttribute($value): void
+    {
+        $this->attributes['roster_date'] = \Carbon\Carbon::parse($value)->toDateString();
+    }
+
     public function employee()
     {
         return $this->belongsTo(Employee::class, 'employee_id', 'id');

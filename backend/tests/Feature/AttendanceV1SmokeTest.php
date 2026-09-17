@@ -10,6 +10,7 @@ use Tests\TestCase;
 
 class AttendanceV1SmokeTest extends TestCase
 {
+    use \Illuminate\Foundation\Testing\DatabaseTransactions;
     public function test_v1_attendance_api_smoke_flow(): void
     {
         $user = User::query()->first();
@@ -22,12 +23,19 @@ class AttendanceV1SmokeTest extends TestCase
             $this->markTestSkipped('No employee record found for attendance payloads.');
         }
 
+        $employee = Employee::findOrFail($employeeId);
+        $departmentId = (int) ($employee->sub_department_id ?: $employee->department_id);
+        if (!$departmentId) {
+            $this->markTestSkipped('The attendance smoke fixture needs an assigned organization unit.');
+        }
+
         Sanctum::actingAs($user);
 
         $today = Carbon::today()->toDateString();
         $suffix = now()->format('His');
 
         $createShift = $this->postJson(route('api.v1.shifts.store'), [
+            'department_id' => $departmentId,
             'code' => 'SMK-' . $suffix,
             'name' => 'Smoke Shift ' . $suffix,
             'start_time' => '08:00',
@@ -69,15 +77,15 @@ class AttendanceV1SmokeTest extends TestCase
             'end_date' => $today,
             'destination' => 'HQ',
             'purpose' => 'Smoke test mission',
-            'status' => 'approved',
+            'status' => 'pending',
             'employee_ids' => [(int) $employeeId],
         ])
             ->assertCreated()
-            ->assertJsonPath('status', 'ok');
+            ->assertJsonPath('response.status', 'ok');
 
         $this->getJson(route('api.v1.missions.index'))
             ->assertOk()
-            ->assertJsonPath('status', 'ok');
+            ->assertJsonPath('response.status', 'ok');
 
         $this->postJson(route('api.v1.attendance_adjustments.store'), [
             'employee_id' => (int) $employeeId,

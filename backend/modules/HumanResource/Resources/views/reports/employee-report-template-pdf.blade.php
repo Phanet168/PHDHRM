@@ -2,8 +2,10 @@
 <html lang="km">
 <head>
     <meta charset="UTF-8">
-    <title>{{ localize('employee_report_management', 'របាយការណ៍បុគ្គលិក') }}</title>
+    <title>{{ $meta['title_text'] ?? 'របាយការណ៍បុគ្គលិក' }}</title>
     @php
+        $preview = $preview ?? false;
+        $isStructureSummary = ($selected_columns[0] ?? '') === 'structure';
         $meta = $meta ?? [
             'admin_text' => 'រដ្ឋបាលខេត្តស្ទឹងត្រែង',
             'unit_text' => 'មន្ទីរសុខាភិបាលនៃរដ្ឋបាលខេត្ត',
@@ -14,9 +16,12 @@
         ];
         $displayUnitText = 'មន្ទីរសុខាភិបាលនៃរដ្ឋបាលខេត្ត';
 
-        $fontToFileUri = static function (?string $path): ?string {
+        $fontToFileUri = static function (?string $path) use ($preview): ?string {
             if (!$path || !is_file($path)) {
                 return null;
+            }
+            if ($preview) {
+                return 'data:font/ttf;base64,' . base64_encode(file_get_contents($path));
             }
 
             return 'file:///' . ltrim(str_replace('\\', '/', $path), '/');
@@ -95,7 +100,7 @@
                 $clean = ltrim(str_replace('\\', '/', $logo), '/');
                 $candidate = public_path('storage/' . $clean);
                 if (is_file($candidate)) {
-                    $logoPath = 'file:///' . ltrim(str_replace('\\', '/', $candidate), '/');
+                    $logoPath = $preview ? asset('storage/' . $clean) : 'file:///' . ltrim(str_replace('\\', '/', $candidate), '/');
                 }
             }
         } catch (\Throwable $exception) {
@@ -169,9 +174,32 @@
             margin-bottom: 2px;
         }
         .muted { color: #4b5563; }
+        .report-print-toolbar { padding: 16px; margin-bottom: 24px; background: #eef5ff; }
+        .report-print-toolbar button { padding: 8px 16px; cursor: pointer; }
+        @media print { .report-print-toolbar { display: none; } }
+        @if ($isStructureSummary)
+        @page { size: {{ count($selected_columns) > 12 ? 'A3' : 'A4' }} landscape; }
+        table.grid th:first-child { width: 24%; }
+        table.grid td { text-align: center; }
+        table.grid td:first-child { text-align: left; }
+        table.grid tr.unit-total td { background: #edf3fa; font-weight: bold; }
+        table.grid th { font-size: 10px; }
+        @if ($preview)
+        @media screen { table.grid { min-width: {{ max(900, count($selected_columns) * 75) }}px; } }
+        @endif
+        @endif
     </style>
 </head>
 <body>
+    @if ($preview)
+        <div class="report-print-toolbar">
+            <button type="button" onclick="window.print()">បោះពុម្ព</button>
+            <span>លទ្ធផលរបាយការណ៍តាមលក្ខខណ្ឌដែលបានជ្រើស</span>
+        </div>
+    @endif
+    @if ($isStructureSummary)
+        <p class="muted">ចំនួនអង្គភាពមេរួមបញ្ចូលអង្គភាពរងរួចហើយ។ ជួរ «ស្រី» និង «ប្រុស» ជាការបែងចែកនៃចំនួនសរុបរបស់អង្គភាពនោះ។</p>
+    @endif
     <table class="doc-header">
         <tr>
             <td class="left-meta">
@@ -197,7 +225,7 @@
         </tr>
     </table>
 
-    <div class="km-title head-km">{{ $meta['title_text'] ?? localize('employee_report_management', 'តារាងរបាយការណ៍បុគ្គលិក') }}</div>
+    <div class="km-title head-km">{{ $meta['title_text'] ?? 'តារាងរបាយការណ៍បុគ្គលិក' }}</div>
 
     @if (!empty($group_label) && !empty($grouped_summary) && count($grouped_summary) > 0)
         <table class="summary" width="100%" cellspacing="0" cellpadding="0">
@@ -223,14 +251,22 @@
         </thead>
         <tbody>
             @forelse ($rows as $row)
-                <tr>
+                <tr class="{{ ($row['__row_kind'] ?? '') === 'unit' ? 'unit-total' : '' }}">
+                    @if (isset($row['__group']))
+                        <td colspan="{{ count($selected_columns) ?: 1 }}" style="background:#e9f1ff;font-weight:bold;">{{ $row['__group'] }}</td>
+                    @else
                     @foreach ($selected_columns as $column)
-                        <td>{{ $row[$column] ?? '' }}</td>
+                        @if ($isStructureSummary && $column === 'structure')
+                            <td style="padding-left:{{ 5 + min(20, (int) ($row['__depth'] ?? 0)) * 14 }}px;">{{ trim($row[$column] ?? '') }}</td>
+                        @else
+                            <td>{{ $isStructureSummary && $column !== 'total' && ($row[$column] ?? null) === 0 ? '' : ($row[$column] ?? '') }}</td>
+                        @endif
                     @endforeach
+                    @endif
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ count($selected_columns) ?: 1 }}" style="text-align:center;" class="muted">{{ localize('no_data_found', 'មិនមានទិន្នន័យ') }}</td>
+                    <td colspan="{{ count($selected_columns) ?: 1 }}" style="text-align:center;" class="muted">{{ 'មិនមានទិន្នន័យ' }}</td>
                 </tr>
             @endforelse
         </tbody>

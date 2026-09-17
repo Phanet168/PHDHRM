@@ -14,7 +14,14 @@ class MissionAssignment extends Model
         'employee_id',
         'status',
         'assignment_note',
+        'name_on_order',
+        'position_on_order',
+        'sort_order',
+        'honorific_on_order',
+        'department_on_order',
     ];
+
+    protected $casts = ['sort_order' => 'integer'];
 
     public function mission()
     {

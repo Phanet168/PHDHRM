@@ -12,12 +12,26 @@ use Modules\HumanResource\Entities\UserOrgRole;
  *
  * Replaces per-module traits (PharmScope, CorrespondenceScope) with a single
  * service that resolves the user's facility level and accessible department IDs.
+ * Also used directly by ManualAttendanceController.
  *
  * Unit-type mapping:
  *   1 = PHD  (Provincial Health Department) → sees everything
  *   4 = OD   (Operational District)         → sees own + children
  *   6 = Hospital                            → sees own only
  *   7 = HC   (Health Center)                → sees own + children
+ *
+ * Phase 3B.1 (scope consolidation): userDepartment() now resolves through
+ * OrgHierarchyAccessService::effectiveOrgRoles() -- the same canonical
+ * resolver AccessControlService/OrganizationScopeService/Leave/Notice already
+ * use, which reads modules/HumanResource/Entities/UserAssignment.php first
+ * and only falls back to the legacy user_org_roles table when a user has NO
+ * UserAssignment rows at all. Previously this read user_org_roles directly
+ * and unconditionally, which could silently miss/mismatch a user configured
+ * only through the newer Access Control Center Organization Scope tab, or
+ * return a stale legacy row that had drifted from its (soft-deleted, or
+ * never-synced) canonical counterpart. Pharmaceutical/Correspondence/Manual
+ * Attendance all inherit this fix automatically since they all resolve
+ * department scope through this one shared service.
  */
 class OrgScopeService
 {
@@ -41,8 +55,9 @@ class OrgScopeService
     /** @var array<int, string> */
     protected static array $levelCache = [];
 
-    public function __construct(protected readonly OrgUnitRuleService $orgUnitRuleService)
-    {
+    public function __construct(
+        protected readonly OrgHierarchyAccessService $orgHierarchyAccessService,
+    ) {
     }
 
     /**
@@ -114,16 +129,8 @@ class OrgScopeService
             return static::$deptCache[$uid];
         }
 
-        $orgRole = UserOrgRole::withoutGlobalScopes()
-            ->where('user_id', $uid)
-            ->where('is_active', true)
-            ->where(function ($q) {
-                $q->whereNull('effective_from')->orWhereDate('effective_from', '<=', now());
-            })
-            ->where(function ($q) {
-                $q->whereNull('effective_to')->orWhereDate('effective_to', '>=', now());
-            })
-            ->first();
+        /** @var UserOrgRole|null $orgRole */
+        $orgRole = $this->orgHierarchyAccessService->effectiveOrgRoles($user)->first();
 
         if (!$orgRole || !$orgRole->department_id) {
             return static::$deptCache[$uid] = null;
@@ -145,26 +152,18 @@ class OrgScopeService
     /**
      * Expand department IDs based on scope_type (4 scope types).
      *
+     * Phase 3B.2: delegates to OrgHierarchyAccessService::expandScopeBranchIds(),
+     * which performs the exact same expansion (confirmed equivalent by
+     * ScopeConsolidationOrgScopeServiceDedupTest, written against this
+     * method's behavior before this delegation was introduced) -- this
+     * class no longer maintains its own copy of scope_type -> department-ids
+     * expansion logic.
+     *
      * @return int[]|null  null means "all departments"
      */
     public function scopedDepartmentIds(Department $dept, string $scopeType): ?array
     {
-        $deptId = (int) $dept->id;
-
-        return match ($scopeType) {
-            UserOrgRole::SCOPE_SELF_ONLY,
-            'self' // backward compat
-                => [$deptId],
-
-            UserOrgRole::SCOPE_SELF_UNIT_ONLY
-                => $this->siblingSameTypeIds($dept),
-
-            UserOrgRole::SCOPE_ALL
-                => null,
-
-            default // self_and_children
-                => $this->orgUnitRuleService->branchIdsIncludingSelf($deptId),
-        };
+        return $this->orgHierarchyAccessService->expandScopeBranchIds($scopeType, (int) $dept->id);
     }
 
     /**
@@ -200,7 +199,18 @@ class OrgScopeService
     }
 
     /**
-     * Recursively collect all descendant department IDs.
+     * Recursively collect all descendant department IDs, for the PHD/OD/
+     * Hospital/HC FACILITY-LEVEL hierarchy used by accessibleDepartmentIds()
+     * (LEVEL_MAP above) -- deliberately NOT consolidated onto
+     * OrgHierarchyAccessService::expandScopeBranchIds()/branchIdsIncludingSelf()
+     * during Phase 3B.2: those answer a different question (UserAssignment
+     * scope_type expansion) and are not proven equivalent to this method --
+     * this one has no unit_type_id-not-null filter and a depth cap, while
+     * branchIdsIncludingSelf() has neither. Conflating the two here would
+     * risk a silent behavior change for Pharmaceutical/Correspondence/Manual
+     * Attendance's facility-level access, so scopedDepartmentIds() (the
+     * generic scope_type expansion, confirmed equivalent) was consolidated
+     * instead and this one was deliberately left alone.
      */
     protected function allDescendantIds(int $parentId, int $maxDepth = 5): array
     {
@@ -220,25 +230,6 @@ class OrgScopeService
         }
 
         return $all;
-    }
-
-    /**
-     * Get sibling department IDs with the same unit_type under the same parent.
-     * Used for scope_type = 'self_unit_only'.
-     */
-    protected function siblingSameTypeIds(Department $dept): array
-    {
-        if (!$dept->parent_id || !$dept->unit_type_id) {
-            return [(int) $dept->id];
-        }
-
-        return Department::withoutGlobalScopes()
-            ->where('parent_id', $dept->parent_id)
-            ->where('unit_type_id', $dept->unit_type_id)
-            ->where('is_active', 1)
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
     }
 
     /**

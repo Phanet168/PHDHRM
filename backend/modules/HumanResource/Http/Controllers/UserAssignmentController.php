@@ -210,7 +210,20 @@ class UserAssignmentController extends Controller
         UserAssignment $user_assignment,
         GovernanceAssignmentService $service
     ) {
-        $service->updateFromCanonicalPayload($user_assignment, $request->validated(), auth()->id());
+        // Phase 3B.1: organization SCOPE (department_id + scope_type) for an
+        // EXISTING assignment is now managed exclusively from the Access
+        // Control Center -> Organization Scope tab, to avoid two independent
+        // editors being able to write conflicting scope for the same
+        // assignment. This form still owns everything else about an
+        // assignment (position, responsibility, effective dates, primary
+        // flag, note) -- only these two fields are pinned to their current
+        // stored value regardless of what was submitted.
+        $payload = array_merge($request->validated(), [
+            'department_id' => $user_assignment->department_id,
+            'scope_type' => $user_assignment->scope_type,
+        ]);
+
+        $service->updateFromCanonicalPayload($user_assignment, $payload, auth()->id());
 
         Toastr::success(localize('data_update', 'Data updated'));
         return redirect()->route('user-assignments.index');

@@ -60,7 +60,7 @@
                     <div class="col-md-4">
                         <label class="form-label fw-semibold small">{{ localize('org_unit', 'អង្គភាព') }}</label>
                         <select name="department_id" class="form-control select-basic-single">
-                            <option value="">{{ localize('all_org_units', 'អង្គភាពទាំងអស់') }}</option>
+                            <option value="" disabled>ជ្រើសរើសអង្គភាព</option>
                             @foreach(($orgUnitOptions ?? collect()) as $option)
                                 @php
                                     $optId = data_get($option, 'id');

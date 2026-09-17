@@ -2,6 +2,8 @@
 
 namespace Modules\HumanResource\Http\Controllers;
 
+use Modules\HumanResource\Support\AttendanceUnitScope;
+
 use App\Imports\AttendanceImport;
 use App\Imports\ManualAttendanceImport;
 use App\Models\AttendanceScanLog;
@@ -38,18 +40,9 @@ class ManualAttendanceController extends Controller
 {
     private function scopedEmployeeQuery(OrgScopeService $orgScopeService)
     {
-        $query = Employee::query()->where('is_active', 1);
-
-        $accessibleDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
-        if (is_array($accessibleDepartmentIds) && count($accessibleDepartmentIds) > 0) {
-            $departmentIds = array_map('intval', $accessibleDepartmentIds);
-            $query->where(function ($inner) use ($departmentIds) {
-                $inner->whereIn('department_id', $departmentIds)
-                    ->orWhereIn('sub_department_id', $departmentIds);
-            });
-        }
-
-        return $query;
+        $scope = app(\Modules\HumanResource\Support\AttendanceUnitScope::class);
+        $unitId = request()->filled('department_id') ? $scope->selected(request()) : null;
+        return $scope->employees($unitId)->where('is_active', 1);
     }
 
     private function ensureEmployeeIsAccessible(int $employeeId, OrgScopeService $orgScopeService): Employee
@@ -91,9 +84,12 @@ class ManualAttendanceController extends Controller
      */
     public function create(OrgScopeService $orgScopeService)
     {
-        $employee = $this->scopedEmployeeQuery($orgScopeService)->get();
+        $scope = app(\Modules\HumanResource\Support\AttendanceUnitScope::class);
+        $selectedDepartmentId = $scope->selected(request());
+        $departments = $scope->departments()->get();
+        $employee = $scope->employees($selectedDepartmentId)->where('is_active', 1)->get();
 
-        return view('humanresource::attendance.create', compact('employee'));
+        return view('humanresource::attendance.create', compact('employee', 'departments', 'selectedDepartmentId'));
     }
 
     public function workflow(OrgScopeService $orgScopeService, OrgUnitRuleService $orgUnitRuleService)
@@ -352,7 +348,7 @@ class ManualAttendanceController extends Controller
             $this->replaceAttendanceWorkflowSteps($definition, $validated, $actorId);
         });
 
-        return redirect()->route('attendances.workflow')
+        return redirect()->route('attendances.settings')
             ->with('success', localize('workflow_policy_created', 'បានបង្កើតលក្ខខណ្ឌអនុម័តវត្តមានរួចរាល់'));
     }
 
@@ -379,7 +375,7 @@ class ManualAttendanceController extends Controller
             $this->replaceAttendanceWorkflowSteps($definition, $validated, $actorId);
         });
 
-        return redirect()->route('attendances.workflow')
+        return redirect()->route('attendances.settings')
             ->with('success', localize('workflow_policy_updated', 'បានកែសម្រួលលក្ខខណ្ឌអនុម័តវត្តមានរួចរាល់'));
     }
 
@@ -400,7 +396,7 @@ class ManualAttendanceController extends Controller
             $definition->delete();
         });
 
-        return redirect()->route('attendances.workflow')
+        return redirect()->route('attendances.settings')
             ->with('success', localize('workflow_policy_deleted', 'បានលុបលក្ខខណ្ឌអនុម័តវត្តមានរួចរាល់'));
     }
 
@@ -911,14 +907,15 @@ class ManualAttendanceController extends Controller
     public function qrCreate(Request $request, OrgUnitRuleService $orgUnitRuleService, OrgScopeService $orgScopeService)
     {
         $orgUnitOptions = $orgUnitRuleService->hierarchyOptions();
-        $scopedDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
+        $scopedDepartmentIds = app(AttendanceUnitScope::class)->departments()->pluck('id')->all();
 
-        if (is_array($scopedDepartmentIds) && count($scopedDepartmentIds) > 0) {
+        if (is_array($scopedDepartmentIds)) {
             $allowedDepartmentIds = array_map('intval', $scopedDepartmentIds);
             $orgUnitOptions = $orgUnitOptions
                 ->filter(function ($option) use ($allowedDepartmentIds) {
                     return in_array((int) data_get($option, 'id', 0), $allowedDepartmentIds, true);
                 })
+                ->sortBy(fn ($option) => array_search((int) data_get($option, 'id', 0), $allowedDepartmentIds, true))
                 ->values();
         }
 
@@ -928,9 +925,7 @@ class ManualAttendanceController extends Controller
         $logDate             = $request->input('log_date', date('Y-m-d'));
 
         if ($selectedWorkplaceId) {
-            $selectedWorkplace = Department::withoutGlobalScopes()
-                ->whereNull('deleted_at')
-                ->find($selectedWorkplaceId);
+            $selectedWorkplace = app(AttendanceUnitScope::class)->departments()->findOrFail($selectedWorkplaceId);
 
             $scanLogs = AttendanceScanLog::with(['employee', 'workplace'])
                 ->where('workplace_id', $selectedWorkplaceId)
@@ -959,9 +954,9 @@ class ManualAttendanceController extends Controller
             'workplace_id' => 'required|integer|exists:departments,id',
         ]);
 
-        $scopedDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
+        $scopedDepartmentIds = app(AttendanceUnitScope::class)->departments()->pluck('id')->all();
 
-        if (is_array($scopedDepartmentIds) && count($scopedDepartmentIds) > 0) {
+        if (is_array($scopedDepartmentIds)) {
             $allowedDepartmentIds = array_map('intval', $scopedDepartmentIds);
             if (!in_array((int) $validated['workplace_id'], $allowedDepartmentIds, true)) {
                 return back()
@@ -1007,12 +1002,13 @@ class ManualAttendanceController extends Controller
 
         $orgUnitOptions = $orgUnitRuleService->hierarchyOptions();
 
-        if (is_array($scopedDepartmentIds) && count($scopedDepartmentIds) > 0) {
+        if (is_array($scopedDepartmentIds)) {
             $allowedDepartmentIds = array_map('intval', $scopedDepartmentIds);
             $orgUnitOptions = $orgUnitOptions
                 ->filter(function ($option) use ($allowedDepartmentIds) {
                     return in_array((int) data_get($option, 'id', 0), $allowedDepartmentIds, true);
                 })
+                ->sortBy(fn ($option) => array_search((int) data_get($option, 'id', 0), $allowedDepartmentIds, true))
                 ->values();
         }
 
@@ -1065,9 +1061,9 @@ class ManualAttendanceController extends Controller
         if ($resp) {
             $resp_attend = $this->insert_attendance_point($attendance_history);
 
-            return redirect()->route('attendances.create')->with('success', localize('data_save'));
+            return redirect()->route('attendances.create', ['department_id' => $request->input('department_id')])->with('success', localize('data_save'));
         } else {
-            return redirect()->route('attendances.create')->with('error', localize('error'));
+            return redirect()->route('attendances.create', ['department_id' => $request->input('department_id')])->with('error', localize('error'));
         }
     }
 
@@ -1526,10 +1522,10 @@ class ManualAttendanceController extends Controller
                 ->all();
             $export = Excel::import(new AttendanceImport($allowedEmployeeIds), $request->file('bulk'));
             Toastr::success(localize('data_imported_successfully'));
-            return redirect()->route('attendances.create');
+            return redirect()->route('attendances.create', ['department_id' => $request->input('department_id')]);
         } catch (\Exception $e) {
             Toastr::error(localize('operation_failed' . $e->getMessage()));
-            return redirect()->route('attendances.create');
+            return redirect()->route('attendances.create', ['department_id' => $request->input('department_id')]);
         }
     }
 
@@ -1564,33 +1560,23 @@ class ManualAttendanceController extends Controller
 
     public function monthlyCreate(Request $request, OrgScopeService $orgScopeService, OrgUnitRuleService $orgUnitRuleService)
     {
-        $selectedDepartmentId = $request->integer('department_id', 0) ?: null;
+        $scope = app(\Modules\HumanResource\Support\AttendanceUnitScope::class);
+        $selectedDepartmentId = $scope->selected($request);
+        $request->validate(['year' => ['nullable', 'integer', 'between:2000,2100'], 'month' => ['nullable', 'integer', 'between:1,12']]);
         $selectedEmployeeId = $request->input('employee_id');
         $selectedYear  = (int) $request->input('year', now()->year);
         $selectedMonth = (int) $request->input('month', now()->month);
 
-        $employeeQuery = $this->scopedEmployeeQuery($orgScopeService);
-        if ($selectedDepartmentId) {
-            $employeeQuery->where(function ($q) use ($selectedDepartmentId) {
-                $q->where('department_id', (int) $selectedDepartmentId)
-                    ->orWhere('sub_department_id', (int) $selectedDepartmentId);
-            });
-        }
+        $employeeQuery = $scope->employees($selectedDepartmentId)->where('is_active', 1);
 
         $employees = $employeeQuery
             ->with(['department', 'sub_department'])
             ->get(['id', 'first_name', 'middle_name', 'last_name', 'employee_id', 'department_id', 'sub_department_id']);
 
         $orgUnitOptions = $orgUnitRuleService->hierarchyOptions();
-        $scopedDepartmentIds = $orgScopeService->accessibleDepartmentIds(auth()->user());
-        if (is_array($scopedDepartmentIds) && count($scopedDepartmentIds) > 0) {
-            $allowedDepartmentIds = array_map('intval', $scopedDepartmentIds);
-            $orgUnitOptions = $orgUnitOptions
-                ->filter(function ($option) use ($allowedDepartmentIds) {
-                    return in_array((int) data_get($option, 'id', 0), $allowedDepartmentIds, true);
-                })
-                ->values();
-        }
+        $allowedDepartmentIds = $scope->departments()->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $orgUnitOptions = $orgUnitOptions->filter(fn ($option) => in_array((int) data_get($option, 'id', 0), $allowedDepartmentIds, true))
+            ->sortBy(fn ($option) => array_search((int) data_get($option, 'id', 0), $allowedDepartmentIds, true))->values();
 
         // Compute days in selected month for grid header
         $daysInMonth = \Carbon\Carbon::create($selectedYear, $selectedMonth, 1)->daysInMonth;
@@ -1782,15 +1768,8 @@ class ManualAttendanceController extends Controller
             ->orderBy('employee_id')
             ->get();
 
-        if (is_array($accessibleDepartmentIds) && count($accessibleDepartmentIds) > 0) {
-            $departmentIds = array_map('intval', $accessibleDepartmentIds);
-            $exceptions = $exceptions->filter(function ($row) use ($departmentIds) {
-                $employee = $row->employee;
-                return in_array((int) ($employee?->department_id ?? 0), $departmentIds, true)
-                    || in_array((int) ($employee?->sub_department_id ?? 0), $departmentIds, true)
-                    || in_array((int) ($row->workplace_id ?? 0), $departmentIds, true);
-            })->values();
-        }
+        $allowedEmployeeIds = $this->scopedEmployeeQuery($orgScopeService)->pluck('id')->all();
+        $exceptions = $exceptions->whereIn('employee_id', $allowedEmployeeIds);
 
         return view('humanresource::attendance.exceptions', compact('exceptions', 'date'));
     }

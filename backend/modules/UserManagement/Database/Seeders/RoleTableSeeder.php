@@ -487,6 +487,7 @@ class RoleTableSeeder extends Seeder
                 'delete_shift_roster',
             ],
             'Mission' => [
+                'approve_mission',
                 'create_mission',
                 'read_mission',
                 'update_mission',

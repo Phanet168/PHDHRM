@@ -1,0 +1,37 @@
+/* Decorative menu icons; routing, permissions and menu behavior are unchanged. */
+.sidebar-menu-icons ul li a > .sidebar-menu-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 20px;
+    width: 20px;
+    height: 24px;
+    margin: 0;
+    margin-inline-end: 12px;
+    font-size: 17px;
+    line-height: 1;
+}
+.sidebar-menu-icons ul li .nav-second-level li::before,
+.sidebar-menu-icons ul li .nav-second-level li a::before {
+    display: none;
+}
+.sidebar-menu-icons ul li .nav-second-level li > a {
+    display: flex;
+    align-items: flex-start;
+    padding-inline-start: 46px;
+    padding-inline-end: 16px;
+    line-height: 1.8;
+}
+.sidebar-menu-icons ul li .nav-second-level li > a > .sidebar-menu-icon {
+    flex-basis: 18px;
+    width: 18px;
+    height: 25px;
+    margin-inline-end: 10px;
+    font-size: 13px;
+    color: inherit;
+    opacity: .85;
+}
+.sidebar-menu-icons ul li .nav-second-level li > a:hover > .sidebar-menu-icon,
+.sidebar-menu-icons ul li .nav-second-level li.mm-active > a > .sidebar-menu-icon {
+    opacity: 1;
+}

@@ -4,9 +4,12 @@ namespace Modules\HumanResource\DataTables;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder as QueryBuilder;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Modules\HumanResource\Entities\ApplyLeave;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\LeaveType;
+use Modules\HumanResource\Support\OrgHierarchyAccessService;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
@@ -144,13 +147,48 @@ class LeaveApplicationDataTable extends DataTable
      */
     public function query(ApplyLeave $model)
     {
-        $employee_id = $this->request->get('employee_id');
+        $query = $model->newQuery()->with('employee', 'leaveType');
 
-        return $model->newQuery()
-            ->with('employee', 'leaveType')
-            ->when($employee_id, function ($query) use ($employee_id) {
-                return $query->where('employee_id', $employee_id);
-            });
+        // Phase 3B.2: this list was previously unscoped -- serverSide(false)
+        // (see html() below) sends every row to the browser and relied
+        // entirely on the index() controller's employee dropdown to hide
+        // rows client-side, which is not real enforcement. Restrict
+        // server-side to (my own leave) OR (leave of employees within my
+        // effective organization scope), same canonical resolver the rest
+        // of the app uses -- then let the employee_id filter further narrow
+        // (never widen) that set.
+        $user = Auth::user();
+        $hierarchy = app(OrgHierarchyAccessService::class);
+
+        if (!$hierarchy->isSystemAdmin($user)) {
+            $currentEmployeeId = (int) ($user?->employee?->id ?? 0);
+            $managedDeptIds = $hierarchy->managedBranchIds($user);
+
+            if ($currentEmployeeId <= 0 && empty($managedDeptIds)) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where(function ($scoped) use ($currentEmployeeId, $managedDeptIds) {
+                    if ($currentEmployeeId > 0) {
+                        $scoped->where('employee_id', $currentEmployeeId);
+                    }
+                    if (!empty($managedDeptIds)) {
+                        $scoped->orWhereHas('employee', function ($employeeQuery) use ($managedDeptIds) {
+                            $employeeQuery->whereIn(
+                                DB::raw('COALESCE(NULLIF(sub_department_id, 0), department_id)'),
+                                $managedDeptIds
+                            );
+                        });
+                    }
+                });
+            }
+        }
+
+        $employeeIdParam = $this->request->get('employee_id');
+        if ($employeeIdParam) {
+            $query->where('employee_id', (int) $employeeIdParam);
+        }
+
+        return $query;
     }
 
     /**

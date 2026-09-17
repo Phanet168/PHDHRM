@@ -98,6 +98,19 @@ class WorkflowActorResolverService
         };
     }
 
+    /**
+     * Phase 3D.2 (section 12/15): this used to resolve $step->actor_user_id's
+     * effective (leave-handover-substituted) actor and grant to whoever that
+     * resolved to -- an undifferentiated, unscoped, all-workflow-authority
+     * substitution the moment someone approved their own leave application
+     * naming a handover. That is exactly the "blanket cross-workflow
+     * authority substitution" the target architecture forbids. The ONLY
+     * generic mechanism for one person to act on another's behalf now is an
+     * explicit, scoped, time-boxed Central Delegation record, checked by
+     * AccessControlService::canApprove() -- see that method's docblock. This
+     * method now answers ONLY "is $user literally the named actor", nothing
+     * more.
+     */
     protected function canSpecificUserActOnStep(
         User $user,
         WorkflowDefinitionStep $step,
@@ -105,10 +118,7 @@ class WorkflowActorResolverService
         string $moduleKey = ''
     ): bool
     {
-        $effectiveUserId = $this->resolveEffectiveActorUserId((int) $step->actor_user_id);
-        return $effectiveUserId > 0
-            ? $effectiveUserId === (int) $user->id
-            : (int) $step->actor_user_id === (int) $user->id;
+        return (int) $step->actor_user_id === (int) $user->id;
     }
 
     protected function resolveStepActorTypeFromArray(array $step): string
@@ -318,6 +328,23 @@ class WorkflowActorResolverService
         return $filtered;
     }
 
+    /**
+     * Phase 3D.2: previously re-resolved $assignment->user_id (which, since
+     * $assignments is already filtered to `user_id = $user->id`, was always
+     * $user's own id) through the leave-handover chain and compared it back
+     * to $user->id -- a no-op for granting a DIFFERENT person anything (it
+     * can never connect two different users), but it DID mean a user's own
+     * qualifying assignment silently stopped matching here the moment they
+     * went on leave (verified: this had no observable effect in practice
+     * only because userHasResponsibilityForStep()'s legacy UserOrgRole
+     * fallback below happened to still match for most real data -- an
+     * accidental, fragile safety net, not a deliberate design). Removed for
+     * the same reason as canSpecificUserActOnStep() above: the only
+     * generic mechanism for someone else to act on a user's behalf is now
+     * Central Delegation, checked exclusively by
+     * AccessControlService::canApprove(). This method now answers only
+     * "does $user's OWN assignment match", with no substitution either way.
+     */
     protected function userHasMatchingAssignment(
         User $user,
         int $sourceDepartmentId,
@@ -345,11 +372,7 @@ class WorkflowActorResolverService
                 continue;
             }
 
-            $effectiveUserId = $this->resolveEffectiveActorUserId((int) $assignment->user_id);
-            $resolvedUserId = $effectiveUserId > 0 ? $effectiveUserId : (int) $assignment->user_id;
-            if ($resolvedUserId === (int) $user->id) {
-                return true;
-            }
+            return true;
         }
 
         return false;

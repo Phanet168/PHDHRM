@@ -2,6 +2,9 @@
 @section('title', localize('shift_roster', 'តារាង Roster'))
 @section('content')
     @include('humanresource::attendance_header')
+    @include('backend.layouts.common.message')
+    <p class="text-muted">តារាងវេនរបស់អង្គភាពដែលបានជ្រើសរើស។ ចុចលើថ្ងៃដើម្បីកំណត់ ឬកែប្រែវេន។ វេនយាមមានអាទិភាពលើថ្ងៃឈប់ និងម៉ោងគោល។</p>
+    <a class="btn btn-outline-primary mb-3" href="{{ route('shifts.index', ['department_id' => $selectedDepartmentId]) }}">កំណត់ម៉ោងធ្វើការ</a>
 
     <style>
         .roster-table-wrap { overflow-x: auto; }
@@ -34,6 +37,7 @@
                 </div>
                 <div class="card-body">
                     <form method="GET" class="row g-2 mb-3 ams-filter-row">
+                        @include('humanresource::attendance.unit-filter')
                         <div class="col-md-2">
                             <label class="form-label">{{ localize('year', 'ឆ្នាំ') }}</label>
                             <select name="year" class="form-select">
@@ -98,6 +102,10 @@
                                                 $isWeekend = $dateObj->isWeekend();
                                             @endphp
                                             <td class="text-center {{ $isWeekend ? 'weekend-col' : '' }}">
+                                                @can('create_shift_roster')
+                                                <button type="button" class="btn btn-sm btn-link roster-edit" aria-label="កែប្រែវេន {{ $emp->full_name }} ថ្ងៃ {{ $day }}"
+                                                    data-employee="{{ $emp->id }}" data-date="{{ $dateObj->toDateString() }}" data-shift="{{ $cell?->shift_id }}" data-off="{{ (int) ($cell?->is_day_off ?? false) }}" data-holiday="{{ (int) ($cell?->is_holiday ?? false) }}" data-note="{{ $cell?->note }}">កំណត់</button><br>
+                                                @endcan
                                                 @if ($cell)
                                                     @if ($cell->is_holiday)
                                                         <span class="roster-badge roster-holiday" title="{{ localize('holiday', 'ថ្ងៃឈប់សម្រាក') }}">H</span>
@@ -112,7 +120,12 @@
                                                         <span class="text-muted">-</span>
                                                     @endif
                                                 @else
-                                                    <span class="text-muted">-</span>
+                                                    <span class="text-muted" title="ប្រើម៉ោងគោលរបស់អង្គភាព បើបានកំណត់">—</span>
+                                                @endif
+                                                @if($cell)
+                                                    @can('create_shift_roster')
+                                                        <form method="POST" action="{{ route('shift-rosters.destroy', $cell->id) }}" onsubmit="return confirm('លុបវេនថ្ងៃនេះ?')">@csrf @method('DELETE')<button class="btn btn-sm text-danger" aria-label="លុបវេន">×</button></form>
+                                                    @endcan
                                                 @endif
                                             </td>
                                         @endforeach
@@ -140,7 +153,8 @@
                         </h6>
                     </div>
                     <div class="card-body">
-                        <form action="{{ route('shift-rosters.store') }}" method="POST">
+                        <form id="roster-form" action="{{ route('shift-rosters.store') }}" method="POST">
+                            <input type="hidden" name="department_id" value="{{ $selectedDepartmentId }}">
                             @csrf
                             @include('backend.layouts.common.validation')
 
@@ -156,7 +170,8 @@
 
                             <div class="mb-2">
                                 <label class="form-label">{{ localize('date', 'កាលបរិច្ឆេទ') }} <span class="text-danger">*</span></label>
-                                <input type="date" name="roster_date" class="form-control" required>
+                                <input type="date" name="roster_date" class="form-control" value="{{ old('roster_date', sprintf('%04d-%02d-01', $selectedYear, $selectedMonth)) }}" required>
+                                <label class="form-label mt-2">ដល់ថ្ងៃ (ជាជម្រើស អតិបរមា ៣១ ថ្ងៃ)</label><input type="date" name="end_date" class="form-control" value="{{ old('end_date') }}">
                             </div>
 
                             <div class="mb-2">
@@ -196,5 +211,21 @@
 @endsection
 
 @push('js')
+<script>
+document.querySelectorAll('.roster-edit').forEach(button => button.addEventListener('click', () => {
+    const form = document.getElementById('roster-form');
+    if (!form) return;
+    ['employee_id', 'shift_id'].forEach((field, index) => {
+        form.elements[field].value = index === 0 ? button.dataset.employee : button.dataset.shift;
+        if (window.jQuery) window.jQuery(form.elements[field]).trigger('change');
+    });
+    form.elements.roster_date.value = button.dataset.date;
+    form.elements.end_date.value = '';
+    form.elements.is_day_off.checked = button.dataset.off === '1';
+    form.elements.is_holiday.checked = button.dataset.holiday === '1';
+    form.elements.note.value = button.dataset.note;
+    form.scrollIntoView({behavior: 'smooth', block: 'center'});
+}));
+</script>
     <script src="{{ module_asset('HumanResource/js/hrcommon.js') }}"></script>
 @endpush

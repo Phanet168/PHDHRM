@@ -10,6 +10,7 @@
             </div>
             <form id="leadForm" action="{{ route('attendances.bulk') }}" method="POST" enctype="multipart/form-data">
                 @csrf
+                @isset($selectedDepartmentId)<input type="hidden" name="department_id" value="{{ $selectedDepartmentId }}">@endisset
                 <div class="modal-body text-start">
                     <div class="row">
                         <h6 class="text-center">

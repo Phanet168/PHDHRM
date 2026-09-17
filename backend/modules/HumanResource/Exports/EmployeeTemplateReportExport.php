@@ -36,6 +36,8 @@ class EmployeeTemplateReportExport implements FromArray, WithStyles, WithEvents,
     protected int $footerHeadTitleRow = 0;
     protected int $footerHeadSignRow = 0;
     protected int $footerHrSignRow = 0;
+    protected array $groupRows = [];
+    protected array $structureRows = [];
 
     public function __construct(
         array $selectedColumns,
@@ -62,6 +64,8 @@ class EmployeeTemplateReportExport implements FromArray, WithStyles, WithEvents,
 
     public function array(): array
     {
+        $this->groupRows = [];
+        $this->structureRows = [];
         $rows = [];
         $columnCount = max(10, count($this->selectedColumns));
 
@@ -88,11 +92,20 @@ class EmployeeTemplateReportExport implements FromArray, WithStyles, WithEvents,
         $rows[] = $this->fillRow($header, $columnCount);
 
         foreach ($this->rows as $row) {
+            if (isset($row['__group'])) {
+                $rows[] = $this->fillRow([$this->sanitizeText((string) $row['__group'])], $columnCount);
+                $this->groupRows[] = count($rows);
+                continue;
+            }
             $line = [];
             foreach ($this->selectedColumns as $column) {
-                $line[] = $this->sanitizeText((string) ($row[$column] ?? ''));
+                $value = $row[$column] ?? '';
+                $line[] = is_int($value) ? $value : $this->sanitizeText((string) $value);
             }
             $rows[] = $this->fillRow($line, $columnCount);
+            if (isset($row['__row_kind'])) {
+                $this->structureRows[count($rows)] = ['depth' => (int) $row['__depth'], 'is_unit' => $row['__row_kind'] === 'unit'];
+            }
         }
 
         $this->tableLastRow = count($rows);
@@ -268,6 +281,19 @@ class EmployeeTemplateReportExport implements FromArray, WithStyles, WithEvents,
                 $sheet->getStyle('A1:' . $lastCol . $this->lastRow)->getAlignment()->setVertical(Alignment::VERTICAL_CENTER);
                 $sheet->getStyle('A10:' . $lastCol . $this->lastRow)->getFont()->setName('Khmer OS Siemreap')->setSize(10);
                 $sheet->getStyle('A' . $this->headerRow . ':' . $lastCol . $this->headerRow)->getFont()->setName('Khmer M1')->setSize(10);
+                foreach ($this->groupRows as $row) {
+                    $range = 'A' . $row . ':' . $lastCol . $row;
+                    $sheet->mergeCells($range);
+                    $sheet->getStyle($range)->getFont()->setBold(true);
+                    $sheet->getStyle($range)->getFill()->setFillType('solid')->getStartColor()->setRGB('E9F1FF');
+                }
+                foreach ($this->structureRows as $row => $structure) {
+                    $sheet->getStyle('A' . $row)->getAlignment()->setIndent(min(20, $structure['depth']));
+                    if ($structure['is_unit']) {
+                        $sheet->getStyle('A' . $row . ':' . $lastCol . $row)->getFont()->setBold(true);
+                        $sheet->getStyle('A' . $row . ':' . $lastCol . $row)->getFill()->setFillType('solid')->getStartColor()->setRGB('EDF3FA');
+                    }
+                }
 
                 if ($this->footerApprovalRow > 0 && $rightStartCol && $rightEndCol) {
                     $sheet->getStyle($rightStartCol . $this->footerApprovalRow . ':' . $rightEndCol . $this->footerApprovalRow)
@@ -295,6 +321,22 @@ class EmployeeTemplateReportExport implements FromArray, WithStyles, WithEvents,
 
                 for ($i = 1; $i <= $columnCount; $i++) {
                     $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($i))->setWidth(20);
+                }
+                if (($this->selectedColumns[0] ?? '') === 'structure') {
+                    $sheet->freezePane('B12');
+                    $sheet->getColumnDimension('A')->setWidth(44);
+                    $sheet->getPageSetup()->setPaperSize(count($this->selectedColumns) > 12 ? PageSetup::PAPERSIZE_A3 : PageSetup::PAPERSIZE_A4);
+                    for ($i = 2; $i <= $columnCount; $i++) {
+                        $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($i))->setWidth(12);
+                    }
+                    $sheet->getRowDimension($this->headerRow)->setRowHeight(55);
+                    if ($this->tableLastRow > $this->headerRow) {
+                        $end = Coordinate::stringFromColumnIndex(count($this->selectedColumns));
+                        $range = 'B12:' . $end . $this->tableLastRow;
+                        $sheet->getStyle($range)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+                        $sheet->getStyle($range)->getNumberFormat()->setFormatCode('0;-0;;@');
+                        $sheet->getStyle($end . '12:' . $end . $this->tableLastRow)->getNumberFormat()->setFormatCode('0');
+                    }
                 }
 
                 $this->centerHeaderLogoInAB($sheet, 4, 5, 0, -$this->cmToPixels(2.22));

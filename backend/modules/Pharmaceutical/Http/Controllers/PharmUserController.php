@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 use Modules\HumanResource\Entities\Department;
 use Modules\HumanResource\Entities\UserOrgRole;
+use Modules\HumanResource\Services\GovernanceAssignmentService;
 use Modules\Pharmaceutical\Traits\PharmScope;
 
 class PharmUserController extends Controller
@@ -99,9 +100,19 @@ class PharmUserController extends Controller
     }
 
     /**
-     * Store new user_org_role.
+     * Store new pharmacy user-role assignment.
+     *
+     * Phase 3B.2: previously wrote directly to UserOrgRole::create(),
+     * bypassing GovernanceAssignmentService/UserAssignment entirely -- a
+     * third independent generic-scope writer (alongside the now-closed
+     * legacy /hr/user-org-roles screen). Now goes through the same
+     * canonical service every other assignment screen uses, which also
+     * keeps writing the UserOrgRole mirror row this controller's index()/
+     * listing already reads, so no read-side change was needed. org_role
+     * codes map 1:1 onto SystemRole codes (verified in Phase 3B.1), so no
+     * capability is lost.
      */
-    public function store(Request $request)
+    public function store(Request $request, GovernanceAssignmentService $assignmentService)
     {
         abort_unless($this->canManageUsers(), 403);
 
@@ -128,18 +139,15 @@ class PharmUserController extends Controller
             ])->withInput();
         }
 
-        UserOrgRole::create([
+        $assignmentService->upsertFromLegacyPayload([
             'user_id'       => (int) $validated['user_id'],
             'department_id' => (int) $validated['department_id'],
             'org_role'      => $validated['org_role'],
-            'system_role_id' => UserOrgRole::resolveSystemRoleIdByCode((string) $validated['org_role']),
             'scope_type'    => $validated['scope_type'],
             'is_active'     => true,
             'effective_from' => now()->toDateString(),
             'note'          => $validated['note'] ?? null,
-            'created_by'    => Auth::id(),
-            'updated_by'    => Auth::id(),
-        ]);
+        ], null, Auth::id());
 
         return redirect()
             ->route('pharmaceutical.users.index')
@@ -148,8 +156,12 @@ class PharmUserController extends Controller
 
     /**
      * Toggle active/inactive.
+     *
+     * Phase 3B.2: routed through GovernanceAssignmentService so the linked
+     * canonical UserAssignment row (if one exists) is updated in lockstep
+     * instead of only the legacy mirror row.
      */
-    public function toggle(string $roleUuid)
+    public function toggle(string $roleUuid, GovernanceAssignmentService $assignmentService)
     {
         abort_unless($this->canManageUsers(), 403);
 
@@ -159,12 +171,20 @@ class PharmUserController extends Controller
             abort(403);
         }
 
-        $role->update([
-            'is_active'   => !$role->is_active,
-            'updated_by'  => Auth::id(),
-        ]);
+        $willBeActive = !$role->is_active;
 
-        $status = $role->is_active
+        $assignmentService->upsertFromLegacyPayload([
+            'user_id' => $role->user_id,
+            'department_id' => $role->department_id,
+            'org_role' => $role->org_role,
+            'scope_type' => $role->scope_type,
+            'effective_from' => optional($role->effective_from)->toDateString(),
+            'effective_to' => optional($role->effective_to)->toDateString(),
+            'is_active' => $willBeActive,
+            'note' => $role->note,
+        ], $role, Auth::id());
+
+        $status = $willBeActive
             ? localize('user_activated', 'User activated.')
             : localize('user_deactivated', 'User deactivated.');
 
@@ -172,9 +192,13 @@ class PharmUserController extends Controller
     }
 
     /**
-     * Delete user_org_role.
+     * Delete pharmacy user-role assignment.
+     *
+     * Phase 3B.2: routed through GovernanceAssignmentService::deleteByLegacyRecord()
+     * so the linked canonical UserAssignment row is deleted too, not just
+     * the legacy mirror.
      */
-    public function destroy(string $roleUuid)
+    public function destroy(string $roleUuid, GovernanceAssignmentService $assignmentService)
     {
         abort_unless($this->canManageUsers(), 403);
 
@@ -184,8 +208,7 @@ class PharmUserController extends Controller
             abort(403);
         }
 
-        $role->update(['deleted_by' => Auth::id()]);
-        $role->delete();
+        $assignmentService->deleteByLegacyRecord($role, Auth::id());
 
         return back()->with('success', localize('user_removed', 'User removed.'));
     }

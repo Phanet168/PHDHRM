@@ -2,6 +2,7 @@
 @section('title', localize('take_attendance'))
 @section('content')
     @include('humanresource::attendance_header')
+    @isset($departments)<form method="GET" class="row mb-3">@include('humanresource::attendance.unit-filter')</form>@endisset
     <div class="card mb-4 fixed-tab-body">
         @include('backend.layouts.common.validation')
         @include('backend.layouts.common.message')
@@ -24,6 +25,7 @@
         <div class="card-body">
             <form id="attendance" action="{{ route('attendances.store') }}" method="POST" enctype="multipart/form-data">
                 @csrf
+                @isset($selectedDepartmentId)<input type="hidden" name="department_id" value="{{ $selectedDepartmentId }}">@endisset
                 <div class="row col-md-6">
                     <div class="col-md-12 mt-3">
                         <div class="row">

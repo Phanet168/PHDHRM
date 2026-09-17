@@ -87,6 +87,56 @@ class OrgHierarchyAccessService
     }
 
     /**
+     * Phase 3B.2, section 20: reusable query-scope helper so report/list
+     * endpoints stop copying `whereIn(department_id, ...)` scope logic (or,
+     * worse, applying none at all when no department filter was submitted).
+     *
+     * Returns the effective department ids a report/list may show data for:
+     * null means unrestricted (system admin, or an unrestricted user with no
+     * specific filter requested). $requestedBranchIds lets a caller offer an
+     * admin a unit picker (already expanded to a branch, e.g. via
+     * OrgUnitRuleService::branchIdsIncludingSelf()) -- it can only NARROW a
+     * restricted user's own scope (via intersection), never widen it, and a
+     * restricted user who requests nothing still gets their own full scope
+     * as the default instead of no restriction at all.
+     *
+     * @param int[]|null $requestedBranchIds
+     * @return int[]|null
+     */
+    public function effectiveReportDepartmentIds(?User $user, ?array $requestedBranchIds = null): ?array
+    {
+        $managedBranchIds = $this->managedBranchIds($user);
+
+        if ($managedBranchIds === null) {
+            return $requestedBranchIds;
+        }
+
+        if ($requestedBranchIds === null) {
+            return $managedBranchIds;
+        }
+
+        return array_values(array_intersect($managedBranchIds, $requestedBranchIds));
+    }
+
+    /**
+     * Assert (abort 403) that a single department is within the user's
+     * managed scope. No-op for system admins / unrestricted scope. Reusable
+     * form of the inline check ReportController::staffAttendanceDetailReport()
+     * already applied.
+     */
+    public function assertDepartmentInScope(?User $user, ?int $departmentId): void
+    {
+        $managedBranchIds = $this->managedBranchIds($user);
+        if ($managedBranchIds === null) {
+            return;
+        }
+
+        if (!$departmentId || !in_array($departmentId, $managedBranchIds, true)) {
+            abort(403);
+        }
+    }
+
+    /**
      * Return null when user is system admin, otherwise return managed branch ids.
      */
     public function managedBranchIds(?User $user): ?array
@@ -100,19 +150,53 @@ class OrgHierarchyAccessService
             return [];
         }
 
-        $allNull = false;
+        return $this->expandRolesToBranchIds($roles);
+    }
+
+    /**
+     * Department ids the given user may act on for ONE specific responsibility
+     * code (e.g. 'manager', 'head'), expanded per each matching assignment's
+     * scope_type. Null means unrestricted (system admin, or a scope_type of
+     * 'all' on a matching assignment); empty array means the user holds no
+     * (or no unrestricted) assignment for that responsibility.
+     *
+     * Public wrapper so callers that need a single-responsibility view (e.g.
+     * a mission/leave/notice approval queue keyed on "manager" vs "head")
+     * don't need to re-implement scope-type expansion themselves -- see
+     * Modules\HumanResource\Support\MissionAccess::departmentIdsForResponsibility()
+     * for the original call site this was extracted from (Phase 3B.1).
+     *
+     * @return int[]|null
+     */
+    public function departmentIdsForResponsibility(?User $user, string $responsibilityCode): ?array
+    {
+        if ($this->isSystemAdmin($user)) {
+            return null;
+        }
+
+        $roles = $this->effectiveOrgRoles($user)
+            ->filter(fn (UserOrgRole $role) => $role->getEffectiveRoleCode() === $responsibilityCode);
+
+        if ($roles->isEmpty()) {
+            return [];
+        }
+
+        return $this->expandRolesToBranchIds($roles);
+    }
+
+    /**
+     * @param Collection<int, UserOrgRole> $roles
+     * @return int[]|null null means "all departments" (a matching role has scope_type 'all')
+     */
+    private function expandRolesToBranchIds(Collection $roles): ?array
+    {
         $ids = [];
         foreach ($roles as $role) {
             $branchIds = $this->roleScopeBranchIds($role);
             if ($branchIds === null) {
-                $allNull = true;
-                break;
+                return null; // 'all' scope
             }
             $ids = array_merge($ids, $branchIds);
-        }
-
-        if ($allNull) {
-            return null; // 'all' scope
         }
 
         return array_values(array_unique(array_map('intval', $ids)));
@@ -175,6 +259,24 @@ class OrgHierarchyAccessService
         }
 
         return false;
+    }
+
+    /**
+     * Public read-side wrapper around roleScopeBranchIds(), for presentation
+     * layers (e.g. the Access Control Center's Organization Scope tab) that
+     * need to preview what a given scope_type + department resolves to,
+     * without duplicating this expansion logic elsewhere. Does not change
+     * behavior for any existing caller of roleScopeBranchIds() itself.
+     *
+     * @return int[]|null null means "all departments" (the 'all' scope)
+     */
+    public function expandScopeBranchIds(string $scopeType, int $departmentId): ?array
+    {
+        $role = new UserOrgRole();
+        $role->department_id = $departmentId;
+        $role->scope_type = $scopeType;
+
+        return $this->roleScopeBranchIds($role);
     }
 
     /**

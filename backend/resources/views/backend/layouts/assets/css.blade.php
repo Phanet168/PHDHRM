@@ -57,3 +57,4 @@
     <link id="st_css" href="{{ asset('backend/assets/dist/css/style.rtl.css') }}" rel="stylesheet">
 @endif
 <link href="{{ asset('backend/assets/dist/css/attendance-design-system.css') }}" rel="stylesheet">
+<link href="{{ asset('backend/assets/dist/css/sidebar-menu-icons.css') }}?v=20260916-1" rel="stylesheet">

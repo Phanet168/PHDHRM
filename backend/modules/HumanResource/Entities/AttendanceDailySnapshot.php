@@ -42,4 +42,9 @@ class AttendanceDailySnapshot extends Model
     {
         return $this->belongsTo(Employee::class, 'employee_id');
     }
+
+    public function setSnapshotDateAttribute($value): void
+    {
+        $this->attributes['snapshot_date'] = \Carbon\Carbon::parse($value)->toDateString();
+    }
 }

@@ -2,14 +2,11 @@
 
 namespace Modules\HumanResource\Http\Controllers;
 
-use Brian2694\Toastr\Facades\Toastr;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Illuminate\Validation\Rule;
 use App\Models\User;
 use Modules\HumanResource\Entities\SystemRole;
 use Modules\HumanResource\Entities\UserOrgRole;
-use Modules\HumanResource\Services\GovernanceAssignmentService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
 
 class UserOrgRoleController extends Controller
@@ -137,121 +134,48 @@ class UserOrgRoleController extends Controller
         ]);
     }
 
-    public function store(Request $request, GovernanceAssignmentService $assignmentService)
+    /**
+     * Phase 3B.1 (scope consolidation): this screen's org_role taxonomy is a
+     * 1:1 alias of SystemRole codes (verified: UserOrgRole::roleOptions()
+     * and SystemRole::pluck('code') are the exact same 10 codes), and every
+     * existing user_org_roles row is already synced to a canonical
+     * UserAssignment row (upsertFromLegacyPayload()/syncLegacyRoleFromAssignment()
+     * in GovernanceAssignmentService always resolve/create one). So this
+     * screen has NO unique data-creation capability left -- the view already
+     * renders it read-only (`legacy_read_only` -- see index()), but that is
+     * presentation only. Per this project's own security principle ("hiding
+     * a menu is not security"), the write actions themselves must also
+     * refuse, not just be hidden, so a direct request to these routes can no
+     * longer create an independent, unpinned generic-scope write path
+     * alongside the Access Control Center's Organization Scope tab and
+     * modules/HumanResource/Http/Controllers/UserAssignmentController.php.
+     */
+    private function legacyWriteBlockedMessage(): string
     {
-        $validated = $request->validate($this->rules());
-        $roleCode = trim((string) ($validated['org_role'] ?? ''));
-        $systemRoleId = UserOrgRole::resolveSystemRoleIdByCode($roleCode);
-
-        $exists = UserOrgRole::query()
-            ->withoutGlobalScope('sortByLatest')
-            ->where('user_id', (int) $validated['user_id'])
-            ->where('department_id', (int) $validated['department_id'])
-            ->where(function ($query) use ($roleCode, $systemRoleId) {
-                $query->where('org_role', $roleCode);
-                if ($systemRoleId) {
-                    $query->orWhere('system_role_id', $systemRoleId);
-                }
-            })
-            ->whereNull('deleted_at')
-            ->exists();
-
-        if ($exists) {
-            return redirect()->back()
-                ->withErrors([
-                    'user_id' => localize('duplicate_org_role_assignment', 'អ្នកប្រើនេះមានតួនាទីដូចគ្នា ក្នុងអង្គភាពនេះរួចហើយ។'),
-                ])
-                ->withInput();
-        }
-
-        $assignmentService->upsertFromLegacyPayload([
-            'user_id' => (int) $validated['user_id'],
-            'department_id' => (int) $validated['department_id'],
-            'org_role' => $roleCode,
-            'system_role_id' => $systemRoleId,
-            'scope_type' => (string) $validated['scope_type'],
-            'effective_from' => !empty($validated['effective_from']) ? $validated['effective_from'] : null,
-            'effective_to' => !empty($validated['effective_to']) ? $validated['effective_to'] : null,
-            'is_active' => (bool) $validated['is_active'],
-            'note' => !empty($validated['note']) ? trim((string) $validated['note']) : null,
-            'is_primary' => false,
-        ], null, auth()->id());
-
-        Toastr::success(localize('data_save', 'Data saved'));
-        return redirect()->route('user-org-roles.index');
+        return localize(
+            'user_org_roles_write_disabled',
+            'អេក្រង់នេះលែងអាចបង្កើត/កែប្រែ/លុបបានទៀតហើយ។ សូមប្រើ "មជ្ឈមណ្ឌលគ្រប់គ្រងសិទ្ធិ > វិសាលភាពអង្គភាព" ដើម្បីកែប្រែវិសាលភាព ឬប្រើអេក្រង់ "ការចាត់តាំង (User Assignments)" ដើម្បីបង្កើតការទទួលខុសត្រូវថ្មី។'
+        );
     }
 
-    public function update(
-        Request $request,
-        UserOrgRole $user_org_role,
-        GovernanceAssignmentService $assignmentService
-    )
+    public function store(): \Illuminate\Http\RedirectResponse
     {
-        $validated = $request->validate($this->rules());
-        $roleCode = trim((string) $validated['org_role']);
-        $systemRoleId = UserOrgRole::resolveSystemRoleIdByCode($roleCode);
-
-        $exists = UserOrgRole::query()
-            ->withoutGlobalScope('sortByLatest')
-            ->where('id', '!=', (int) $user_org_role->id)
-            ->where('user_id', (int) $validated['user_id'])
-            ->where('department_id', (int) $validated['department_id'])
-            ->where(function ($query) use ($roleCode, $systemRoleId) {
-                $query->where('org_role', $roleCode);
-                if ($systemRoleId) {
-                    $query->orWhere('system_role_id', $systemRoleId);
-                }
-            })
-            ->whereNull('deleted_at')
-            ->exists();
-
-        if ($exists) {
-            return redirect()->back()
-                ->withErrors([
-                    'user_id' => localize('duplicate_org_role_assignment', 'អ្នកប្រើនេះមានតួនាទីដូចគ្នា ក្នុងអង្គភាពនេះរួចហើយ។'),
-                ])
-                ->withInput();
-        }
-
-        $assignmentService->upsertFromLegacyPayload([
-            'user_id' => (int) $validated['user_id'],
-            'department_id' => (int) $validated['department_id'],
-            'org_role' => $roleCode,
-            'system_role_id' => $systemRoleId,
-            'scope_type' => (string) $validated['scope_type'],
-            'effective_from' => !empty($validated['effective_from']) ? $validated['effective_from'] : null,
-            'effective_to' => !empty($validated['effective_to']) ? $validated['effective_to'] : null,
-            'is_active' => (bool) $validated['is_active'],
-            'note' => !empty($validated['note']) ? trim((string) $validated['note']) : null,
-            'is_primary' => false,
-        ], $user_org_role, auth()->id());
-
-        Toastr::success(localize('data_update', 'Data updated'));
-        return redirect()->route('user-org-roles.index');
+        return redirect()->route('user-org-roles.index')
+            ->withErrors(['user_id' => $this->legacyWriteBlockedMessage()]);
     }
 
-    public function destroy(UserOrgRole $user_org_role, GovernanceAssignmentService $assignmentService)
+    public function update(UserOrgRole $user_org_role): \Illuminate\Http\RedirectResponse
     {
-        $assignmentService->deleteByLegacyRecord($user_org_role, auth()->id());
+        return redirect()->route('user-org-roles.index')
+            ->withErrors(['user_id' => $this->legacyWriteBlockedMessage()]);
+    }
 
+    public function destroy(UserOrgRole $user_org_role): \Illuminate\Http\JsonResponse
+    {
         return response()->json([
-            'success' => true,
-            'message' => localize('data_delete', 'Deleted successfully'),
-        ]);
-    }
-
-    protected function rules(): array
-    {
-        return [
-            'user_id' => ['required', 'integer', Rule::exists('users', 'id')],
-            'department_id' => ['required', 'integer', Rule::exists('departments', 'id')],
-            'org_role' => ['required', Rule::in(UserOrgRole::roleOptions())],
-            'scope_type' => ['required', Rule::in(UserOrgRole::scopeOptions())],
-            'effective_from' => ['nullable', 'date'],
-            'effective_to' => ['nullable', 'date', 'after_or_equal:effective_from'],
-            'is_active' => ['required', 'boolean'],
-            'note' => ['nullable', 'string'],
-        ];
+            'success' => false,
+            'message' => $this->legacyWriteBlockedMessage(),
+        ], 422);
     }
 
     private function buildUserLabel(User $user): string

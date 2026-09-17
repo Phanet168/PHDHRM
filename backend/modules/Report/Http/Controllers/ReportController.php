@@ -26,7 +26,7 @@ class ReportController extends Controller
     {
         $this->middleware('permission:read_stock_alert_product_report')->only('alert_product_qty_report');
         $this->middleware('permission:read_warehouse_report')->only('warehouseWiseReport');
-        $this->middleware('permission:read_warehouse_wise_product')->only('warehouseWiseProductReport');
+        $this->middleware('permission:read_warehouse_wise_product')->only(['warehouseWiseProductReport', 'getResponseWarehouseWiseProductReport']);
         $this->middleware('permission:read_purchase_details_report')->only('purchase_report');
         $this->middleware('permission:read_purchases_summary_report')->only('purchaseSummaryReport');
         $this->middleware('permission:read_undelivered_sales_report')->only('undelivered_sale_report');
@@ -35,6 +35,9 @@ class ReportController extends Controller
         $this->middleware('permission:read_day_wise_sales_report')->only('day_wise_sales_report');
         $this->middleware('permission:read_user_wise_sales_report')->only('userwise_sales_report');
         $this->middleware('permission:read_sales_report')->only('sales_report');
+        $this->middleware('permission:read_supplier_wise_sale_profit')->only('supplier_wise_sale_profit_report');
+        $this->middleware('permission:read_sale_report_casher')->only('sale_report_casher');
+        $this->middleware('permission:read_category_wise_sales_report')->only('CategoryWiseSalesReport');
     }
 
     /**

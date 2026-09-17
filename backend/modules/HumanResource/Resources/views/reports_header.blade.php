@@ -31,12 +31,6 @@
             @endcan
             @can('read_employee_report')
                 <li class="nav-item">
-                    <a class="nav-link mt-0 {{ request()->routeIs('reports.employee') ? 'active' : '' }}"
-                        href="{{ route('reports.employee') }}">
-                        {{ localize('employee_report') }}
-                    </a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link mt-0 {{ request()->routeIs('reports.employee-report-templates.*') ? 'active' : '' }}"
                         href="{{ route('reports.employee-report-templates.index') }}">
                         {{ localize('employee_report_management', 'Employee report management') }}

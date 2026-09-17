@@ -3,9 +3,14 @@
 namespace Modules\HumanResource\Http\Controllers;
 
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
+use Modules\HumanResource\Entities\Gender;
+use Modules\HumanResource\Entities\OrgUnitType;
+use Modules\HumanResource\Support\EmployeeReportDataset;
+use Modules\HumanResource\Support\EmployeeStructureSummary;
+use Modules\HumanResource\Support\EmployeeReportLabels;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -25,7 +30,10 @@ class EmployeeReportTemplateController extends Controller
 {
     public function __construct()
     {
-        $this->middleware('permission:read_employee_report');
+        $this->middleware('permission:read_employee_report')->only(['index', 'generate', 'exportCsv', 'exportExcel', 'exportPdf']);
+        $this->middleware('permission:create_employee_report')->only(['store']);
+        $this->middleware('permission:update_employee_report')->only(['update']);
+        $this->middleware('permission:delete_employee_report')->only(['destroy']);
     }
 
     public function index(Request $request, OrgUnitRuleService $orgUnitRuleService)
@@ -36,91 +44,115 @@ class EmployeeReportTemplateController extends Controller
             ->get();
 
         $departmentTreeOptions = $orgUnitRuleService->hierarchyOptions();
-        $departmentFilterIds = $this->resolveDepartmentFilterIds($request, $orgUnitRuleService);
 
         $editingTemplate = null;
         if ($request->filled('edit')) {
-            $editingTemplate = $templates->firstWhere('uuid', (string) $request->query('edit'));
+            $editingTemplate = $templates->firstWhere('uuid', (string) $request->input('edit'));
         }
 
         $selectedTemplate = null;
         if ($request->filled('template')) {
-            $selectedTemplate = $templates->firstWhere('uuid', (string) $request->query('template'));
+            $selectedTemplate = $templates->firstWhere('uuid', (string) $request->input('template'));
         }
 
-        $groupByOptions = $this->groupByOptionsForTemplate($selectedTemplate);
-
-        $reportRows = null;
-        $groupedSummary = null;
-        $selectedGroupBy = null;
-        $selectedColumns = [];
-        if ($request->query('run') === '1') {
-            $selectedGroupBy = (string) $request->query('group_by', '');
-            if (!array_key_exists($selectedGroupBy, $groupByOptions)) {
-                $selectedGroupBy = null;
-            }
-
-            $selectedColumns = $this->resolveColumns($selectedTemplate?->columns);
-            $employees = $this->buildReportQuery($request, $departmentFilterIds)->get();
-
-            if ($selectedGroupBy) {
-                $groupedSummary = $employees
-                    ->groupBy(function (Employee $employee) use ($selectedGroupBy) {
-                        return $this->resolveGroupValue($employee, $selectedGroupBy);
-                    })
-                    ->map(function ($items, $groupLabel) {
-                        return [
-                            'group_label' => (string) $groupLabel,
-                            'total' => $items->count(),
-                        ];
-                    })
-                    ->values()
-                    ->sortByDesc('total')
-                    ->values();
-            }
-
-            $mappedRows = $employees
-                ->map(function (Employee $employee) use ($selectedColumns) {
-                    $row = [];
-                    foreach ($selectedColumns as $column) {
-                        $row[$column] = $this->resolveCellValue($employee, $column);
-                    }
-
-                    return $row;
-                })
-                ->values();
-
-            $perPage = 30;
-            $page = max(1, (int) $request->query('page', 1));
-            $slicedRows = $mappedRows->forPage($page, $perPage)->values();
-
-            $reportRows = new LengthAwarePaginator(
-                $slicedRows,
-                $mappedRows->count(),
-                $perPage,
-                $page,
-                [
-                    'path' => $request->url(),
-                    'query' => $request->query(),
-                ]
-            );
-        }
+        // Configure the report without loading employee records into the interface.
+        $selectedColumns = $this->resolveColumns($selectedTemplate?->columns);
+        $groupByOptions = $this->groupByOptionsForTemplate(null);
 
         return view('humanresource::reports.employee-report-template-manager', [
             'templates' => $templates,
             'editingTemplate' => $editingTemplate,
             'selectedTemplate' => $selectedTemplate,
-            'reportRows' => $reportRows,
-            'groupedSummary' => $groupedSummary,
-            'selectedGroupBy' => $selectedGroupBy,
             'selectedColumns' => $selectedColumns,
             'reportTypeOptions' => $this->reportTypeOptions(),
             'columnOptions' => $this->columnOptions(),
             'columnGroups' => $this->columnGroups(),
+            'reportPresets' => $this->reportPresets(),
+            'genders' => Gender::query()->where('is_active', true)->get(),
+            'unitTypes' => OrgUnitType::query()->active()->orderBy('sort_order')->get(),
+            'combinationOptions' => collect(['skill_name', 'employee_grade', 'work_status_name'])->mapWithKeys(fn ($column) => [
+                $column => Employee::query()->whereNotNull($column)->where($column, '!=', '')->distinct()->orderBy($column)->pluck($column),
+            ]),
             'groupByOptions' => $groupByOptions,
             'departmentTreeOptions' => $departmentTreeOptions,
             'positions' => Position::query()->where('is_active', true)->orderBy('position_name')->get(['id', 'position_name', 'position_name_km']),
         ]);
+    }
+
+    public function generate(Request $request, OrgUnitRuleService $orgUnitRuleService)
+    {
+        $validated = $request->validate([
+            'mode' => ['required', 'in:detail,summary,workplace'],
+            'format' => ['required', 'in:excel,pdf,csv,view'],
+            'columns' => ['required_if:mode,detail', 'array', 'min:1'],
+        ]);
+
+        return match ($validated['format']) {
+            'excel' => $this->exportExcel($request, $orgUnitRuleService),
+            'pdf' => $this->exportPdf($request, $orgUnitRuleService),
+            'csv' => $this->exportCsv($request, $orgUnitRuleService),
+            'view' => $this->preview($request, $orgUnitRuleService),
+        };
+    }
+
+    public function preview(Request $request, OrgUnitRuleService $orgUnitRuleService)
+    {
+        $payload = $this->prepareExportDataset($request, $orgUnitRuleService);
+        return view('humanresource::reports.employee-report-template-pdf', [
+            'selected_columns' => $payload['selected_columns'],
+            'column_options' => $payload['column_options'],
+            'rows' => $payload['rows'],
+            'grouped_summary' => $payload['grouped_summary'],
+            'group_label' => $payload['group_label'],
+            'meta' => $this->buildEmployeeExportMeta($payload['template'], $payload['title']),
+            'preview' => true,
+        ]);
+    }
+
+    protected function generationRules(): array
+    {
+        return [
+            'mode' => ['nullable', 'in:detail,summary,workplace'],
+            'layout' => ['nullable', 'in:plain,structured'],
+            'split_gender' => ['nullable', 'boolean'],
+            'template' => ['nullable', 'uuid'],
+            'title' => ['nullable', 'string', 'max:150'],
+            'columns' => ['sometimes', 'required', 'array', 'min:1'],
+            'columns.*' => ['required', 'string', 'distinct', 'in:' . implode(',', array_keys($this->columnOptions()))],
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+            'position_id' => ['nullable', 'integer', 'exists:positions,id'],
+            'status' => ['nullable', 'in:active,inactive'],
+            'group_by' => ['nullable', 'string', 'in:' . implode(',', array_keys($this->groupByOptionsForTemplate(null)))],
+            'keyword' => ['nullable', 'string', 'max:150'],
+            'employee_name' => ['nullable', 'string', 'max:150'],
+            'employee_code' => ['nullable', 'string', 'max:50'],
+            'gender_id' => ['nullable', 'integer', 'exists:genders,id'],
+            'birth_date' => ['nullable', 'date_format:Y-m-d'],
+            'birth_year' => ['nullable', 'integer', 'between:1900,2100'],
+            'age' => ['nullable', 'integer', 'between:0,120'],
+            'service_years' => ['nullable', 'integer', 'between:0,80'],
+            'joining_year' => ['nullable', 'integer', 'between:1900,2100'],
+            'unit_type_id' => ['nullable', 'integer', 'exists:org_unit_types,id'],
+            'skill_name' => ['nullable', 'array'],
+            'skill_name.*' => ['string', 'max:255'],
+            'employee_grade' => ['nullable', 'array'],
+            'employee_grade.*' => ['string', 'max:255'],
+            'work_status_name' => ['nullable', 'array'],
+            'work_status_name.*' => ['string', 'max:255'],
+        ];
+    }
+
+    protected function reportPresets(): array
+    {
+        $presets = [
+            'workforce_summary' => ['full_name', 'gender', 'department', 'sub_department', 'position', 'employee_type', 'work_status'],
+            'contact_directory' => ['full_name', 'department', 'position', 'phone', 'email'],
+            'education_profile' => ['full_name', 'department', 'highest_educational_qualification', 'degree_name', 'university_name', 'passing_year'],
+            'service_profile' => ['full_name', 'department', 'position', 'employee_grade', 'service_start_date', 'joining_date', 'work_status'],
+            'custom' => ['employee_id', 'full_name', 'department', 'position', 'phone', 'work_status'],
+        ];
+
+        return array_map(fn (array $columns) => $this->resolveColumns($columns), $presets);
     }
 
     public function store(Request $request)
@@ -131,7 +163,7 @@ class EmployeeReportTemplateController extends Controller
 
         return redirect()
             ->route('reports.employee-report-templates.index')
-            ->with('success', localize('employee_report_template_created', 'Employee report template created successfully.'));
+            ->with('success', 'បានរក្សាទុកគំរូរបាយការណ៍ថ្មី។');
     }
 
     public function update(Request $request, string $uuid)
@@ -144,7 +176,7 @@ class EmployeeReportTemplateController extends Controller
 
         return redirect()
             ->route('reports.employee-report-templates.index')
-            ->with('success', localize('employee_report_template_updated', 'Employee report template updated successfully.'));
+            ->with('success', 'បានកែសម្រួលគំរូរបាយការណ៍។');
     }
 
     public function destroy(string $uuid)
@@ -154,19 +186,19 @@ class EmployeeReportTemplateController extends Controller
 
         return redirect()
             ->route('reports.employee-report-templates.index')
-            ->with('success', localize('employee_report_template_deleted', 'Employee report template deleted successfully.'));
+            ->with('success', 'បានលុបគំរូរបាយការណ៍។');
     }
 
     public function exportCsv(Request $request, OrgUnitRuleService $orgUnitRuleService)
     {
         $payload = $this->prepareExportDataset($request, $orgUnitRuleService);
         $selectedColumns = $payload['selected_columns'];
-        $employees = $payload['employees'];
+        $rows = $payload['rows'];
         $headerMap = $payload['column_options'];
 
         $filename = 'employee_report_' . date('Ymd_His') . '.csv';
 
-        return response()->streamDownload(function () use ($employees, $selectedColumns, $headerMap) {
+        return response()->streamDownload(function () use ($rows, $selectedColumns, $headerMap) {
             $output = fopen('php://output', 'w');
 
             // Excel on Windows needs UTF-8 BOM to display Khmer correctly.
@@ -176,12 +208,12 @@ class EmployeeReportTemplateController extends Controller
                 return $headerMap[$col] ?? $col;
             }, $selectedColumns));
 
-            foreach ($employees as $employee) {
-                $row = [];
-                foreach ($selectedColumns as $column) {
-                    $row[] = $this->resolveCellValue($employee, $column);
+            foreach ($rows as $row) {
+                if (isset($row['__group'])) {
+                    fputcsv($output, array_pad([(string) $row['__group']], count($selectedColumns), ''));
+                    continue;
                 }
-                fputcsv($output, $row);
+                fputcsv($output, array_map(fn ($column) => (string) ($row[$column] ?? ''), $selectedColumns));
             }
 
             fclose($output);
@@ -203,7 +235,7 @@ class EmployeeReportTemplateController extends Controller
                 $payload['rows'],
                 $payload['grouped_summary'],
                 $payload['group_label'],
-                $this->buildEmployeeExportMeta($payload['template'])
+                $this->buildEmployeeExportMeta($payload['template'], $payload['title'])
             ),
             $fileName
         );
@@ -219,7 +251,7 @@ class EmployeeReportTemplateController extends Controller
             'rows' => $payload['rows'],
             'grouped_summary' => $payload['grouped_summary'],
             'group_label' => $payload['group_label'],
-            'meta' => $this->buildEmployeeExportMeta($payload['template']),
+            'meta' => $this->buildEmployeeExportMeta($payload['template'], $payload['title']),
         ];
 
         $chromePdfDownload = $this->renderEmployeeTemplatePdfByHeadlessBrowser($viewData, $fileName);
@@ -349,31 +381,54 @@ class EmployeeReportTemplateController extends Controller
 
     protected function prepareExportDataset(Request $request, OrgUnitRuleService $orgUnitRuleService): array
     {
-        $template = EmployeeReportTemplate::query()
-            ->where('uuid', (string) $request->query('template'))
-            ->firstOrFail();
+        $validated = $request->validate($this->generationRules());
+        $template = !empty($validated['template'])
+            ? EmployeeReportTemplate::query()->where('uuid', $validated['template'])->firstOrFail()
+            : null;
 
         $columnOptions = $this->columnOptions();
-        $selectedColumns = $this->resolveColumns($template->columns);
+        $selectedColumns = $this->resolveColumns($validated['columns'] ?? $template?->columns);
         $employees = $this->buildReportQuery($request, $this->resolveDepartmentFilterIds($request, $orgUnitRuleService))->get();
 
-        $rows = $employees->map(function (Employee $employee) use ($selectedColumns) {
-            $row = [];
-            foreach ($selectedColumns as $column) {
-                $row[$column] = $this->resolveCellValue($employee, $column);
-            }
+        $mode = $validated['mode'] ?? 'detail';
+        if ($mode === 'workplace') {
+            $dataset = $this->workplaceDataset($request, $orgUnitRuleService, $employees);
+        } elseif ($mode === 'summary' && ($validated['layout'] ?? 'plain') === 'structured') {
+            $branchIds = $this->resolveDepartmentFilterIds($request, $orgUnitRuleService);
+            $units = Department::query()
+                ->when($request->filled('department_id'), fn ($query) => $query->whereIn('id', $branchIds))
+                ->reorder()->orderBy('sort_order')->orderBy('department_name')->orderBy('id')
+                ->get(['id', 'parent_id', 'department_name', 'sort_order']);
+            $dataset = app(EmployeeStructureSummary::class)->build(
+                $employees,
+                $units,
+                fn ($employee, $column) => $this->resolveCellValue($employee, $column),
+                ($validated['group_by'] ?? '') ?: 'skill_name',
+                $request->boolean('split_gender')
+            );
+        } else {
+            $dataset = app(EmployeeReportDataset::class)->build(
+                $employees,
+                $selectedColumns,
+                fn ($employee, $column) => $this->resolveCellValue($employee, $column),
+                $mode,
+                ($validated['group_by'] ?? '') ?: 'department',
+                $request->boolean('split_gender'),
+                $validated['layout'] ?? 'plain'
+            );
+        }
+        $selectedColumns = $dataset['columns'];
+        $columnOptions = array_merge($columnOptions, $dataset['labels']);
+        $rows = $dataset['rows'];
 
-            return $row;
-        })->values();
-
-        $groupByOptions = $this->groupByOptionsForTemplate($template);
-        $selectedGroupBy = (string) $request->query('group_by', '');
+        $groupByOptions = $this->groupByOptionsForTemplate(null);
+        $selectedGroupBy = (string) $request->input('group_by', '');
         if (!array_key_exists($selectedGroupBy, $groupByOptions)) {
             $selectedGroupBy = null;
         }
 
         $groupedSummary = collect();
-        if ($selectedGroupBy) {
+        if ($selectedGroupBy && $mode === 'detail') {
             $groupedSummary = $employees
                 ->groupBy(function (Employee $employee) use ($selectedGroupBy) {
                     return $this->resolveGroupValue($employee, $selectedGroupBy);
@@ -391,16 +446,39 @@ class EmployeeReportTemplateController extends Controller
 
         return [
             'template' => $template,
+            'title' => $validated['title'] ?? null,
             'selected_columns' => $selectedColumns,
             'column_options' => $columnOptions,
             'employees' => $employees,
             'rows' => $rows,
             'grouped_summary' => $groupedSummary,
-            'group_label' => $selectedGroupBy ? ($groupByOptions[$selectedGroupBy] ?? $selectedGroupBy) : null,
+            'group_label' => $selectedGroupBy && $mode === 'detail' ? ($groupByOptions[$selectedGroupBy] ?? $selectedGroupBy) : null,
         ];
     }
 
-    protected function buildEmployeeExportMeta(?EmployeeReportTemplate $template = null): array
+    protected function workplaceDataset(Request $request, OrgUnitRuleService $orgUnitRuleService, $employees): array
+    {
+        $ids = $this->resolveDepartmentFilterIds($request, $orgUnitRuleService);
+        $units = Department::query()->with(['unitType', 'parentDept'])
+            ->when($request->filled('department_id'), fn ($q) => $q->whereIn('id', $ids))
+            ->when($request->filled('unit_type_id'), fn ($q) => $q->where('unit_type_id', $request->input('unit_type_id')))
+            ->get();
+        $counts = $employees->countBy(fn ($employee) => $employee->sub_department_id ?: $employee->department_id ?: 0);
+        $labels = ['unit_code' => 'លេខកូដអង្គភាព', 'unit_name' => 'ឈ្មោះអង្គភាព', 'parent_unit' => 'អង្គភាពមេ', 'unit_type' => 'ប្រភេទអង្គភាព', 'total' => 'ចំនួនបុគ្គលិក'];
+        return [
+            'columns' => array_keys($labels),
+            'labels' => $labels,
+            'rows' => $units->map(fn ($unit) => [
+                'unit_code' => $unit->location_code,
+                'unit_name' => $unit->department_name,
+                'parent_unit' => $unit->parentDept?->department_name ?? '',
+                'unit_type' => $unit->unitType?->display_name ?? '',
+                'total' => $counts->get($unit->id, 0),
+            ]),
+        ];
+    }
+
+    protected function buildEmployeeExportMeta(?EmployeeReportTemplate $template = null, ?string $title = null): array
     {
         $meta = [
             'admin_text' => 'រដ្ឋបាលខេត្តស្ទឹងត្រែង',
@@ -413,6 +491,10 @@ class EmployeeReportTemplateController extends Controller
 
         if ($template && !empty($template->name)) {
             $meta['title_text'] = 'តារាងរបាយការណ៍បុគ្គលិក - ' . (string) $template->name;
+        }
+
+        if (filled($title)) {
+            $meta['title_text'] = $title;
         }
 
         try {
@@ -448,7 +530,7 @@ class EmployeeReportTemplateController extends Controller
 
     protected function buildReportQuery(Request $request, ?array $departmentFilterIds = null)
     {
-        return Employee::query()
+        $query = Employee::query()
             ->with(['department', 'sub_department', 'position', 'gender', 'employee_type', 'marital_status', 'duty_type', 'pay_frequency'])
             ->when(!empty($departmentFilterIds), function ($query) use ($departmentFilterIds) {
                 $query->where(function ($inner) use ($departmentFilterIds) {
@@ -457,13 +539,13 @@ class EmployeeReportTemplateController extends Controller
                 });
             })
             ->when($request->filled('position_id'), function ($query) use ($request) {
-                $query->where('position_id', (int) $request->query('position_id'));
+                $query->where('position_id', (int) $request->input('position_id'));
             })
-            ->when($request->filled('status') && in_array($request->query('status'), ['active', 'inactive'], true), function ($query) use ($request) {
-                $query->where('is_active', $request->query('status') === 'active');
+            ->when($request->filled('status') && in_array($request->input('status'), ['active', 'inactive'], true), function ($query) use ($request) {
+                $query->where('is_active', $request->input('status') === 'active');
             })
             ->when($request->filled('keyword'), function ($query) use ($request) {
-                $keyword = trim((string) $request->query('keyword'));
+                $keyword = trim((string) $request->input('keyword'));
                 $query->where(function ($inner) use ($keyword) {
                     $inner->where('employee_id', 'like', "%{$keyword}%")
                         ->orWhere('first_name', 'like', "%{$keyword}%")
@@ -474,12 +556,49 @@ class EmployeeReportTemplateController extends Controller
                         ->orWhere('email', 'like', "%{$keyword}%");
                 });
             })
-            ->orderByDesc('id');
+            ->orderBy('department_id')->orderBy('sub_department_id')->orderBy('last_name')->orderBy('first_name')->orderBy('id');
+
+        foreach (['skill_name', 'employee_grade', 'work_status_name'] as $column) {
+            if ($request->filled($column)) {
+                $query->whereIn($column, $request->input($column));
+            }
+        }
+        if ($request->filled('employee_name')) {
+            foreach (preg_split('/\s+/u', trim($request->input('employee_name')), -1, PREG_SPLIT_NO_EMPTY) as $part) {
+                $query->where(fn ($q) => $q->where('first_name', 'like', '%' . $part . '%')->orWhere('last_name', 'like', '%' . $part . '%'));
+            }
+        }
+        if ($request->filled('employee_code')) {
+            $code = $request->input('employee_code');
+            $query->where(fn ($q) => $q->where('employee_id', $code)->orWhere('official_id_10', $code)->orWhere('employee_code', $code));
+        }
+        if ($request->filled('gender_id')) $query->where('gender_id', $request->input('gender_id'));
+        if ($request->filled('birth_date')) $query->whereDate('date_of_birth', $request->input('birth_date'));
+        if ($request->filled('birth_year')) $query->whereYear('date_of_birth', $request->input('birth_year'));
+        if ($request->filled('joining_year')) $query->whereYear('joining_date', $request->input('joining_year'));
+        if ($request->filled('age')) {
+            $years = (int) $request->input('age');
+            $query->whereDate('date_of_birth', '>', Carbon::today()->subYearsNoOverflow($years + 1))
+                ->whereDate('date_of_birth', '<=', Carbon::today()->subYearsNoOverflow($years));
+        }
+        if ($request->filled('service_years')) {
+            $years = (int) $request->input('service_years');
+            $query->whereRaw('DATE(COALESCE(service_start_date, joining_date)) > ?', [Carbon::today()->subYearsNoOverflow($years + 1)->toDateString()])
+                ->whereRaw('DATE(COALESCE(service_start_date, joining_date)) <= ?', [Carbon::today()->subYearsNoOverflow($years)->toDateString()]);
+        }
+        if ($request->filled('unit_type_id')) {
+            $type = (int) $request->input('unit_type_id');
+            $query->where(function ($q) use ($type) {
+                $q->whereHas('sub_department', fn ($unit) => $unit->where('unit_type_id', $type))
+                    ->orWhere(fn ($main) => $main->whereNull('sub_department_id')->whereHas('department', fn ($unit) => $unit->where('unit_type_id', $type)));
+            });
+        }
+        return $query;
     }
 
     protected function resolveDepartmentFilterIds(Request $request, OrgUnitRuleService $orgUnitRuleService): array
     {
-        $departmentId = (int) $request->query('department_id', 0);
+        $departmentId = (int) $request->input('department_id', 0);
         if ($departmentId <= 0) {
             return [];
         }
@@ -513,10 +632,10 @@ class EmployeeReportTemplateController extends Controller
             'duty_type' => (string) ($employee->duty_type?->type_name ?? ''),
             'pay_frequency' => (string) ($employee->pay_frequency?->name ?? ($employee->pay_frequency_text ?? '')),
             'employee_grade' => $this->khmerizePayLevel((string) data_get($employee, 'employee_grade', '')),
-            'is_disable' => (string) ((int) ($employee->is_disable ?? 0) === 1 ? 'Yes' : 'No'),
-            'work_status' => (string) ($employee->work_status_name ?: ($employee->is_active ? 'Active' : 'Inactive')),
-            'is_active' => (string) ((int) ($employee->is_active ?? 0) === 1 ? 'Active' : 'Inactive'),
-            'is_left' => (string) ((int) ($employee->is_left ?? 0) === 1 ? 'Yes' : 'No'),
+            'is_disable' => (string) ((int) ($employee->is_disable ?? 0) === 1 ? 'បាទ/ចាស' : 'ទេ'),
+            'work_status' => (string) ($employee->work_status_name ?: ($employee->is_active ? 'សកម្ម' : 'អសកម្ម')),
+            'is_active' => (string) ((int) ($employee->is_active ?? 0) === 1 ? 'សកម្ម' : 'អសកម្ម'),
+            'is_left' => (string) ((int) ($employee->is_left ?? 0) === 1 ? 'បាទ/ចាស' : 'ទេ'),
             default => (string) data_get($employee, $column, ''),
         };
     }
@@ -574,46 +693,29 @@ class EmployeeReportTemplateController extends Controller
     protected function reportTypeOptions(): array
     {
         return [
-            'workforce_summary' => localize('workforce_summary', 'Workforce summary'),
-            'contact_directory' => localize('contact_directory', 'Contact directory'),
-            'education_profile' => localize('education_profile', 'Education profile'),
-            'service_profile' => localize('service_profile', 'Service profile'),
-            'custom' => localize('custom_report', 'Custom report'),
+            'workforce_summary' => 'ព័ត៌មានទូទៅបុគ្គលិក',
+            'contact_directory' => 'ព័ត៌មានទំនាក់ទំនង',
+            'education_profile' => 'ព័ត៌មានការសិក្សា',
+            'service_profile' => 'ប្រវត្តិបម្រើការងារ',
+            'custom' => 'ជ្រើសព័ត៌មានដោយខ្លួនឯង',
         ];
     }
 
     protected function columnOptions(): array
     {
-        $dbColumns = $this->employeeDbColumnOptions();
-
-        $computedColumns = [
-            'full_name' => localize('name_of_employee', 'Employee name'),
-            'full_name_latin' => localize('full_name_latin', 'Full name (Latin)'),
-            'gender' => localize('gender', 'ភេទ'),
-            'marital_status' => localize('marital_status', 'Marital status'),
-            'department' => localize('department', 'Department'),
-            'sub_department' => localize('sub_department', 'Sub department'),
-            'position' => localize('designation', 'Position'),
-            'employee_type' => localize('employee_type', 'Employee type'),
-            'duty_type' => localize('duty_type', 'Duty type'),
-            'pay_frequency' => localize('pay_frequency', 'Pay frequency'),
-            'employee_grade' => localize('employee_grade', 'ឋានន្តរស័ក្តិ និងថ្នាក់'),
-            'work_status' => localize('work_status', 'Work status'),
-        ];
-
-        return array_merge($dbColumns, $computedColumns);
+        $labels = EmployeeReportLabels::columns();
+        $computed = ['full_name', 'full_name_latin', 'gender', 'marital_status', 'department', 'sub_department', 'position', 'employee_type', 'duty_type', 'pay_frequency', 'employee_grade', 'work_status'];
+        return array_merge($this->employeeDbColumnOptions(), array_intersect_key($labels, array_flip($computed)));
     }
 
     protected function employeeDbColumnOptions(): array
     {
         $columns = Schema::hasTable('employees') ? Schema::getColumnListing('employees') : [];
-
+        $labels = EmployeeReportLabels::columns();
         $options = [];
         foreach ($columns as $column) {
-            $label = Str::title(str_replace('_', ' ', (string) $column));
-            $options[$column] = localize($column, $label);
+            $options[$column] = $labels[$column] ?? localize($column, null, 'km');
         }
-
         return $options;
     }
 
@@ -623,7 +725,7 @@ class EmployeeReportTemplateController extends Controller
 
         return [
             'identity' => [
-                'label' => localize('group_identity_info', 'ព័ត៌មានអត្តសញ្ញាណ'),
+                'label' => 'ព័ត៌មានអត្តសញ្ញាណ',
                 'columns' => $this->filterColumns($allColumnKeys, [
                     'employee_id',
                     'official_id_10',
@@ -649,7 +751,7 @@ class EmployeeReportTemplateController extends Controller
                 ]),
             ],
             'contact' => [
-                'label' => localize('group_contact_info', 'ព័ត៌មានទំនាក់ទំនង'),
+                'label' => 'ព័ត៌មានទំនាក់ទំនង',
                 'columns' => $this->filterColumns($allColumnKeys, [
                     'phone',
                     'alternate_phone',
@@ -670,7 +772,7 @@ class EmployeeReportTemplateController extends Controller
                 ]),
             ],
             'organization' => [
-                'label' => localize('group_org_info', 'ព័ត៌មានអង្គភាព និងការងារ'),
+                'label' => 'ព័ត៌មានអង្គភាព និងការងារ',
                 'columns' => $this->filterColumns($allColumnKeys, [
                     'department',
                     'department_id',
@@ -699,7 +801,7 @@ class EmployeeReportTemplateController extends Controller
                 ]),
             ],
             'address' => [
-                'label' => localize('group_address_info', 'ព័ត៌មានអាសយដ្ឋាន'),
+                'label' => 'ព័ត៌មានអាសយដ្ឋាន',
                 'columns' => $this->filterColumns($allColumnKeys, [
                     'state_id',
                     'city',
@@ -725,7 +827,7 @@ class EmployeeReportTemplateController extends Controller
                 ]),
             ],
             'skills_education' => [
-                'label' => localize('group_skill_education_info', 'ព័ត៌មានជំនាញ និងការសិក្សា'),
+                'label' => 'ព័ត៌មានជំនាញ និងការសិក្សា',
                 'columns' => $this->filterColumns($allColumnKeys, [
                     'skill_type',
                     'skill_name',
@@ -740,7 +842,7 @@ class EmployeeReportTemplateController extends Controller
                 ]),
             ],
             'health' => [
-                'label' => localize('group_emergency_health_info', 'ព័ត៌មានសុខភាព'),
+                'label' => 'ព័ត៌មានសុខភាព',
                 'columns' => $this->filterColumns($allColumnKeys, [
                     'blood_group',
                     'health_condition',
@@ -751,7 +853,7 @@ class EmployeeReportTemplateController extends Controller
                 ]),
             ],
             'documents' => [
-                'label' => localize('group_document_info', 'ព័ត៌មានឯកសារ'),
+                'label' => 'ព័ត៌មានឯកសារ',
                 'columns' => $this->filterColumns($allColumnKeys, [
                     'work_permit',
                     'signature',
@@ -762,7 +864,7 @@ class EmployeeReportTemplateController extends Controller
                 ]),
             ],
             'other' => [
-                'label' => localize('group_other_info', 'ព័ត៌មានផ្សេងៗពី DB'),
+                'label' => 'ព័ត៌មានបន្ថែម',
                 'columns' => $this->remainingColumns($allColumnKeys),
             ],
         ];

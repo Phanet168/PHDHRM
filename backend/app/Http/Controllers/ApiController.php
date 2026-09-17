@@ -450,7 +450,7 @@ class ApiController extends Controller
                 'employee_id' => $employeeId,
                 'time' => $scanTime,
                 'machine_state' => is_numeric($requestedMachineState) ? (int) $requestedMachineState : null,
-                'attendance_source' => 'api_qr',
+                'attendance_source' => $qrToken !== '' ? 'api_qr' : 'api_gps',
                 'workplace_id' => $resolvedWorkplaceId > 0 ? $resolvedWorkplaceId : null,
                 'scan_latitude' => $ulatitude,
                 'scan_longitude' => $ulongitude,

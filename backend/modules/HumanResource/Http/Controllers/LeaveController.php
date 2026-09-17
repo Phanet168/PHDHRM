@@ -1416,6 +1416,17 @@ class LeaveController extends Controller
         return $this->canUserActOnWorkflowStep($user, $leave, $step);
     }
 
+    /**
+     * Phase 3D.2: centralized onto AccessControlService::canApprove(), which
+     * internally re-resolves the instance's current step itself -- the
+     * $step parameter is kept only so both existing call sites (which
+     * already independently resolve it for other purposes) don't need to
+     * change. Self-approval prevention (isRequesterUser) is Leave-domain
+     * business logic canApprove() has no knowledge of, so it stays here,
+     * checked first, exactly as before. The system-admin bypass moved
+     * inside canApprove() itself (checked first there too) so it isn't
+     * duplicated in two places.
+     */
     protected function canUserActOnWorkflowStep(
         User $user,
         ApplyLeave $leave,
@@ -1425,13 +1436,14 @@ class LeaveController extends Controller
             return false;
         }
 
-        if ($this->orgHierarchyAccessService()->isSystemAdmin($user)) {
-            return true;
+        $instance = $leave->workflowInstance;
+        if (!$instance) {
+            return false;
         }
 
         $sourceDepartmentId = $this->resolveLeaveSourceDepartmentId($leave);
 
-        return $this->workflowActorResolverService()->canUserActOnStep($user, $step, $sourceDepartmentId);
+        return $this->accessControlService()->canApprove($user, $instance, $sourceDepartmentId);
     }
 
     protected function isRequesterUser(ApplyLeave $leave, User $user): bool
@@ -2014,6 +2026,16 @@ class LeaveController extends Controller
     protected function workflowActorResolverService(): WorkflowActorResolverService
     {
         return app(WorkflowActorResolverService::class);
+    }
+
+    /**
+     * Phase 3D.2: the canonical approval-authorization seam (Super Admin,
+     * original workflow actor, or an active Central Delegation). See
+     * canUserActOnWorkflowStep() below for the only call site.
+     */
+    protected function accessControlService(): \App\Services\AccessControlService
+    {
+        return app(\App\Services\AccessControlService::class);
     }
 
     protected function leaveWorkflowNotificationService(): LeaveWorkflowNotificationService

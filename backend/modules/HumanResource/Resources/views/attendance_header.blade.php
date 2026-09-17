@@ -45,14 +45,17 @@
                 {{-- ៥. Shift & Roster --}}
                 @can('read_shift')
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('shifts.*') || request()->routeIs('shift-rosters.*') ? 'active' : '' }}"
+                        <a class="nav-link {{ request()->routeIs('shifts.*') ? 'active' : '' }}"
                             href="{{ route('shifts.index') }}">
-                            <i class="fa fa-clock me-1"></i>{{ localize('shift_roster', 'Shift & Roster') }}
+                            <i class="fa fa-clock me-1"></i>{{ 'ម៉ោងធ្វើការ' }}
                         </a>
                     </li>
                 @endcan
 
                 {{-- ៦. បេសកម្ម --}}
+                @can('read_shift_roster')
+                    <li class="nav-item"><a class="nav-link {{ request()->routeIs('shift-rosters.*') ? 'active' : '' }}" href="{{ route('shift-rosters.index', ['department_id' => request('department_id')]) }}"><i class="fa fa-calendar-alt me-1"></i>តារាងវេនយាម</a></li>
+                @endcan
                 @can('read_mission')
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('missions.*') ? 'active' : '' }}"

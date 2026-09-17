@@ -41,7 +41,7 @@
     <div class="form-group mb-2 mx-0 row">
         <label class="col-lg-3 col-form-label ps-0">{{ localize('org_unit', 'អង្គភាព') }} <span class="text-danger">*</span></label>
         <div class="col-lg-9">
-            <select name="department_id" class="form-control select-basic-single" required>
+            <select name="department_id" class="form-control select-basic-single" required {{ $formItem ? 'disabled' : '' }}>
                 <option value="">{{ localize('select_org_unit', 'ជ្រើសអង្គភាព') }}</option>
                 @foreach ($departments as $department)
                     <option value="{{ $department->id }}"
@@ -50,6 +50,13 @@
                     </option>
                 @endforeach
             </select>
+            @if ($formItem)
+                <input type="hidden" name="department_id" value="{{ (int) $formItem->department_id }}">
+                <small class="text-muted d-block mt-1">
+                    {{ localize('org_unit_locked_hint', 'សម្រាប់ការចាត់តាំងមានស្រាប់ សូមកែអង្គភាពតាមរយៈ') }}
+                    <a href="{{ route('access-control.index') }}" target="_blank">{{ 'មជ្ឈមណ្ឌលគ្រប់គ្រងសិទ្ធិ → វិសាលភាពអង្គភាព' }}</a>។
+                </small>
+            @endif
         </div>
     </div>
 
@@ -100,7 +107,7 @@
     <div class="form-group mb-2 mx-0 row">
         <label class="col-lg-3 col-form-label ps-0">{{ localize('scope', 'វិសាលភាព') }} <span class="text-danger">*</span></label>
         <div class="col-lg-9">
-            <select name="scope_type" class="form-control select-basic-single" required>
+            <select name="scope_type" class="form-control select-basic-single" required {{ $formItem ? 'disabled' : '' }}>
                 @foreach ($scope_options as $option)
                     <option value="{{ $option }}"
                         @selected(old('scope_type', (string) ($formItem->scope_type ?? 'self_and_children')) === $option)>
@@ -108,8 +115,16 @@
                     </option>
                 @endforeach
             </select>
+            @if ($formItem)
+                <input type="hidden" name="scope_type" value="{{ (string) $formItem->scope_type }}">
+            @endif
             <small class="text-muted d-block mt-1">
-                {{ localize('scope_usage_hint', 'ជ្រើសថា អ្នកប្រើនេះអាចមើល ឬ គ្រប់គ្រង ត្រឹមអង្គភាពខ្លួនឯង ឬ រួមទាំងអង្គភាពរង។') }}
+                @if ($formItem)
+                    {{ localize('scope_locked_hint', 'សម្រាប់ការចាត់តាំងមានស្រាប់ សូមកែវិសាលភាពតាមរយៈ') }}
+                    <a href="{{ route('access-control.index') }}" target="_blank">{{ 'មជ្ឈមណ្ឌលគ្រប់គ្រងសិទ្ធិ → វិសាលភាពអង្គភាព' }}</a>។
+                @else
+                    {{ localize('scope_usage_hint', 'ជ្រើសថា អ្នកប្រើនេះអាចមើល ឬ គ្រប់គ្រង ត្រឹមអង្គភាពខ្លួនឯង ឬ រួមទាំងអង្គភាពរង។') }}
+                @endif
             </small>
         </div>
     </div>

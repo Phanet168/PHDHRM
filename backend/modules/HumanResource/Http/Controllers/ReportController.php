@@ -26,7 +26,6 @@ use Modules\HumanResource\DataTables\ContractRenewalDataTable;
 use Modules\HumanResource\DataTables\StaffAttendanceDataTable;
 use Modules\HumanResource\DataTables\AttendanceSummaryDataTable;
 use Modules\HumanResource\DataTables\DailyPresentReportDataTable;
-use Modules\HumanResource\DataTables\EmployeeReportDataTable;
 use Modules\HumanResource\DataTables\MonthPresentReportDataTable;
 use Modules\HumanResource\DataTables\LateClosingAttendanceDataTable;
 use Modules\HumanResource\Support\OrgHierarchyAccessService;
@@ -36,16 +35,49 @@ class ReportController extends Controller
 {
     public function __construct(private readonly OrgHierarchyAccessService $orgHierarchyAccessService)
     {
-        $this->middleware('permission:read_attendance_report')->only('staffAttendanceReport');
+        $this->middleware('permission:read_attendance_report')->only([
+            'staffAttendanceReport',
+            'latenessClosingAttendanceReport',
+            'attendanceLogReport',
+            'attendanceLogEmployeeDetails',
+            'dailyPresentReport',
+        ]);
         $this->middleware('permission:read_attendance_details_report')->only(['staffAttendanceDetailReport']);
-        $this->middleware('permission:read_job_card_report')->only(['jobCardReport']);
+        $this->middleware('permission:read_job_card_report')->only(['jobCardReport', 'jobCardReportShow']);
         $this->middleware('permission:read_attendance_summary')->only('attendanceSummery');
         $this->middleware('permission:read_contract_renewal_report')->only('contractRenewalReport');
         $this->middleware('permission:read_allowance_report')->only('allowanceReport');
         $this->middleware('permission:read_deduction_report')->only('deductionReport');
         $this->middleware('permission:read_leave_report')->only('leaveReport');
+        $this->middleware('permission:read_monthly_attendance')->only(['monthlyReport', 'monthlyReportShow']);
+        $this->middleware('permission:read_employee_wise_attendance')->only([
+            'employeeWiseAttendanceSummery',
+            'employeeWiseAttendanceSummeryReports',
+        ]);
+        $this->middleware('permission:read_salary_advance')->only('salaryAdvanceReport');
+        $this->middleware('permission:read_adhoc_report')->only(['adhocAdvanceReport', 'adhocAdvanceReportShow']);
+        $this->middleware('permission:read_employee_report')->only('employeeReport');
 
-        $this->middleware('permission:read_payroll_report')->only('npf3SocSecTaxReport');
+        $this->middleware('permission:read_payroll_report')->only([
+            'npf3SocSecTaxReport',
+            'npf3SocSecTaxReportShow',
+            'npf3SocSecTaxPdf',
+            'iicf3Contribution',
+            'iicf3ContributionShow',
+            'iicf3ContributionPdf',
+            'socialSecurityNpfIcfReport',
+            'socialSecurityNpfIcfShow',
+            'socialSecurityNpfIcfPdf',
+            'graRet5ReportReport',
+            'graRet5ReportReportShow',
+            'graRet5ReportReportPdf',
+            'sateIncomeTaxReport',
+            'sateIncomeTaxReportShow',
+            'sateIncomeTaxReportPdf',
+            'salaryConfirmationForm',
+            'salaryConfirmationFormShow',
+            'salaryConfirmationFormPdf',
+        ]);
     }
 
     public function staffAttendanceReport(StaffAttendanceDataTable $dataTable)
@@ -200,9 +232,14 @@ class ReportController extends Controller
         $departments = Department::where('is_active', true)->get();
         $deductions = EmployeeSalaryType::with('employee')->whereNotNull('id');
 
-        if ($request->department_id) {
-            $deductions = $deductions->whereHas('employee', function ($q) use ($request) {
-                $q->where('department_id', $request->department_id);
+        // Phase 3B.2: previously applied no scope at all when no
+        // department_id was submitted, and trusted any submitted id without
+        // checking it against the requester's own managed departments.
+        $requestedIds = $request->department_id ? [(int) $request->department_id] : null;
+        $scopedDepartmentIds = $this->orgHierarchyAccessService->effectiveReportDepartmentIds(Auth::user(), $requestedIds);
+        if ($scopedDepartmentIds !== null) {
+            $deductions = $deductions->whereHas('employee', function ($q) use ($scopedDepartmentIds) {
+                $q->whereIn('department_id', $scopedDepartmentIds);
             });
         }
 
@@ -224,9 +261,12 @@ class ReportController extends Controller
         $positions = Position::where('is_active', true)->get();
         $allowances = EmployeeSalaryType::whereNotNull('id');
 
-        if ($request->department_id) {
-            $allowances = $allowances->whereHas('employee', function ($q) use ($request) {
-                $q->where('department_id', $request->department_id);
+        // Phase 3B.2: same scope fix as deductionReport() above.
+        $requestedIds = $request->department_id ? [(int) $request->department_id] : null;
+        $scopedDepartmentIds = $this->orgHierarchyAccessService->effectiveReportDepartmentIds(Auth::user(), $requestedIds);
+        if ($scopedDepartmentIds !== null) {
+            $allowances = $allowances->whereHas('employee', function ($q) use ($scopedDepartmentIds) {
+                $q->whereIn('department_id', $scopedDepartmentIds);
             });
         }
         if ($request->position_id) {
@@ -456,9 +496,14 @@ class ReportController extends Controller
         $workplaceId = (int) ($request->workplace_id ?: $request->department_id ?: 0);
         $month = $request->month;
         $year = $request->year;
-        $branchIds = $workplaceId > 0
+
+        // Phase 3B.2: previously applied no scope at all when no
+        // workplace/department was submitted, and trusted any submitted id
+        // without checking it against the requester's own managed departments.
+        $requestedBranchIds = $workplaceId > 0
             ? app(OrgUnitRuleService::class)->branchIdsIncludingSelf($workplaceId)
-            : [];
+            : null;
+        $branchIds = $this->orgHierarchyAccessService->effectiveReportDepartmentIds(Auth::user(), $requestedBranchIds) ?? [];
 
         $start_date = Carbon::parse($year . '-' . $month . '-01')->format('Y-m-d');
         $end_date = Carbon::parse($year . '-' . $month . '-01')->endOfMonth()->format('Y-m-d');
@@ -472,7 +517,14 @@ class ReportController extends Controller
             return ucfirst($weekend);
         }, $weekends_array);
 
-        $employees = Employee::where('is_active', true)->get();
+        $employees = Employee::where('is_active', true)
+            ->when(!empty($branchIds), function ($query) use ($branchIds) {
+                $query->where(function ($sq) use ($branchIds) {
+                    $sq->whereIn('department_id', $branchIds)
+                        ->orWhereIn('sub_department_id', $branchIds);
+                });
+            })
+            ->get();
 
         $attendances = Attendance::selectRaw('employee_id, DATE(time) as date, COUNT(time) as count, MIN(time) as in_time, MAX(time) as out_time')
             ->with(
@@ -482,7 +534,7 @@ class ReportController extends Controller
                     'employee.sub_department:id,department_name',
                 ]
             )
-            ->when($workplaceId > 0, function ($query) use ($branchIds) {
+            ->when(!empty($branchIds), function ($query) use ($branchIds) {
                 $query->whereHas('employee', function ($q) use ($branchIds) {
                     $q->where(function ($sq) use ($branchIds) {
                         $sq->whereIn('department_id', $branchIds)
@@ -562,12 +614,9 @@ class ReportController extends Controller
         return view('humanresource::reports.monthly-report', compact('collection', 'employees', 'start_date', 'end_date'));
     }
 
-    public function employeeReport(EmployeeReportDataTable $dataTable)
+    public function employeeReport()
     {
-        return $dataTable->render('humanresource::reports.employee-report', [
-            'employees' => Employee::where('is_active', true)->get(),
-            'positions' => Position::where('is_active', true)->get(),
-        ]);
+        return redirect()->route('reports.employee-report-templates.index');
     }
 
     public function adhocAdvanceReport()

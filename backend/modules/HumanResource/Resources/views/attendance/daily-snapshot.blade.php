@@ -26,6 +26,7 @@
             {{-- Filter --}}
             <form action="{{ route('attendance-snapshots.daily') }}" method="GET" class="mb-4">
                 <div class="row g-2 align-items-end">
+                    @include('humanresource::attendance.unit-filter')
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">{{ localize('date', 'ថ្ងៃ') }}</label>
                         <input type="date" class="form-control" name="date" value="{{ $selectedDate }}">
@@ -76,6 +77,7 @@
                             <th>{{ localize('worked_hours', 'ម៉ោងធ្វើការ') }}</th>
                             <th>{{ localize('late_min', 'យឺត (នាទី)') }}</th>
                             <th>{{ localize('early_leave_min', 'ចេញមុន (នាទី)') }}</th>
+                            <th>វត្តមានតាមវគ្គ / មកមុន (នាទី)</th>
                             <th>{{ localize('computed_at', 'គណនានៅ') }}</th>
                         </tr>
                     </thead>
@@ -87,23 +89,25 @@
                                     'PRESENT'  => 'badge-success-soft',
                                     'ABSENT'   => 'badge-danger-soft',
                                     'LATE'     => 'badge-warning-soft',
-                                    'MISSION'  => 'badge-info-soft',
-                                    'LEAVE'    => 'badge-primary-soft',
+                                    'ON MISSION'  => 'badge-info-soft',
+                                    'ON LEAVE'    => 'badge-primary-soft',
                                     'HOLIDAY'  => 'badge-secondary-soft',
-                                    'DAY_OFF'  => 'bg-light text-dark border',
+                                    'DAY OFF'  => 'bg-light text-dark border',
                                     default    => 'badge-secondary-soft',
                                 };
                                 $statusLabel = match($statusCode) {
                                     'PRESENT'  => localize('present', 'P — មានវត្តមាន'),
                                     'ABSENT'   => localize('absent', 'A — អវត្តមាន'),
                                     'LATE'     => localize('late', 'L — យឺត'),
-                                    'MISSION'  => localize('mission', 'M — បេសកម្ម'),
-                                    'LEAVE'    => localize('leave', 'LV — ច្បាប់'),
+                                    'ON MISSION'  => localize('mission', 'M — បេសកម្ម'),
+                                    'ON LEAVE'    => localize('leave', 'LV — ច្បាប់'),
                                     'HOLIDAY'  => localize('holiday', 'H — ថ្ងៃបុណ្យ'),
-                                    'DAY_OFF'  => localize('day_off', 'O — ថ្ងៃឈប់'),
+                                    'DAY OFF'  => localize('day_off', 'O — ថ្ងៃឈប់'),
+                                    'EARLY LEAVE' => 'ចេញមុនម៉ោង',
+                                    'INCOMPLETE' => 'ខ្វះការចូល/ចេញ',
                                     default    => $snap->attendance_status ?? '-',
                                 };
-                                $workedHours = $snap->worked_minutes ? round($snap->worked_minutes / 60, 1) . 'h' : '-';
+                                $workedHours = $snap->worked_minutes !== null ? round($snap->worked_minutes / 60, 1) . 'h' : '-';
                             @endphp
                             <tr>
                                 <td>{{ $loop->iteration }}</td>
@@ -130,13 +134,25 @@
                                         <span class="text-muted">0</span>
                                     @endif
                                 </td>
+                                <td>
+                                    @foreach(data_get($snap->policy_payload, 'sessions', []) as $session)
+                                        <div class="small mb-1">
+                                            <strong>{{ ['morning' => 'ព្រឹក', 'afternoon' => 'ល្ងាច', 'duty' => 'វេនយាម', 'work' => 'វេនធ្វើការ'][$session['name']] ?? $session['name'] }}</strong>៖
+                                            {{ !empty($session['in_time']) ? substr($session['in_time'], 11, 5) : '—' }} → {{ !empty($session['out_time']) ? substr($session['out_time'], 11, 5) : '—' }}
+                                            @if(!empty($session['early_arrival_minutes']))<span class="text-success">មកមុន {{ $session['early_arrival_minutes'] }} នាទី</span>@endif
+                                            @if(!empty($session['late_minutes']))<span class="text-warning">យឺត {{ $session['late_minutes'] }} នាទី</span>@endif
+                                            @if(!empty($session['early_leave_minutes']))<span class="text-danger">ចេញមុន {{ $session['early_leave_minutes'] }} នាទី</span>@endif
+                                            @if(empty($session['complete']))<span class="text-muted">ខ្វះការចូល/ចេញ</span>@endif
+                                        </div>
+                                    @endforeach
+                                </td>
                                 <td class="small text-muted">
                                     {{ $snap->computed_at ? \Carbon\Carbon::parse($snap->computed_at)->format('d/m H:i') : '-' }}
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="10" class="text-center py-4 text-muted">
+                                <td colspan="11" class="text-center py-4 text-muted">
                                     <i class="fa fa-inbox me-2"></i>{{ localize('no_snapshot_data', 'មិនមានទិន្នន័យ Snapshot ទេ') }}
                                     <br>
                                     <small>{{ localize('try_regenerate', 'សាកល្បងចុច "បង្កើតឡើងវិញ" ដើម្បីគណនា') }}</small>
@@ -156,6 +172,7 @@
                 <div class="modal-content">
                     <form action="{{ route('attendance-snapshots.regenerate') }}" method="POST">
                         @csrf
+                        <input type="hidden" name="department_id" value="{{ $selectedDepartmentId }}">
                         <div class="modal-header">
                             <h5 class="modal-title">
                                 <i class="fa fa-sync me-1"></i>{{ localize('regenerate_snapshots', 'បង្កើត Snapshots ឡើងវិញ') }}
