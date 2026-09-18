@@ -4,7 +4,7 @@
 
 @push('css')
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ asset('backend/assets/dist/css/access-control-center.css') }}?v=20260917-2">
+<link rel="stylesheet" href="{{ asset('backend/assets/dist/css/access-control-center.css') }}?v=20260918-1">
 @endpush
 
 @section('content')
@@ -80,9 +80,10 @@
                         <div class="panel-head">
                             <strong class="small d-block mb-2">ស្វែងរកអ្នកប្រើប្រាស់</strong>
                             <div class="acc-search-field"><i class="fas fa-search" aria-hidden="true"></i><input type="text" class="form-control form-control-sm" id="acc-user-search" placeholder="ឈ្មោះ, លេខកូដបុគ្គលិក, អ៊ីមែល..." aria-label="ស្វែងរកអ្នកប្រើប្រាស់"></div>
+                            <button type="button" class="btn btn-success btn-sm w-100 mt-2" id="acc-user-search-btn"><i class="fa fa-search"></i> ស្វែងរក</button>
                         </div>
                         <div class="panel-body" id="acc-user-list">
-                            <div class="p-3 text-muted small text-center">សូមវាយបញ្ចូលដើម្បីស្វែងរក</div>
+                            <div class="p-3 text-muted small text-center">សូមវាយបញ្ចូល ឬចុច "ស្វែងរក" ដើម្បីស្វែងរក</div>
                         </div>
                     </div>
                     <div class="acc-detail-panel" id="acc-user-detail">
@@ -430,6 +431,15 @@
         });
     }
 
+    const CATALOG_CORE_ACTIONS = ['view', 'create', 'update', 'delete'];
+    const CATALOG_CORE_ACTION_LABELS = { view: 'មើល', create: 'បង្កើត', update: 'កែប្រែ', delete: 'លុប' };
+
+    function catalogCheckboxHtml(p, checkedIds, moduleClickable, moduleKey) {
+        if (!p) return '<span class="text-muted">—</span>';
+        const checked = checkedIds.includes(p.id) ? 'checked' : '';
+        return `<input type="checkbox" class="acc-perm-checkbox form-check-input" data-id="${p.id}" data-action="${esc(p.action)}" data-module="${esc(moduleKey)}" ${checked} ${moduleClickable ? '' : 'disabled'} title="${esc(p.name)}">`;
+    }
+
     function buildMatrix(checkedIds, moduleClickable) {
         let html = '';
         CATALOG.forEach(m => {
@@ -437,19 +447,35 @@
                 <div class="module-head">
                     <span>${esc(m.module_label)}</span>
                     ${moduleClickable ? `<label class="small mb-0"><input type="checkbox" class="acc-module-toggle" data-module="${esc(m.module)}"> ជ្រើសទាំងអស់</label>` : ''}
-                </div>`;
+                </div>
+                <div class="table-responsive">
+                <table class="table table-sm table-bordered align-middle acc-perm-matrix mb-0">
+                    <thead>
+                        <tr>
+                            <th>ធនធាន</th>
+                            ${CATALOG_CORE_ACTIONS.map(a => `<th class="text-center">${CATALOG_CORE_ACTION_LABELS[a]}</th>`).join('')}
+                            <th>ផ្សេងទៀត</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
             m.resources.forEach(r => {
-                html += `<div class="resource-row"><div class="resource-title">${esc(r.display_name)}</div>`;
+                const byAction = {};
+                const others = [];
                 r.permissions.forEach(p => {
-                    const checked = checkedIds.includes(p.id) ? 'checked' : '';
-                    html += `<label class="acc-action-chip" title="${esc(p.name)}">
-                        <input type="checkbox" class="acc-perm-checkbox" data-id="${p.id}" data-action="${esc(p.action)}" data-module="${esc(m.module)}" ${checked} ${moduleClickable ? '' : 'disabled'}>
-                        ${esc(p.display_name)}
-                    </label>`;
+                    if (CATALOG_CORE_ACTIONS.includes(p.action)) {
+                        byAction[p.action] = p;
+                    } else {
+                        others.push(p);
+                    }
                 });
-                html += `</div>`;
+
+                html += `<tr>
+                    <td class="fw-semibold">${esc(r.display_name)}</td>
+                    ${CATALOG_CORE_ACTIONS.map(a => `<td class="text-center">${catalogCheckboxHtml(byAction[a], checkedIds, moduleClickable, m.module)}</td>`).join('')}
+                    <td>${others.map(p => `<label class="acc-action-chip" title="${esc(p.name)}">${catalogCheckboxHtml(p, checkedIds, moduleClickable, m.module)} ${esc(p.action_label || p.display_name)}</label>`).join(' ') || '<span class="text-muted">—</span>'}</td>
+                </tr>`;
             });
-            html += `</div>`;
+            html += `</tbody></table></div></div>`;
         });
         return html || '<div class="text-muted small p-3">មិនមានសិទ្ធិណាមួយ</div>';
     }
@@ -559,14 +585,37 @@
         const q = $(this).val();
         userSearchTimer = setTimeout(function () { searchUsers(q, '#acc-user-list', selectUser); }, 300);
     });
+    $('#acc-user-search').on('keydown', function (e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            clearTimeout(userSearchTimer);
+            searchUsers($(this).val(), '#acc-user-list', selectUser);
+        }
+    });
+    $('#acc-user-search-btn').on('click', function () {
+        clearTimeout(userSearchTimer);
+        searchUsers($('#acc-user-search').val(), '#acc-user-list', selectUser);
+    });
+
+    // Per-target request counter so a slow, stale response (e.g. from an
+    // earlier keystroke) can never overwrite a newer, already-rendered
+    // search result -- without this, typing quickly could leave the list
+    // showing results for an OLDER, shorter query even though the input
+    // now holds a longer one, which looks exactly like "search does
+    // nothing until I click/retry".
+    const searchRequestSeq = {};
 
     function searchUsers(q, targetSelector, onClick) {
         const $target = $(targetSelector);
+        const mySeq = (searchRequestSeq[targetSelector] = (searchRequestSeq[targetSelector] || 0) + 1);
+
         if (!q || q.trim().length < 1) {
-            $target.html('<div class="p-3 text-muted small text-center">សូមវាយបញ្ចូលដើម្បីស្វែងរក</div>');
+            $target.html('<div class="p-3 text-muted small text-center">សូមវាយបញ្ចូល ឬចុច "ស្វែងរក" ដើម្បីស្វែងរក</div>');
             return;
         }
+        $target.html('<div class="p-3 text-muted small text-center"><i class="fa fa-spinner fa-spin"></i> កំពុងស្វែងរក...</div>');
         ajax({ url: ROUTES.usersSearch, data: { q: q } }).done(function (res) {
+            if (searchRequestSeq[targetSelector] !== mySeq) return; // a newer search already started
             const users = res.data || [];
             if (!users.length) { $target.html('<div class="p-3 text-muted small text-center">រកមិនឃើញ</div>'); return; }
             $target.empty();
@@ -582,6 +631,10 @@
                 $item.on('click', function () { onClick(u.id); });
                 $target.append($item);
             });
+        }).fail(function (xhr) {
+            if (searchRequestSeq[targetSelector] !== mySeq) return;
+            const msg = xhr?.responseJSON?.message || 'ការស្វែងរកបរាជ័យ សូមព្យាយាមម្តងទៀត។';
+            $target.html('<div class="p-3 text-danger small text-center">' + esc(msg) + '</div>');
         });
     }
 

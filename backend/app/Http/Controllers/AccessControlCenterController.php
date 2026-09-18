@@ -51,6 +51,38 @@ class AccessControlCenterController extends Controller
     /** Roles that must not be renamed, have their permissions edited, or be deleted from this screen. */
     private const PROTECTED_ROLE_NAMES = ['Super Admin'];
 
+    /** Khmer labels for PermissionCatalogService::MODULE_LABELS's fixed 8-value set. */
+    private const CATALOG_MODULE_LABELS_KM = [
+        'planning' => 'ផែនការ',
+        'pharmaceutical' => 'ឱសថស្ថាន',
+        'correspondence' => 'លិខិតឆ្លងឆ្លើយ',
+        'accounts' => 'គណនេយ្យ',
+        'report' => 'របាយការណ៍',
+        'setting' => 'ការកំណត់',
+        'user_management' => 'គ្រប់គ្រងអ្នកប្រើប្រាស់',
+        'human_resource' => 'ធនធានមនុស្ស',
+    ];
+
+    /** Khmer labels for PermissionCatalogService::ACTION_PREFIXES's normalized action set (plus the "other"/dot-notation leftovers actually observed in the catalog). */
+    private const CATALOG_ACTION_LABELS_KM = [
+        'create' => 'បង្កើត',
+        'view' => 'មើល',
+        'update' => 'កែប្រែ',
+        'delete' => 'លុប',
+        'approve' => 'អនុម័ត',
+        'reject' => 'បដិសេធ',
+        'export' => 'នាំចេញ',
+        'manage' => 'គ្រប់គ្រង',
+        'manage_master_data' => 'គ្រប់គ្រងទិន្នន័យមូលដ្ឋាន',
+        'review' => 'ពិនិត្យ',
+        'submit' => 'ដាក់ស្នើ',
+        'consolidate' => 'បូកសរុប',
+        'comment' => 'មតិយោបល់',
+        'calculate' => 'គណនា',
+        'update_own' => 'កែប្រែផ្ទាល់ខ្លួន',
+        'other' => 'ផ្សេងទៀត',
+    ];
+
     public function __construct(
         private readonly AccessControlService $accessControlService,
         private readonly PermissionCatalogService $permissionCatalog,
@@ -92,15 +124,20 @@ class AccessControlCenterController extends Controller
         $grouped = $this->permissionCatalog->groupedByModule()->map(function ($entries, $module) {
             return [
                 'module' => $module,
-                'module_label' => $entries->first()['module_label'] ?? $module,
+                'module_label' => self::CATALOG_MODULE_LABELS_KM[$module]
+                    ?? ($entries->first()['module_label'] ?? $module),
                 'resources' => $entries->groupBy('resource')->map(function ($resourceEntries, $resource) {
+                    $resourceDisplayName = $resourceEntries->first()['display_name'] ?? $resource;
+
                     return [
                         'resource' => $resource,
-                        'display_name' => $resourceEntries->first()['display_name'] ?? $resource,
+                        'display_name' => localize($resourceDisplayName, $resourceDisplayName),
                         'permissions' => $resourceEntries->map(fn ($entry) => [
                             'id' => Permission::where('name', $entry['permission'])->value('id'),
                             'name' => $entry['permission'],
                             'action' => $entry['action'],
+                            'action_label' => self::CATALOG_ACTION_LABELS_KM[$entry['action']]
+                                ?? $this->humanizeKey($entry['action']),
                             'display_name' => $entry['display_name'],
                         ])->values(),
                     ];
@@ -308,7 +345,7 @@ class AccessControlCenterController extends Controller
         $keyword = trim((string) $request->query('q', ''));
 
         $query = User::query()
-            ->with(['employee:id,user_id,employee_id,full_name,department_id,sub_department_id,position_id',
+            ->with(['employee:id,user_id,employee_id,first_name,last_name,department_id,sub_department_id,position_id',
                 'employee.department:id,department_name', 'employee.sub_department:id,department_name',
                 'employee.position:id,position_name,position_name_km'])
             ->orderBy('full_name');
@@ -319,8 +356,15 @@ class AccessControlCenterController extends Controller
                     ->orWhere('email', 'like', "%{$keyword}%")
                     ->orWhere('user_name', 'like', "%{$keyword}%")
                     ->orWhereHas('employee', function ($employeeQuery) use ($keyword) {
+                        // full_name is a computed Employee accessor (last_name . ' ' . first_name),
+                        // not a real column -- an unqualified reference here would silently
+                        // resolve against the OUTER users.full_name column instead of erroring
+                        // (correlated-subquery column scoping), never actually matching the
+                        // employee's own name. Query the real columns instead.
                         $employeeQuery->where('employee_id', 'like', "%{$keyword}%")
-                            ->orWhere('full_name', 'like', "%{$keyword}%");
+                            ->orWhere('first_name', 'like', "%{$keyword}%")
+                            ->orWhere('last_name', 'like', "%{$keyword}%")
+                            ->orWhereRaw("CONCAT(last_name, ' ', first_name) like ?", ["%{$keyword}%"]);
                     });
             });
         }

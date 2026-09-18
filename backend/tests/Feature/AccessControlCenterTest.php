@@ -50,6 +50,21 @@ class AccessControlCenterTest extends TestCase
             ->assertSee('មជ្ឈមណ្ឌលគ្រប់គ្រងសិទ្ធិ', false);
     }
 
+    public function test_users_tab_has_an_explicit_search_button_not_only_live_search(): void
+    {
+        // UX regression: live (input-debounced) search alone left users
+        // unsure whether anything happened while typing, especially since
+        // an in-flight request had no loading indicator and a stale
+        // response could silently overwrite a newer one. An explicit
+        // button (and Enter-to-search) gives a deliberate, visible trigger.
+        $html = $this->actingAs($this->superAdmin())
+            ->get(route('access-control.index'))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('acc-user-search-btn', $html);
+    }
+
     public function test_unauthorized_user_cannot_view_the_access_control_center(): void
     {
         $this->actingAs($this->nonAdmin())
@@ -77,6 +92,55 @@ class AccessControlCenterTest extends TestCase
         $this->actingAs($this->nonAdmin())
             ->putJson(route('access-control.users.roles.update', $this->nonAdmin()->id), ['role_ids' => []])
             ->assertForbidden();
+    }
+
+    // ---------------- Users search (regression: full_name is a computed
+    // Employee accessor, not a real column -- eager-loading
+    // 'employee:...,full_name,...' throws a SQL error, but ONLY once a
+    // matching employee-linked user is actually found, which is why this
+    // was missed until a real search was tried) ----------------
+
+    public function test_users_search_returns_employee_linked_users_without_a_sql_error(): void
+    {
+        $admin = $this->superAdmin();
+        $target = $this->nonAdmin();
+        $employee = $target->employee()->firstOrFail();
+
+        $response = $this->actingAs($admin)
+            ->getJson(route('access-control.users.search', ['q' => $employee->employee_id]))
+            ->assertOk();
+
+        $response->assertJsonStructure(['status', 'data' => [['id', 'full_name', 'employee_code', 'position_name', 'unit_name', 'is_active']]]);
+        $this->assertContains($target->id, collect($response->json('data'))->pluck('id')->all());
+    }
+
+    public function test_users_search_by_employee_name_matches_even_when_it_differs_from_the_users_own_full_name(): void
+    {
+        // Regression: the employee sub-query's fallback OR'd an unqualified
+        // `full_name` column, which doesn't exist on `employees` -- MySQL's
+        // correlated-subquery column scoping silently resolved it against
+        // the OUTER users.full_name column instead of erroring, so a search
+        // matching only the employee's own (different) name never matched.
+        $admin = $this->superAdmin();
+        $target = $this->nonAdmin();
+        $employee = $target->employee()->firstOrFail();
+        $originalFirst = $employee->first_name;
+        $originalLast = $employee->last_name;
+        $employee->update(['first_name' => 'Wwrrppqq', 'last_name' => 'Zzqxvvvv']);
+
+        try {
+            $response = $this->actingAs($admin)
+                ->getJson(route('access-control.users.search', ['q' => 'Zzqxvvvv']))
+                ->assertOk();
+
+            $this->assertContains(
+                $target->id,
+                collect($response->json('data'))->pluck('id')->all(),
+                'Searching by the employee\'s own (distinct) name must find the linked user.'
+            );
+        } finally {
+            $employee->update(['first_name' => $originalFirst, 'last_name' => $originalLast]);
+        }
     }
 
     // ---------------- Role management ----------------
