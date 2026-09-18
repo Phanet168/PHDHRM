@@ -4,7 +4,9 @@ namespace Modules\HumanResource\DataTables;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder as QueryBuilder;
+use Illuminate\Support\Facades\Auth;
 use Modules\HumanResource\Entities\Employee;
+use Modules\HumanResource\Support\OrgHierarchyAccessService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Html\Button;
@@ -103,9 +105,19 @@ class StaffAttendanceDataTable extends DataTable
     {
         $workplaceId = (int) ($this->request->get('workplace_id') ?: $this->request->get('department_id') ?: 0);
         $position   = $this->request->get('position_id');
-        $branchIds = $workplaceId > 0
+        $requestedBranchIds = $workplaceId > 0
             ? app(OrgUnitRuleService::class)->branchIdsIncludingSelf($workplaceId)
-            : [];
+            : null;
+        // Phase A (attendance audit): a restricted user submitting no
+        // workplace filter must still be confined to their own managed
+        // scope, not see every employee in the system. Reuses the same
+        // canonical helper ReportController's other attendance reports
+        // already rely on -- see OrgHierarchyAccessService::
+        // effectiveReportDepartmentIds(). Also narrows an explicitly
+        // requested workplace_id down to the caller's real scope instead
+        // of trusting it outright.
+        $branchIds = app(OrgHierarchyAccessService::class)
+            ->effectiveReportDepartmentIds(Auth::user(), $requestedBranchIds);
 
         $date = $this->request->get('date') ?? Carbon::today()->format('Y-m-d');
 
@@ -116,7 +128,7 @@ class StaffAttendanceDataTable extends DataTable
                     ->whereDate('leave_approved_end_date', '>=', $date);
             }, 'attendance_time', 'department:id,department_name', 'sub_department:id,department_name'])
 
-            ->when($workplaceId > 0, function ($q) use ($branchIds) {
+            ->when($branchIds !== null, function ($q) use ($branchIds) {
                 return $this->applyBranchScope($q, $branchIds);
             })
             ->when($position, function ($q) use ($position) {

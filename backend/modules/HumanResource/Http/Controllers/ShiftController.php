@@ -82,6 +82,15 @@ class ShiftController extends Controller
         $data['grace_early_leave_minutes'] = (int) ($data['grace_early_leave_minutes'] ?? 0);
         $data['morning_end_time'] = $data['morning_end_time'] ?? null;
         $data['afternoon_start_time'] = $data['afternoon_start_time'] ?? null;
+        // Attendance Phase B: duty/on-call shifts (វេនយាម) only make sense
+        // for facilities that serve patients around the clock (hospitals,
+        // health centers) -- the PHD provincial office and OD administrative
+        // offices run fixed hours and must never be given a duty shift.
+        // Existing duty shifts already saved on an ineligible unit are left
+        // untouched; this only gates new creates/edits.
+        if ($data['is_duty'] && ! in_array($unit->unitType?->code, AttendanceUnitScope::DUTY_ELIGIBLE_UNIT_TYPES, true)) {
+            throw ValidationException::withMessages(['is_duty' => 'វេនយាមអាចកំណត់បានតែសម្រាប់អង្គភាពដែលផ្តល់សេវាដល់អ្នកជំងឺ (មន្ទីរពេទ្យ/មណ្ឌលសុខភាព) ប៉ុណ្ណោះ។']);
+        }
         if ((! $data['is_cross_day'] && $data['end_time'] <= $data['start_time']) ||
             ($data['is_cross_day'] && $data['end_time'] > $data['start_time'])) {
             throw ValidationException::withMessages(['end_time' => 'ម៉ោងចេញត្រូវក្រោយម៉ោងចូល។ វេនឆ្លងថ្ងៃត្រូវមានរយៈពេលមិនលើស ២៤ ម៉ោង។']);

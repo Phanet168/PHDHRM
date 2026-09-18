@@ -1,0 +1,2 @@
+ROW=14 OID=2841900041 NAME=ចាន់ សុជាតា LATIN=CHAN SOCHEATA UNIT=ទីចាត់ការមន្ទីរសុខាភិបាល POSITION=អនុប្រធានការិយាល័យ-ខេត្ត.ក្រុង
+ROW=281 OID=2841900041 NAME=ផា ច័ន្ទថ្លា LATIN=Pha Chan Thla UNIT=១១-មណ្ឌលសុខភាពស្រែក្រសាំង POSITION=បុគ្គលិក

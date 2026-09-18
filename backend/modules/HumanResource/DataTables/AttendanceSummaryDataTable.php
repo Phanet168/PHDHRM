@@ -4,10 +4,12 @@ namespace Modules\HumanResource\DataTables;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
 use Modules\HumanResource\Entities\ApplyLeave;
 use Modules\HumanResource\Entities\Attendance;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\ManualAttendance;
+use Modules\HumanResource\Support\OrgHierarchyAccessService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
 use Yajra\DataTables\CollectionDataTable;
 use Yajra\DataTables\Html\Button;
@@ -36,9 +38,13 @@ class AttendanceSummaryDataTable extends DataTable
         $endDate = Carbon::now()->format('Y-m-d');
 
         $workplaceId = (int) ($this->request->get('workplace_id') ?: $this->request->get('department_id') ?: 0);
-        $branchIds = $workplaceId > 0
+        $requestedBranchIds = $workplaceId > 0
             ? app(OrgUnitRuleService::class)->branchIdsIncludingSelf($workplaceId)
-            : [];
+            : null;
+        // Phase A (attendance audit): see the identical fix + rationale in
+        // StaffAttendanceDataTable::query().
+        $branchIds = app(OrgHierarchyAccessService::class)
+            ->effectiveReportDepartmentIds(Auth::user(), $requestedBranchIds);
 
         $date = $this->request->get('date');
         $string = $date ? explode('-', $date) : [];
@@ -55,7 +61,7 @@ class AttendanceSummaryDataTable extends DataTable
             ->where('is_active', true)
             ->where('is_left', false);
 
-        if ($workplaceId > 0) {
+        if ($branchIds !== null) {
             $this->applyEmployeeBranchScope($activeEmployeesQuery, $branchIds);
         }
 

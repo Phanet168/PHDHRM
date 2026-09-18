@@ -55,6 +55,7 @@
                 {{-- ៦. បេសកម្ម --}}
                 @can('read_shift_roster')
                     <li class="nav-item"><a class="nav-link {{ request()->routeIs('shift-rosters.*') ? 'active' : '' }}" href="{{ route('shift-rosters.index', ['department_id' => request('department_id')]) }}"><i class="fa fa-calendar-alt me-1"></i>តារាងវេនយាម</a></li>
+                    <li class="nav-item"><a class="nav-link {{ request()->routeIs('shift-teams.*') ? 'active' : '' }}" href="{{ route('shift-teams.index', ['department_id' => request('department_id')]) }}"><i class="fa fa-users me-1"></i>ក្រុមវេន</a></li>
                 @endcan
                 @can('read_mission')
                     <li class="nav-item">

@@ -22,6 +22,22 @@
                     <a class="nav-link {{ request()->routeIs('reports.monthly') ? 'active' : '' }}"
                         href="{{ route('reports.monthly') }}">{{ localize('monthly') }}</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('reports.attendance-weekly') ? 'active' : '' }}"
+                        href="{{ route('reports.attendance-weekly') }}">សប្តាហ៍</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('reports.attendance-quarterly') ? 'active' : '' }}"
+                        href="{{ route('reports.attendance-quarterly') }}">ត្រីមាស</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('reports.attendance-semester') ? 'active' : '' }}"
+                        href="{{ route('reports.attendance-semester') }}">ឆមាស</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('reports.attendance-yearly') ? 'active' : '' }}"
+                        href="{{ route('reports.attendance-yearly') }}">ឆ្នាំ</a>
+                </li>
             @endcan
             @can('read_leave_report')
                 <li class="nav-item">

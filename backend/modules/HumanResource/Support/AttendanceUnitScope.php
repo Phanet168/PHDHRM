@@ -13,6 +13,15 @@ class AttendanceUnitScope
 
     private const INTERNAL_TYPES = ['office', 'bureau', 'program', 'od_section'];
 
+    /**
+     * Attendance Phase B: the subset of UNIT_TYPES that directly serve
+     * patients around the clock and therefore may have duty/on-call shifts
+     * (វេនយាម) -- PHD and operational_district are administrative offices
+     * with fixed hours even though they're attendance-tracked, so they're
+     * deliberately excluded here.
+     */
+    public const DUTY_ELIGIBLE_UNIT_TYPES = ['provincial_hospital', 'health_center', 'health_center_with_bed', 'health_center_without_bed', 'health_post'];
+
     public function __construct(private readonly OrgHierarchyAccessService $access)
     {
     }

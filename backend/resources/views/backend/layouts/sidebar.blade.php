@@ -596,7 +596,12 @@
                                         request()->routeIs('reports.attendance-log') ||
                                         request()->routeIs('reports.attendance-log-details') ||
                                         request()->routeIs('reports.monthly') ||
-                                        request()->routeIs('reports.staff-attendance')
+                                        request()->routeIs('reports.staff-attendance') ||
+                                        request()->routeIs('reports.attendance-summery') ||
+                                        request()->routeIs('reports.attendance-weekly') ||
+                                        request()->routeIs('reports.attendance-quarterly') ||
+                                        request()->routeIs('reports.attendance-semester') ||
+                                        request()->routeIs('reports.attendance-yearly')
                                             ? 'mm-active'
                                             : '' }}">
                                         <a class="dropdown-item"

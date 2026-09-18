@@ -10,6 +10,7 @@ use Modules\HumanResource\Http\Controllers\GenderController;
 use Modules\HumanResource\Http\Controllers\IdcardController;
 use Modules\HumanResource\Http\Controllers\NoticeController;
 use Modules\HumanResource\Http\Controllers\ReportController;
+use Modules\HumanResource\Http\Controllers\AttendanceDutyReportController;
 use Modules\HumanResource\Http\Controllers\HolidayController;
 use Modules\HumanResource\Http\Controllers\MessageController;
 use Modules\HumanResource\Http\Controllers\DivisionController;
@@ -65,6 +66,7 @@ use Modules\HumanResource\Http\Controllers\ProjectReportsController;
 use Modules\HumanResource\Http\Controllers\TaxCalculationController;
 use Modules\HumanResource\Http\Controllers\ShiftController;
 use Modules\HumanResource\Http\Controllers\ShiftRosterController;
+use Modules\HumanResource\Http\Controllers\ShiftTeamController;
 use Modules\HumanResource\Http\Controllers\MissionController;
 use Modules\HumanResource\Http\Controllers\AttendanceAdjustmentController;
 use Modules\HumanResource\Http\Controllers\AttendanceSnapshotController;
@@ -443,6 +445,24 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
             ->name('destroy');
     });
 
+    Route::name('shift-teams.')->controller(ShiftTeamController::class)->group(function () {
+        Route::get('/shift-teams', 'index')
+            ->middleware('permission:read_shift_roster')
+            ->name('index');
+        Route::post('/shift-teams', 'store')
+            ->middleware('permission:create_shift_roster')
+            ->name('store');
+        Route::put('/shift-teams/{id}', 'update')
+            ->middleware('permission:create_shift_roster')
+            ->name('update');
+        Route::put('/shift-teams/{id}/members', 'syncMembers')
+            ->middleware('permission:create_shift_roster')
+            ->name('members');
+        Route::delete('/shift-teams/{id}', 'destroy')
+            ->middleware('permission:create_shift_roster')
+            ->name('destroy');
+    });
+
     Route::name('shift-rosters.')->controller(ShiftRosterController::class)->group(function () {
         Route::get('/shift-rosters', 'index')
             ->middleware('permission:read_shift_roster')
@@ -450,6 +470,15 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
         Route::post('/shift-rosters', 'store')
             ->middleware('permission:create_shift_roster')
             ->name('store');
+        Route::post('/shift-rosters/team', 'storeForTeam')
+            ->middleware('permission:create_shift_roster')
+            ->name('store-team');
+        Route::post('/shift-rosters/generate/preview', 'generatePreview')
+            ->middleware('permission:create_shift_roster')
+            ->name('generate-preview');
+        Route::post('/shift-rosters/generate/commit', 'generateCommit')
+            ->middleware('permission:create_shift_roster')
+            ->name('generate-commit');
         Route::delete('/shift-rosters/{id}', 'destroy')
             ->middleware('permission:create_shift_roster')
             ->name('destroy');
@@ -567,6 +596,13 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
             Route::get('reports/payroll/salary_confirmation_form', 'salaryConfirmationForm')->name('salary-confirmation-form');
             Route::get('reports/payroll/salary_confirmation_form_report', 'salaryConfirmationFormShow')->name('salary-confirmation-show');
             Route::get('reports/payroll/salary_confirmation_form_pdf/{id}/pdf', 'salaryConfirmationFormPdf')->name('salary-confirmation-pdf');
+        });
+
+        Route::controller(AttendanceDutyReportController::class)->group(function () {
+            Route::get('reports/attendance-weekly', 'weekly')->name('attendance-weekly');
+            Route::get('reports/attendance-quarterly', 'quarterly')->name('attendance-quarterly');
+            Route::get('reports/attendance-semester', 'semester')->name('attendance-semester');
+            Route::get('reports/attendance-yearly', 'yearly')->name('attendance-yearly');
         });
 
         Route::controller(EmployeeReportTemplateController::class)->group(function () {
