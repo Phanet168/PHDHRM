@@ -22,6 +22,14 @@ trait BuildsAttendanceDatabase
             $t->string('department_name');
             $t->integer('unit_type_id')->default(1);
             $t->integer('parent_id')->nullable();
+            $t->integer('sort_order')->nullable();
+            $t->softDeletes();
+        });
+        Schema::create('positions', function (Blueprint $t) {
+            $t->id();
+            $t->string('position_name')->nullable();
+            $t->string('position_name_km')->nullable();
+            $t->integer('position_rank')->nullable();
             $t->softDeletes();
         });
         Schema::create('employees', function (Blueprint $t) {
@@ -29,6 +37,8 @@ trait BuildsAttendanceDatabase
             $t->integer('department_id');
             $t->integer('sub_department_id')->nullable();
             $t->integer('default_shift_id')->nullable();
+            $t->integer('position_id')->nullable();
+            $t->integer('gender_id')->nullable();
             $t->integer('is_active')->default(1);
             $t->string('first_name')->default('Test');
             $t->string('last_name')->default('Officer');

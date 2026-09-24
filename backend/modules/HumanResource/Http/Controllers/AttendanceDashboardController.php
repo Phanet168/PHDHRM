@@ -39,7 +39,7 @@ class AttendanceDashboardController extends Controller
         $selectedDate = $request->input('date') ?: today()->toDateString();
         $filter = $request->input('status') ?: 'all';
         $search = trim($request->input('q', ''));
-        $employees = $this->scope->employees($selectedDepartmentId)->where('is_active', 1)->orderBy('first_name')->get();
+        $employees = $this->scope->employees($selectedDepartmentId)->where('is_active', 1)->get();
         $data = $this->dashboard->build($employees, Carbon::parse($selectedDate));
         $summary = $data['summary'];
         $sessionSummary = $data['sessions'];

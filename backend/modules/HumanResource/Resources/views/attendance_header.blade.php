@@ -12,51 +12,83 @@
                     </li>
                 @endcan
 
-                {{-- ២. ការចូល-ចេញ --}}
-                @can('read_attendance')
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('attendances.create') || request()->routeIs('attendances.index') || request()->routeIs('attendances.edit') ? 'active' : '' }}"
-                            href="{{ route('attendances.create') }}">
-                            <i class="fa fa-fingerprint me-1"></i>{{ localize('attendance_record', 'ការចូល-ចេញ') }}
+                {{-- ២. កត់ត្រាវត្តមាន (ការចូល-ចេញ / ប្រចាំខែ / QR) --}}
+                @canany(['read_attendance', 'read_monthly_attendance'])
+                    @php
+                        $recordingActive = request()->routeIs('attendances.create')
+                            || request()->routeIs('attendances.index')
+                            || request()->routeIs('attendances.edit')
+                            || request()->routeIs('attendances.monthlyCreate')
+                            || request()->routeIs('attendances.qrCreate')
+                            || request()->routeIs('attendances.qrGenerate');
+                    @endphp
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {{ $recordingActive ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fa fa-fingerprint me-1"></i>{{ localize('attendance_recording', 'កត់ត្រាវត្តមាន') }}
                         </a>
+                        <ul class="dropdown-menu">
+                            @can('read_attendance')
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('attendances.create') || request()->routeIs('attendances.index') || request()->routeIs('attendances.edit') ? 'active' : '' }}"
+                                        href="{{ route('attendances.create') }}">
+                                        <i class="fa fa-fingerprint me-1"></i>{{ localize('attendance_record', 'ការចូល-ចេញ') }}
+                                    </a>
+                                </li>
+                            @endcan
+                            @can('read_monthly_attendance')
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('attendances.monthlyCreate') ? 'active' : '' }}"
+                                        href="{{ route('attendances.monthlyCreate') }}">
+                                        <i class="fa fa-calendar-alt me-1"></i>{{ localize('monthly_attendance', 'ប្រចាំខែ') }}
+                                    </a>
+                                </li>
+                            @endcan
+                            @can('read_attendance')
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('attendances.qrCreate') || request()->routeIs('attendances.qrGenerate') ? 'active' : '' }}"
+                                        href="{{ route('attendances.qrCreate') }}">
+                                        <i class="fa fa-qrcode me-1"></i>{{ localize('qr_attendance', 'QR Attendance') }}
+                                    </a>
+                                </li>
+                            @endcan
+                        </ul>
                     </li>
-                @endcan
+                @endcanany
 
-                {{-- ៣. ប្រចាំខែ --}}
-                @can('read_monthly_attendance')
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('attendances.monthlyCreate') ? 'active' : '' }}"
-                            href="{{ route('attendances.monthlyCreate') }}">
-                            <i class="fa fa-calendar-alt me-1"></i>{{ localize('monthly_attendance', 'ប្រចាំខែ') }}
+                {{-- ៣. វេន និងកាលវិភាគ (ម៉ោងធ្វើការ / តារាងវេនយាម / ក្រុមវេន) --}}
+                @canany(['read_shift', 'read_shift_roster'])
+                    @php
+                        $shiftActive = request()->routeIs('shifts.*') || request()->routeIs('shift-rosters.*') || request()->routeIs('shift-teams.*');
+                    @endphp
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {{ $shiftActive ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fa fa-clock me-1"></i>{{ localize('shift_and_schedule', 'វេន និងកាលវិភាគ') }}
                         </a>
+                        <ul class="dropdown-menu">
+                            @can('read_shift')
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('shifts.*') ? 'active' : '' }}" href="{{ route('shifts.index') }}">
+                                        <i class="fa fa-clock me-1"></i>{{ 'ម៉ោងធ្វើការ' }}
+                                    </a>
+                                </li>
+                            @endcan
+                            @can('read_shift_roster')
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('shift-rosters.*') ? 'active' : '' }}" href="{{ route('shift-rosters.index', ['department_id' => request('department_id')]) }}">
+                                        <i class="fa fa-calendar-alt me-1"></i>តារាងវេនយាម
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item {{ request()->routeIs('shift-teams.*') ? 'active' : '' }}" href="{{ route('shift-teams.index', ['department_id' => request('department_id')]) }}">
+                                        <i class="fa fa-users me-1"></i>ក្រុមវេន
+                                    </a>
+                                </li>
+                            @endcan
+                        </ul>
                     </li>
-                @endcan
+                @endcanany
 
-                {{-- ៤. QR Attendance --}}
-                @can('read_attendance')
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('attendances.qrCreate') || request()->routeIs('attendances.qrGenerate') ? 'active' : '' }}"
-                            href="{{ route('attendances.qrCreate') }}">
-                            <i class="fa fa-qrcode me-1"></i>{{ localize('qr_attendance', 'QR Attendance') }}
-                        </a>
-                    </li>
-                @endcan
-
-                {{-- ៥. Shift & Roster --}}
-                @can('read_shift')
-                    <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('shifts.*') ? 'active' : '' }}"
-                            href="{{ route('shifts.index') }}">
-                            <i class="fa fa-clock me-1"></i>{{ 'ម៉ោងធ្វើការ' }}
-                        </a>
-                    </li>
-                @endcan
-
-                {{-- ៦. បេសកម្ម --}}
-                @can('read_shift_roster')
-                    <li class="nav-item"><a class="nav-link {{ request()->routeIs('shift-rosters.*') ? 'active' : '' }}" href="{{ route('shift-rosters.index', ['department_id' => request('department_id')]) }}"><i class="fa fa-calendar-alt me-1"></i>តារាងវេនយាម</a></li>
-                    <li class="nav-item"><a class="nav-link {{ request()->routeIs('shift-teams.*') ? 'active' : '' }}" href="{{ route('shift-teams.index', ['department_id' => request('department_id')]) }}"><i class="fa fa-users me-1"></i>ក្រុមវេន</a></li>
-                @endcan
+                {{-- ៤. បេសកម្ម --}}
                 @can('read_mission')
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('missions.*') ? 'active' : '' }}"
@@ -66,7 +98,7 @@
                     </li>
                 @endcan
 
-                {{-- ៧. ករណីពុំប្រក្រតី (Exceptions + Missing + Adjustments) --}}
+                {{-- ៥. ករណីពុំប្រក្រតី (Exceptions + Missing + Adjustments) --}}
                 @can('read_attendance')
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('attendances.exceptions') || request()->routeIs('attendances.missingAttendance') || request()->routeIs('attendance-adjustments.*') ? 'active' : '' }}"
@@ -76,7 +108,7 @@
                     </li>
                 @endcan
 
-                {{-- ៨. ទិន្នន័យប្រចាំថ្ងៃ --}}
+                {{-- ៦. ទិន្នន័យប្រចាំថ្ងៃ --}}
                 @can('read_attendance_snapshot')
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('attendance-snapshots.*') ? 'active' : '' }}"

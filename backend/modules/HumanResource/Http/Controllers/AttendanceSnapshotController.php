@@ -29,13 +29,13 @@ class AttendanceSnapshotController extends Controller
         if (! $request->expectsJson()) {
             $employees = $this->scope->employees($selectedDepartmentId)
                 ->where('is_active', 1)
-                ->orderBy('last_name')
-                ->orderBy('first_name')
-                ->get(['id', 'first_name', 'middle_name', 'last_name', 'employee_id']);
+                ->with(['department', 'sub_department', 'gender', 'position'])
+                ->get(['id', 'first_name', 'middle_name', 'last_name', 'employee_id', 'department_id', 'sub_department_id', 'gender_id', 'position_id']);
             $selectedDate = $request->input('date', now()->toDateString());
             $selectedEmployeeId = $request->input('employee_id');
 
             $snapshots = collect();
+            $displayEmployees = $selectedEmployeeId ? $employees->where('id', (int) $selectedEmployeeId) : $employees;
             if ($selectedDate) {
                 $query = AttendanceDailySnapshot::query()
                     ->with('employee')->whereIn('employee_id', $this->scope->employees($selectedDepartmentId)->select('employees.id'))
@@ -44,18 +44,17 @@ class AttendanceSnapshotController extends Controller
                 if ($selectedEmployeeId) {
                     $query->where('employee_id', (int) $selectedEmployeeId);
                 }
-                foreach ($employees as $employee) {
-                    if ($selectedEmployeeId && (int) $selectedEmployeeId !== (int) $employee->id) {
-                        continue;
-                    }
+                foreach ($displayEmployees as $employee) {
                     $payload = $this->statusService->determineDailyStatus((int) $employee->id, Carbon::parse($selectedDate));
                     AttendanceDailySnapshot::updateOrCreate(['employee_id' => $employee->id, 'snapshot_date' => $selectedDate], $payload);
                 }
                 $snapshots = $query->orderBy('employee_id')->get();
             }
+            $snapshotByEmployee = $snapshots->keyBy('employee_id');
+            $employeeRows = $this->scope->hierarchyRows($displayEmployees, $selectedDepartmentId);
 
             return view('humanresource::attendance.daily-snapshot', compact(
-                'employees', 'selectedDate', 'selectedEmployeeId', 'snapshots', 'departments', 'selectedDepartmentId'
+                'employees', 'selectedDate', 'selectedEmployeeId', 'snapshots', 'snapshotByEmployee', 'employeeRows', 'departments', 'selectedDepartmentId'
             ));
         }
 

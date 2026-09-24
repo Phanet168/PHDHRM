@@ -61,7 +61,7 @@
                 <span class="badge badge-info-soft px-3 py-1">M — {{ localize('mission', 'បេសកម្ម') }}</span>
                 <span class="badge badge-primary-soft px-3 py-1">LV — {{ localize('leave', 'ច្បាប់') }}</span>
                 <span class="badge badge-secondary-soft px-3 py-1">H — {{ localize('holiday', 'ថ្ងៃបុណ្យ') }}</span>
-                <span class="badge bg-light text-dark border px-3 py-1">O — {{ localize('day_off', 'ថ្ងៃឈប់') }}</span>
+                <span class="badge bg-light text-dark border px-3 py-1">O — {{ localize('day_off', 'ថ្ងៃឈប់សម្រាក') }}</span>
             </div>
 
             <div class="table-responsive">
@@ -82,7 +82,23 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($snapshots as $snap)
+                        @php $currentDepth = 0; $employeeSeq = 0; @endphp
+                        @forelse($employeeRows as $row)
+                            @if ($row['type'] === 'header')
+                                @php $currentDepth = $row['depth']; @endphp
+                                <tr class="table-light">
+                                    <td colspan="11" class="fw-semibold text-primary" style="padding-left: {{ $row['depth'] * 14 }}px">
+                                        {{ $row['label'] }}
+                                        <span class="text-muted fw-normal small">(សរុប {{ $row['total'] }} | ប្រុស {{ $row['male'] }} | ស្រី {{ $row['female'] }})</span>
+                                    </td>
+                                </tr>
+                            @else
+                            @php
+                                $employeeSeq++;
+                                $employee = $row['employee'];
+                                $snap = $snapshotByEmployee->get($employee->id);
+                            @endphp
+                            @if ($snap)
                             @php
                                 $statusCode = strtoupper($snap->attendance_status ?? '');
                                 $statusBadge = match($statusCode) {
@@ -102,7 +118,7 @@
                                     'ON MISSION'  => localize('mission', 'M — បេសកម្ម'),
                                     'ON LEAVE'    => localize('leave', 'LV — ច្បាប់'),
                                     'HOLIDAY'  => localize('holiday', 'H — ថ្ងៃបុណ្យ'),
-                                    'DAY OFF'  => localize('day_off', 'O — ថ្ងៃឈប់'),
+                                    'DAY OFF'  => localize('day_off', 'O — ថ្ងៃឈប់សម្រាក'),
                                     'EARLY LEAVE' => 'ចេញមុនម៉ោង',
                                     'INCOMPLETE' => 'ខ្វះការចូល/ចេញ',
                                     default    => $snap->attendance_status ?? '-',
@@ -110,10 +126,10 @@
                                 $workedHours = $snap->worked_minutes !== null ? round($snap->worked_minutes / 60, 1) . 'h' : '-';
                             @endphp
                             <tr>
-                                <td>{{ $loop->iteration }}</td>
-                                <td>
-                                    <div class="fw-semibold">{{ $snap->employee?->full_name ?? '-' }}</div>
-                                    <small class="text-muted">{{ $snap->employee?->employee_id ?? '' }}</small>
+                                <td>{{ $employeeSeq }}</td>
+                                <td style="padding-left: {{ 8 + $currentDepth * 14 }}px">
+                                    <div class="fw-semibold">{{ $employee->full_name }}</div>
+                                    <small class="text-muted">{{ $employee->employee_id }}</small>
                                 </td>
                                 <td>{{ \Carbon\Carbon::parse($snap->snapshot_date)->format('d/m/Y') }}</td>
                                 <td><span class="badge {{ $statusBadge }}">{{ $statusLabel }}</span></td>
@@ -150,6 +166,17 @@
                                     {{ $snap->computed_at ? \Carbon\Carbon::parse($snap->computed_at)->format('d/m H:i') : '-' }}
                                 </td>
                             </tr>
+                            @else
+                                <tr>
+                                    <td>{{ $employeeSeq }}</td>
+                                    <td style="padding-left: {{ 8 + $currentDepth * 14 }}px">
+                                        <div class="fw-semibold">{{ $employee->full_name }}</div>
+                                        <small class="text-muted">{{ $employee->employee_id }}</small>
+                                    </td>
+                                    <td colspan="9" class="text-muted small">{{ localize('no_snapshot_data', 'មិនមានទិន្នន័យ Snapshot ទេ') }}</td>
+                                </tr>
+                            @endif
+                            @endif
                         @empty
                             <tr>
                                 <td colspan="11" class="text-center py-4 text-muted">

@@ -16,8 +16,9 @@
     .status-O  { background: #f9fafb; color: #6b7280; border-radius: 3px; padding: 1px 4px; }
     .status-NA { color: #d1d5db; font-size: 0.7rem; }
     .summary-col { background: #f8fafc; font-weight: 600; min-width: 42px; }
-    .sticky-col { position: sticky; left: 0; background: #fff; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,0.05); }
-    .sticky-col-2 { position: sticky; left: 120px; background: #fff; z-index: 2; }
+    .sticky-col-num { position: sticky; left: 0; background: #fff; z-index: 2; text-align: center; }
+    .sticky-col { position: sticky; left: 40px; background: #fff; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,0.05); }
+    .sticky-col-2 { position: sticky; left: 160px; background: #fff; z-index: 2; }
     .weekend-col { background: #f9fafb; }
 </style>
 @endpush
@@ -120,7 +121,7 @@
                 <span class="status-M">M</span><small class="me-2">{{ localize('mission', 'បេសកម្ម') }}</small>
                 <span class="status-LV">LV</span><small class="me-2">{{ localize('leave', 'ច្បាប់') }}</small>
                 <span class="status-H">H</span><small class="me-2">{{ localize('holiday', 'ថ្ងៃបុណ្យ') }}</small>
-                <span class="status-O">O</span><small class="me-2">{{ localize('day_off', 'ថ្ងៃឈប់') }}</small>
+                <span class="status-O">O</span><small class="me-2">{{ localize('day_off', 'ថ្ងៃឈប់សម្រាក') }}</small>
             </div>
 
             {{-- Monthly Grid --}}
@@ -128,6 +129,7 @@
                 <table class="table table-bordered monthly-grid-table mb-0">
                     <thead class="table-light">
                         <tr>
+                            <th class="sticky-col-num" style="min-width:40px;">{{ localize('no', 'ល.រ') }}</th>
                             <th class="sticky-col" style="min-width:120px;">{{ localize('employee', 'ឈ្មោះ') }}</th>
                             <th class="sticky-col-2" style="min-width:80px;">{{ localize('dept', 'អង្គភាព') }}</th>
                             @foreach($monthDays as $day)
@@ -149,14 +151,27 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($displayEmployees as $emp)
+                        @php $currentDepth = 0; $employeeSeq = 0; @endphp
+                        @forelse($displayEmployeeRows as $row)
+                            @if ($row['type'] === 'header')
+                                @php $currentDepth = $row['depth']; @endphp
+                                <tr class="table-light">
+                                    <td colspan="{{ 3 + $daysInMonth + 6 }}" class="fw-semibold text-primary" style="padding-left: {{ $row['depth'] * 14 }}px">
+                                        {{ $row['label'] }}
+                                        <span class="text-muted fw-normal small">(សរុប {{ $row['total'] }} | ប្រុស {{ $row['male'] }} | ស្រី {{ $row['female'] }})</span>
+                                    </td>
+                                </tr>
+                            @else
+                            @php $employeeSeq++; @endphp
                             @php
+                                $emp = $row['employee'];
                                 $empSnapshots = $snapshotMap->get($emp->id, collect());
                                 $countP = $countA = $countL = $countM = $countLV = 0;
                                 $totalMinutes = 0;
                             @endphp
                             <tr>
-                                <td class="sticky-col fw-semibold" style="min-width:120px;">
+                                <td class="sticky-col-num" style="min-width:40px;">{{ $employeeSeq }}</td>
+                                <td class="sticky-col fw-semibold" style="min-width:120px; padding-left: {{ 8 + $currentDepth * 14 }}px">
                                     {{ $emp->full_name }}<br>
                                     <small class="text-muted">{{ $emp->employee_id }}</small>
                                 </td>
@@ -210,9 +225,10 @@
                                     {{ $totalMinutes > 0 ? round($totalMinutes / 60, 1) : '—' }}
                                 </td>
                             </tr>
+                            @endif
                         @empty
                             <tr>
-                                <td colspan="{{ 2 + $daysInMonth + 6 }}" class="text-center py-4 text-muted">
+                                <td colspan="{{ 3 + $daysInMonth + 6 }}" class="text-center py-4 text-muted">
                                     <i class="fa fa-inbox me-2"></i>{{ localize('no_data_found', 'មិនមានទិន្នន័យទេ') }}
                                 </td>
                             </tr>

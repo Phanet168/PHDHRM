@@ -31,8 +31,10 @@ use Modules\HumanResource\Entities\UserAssignment;
 use Modules\HumanResource\Entities\UserOrgRole;
 use Modules\HumanResource\Entities\WorkflowDefinition;
 use Modules\HumanResource\Entities\WorkflowDefinitionStep;
+use Modules\HumanResource\Entities\Shift;
 use Modules\HumanResource\Services\AttendanceCaptureService;
 use Modules\HumanResource\Services\QrAttendanceTokenService;
+use Modules\HumanResource\Services\ShiftRosterAssignmentService;
 use Modules\HumanResource\Support\OrgScopeService;
 use Modules\HumanResource\Support\OrgUnitRuleService;
 
@@ -1570,8 +1572,8 @@ class ManualAttendanceController extends Controller
         $employeeQuery = $scope->employees($selectedDepartmentId)->where('is_active', 1);
 
         $employees = $employeeQuery
-            ->with(['department', 'sub_department'])
-            ->get(['id', 'first_name', 'middle_name', 'last_name', 'employee_id', 'department_id', 'sub_department_id']);
+            ->with(['department', 'sub_department', 'gender', 'position'])
+            ->get(['id', 'first_name', 'middle_name', 'last_name', 'employee_id', 'department_id', 'sub_department_id', 'gender_id', 'position_id']);
 
         $orgUnitOptions = $orgUnitRuleService->hierarchyOptions();
         $allowedDepartmentIds = $scope->departments()->pluck('id')->map(fn ($id) => (int) $id)->all();
@@ -1605,11 +1607,12 @@ class ManualAttendanceController extends Controller
         $displayEmployees = $selectedEmployeeId
             ? $employees->where('id', (int) $selectedEmployeeId)
             : $employees;
+        $displayEmployeeRows = $scope->hierarchyRows($displayEmployees, $selectedDepartmentId);
 
         $employee = $employees; // backward-compat for monthlyStore view
 
         return view('humanresource::attendance.monthlycreate', compact(
-            'employee', 'employees', 'displayEmployees', 'snapshotMap',
+            'employee', 'employees', 'displayEmployees', 'displayEmployeeRows', 'snapshotMap',
             'selectedYear', 'selectedMonth', 'selectedEmployeeId', 'selectedDepartmentId', 'orgUnitOptions',
             'daysInMonth', 'monthDays'
         ));
@@ -1693,50 +1696,138 @@ class ManualAttendanceController extends Controller
         } else {
             $date = Carbon::parse($date)->format('Y-m-d');
         }
-        $missingAttendance = $this->scopedEmployeeQuery($orgScopeService)
-            ->with(['position:id,position_name'])
+        $scope = app(AttendanceUnitScope::class);
+        // Default to ONE managed unit like every sibling attendance page
+        // (shift-rosters, shift-teams, daily-snapshot, monthlycreate) --
+        // without this, a province-wide role got every employee across every
+        // facility in one page load (hundreds of rows, each with its own
+        // type/shift Select2 widgets), which made the page painfully slow.
+        $selectedDepartmentId = $scope->selected($request);
+        $departments = $scope->departments()->get();
+        $missingAttendance = $scope->employees($selectedDepartmentId)
+            ->where('is_active', 1)
+            ->with(['position:id,position_name,position_rank', 'department', 'sub_department', 'gender'])
             ->doesntHave('attendances', 'and', function ($query) use ($date) {
                 $query->whereDate('time', $date);
             })
-            ->get(['id', 'first_name', 'middle_name', 'last_name', 'position_id', 'employee_id']);
-        return view('humanresource::attendance.missing', compact('missingAttendance', 'date'));
+            ->get(['id', 'first_name', 'middle_name', 'last_name', 'position_id', 'employee_id', 'department_id', 'sub_department_id', 'gender_id']);
+        $employeeRows = $scope->hierarchyRows($missingAttendance, $selectedDepartmentId);
+        $shiftsByDepartment = Shift::where('is_active', 1)
+            ->whereIn('department_id', $missingAttendance->pluck('sub_department_id')->merge($missingAttendance->pluck('department_id'))->filter()->unique())
+            ->get()
+            ->groupBy('department_id');
+
+        return view('humanresource::attendance.missing', compact(
+            'missingAttendance', 'employeeRows', 'shiftsByDepartment', 'date', 'departments', 'selectedDepartmentId'
+        ));
     }
 
-    public function missingAttendanceStore(Request $request, OrgScopeService $orgScopeService)
+    /** The three punch sessions the missing-attendance quick-fix can backfill in one go (ព្រឹក/រសៀល/យប់ -- duty staff need all three, office staff usually just the first two). */
+    private const MISSING_ATTENDANCE_SESSIONS = ['morning', 'afternoon', 'night'];
+
+    public function missingAttendanceStore(Request $request, OrgScopeService $orgScopeService, ShiftRosterAssignmentService $assignment)
     {
-        $request->validate([
+        $rules = [
             'employee_id' => 'required|array',
             'employee_id.*' => 'required|integer',
-            'in_time' => 'required|array',
-            'in_time.*' => 'required|date_format:H:i',
-            'out_time' => 'required|array',
-            'out_time.*' => 'required|date_format:H:i',
+            'type' => 'required|array',
+            'type.*' => 'required|in:in_out,day_off,holiday,shift',
+            'shift_id' => 'nullable|array',
+            'shift_id.*' => 'nullable|integer',
             'date' => 'required|date',
-        ]);
+        ];
+        foreach (self::MISSING_ATTENDANCE_SESSIONS as $session) {
+            $rules["{$session}_in"] = 'nullable|array';
+            $rules["{$session}_in.*"] = 'nullable|date_format:H:i';
+            $rules["{$session}_out"] = 'nullable|array';
+            $rules["{$session}_out.*"] = 'nullable|date_format:H:i';
+        }
+        $request->validate($rules);
 
-        $this->ensureEmployeesAreAccessible($request->employee_id, $orgScopeService);
+        $employee_id = $request->employee_id;
+        $this->ensureEmployeesAreAccessible($employee_id, $orgScopeService);
+        $employees = Employee::whereIn('id', $employee_id)->get()->keyBy('id');
+
+        $type = $request->type;
+        $shift_id = $request->shift_id ?? [];
+        $date = Carbon::parse($request->date);
+        $sessionTimes = [];
+        foreach (self::MISSING_ATTENDANCE_SESSIONS as $session) {
+            $sessionTimes[$session] = ['in' => $request->input("{$session}_in", []), 'out' => $request->input("{$session}_out", [])];
+        }
+
+        foreach ($employee_id as $key => $value) {
+            $rowType = $type[$key] ?? 'in_out';
+            if ($rowType === 'in_out') {
+                $hasCompleteSession = false;
+                foreach (self::MISSING_ATTENDANCE_SESSIONS as $session) {
+                    $in = $sessionTimes[$session]['in'][$key] ?? null;
+                    $out = $sessionTimes[$session]['out'][$key] ?? null;
+                    if (($in && ! $out) || (! $in && $out)) {
+                        throw ValidationException::withMessages(['session_times' => 'សូមបំពេញទាំងម៉ោងចូល និងម៉ោងចេញសម្រាប់វគ្គដែលបានបំពេញ។']);
+                    }
+                    $hasCompleteSession = $hasCompleteSession || ($in && $out);
+                }
+                if (! $hasCompleteSession) {
+                    throw ValidationException::withMessages(['session_times' => 'សូមបំពេញម៉ោងយ៉ាងហោចណាស់មួយវគ្គ (ព្រឹក/រសៀល/យប់)។']);
+                }
+            }
+            if ($rowType === 'shift' && empty($shift_id[$key])) {
+                throw ValidationException::withMessages(['shift_id' => 'សូមជ្រើសរើសវេន។']);
+            }
+        }
 
         try {
             DB::beginTransaction();
-            $in_time = $request->in_time;
-            $out_time = $request->out_time;
-            $employee_id = $request->employee_id;
-            $date = Carbon::parse($request->date);
 
             foreach ($employee_id as $key => $value) {
-                $inDateTime = $date->copy()->modify($in_time[$key]);
-                $outDateTime = $date->copy()->modify($out_time[$key]);
+                $employee = $employees->get((int) $value);
+                if (! $employee) {
+                    continue;
+                }
+                $rowType = $type[$key] ?? 'in_out';
 
-                AttendanceCaptureService::capture([
-                    'employee_id' => (int) $value,
-                    'time' => $inDateTime->format('Y-m-d H:i:s'),
-                    'attendance_source' => 'missing',
-                ]);
-                AttendanceCaptureService::capture([
-                    'employee_id' => (int) $value,
-                    'time' => $outDateTime->format('Y-m-d H:i:s'),
-                    'attendance_source' => 'missing',
-                ]);
+                if ($rowType === 'in_out') {
+                    foreach (self::MISSING_ATTENDANCE_SESSIONS as $session) {
+                        $in = $sessionTimes[$session]['in'][$key] ?? null;
+                        $out = $sessionTimes[$session]['out'][$key] ?? null;
+                        if (! $in || ! $out) {
+                            continue;
+                        }
+                        $inDateTime = $date->copy()->modify($in);
+                        $outDateTime = $date->copy()->modify($out);
+                        if ($outDateTime->lessThanOrEqualTo($inDateTime)) {
+                            // Overnight session (e.g. duty in=20:00, out=06:00 the next day).
+                            $outDateTime->addDay();
+                        }
+
+                        AttendanceCaptureService::capture([
+                            'employee_id' => (int) $value,
+                            'time' => $inDateTime->format('Y-m-d H:i:s'),
+                            'attendance_source' => 'missing',
+                        ]);
+                        AttendanceCaptureService::capture([
+                            'employee_id' => (int) $value,
+                            'time' => $outDateTime->format('Y-m-d H:i:s'),
+                            'attendance_source' => 'missing',
+                        ]);
+                    }
+                    continue;
+                }
+
+                $unitId = AttendanceUnitScope::employeeUnit($employee);
+                $shift = $rowType === 'shift'
+                    ? Shift::where('department_id', $unitId)->where('is_active', 1)->findOrFail($shift_id[$key])
+                    : null;
+                $assignment->assign(
+                    $employee,
+                    $shift,
+                    $date->copy(),
+                    $date->copy(),
+                    $rowType === 'day_off',
+                    $rowType === 'holiday',
+                    'ការខកខានវត្តមាន (Missing attendance fix-up)'
+                );
             }
 
             DB::commit();

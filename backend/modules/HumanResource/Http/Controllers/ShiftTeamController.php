@@ -45,9 +45,11 @@ class ShiftTeamController extends Controller
 
         $departments = $this->scope->departments()->get();
         $teams = $query->paginate(20)->withQueryString();
-        $employees = $this->scope->employees($selectedDepartmentId)->where('is_active', 1)->orderBy('first_name')->get();
+        $employees = $this->scope->employees($selectedDepartmentId)->where('is_active', 1)
+            ->with(['department', 'sub_department', 'gender', 'position'])->get();
+        $employeeRows = $this->scope->hierarchyRows($employees, $selectedDepartmentId);
 
-        return view('humanresource::attendance.shift-teams.index', compact('teams', 'departments', 'selectedDepartmentId', 'employees'));
+        return view('humanresource::attendance.shift-teams.index', compact('teams', 'departments', 'selectedDepartmentId', 'employees', 'employeeRows'));
     }
 
     public function store(Request $request): mixed

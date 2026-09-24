@@ -48,12 +48,22 @@
                                     @csrf @method('PUT')
                                     <div class="modal-header"><h6 class="modal-title">សមាជិកក្រុម៖ {{ $team->name }}</h6><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                                     <div class="modal-body" style="max-height:60vh;overflow-y:auto;">
-                                        @php($activeIds = $team->activeEmployees->pluck('id')->all())
-                                        @forelse($employees as $employee)
-                                            <div class="form-check mb-1">
-                                                <input class="form-check-input" type="checkbox" name="employee_ids[]" value="{{ $employee->id }}" id="member-{{ $team->id }}-{{ $employee->id }}" @checked(in_array($employee->id, $activeIds))>
-                                                <label class="form-check-label" for="member-{{ $team->id }}-{{ $employee->id }}">{{ $employee->full_name }}</label>
-                                            </div>
+                                        @php $activeIds = $team->activeEmployees->pluck('id')->all(); @endphp
+                                        @php $currentDepth = 0; $employeeSeq = 0; @endphp
+                                        @forelse($employeeRows as $row)
+                                            @if ($row['type'] === 'header')
+                                                @php $currentDepth = $row['depth']; @endphp
+                                                <div class="fw-semibold small text-primary border-bottom mb-1 mt-2 pb-1" style="padding-left: {{ $row['depth'] * 14 }}px">
+                                                    {{ $row['label'] }}
+                                                    <span class="text-muted fw-normal">(សរុប {{ $row['total'] }} | ប្រុស {{ $row['male'] }} | ស្រី {{ $row['female'] }})</span>
+                                                </div>
+                                            @else
+                                                @php $employee = $row['employee']; $employeeSeq++; @endphp
+                                                <div class="form-check mb-1" style="padding-left: {{ 24 + $currentDepth * 14 }}px">
+                                                    <input class="form-check-input" type="checkbox" name="employee_ids[]" value="{{ $employee->id }}" id="member-{{ $team->id }}-{{ $employee->id }}" @checked(in_array($employee->id, $activeIds))>
+                                                    <label class="form-check-label" for="member-{{ $team->id }}-{{ $employee->id }}">{{ $employeeSeq }}. {{ $employee->full_name }}</label>
+                                                </div>
+                                            @endif
                                         @empty
                                             <p class="text-muted small">មិនមានបុគ្គលិកក្នុងអង្គភាពនេះទេ។</p>
                                         @endforelse

@@ -113,6 +113,157 @@ class AttendanceUnitScope
             }
         }
 
-        return Employee::query()->whereIn(\Illuminate\Support\Facades\DB::raw('COALESCE(NULLIF(employees.sub_department_id, 0), employees.department_id)'), $ids);
+        return Employee::query()
+            ->whereIn(\Illuminate\Support\Facades\DB::raw('COALESCE(NULLIF(employees.sub_department_id, 0), employees.department_id)'), $ids)
+            ->orderByRaw($this->orderByHierarchySql());
+    }
+
+    /**
+     * Turns an employee list into a flat, ready-to-render sequence of rows
+     * matching the reference staff table's structure (EmployeeStructuredReportExport):
+     * a header row for every internal office/section/team level between
+     * $rootUnitId and each employee's own department (ថ្នាក់ដឹកនាំ, ការិយាល័យ,
+     * ផ្នែក, ក្រុម, ...), each carrying (total/male/female), followed by that
+     * segment's employees -- a control-break over the org chain, so a
+     * header is only repeated when the chain actually changes from the
+     * previous employee. Employees directly in $rootUnitId with no internal
+     * office get no header at all. Callers must eager-load `position` and
+     * `gender` on $employees first (department chain is walked fresh here
+     * since it can go deeper than the sub_department/department columns).
+     *
+     * @param \Illuminate\Support\Collection<int, Employee> $employees
+     * @return array<int, array{type: 'header', depth: int, label: string, total: int, male: int, female: int}|array{type: 'employee', employee: Employee}>
+     */
+    public function hierarchyRows(\Illuminate\Support\Collection $employees, ?int $rootUnitId): array
+    {
+        if ($employees->isEmpty()) {
+            return [];
+        }
+
+        $allDepartments = Department::withoutGlobalScopes()
+            ->select(['id', 'department_name', 'parent_id', 'sort_order'])
+            ->get()->keyBy('id');
+
+        $prepared = $employees->map(function (Employee $employee) use ($allDepartments, $rootUnitId) {
+            $chain = [];
+            $currentId = (int) ($employee->sub_department_id ?: $employee->department_id);
+            $visited = [];
+            while ($currentId > 0 && ! isset($visited[$currentId])) {
+                $visited[$currentId] = true;
+                $dept = $allDepartments->get($currentId);
+                if (! $dept) {
+                    break;
+                }
+                $chain[] = $dept;
+                if ($rootUnitId !== null && (int) $dept->id === $rootUnitId) {
+                    break;
+                }
+                $currentId = (int) $dept->parent_id;
+            }
+            $chain = array_reverse($chain);
+            if ($rootUnitId !== null && ! empty($chain) && (int) $chain[0]->id === $rootUnitId) {
+                array_shift($chain);
+            }
+
+            $pathKey = implode('|', array_map(
+                fn ($d) => str_pad((string) ($d->sort_order ?? 999999), 6, '0', STR_PAD_LEFT) . ':' . $d->id,
+                $chain
+            ));
+
+            return [
+                'employee' => $employee,
+                'segments' => array_map(fn ($d) => trim((string) $d->department_name), $chain),
+                'path_key' => $pathKey,
+            ];
+        })->sort(function (array $a, array $b) {
+            $compare = strcmp($a['path_key'], $b['path_key']);
+            if ($compare !== 0) {
+                return $compare;
+            }
+            $rankA = $a['employee']->position?->position_rank ?? PHP_INT_MAX;
+            $rankB = $b['employee']->position?->position_rank ?? PHP_INT_MAX;
+            if ($rankA !== $rankB) {
+                return $rankA <=> $rankB;
+            }
+
+            return strcmp((string) $a['employee']->full_name, (string) $b['employee']->full_name);
+        })->values();
+
+        $countsByPrefix = [];
+        foreach ($prepared as $item) {
+            $prefix = [];
+            foreach ($item['segments'] as $segment) {
+                $prefix[] = $segment;
+                $key = implode('|', $prefix);
+                $countsByPrefix[$key] ??= ['total' => 0, 'male' => 0];
+                $countsByPrefix[$key]['total']++;
+                if ($this->isMale($item['employee'])) {
+                    $countsByPrefix[$key]['male']++;
+                }
+            }
+        }
+
+        $rows = [];
+        $previousSegments = [];
+        foreach ($prepared as $item) {
+            $segments = $item['segments'];
+            $changedIndex = 0;
+            while (
+                $changedIndex < count($segments)
+                && $changedIndex < count($previousSegments)
+                && $segments[$changedIndex] === $previousSegments[$changedIndex]
+            ) {
+                $changedIndex++;
+            }
+            for ($depth = $changedIndex; $depth < count($segments); $depth++) {
+                $key = implode('|', array_slice($segments, 0, $depth + 1));
+                $counts = $countsByPrefix[$key] ?? ['total' => 0, 'male' => 0];
+                $rows[] = [
+                    'type' => 'header',
+                    'depth' => $depth,
+                    'label' => $segments[$depth],
+                    'total' => $counts['total'],
+                    'male' => $counts['male'],
+                    'female' => $counts['total'] - $counts['male'],
+                ];
+            }
+            $previousSegments = $segments;
+            $rows[] = ['type' => 'employee', 'employee' => $item['employee']];
+        }
+
+        return $rows;
+    }
+
+    private function isMale(Employee $employee): bool
+    {
+        $value = mb_strtolower(trim((string) ($employee->gender?->gender_name ?? '')), 'UTF-8');
+
+        return in_array($value, ['male', 'm', 'ប្រុស'], true);
+    }
+
+    /**
+     * Same ordering convention the main staff list (EmployeeDataTable /
+     * EmployeeStructuredReportExport) uses: cluster employees by their own
+     * immediate office (sub_department_id, falling back to department_id --
+     * this may be an internal office/bureau a level below the selected
+     * duty-eligible unit) in that office's structural sort_order, then by
+     * hierarchical rank (position_rank, nulls last), then name. Clustering
+     * by office first keeps each office's staff contiguous, which is what
+     * lets callers render a group header per office (see
+     * shift-teams/index.blade.php and shift-rosters/index.blade.php).
+     */
+    private function orderByHierarchySql(): string
+    {
+        return "
+            (SELECT COALESCE(d.sort_order, 999999) FROM departments d
+                WHERE d.id = COALESCE(NULLIF(employees.sub_department_id, 0), employees.department_id)) ASC,
+            (SELECT d.department_name FROM departments d
+                WHERE d.id = COALESCE(NULLIF(employees.sub_department_id, 0), employees.department_id)) ASC,
+            (SELECT CASE WHEN positions.position_rank IS NULL THEN 1 ELSE 0 END
+                FROM positions WHERE positions.id = employees.position_id) ASC,
+            (SELECT positions.position_rank FROM positions WHERE positions.id = employees.position_id) ASC,
+            COALESCE(NULLIF(employees.last_name, ''), '') ASC,
+            COALESCE(NULLIF(employees.first_name, ''), '') ASC
+        ";
     }
 }

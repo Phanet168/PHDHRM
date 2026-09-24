@@ -2,41 +2,63 @@
     <div class="card fixed-tab col-12 col-md-12">
         <ul class="nav nav-tabs">
             @can('read_attendance_report')
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reports.staff-attendance') ? 'active' : '' }}"
-                        href="{{ route('reports.staff-attendance') }}">{{ localize('attendance_report') }}</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reports.lateness-closing-attendance') ? 'active' : '' }}"
-                        href="{{ route('reports.lateness-closing-attendance') }}">{{ localize('lateness_closing_attendance_report') }}</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reports.attendance-log') || request()->routeIs('reports.attendance-log-details') ? 'active' : '' }}"
-                        href="{{ route('reports.attendance-log') }}">{{ localize('attendance_log') }}</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reports.daily-present') ? 'active' : '' }}"
-                        href="{{ route('reports.daily-present') }}">{{ localize('daily_present') }}</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reports.monthly') ? 'active' : '' }}"
-                        href="{{ route('reports.monthly') }}">{{ localize('monthly') }}</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reports.attendance-weekly') ? 'active' : '' }}"
-                        href="{{ route('reports.attendance-weekly') }}">សប្តាហ៍</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reports.attendance-quarterly') ? 'active' : '' }}"
-                        href="{{ route('reports.attendance-quarterly') }}">ត្រីមាស</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reports.attendance-semester') ? 'active' : '' }}"
-                        href="{{ route('reports.attendance-semester') }}">ឆមាស</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link {{ request()->routeIs('reports.attendance-yearly') ? 'active' : '' }}"
-                        href="{{ route('reports.attendance-yearly') }}">ឆ្នាំ</a>
+                @php
+                    $attendanceReportActive = request()->routeIs('reports.staff-attendance')
+                        || request()->routeIs('reports.lateness-closing-attendance')
+                        || request()->routeIs('reports.attendance-log')
+                        || request()->routeIs('reports.attendance-log-details')
+                        || request()->routeIs('reports.daily-present')
+                        || request()->routeIs('reports.monthly')
+                        || request()->routeIs('reports.attendance-weekly')
+                        || request()->routeIs('reports.attendance-quarterly')
+                        || request()->routeIs('reports.attendance-semester')
+                        || request()->routeIs('reports.attendance-yearly');
+                @endphp
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle {{ $attendanceReportActive ? 'active' : '' }}" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        {{ localize('attendance_report') }}
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><h6 class="dropdown-header">{{ localize('daily_and_monthly', 'ប្រចាំថ្ងៃ / ប្រចាំខែ') }}</h6></li>
+                        <li>
+                            <a class="dropdown-item {{ request()->routeIs('reports.staff-attendance') ? 'active' : '' }}"
+                                href="{{ route('reports.staff-attendance') }}">{{ localize('attendance_report') }}</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item {{ request()->routeIs('reports.lateness-closing-attendance') ? 'active' : '' }}"
+                                href="{{ route('reports.lateness-closing-attendance') }}">{{ localize('lateness_closing_attendance_report') }}</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item {{ request()->routeIs('reports.attendance-log') || request()->routeIs('reports.attendance-log-details') ? 'active' : '' }}"
+                                href="{{ route('reports.attendance-log') }}">{{ localize('attendance_log') }}</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item {{ request()->routeIs('reports.daily-present') ? 'active' : '' }}"
+                                href="{{ route('reports.daily-present') }}">{{ localize('daily_present') }}</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item {{ request()->routeIs('reports.monthly') ? 'active' : '' }}"
+                                href="{{ route('reports.monthly') }}">{{ localize('monthly') }}</a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">{{ localize('by_period', 'តាមកំឡុងពេល') }}</h6></li>
+                        <li>
+                            <a class="dropdown-item {{ request()->routeIs('reports.attendance-weekly') ? 'active' : '' }}"
+                                href="{{ route('reports.attendance-weekly') }}">សប្តាហ៍</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item {{ request()->routeIs('reports.attendance-quarterly') ? 'active' : '' }}"
+                                href="{{ route('reports.attendance-quarterly') }}">ត្រីមាស</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item {{ request()->routeIs('reports.attendance-semester') ? 'active' : '' }}"
+                                href="{{ route('reports.attendance-semester') }}">ឆមាស</a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item {{ request()->routeIs('reports.attendance-yearly') ? 'active' : '' }}"
+                                href="{{ route('reports.attendance-yearly') }}">ឆ្នាំ</a>
+                        </li>
+                    </ul>
                 </li>
             @endcan
             @can('read_leave_report')
