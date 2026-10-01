@@ -119,6 +119,43 @@ class AttendanceUnitScope
     }
 
     /**
+     * Employees rolled up into exactly $unitId (including any internal
+     * offices/sections beneath it) -- unlike employees(), this does NOT
+     * gate by managedBranchIds(), so it also works for an ordinary staff
+     * member with no management authority over their own facility (e.g.
+     * the mobile "my facility's staff directory" API). Callers are
+     * responsible for their own authorization -- typically by confirming
+     * $unitId actually is the caller's own unit before calling this.
+     */
+    public function employeesInUnit(int $unitId): Builder
+    {
+        $nodes = Department::with('unitType')->get()->keyBy('id');
+        $ids = [];
+        foreach ($nodes as $node) {
+            $current = $node;
+            $visited = [];
+            while ($current && ! isset($visited[$current->id])) {
+                $visited[$current->id] = true;
+                $code = $current->unitType?->code;
+                if (in_array($code, self::UNIT_TYPES, true)) {
+                    if ((int) $current->id === $unitId) {
+                        $ids[] = (int) $node->id;
+                    }
+                    break;
+                }
+                if (! in_array($code, self::INTERNAL_TYPES, true)) {
+                    break;
+                }
+                $current = $nodes->get($current->parent_id);
+            }
+        }
+
+        return Employee::query()
+            ->whereIn(\Illuminate\Support\Facades\DB::raw('COALESCE(NULLIF(employees.sub_department_id, 0), employees.department_id)'), $ids)
+            ->orderByRaw($this->orderByHierarchySql());
+    }
+
+    /**
      * Turns an employee list into a flat, ready-to-render sequence of rows
      * matching the reference staff table's structure (EmployeeStructuredReportExport):
      * a header row for every internal office/section/team level between

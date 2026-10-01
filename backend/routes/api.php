@@ -13,6 +13,7 @@ use Modules\HumanResource\Http\Controllers\AttendanceSnapshotController;
 use Modules\HumanResource\Http\Controllers\MobileAttendanceController;
 use Modules\HumanResource\Http\Controllers\LeaveRequestApiController;
 use Modules\HumanResource\Http\Controllers\NoticeNotificationApiController;
+use Modules\HumanResource\Http\Controllers\StaffStructureApiController;
 use Modules\Correspondence\Http\Controllers\CorrespondenceController;
 use App\Http\Controllers\Api\CapabilityController;
 
@@ -115,6 +116,10 @@ Route::prefix('v1')
             Route::post('/scan', [MobileAttendanceController::class, 'scan'])->middleware('throttle:30,1')->name('scan');
             Route::post('/scan-issues', [MobileAttendanceController::class, 'reportIssue'])->middleware('throttle:30,1')->name('scan_issues');
         });
+
+        // Read-only staff directory (own facility only): grouped by office,
+        // ordered by hierarchical rank, matching the web admin's structure.
+        Route::get('/staff-structure', [StaffStructureApiController::class, 'index'])->name('api.v1.staff_structure.index');
 
         Route::get('/shifts', [ShiftController::class, 'index'])->name('api.v1.shifts.index');
         Route::post('/shifts', [ShiftController::class, 'store'])->name('api.v1.shifts.store');
