@@ -1,0 +1,17 @@
+export function initBackToTop() {
+    const button = document.querySelector('.back-to-top');
+    if (!button) return;
+
+    const threshold = 400;
+    const updateVisibility = () => {
+        button.classList.toggle('is-visible', window.scrollY > threshold);
+    };
+
+    window.addEventListener('scroll', updateVisibility, { passive: true });
+    updateVisibility();
+
+    button.addEventListener('click', () => {
+        const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        window.scrollTo({ top: 0, behavior: reducedMotion ? 'auto' : 'smooth' });
+    });
+}

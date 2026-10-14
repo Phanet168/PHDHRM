@@ -1,0 +1,37 @@
+/* Rich text editor (Tiptap) for News' content field — resources/js/news-editor.js mounts this
+   over a plain textarea. Scoped to .news-editor so nothing else on the admin pages is affected. */
+.news-editor { border: 1px solid var(--color-line); border-radius: 8px; overflow: hidden; background: white; }
+.news-editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 6px; border-bottom: 1px solid var(--color-line); background: var(--color-surface); }
+.news-editor-btn { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 30px; padding: 0 6px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--color-ink); font-size: 13px; line-height: 1; cursor: pointer; }
+.news-editor-btn:hover { background: white; border-color: var(--color-line); }
+.news-editor-btn.is-active { background: var(--color-brand-blue-tint); border-color: var(--color-brand-blue); color: var(--color-brand-blue); }
+.news-editor-sep { width: 1px; height: 20px; margin: 0 4px; background: var(--color-line); flex-shrink: 0; }
+.news-editor-content { padding: 12px 14px; min-height: 220px; font-size: 14px; line-height: 1.9; color: var(--color-ink); }
+.news-editor-content .ProseMirror { outline: none; min-height: 200px; }
+.news-editor-content .ProseMirror p { margin: 0 0 10px; }
+.news-editor-content .ProseMirror h2 { font-size: 1.25rem; font-weight: 700; margin: 14px 0 8px; color: var(--color-brand-navy); }
+.news-editor-content .ProseMirror h3 { font-size: 1.0625rem; font-weight: 700; margin: 12px 0 6px; color: var(--color-brand-navy); }
+.news-editor-content .ProseMirror ul, .news-editor-content .ProseMirror ol { padding-inline-start: 22px; margin: 0 0 10px; }
+.news-editor-content .ProseMirror blockquote { padding-inline-start: 12px; border-inline-start: 3px solid var(--color-line); color: var(--color-muted); margin: 0 0 10px; }
+.news-editor-content .ProseMirror a { color: var(--color-brand-blue); text-decoration: underline; }
+.news-editor-content .ProseMirror img { max-width: 100%; border-radius: 6px; }
+.news-editor-content .ProseMirror table { border-collapse: collapse; width: 100%; margin: 0 0 10px; }
+.news-editor-content .ProseMirror td, .news-editor-content .ProseMirror th { border: 1px solid var(--color-line); padding: 6px 8px; }
+.news-editor-content .ProseMirror th { background: var(--color-surface); font-weight: 700; }
+
+/* Insert-image mini picker (used only from the toolbar's image button) */
+.news-editor-image-picker-backdrop { position: fixed; inset: 0; z-index: 200; background: rgba(0, 0, 0, 0.6); }
+.news-editor-image-picker-panel { position: fixed; z-index: 201; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(560px, calc(100vw - 32px)); max-height: 80vh; display: flex; flex-direction: column; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25); }
+.news-editor-image-picker-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--color-line); font-size: 13px; font-weight: 700; color: var(--color-brand-navy); }
+.news-editor-image-picker-close { background: none; border: 0; font-size: 16px; color: var(--color-muted); cursor: pointer; }
+.news-editor-image-picker-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 12px; overflow-y: auto; }
+.news-editor-image-picker-item { border: 1px solid var(--color-line); border-radius: 6px; overflow: hidden; padding: 0; cursor: pointer; }
+.news-editor-image-picker-item img { display: block; width: 100%; height: 70px; object-fit: cover; }
+.news-editor-image-picker-empty { grid-column: 1 / -1; text-align: center; color: var(--color-muted); font-size: 12px; padding: 20px; }
+
+/* Icon-only row actions used across gallery/attachment list-cards (view/edit/download/remove).
+   Always paired with a title + aria-label in markup so the action stays clear without a text label. */
+.news-row-action { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; border: 1px solid transparent; background: transparent; color: var(--color-muted); cursor: pointer; transition: background-color .15s, color .15s, border-color .15s; }
+.news-row-action:hover { background: var(--color-brand-blue-tint); border-color: var(--color-brand-blue); color: var(--color-brand-blue); }
+.news-row-action.is-danger:hover { background: #fdecec; border-color: var(--color-brand-red); color: var(--color-brand-red); }
+.news-row-action .news-icon { width: 15px; height: 15px; }

@@ -1,0 +1,41 @@
+flowchart LR
+ subgraph distFlow["A · ចែកចាយ និងទទួលឱសថ"]
+  direction TB
+  draft["បង្កើតប័ណ្ណ · draft"]
+  sent["ផ្ញើ · sent / ដកស្តុកអ្នកផ្ញើ"]
+  receive["បញ្ចូលចំនួនទទួល / បូកស្តុកអ្នកទទួល"]
+  enough{"គ្រប់មុខទទួលបាន ≥ ចំនួនផ្ញើ?"}
+  partial["partial · ទទួលមិនគ្រប់"]
+  completed["completed · បញ្ចប់"]
+  draft --> sent --> receive --> enough
+  enough -->|"ទេ"| partial
+  partial -->|"ទទួលម្តងទៀត"| receive
+  enough -->|"បាទ/ចាស"| completed
+ end
+ subgraph dailyFlow["B · ស្តុក និងការប្រើប្រាស់"]
+  direction TB
+  stock[("ស្តុកគ្រឹះស្ថាន / ឱសថ / Batch")]
+  dispense["Hospital / HC ផ្តល់ឱសថដល់អ្នកជំងឺ"]
+  adj["កែសម្រួលស្តុក"]
+  stock -->|"អានស្តុក"| dispense
+  dispense -->|"ដកស្តុក"| stock
+  adj -->|"Correction + ; ខូច / ផុតកំណត់ / បាត់ −"| stock
+ end
+ subgraph reportFlow["C · របាយការណ៍ — លំហូរប៊ូតុងក្នុង UI"]
+  direction TB
+  input["គ្រឹះស្ថាន + រយៈពេល / បញ្ចូល ឬ Auto-generate"]
+  rdraft["draft · អាចកែ និងលុប"]
+  submitted["submitted · ដាក់ស្នើ"]
+  reviewed["reviewed · ពិនិត្យដោយ PHD / OD"]
+  approved["approved · អនុម័តដោយ PHD / OD"]
+  input --> rdraft --> submitted --> reviewed --> approved
+  submitted -->|"អនុម័តផ្ទាល់"| approved
+ end
+ classDef status fill:#e9f1fb,stroke:#487bac,color:#153650
+ classDef data fill:#e6f3ef,stroke:#217a64,color:#153f35
+ class draft,sent,partial,completed,rdraft,submitted,reviewed,approved status
+ class stock,dispense,adj data
+ style distFlow fill:#f5f8fc,stroke:#bacbdc
+ style dailyFlow fill:#f2faf6,stroke:#b2d8c5
+ style reportFlow fill:#fcf8ef,stroke:#d9c89c
+

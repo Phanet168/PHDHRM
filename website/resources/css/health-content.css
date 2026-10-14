@@ -1,0 +1,42 @@
+.health-index-page { display: flex; flex-direction: column; gap: 24px; max-width: none; margin: 0 auto; padding: 32px 20px; }
+@media (min-width: 64rem) {
+    .health-index-page { flex-direction: row; align-items: flex-start; padding: 40px 24px; }
+}
+
+.health-index-sidebar { flex-shrink: 0; width: 100%; background: white; border: 1px solid var(--color-line); border-radius: 12px; padding: 18px; }
+@media (min-width: 64rem) { .health-index-sidebar { width: 260px; position: sticky; top: calc(var(--public-sticky-offset) + 20px); } }
+.health-index-sidebar h2 { font-weight: 700; color: var(--color-brand-navy); font-size: 1rem; margin-bottom: 12px; }
+.health-index-category-list { display: flex; flex-direction: column; gap: 4px; }
+.health-index-category-link { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 8px; color: var(--color-ink); font-size: 0.875rem; font-weight: 600; }
+.health-index-category-link:hover { background: var(--color-surface); }
+.health-index-category-link.is-active { background: var(--color-brand-blue-tint); color: var(--color-brand-blue); }
+.health-index-category-count { color: var(--color-muted); font-size: 0.75rem; font-weight: 700; }
+
+.health-index-results { flex: 1; min-width: 0; }
+.health-index-empty { color: var(--color-muted); text-align: center; padding: 60px 0; }
+.health-index-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 20px; }
+.health-index-card { display: flex; flex-direction: column; background: white; border: 1px solid var(--color-line); border-radius: 12px; overflow: hidden; box-shadow: 0 3px 10px rgba(0,0,0,.06); transition: box-shadow .15s, border-color .15s; }
+.health-index-card:hover { border-color: var(--color-brand-green); box-shadow: 0 6px 18px rgba(0,0,0,.09); }
+.health-index-card-image { position: relative; height: 170px; background: var(--color-surface); overflow: hidden; }
+.health-index-card-image img { width: 100%; height: 100%; object-fit: cover; }
+.health-index-card-play { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 999px; background: rgba(255,255,255,.9); color: var(--color-brand-blue); font-size: 0.9375rem; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.health-index-card-body { display: flex; flex-direction: column; gap: 6px; padding: 16px; }
+.health-index-card-category { font-weight: 700; color: var(--color-brand-green); font-size: 0.75rem; }
+.health-index-card-title { font-weight: 700; color: var(--color-brand-navy); font-size: 1.0625rem; line-height: 1.4; }
+.health-index-card-excerpt { color: var(--color-muted); font-size: 0.8125rem; line-height: 1.5; }
+.health-index-card-date { color: var(--color-muted); font-size: 0.75rem; margin-top: 4px; }
+
+.health-show-page { max-width: none; margin: 0 auto; padding: 40px 20px 60px; display: flex; flex-direction: column; gap: 36px; }
+.health-show-category { font-weight: 700; color: var(--color-brand-green); font-size: 0.8125rem; }
+.health-show-title { font-weight: 700; color: var(--color-brand-navy); font-size: 1.75rem; line-height: 1.4; margin-top: 6px; }
+.health-show-date { color: var(--color-muted); font-size: 0.8125rem; margin-top: 8px; }
+.health-show-video { position: relative; width: 100%; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; margin-top: 16px; }
+.health-show-video iframe, .health-show-video video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.health-show-excerpt { font-weight: 600; color: var(--color-ink); font-size: 1.0625rem; margin-top: 16px; line-height: 1.7; }
+.health-show-content { color: var(--color-ink); font-size: 1rem; line-height: 1.9; margin-top: 20px; white-space: pre-line; }
+.health-show-message { background: var(--color-brand-green-tint); border-radius: 10px; padding: 16px 20px; margin-top: 20px; }
+.health-show-message-title { font-weight: 700; color: var(--color-brand-green); font-size: 0.875rem; margin-bottom: 6px; }
+.health-show-message p:not(.health-show-message-title) { color: var(--color-ink); font-size: 0.9375rem; line-height: 1.7; }
+.health-show-source { color: var(--color-muted); font-size: 0.8125rem; margin-top: 16px; }
+.health-show-source a { color: var(--color-brand-blue); font-weight: 700; }
+.health-show-related h2 { font-weight: 700; color: var(--color-brand-navy); font-size: 1.25rem; margin-bottom: 16px; }

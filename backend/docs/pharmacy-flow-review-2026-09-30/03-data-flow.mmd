@@ -1,0 +1,25 @@
+flowchart LR
+ admin["អ្នកគ្រប់គ្រងបញ្ជីឱសថ"] -->|"ឈ្មោះ កូដ ឯកតា"| p1("1 · គ្រប់គ្រងមុខឱសថ")
+ p1 -->|"រក្សាទុក"| d1[("D1 · Categories + Medicines")]
+ sender["PHD / OD + អ្នកទទួល"] -->|"ប័ណ្ណផ្ញើ / ចំនួនទទួល"| p2("2 · ចែកចាយ និងទទួល")
+ p2 -->|"ប័ណ្ណ + Items + Status"| d2[("D2 · Distributions + Items")]
+ p2 -->|"ដកអ្នកផ្ញើ / បូកអ្នកទទួល"| stockA[("D3 · Facility stocks")]
+ nurse["Hospital / HC"] -->|"អ្នកជំងឺ + ឱសថ + ចំនួន"| p3("3 · ផ្តល់ឱសថ")
+ p3 -->|"ប័ណ្ណផ្តល់"| d4[("D4 · Dispensings + Items")]
+ stockB[("D3 · Facility stocks")] -->|"អានស្តុក"| p3
+ p3 -->|"ដកស្តុក"| stockB
+ staff["អ្នកប្រើគ្រឹះស្ថាន"] -->|"ប្រភេទ + ចំនួន + មូលហេតុ"| p4("4 · កែសម្រួល")
+ p4 -->|"កំណត់ត្រាកែសម្រួល"| d5[("D5 · Stock adjustments")]
+ p4 -->|"Correction + / ផ្សេងទៀត −"| stockC[("D3 · Facility stocks")]
+ tx[("D2 + D4 + D5 · ប្រតិបត្តិការក្នុងគ្រា")] -->|"ទទួល / ផ្តល់ / កែសម្រួល"| p5("5 · គណនារបាយការណ៍")
+ prev[("D6 · របាយការណ៍គ្រាមុន")] -->|"Closing → Opening"| p5
+ fallback[("D3 · ស្តុកបច្ចុប្បន្ន")] -->|"Fallback បើ Opening map ទទេ"| p5
+ p5 -->|"ទិន្នន័យស្វ័យប្រវត្តិ"| form("6 · Form របាយការណ៍")
+ editor["អ្នករៀបចំ + PHD / OD ពិនិត្យ"] -->|"កែទិន្នន័យ / Submit / Review / Approve"| form
+ form -->|"Snapshot + ស្ថានភាព"| d6[("D6 · Reports + Items")]
+ classDef actor fill:#f7edda,stroke:#b88d40,color:#634b24
+ classDef proc fill:#e6f3ef,stroke:#217a64,color:#153f35
+ classDef db fill:#e9f1fb,stroke:#487bac,color:#153650
+ class admin,sender,nurse,staff,editor actor
+ class p1,p2,p3,p4,p5,form proc
+ class d1,d2,stockA,stockB,stockC,d4,d5,tx,prev,fallback,d6 db

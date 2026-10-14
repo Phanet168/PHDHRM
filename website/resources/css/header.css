@@ -1,0 +1,130 @@
+/* Sticky header: the top bar and the main menu stay pinned together while the page scrolls.
+   --public-sticky-offset is the pinned height (a fallback here, the exact value is set by
+   sticky-header.js); sticky sidebars and in-page anchors use it to clear the header. */
+:root { --public-sticky-offset: 8rem; }
+html { scroll-padding-top: calc(var(--public-sticky-offset) + 12px); }
+.public-sticky-header { position: sticky; top: 0; z-index: 90; background: white; transition: box-shadow .2s; }
+.public-sticky-header.is-stuck { box-shadow: 0 6px 18px #05305c29; }
+/* Map layers (Leaflet uses z-index up to 1000) must never paint over the pinned header. */
+.leaflet-container, .facility-map-panel { isolation: isolate; }
+@media (prefers-reduced-motion: reduce) { .public-sticky-header { transition: none; } }
+
+/* Public header only; sizing remains independent of the loader's visibility. */
+.public-header {
+    --header-logo-size: 44px;
+    --header-height: 64px;
+    --header-gap: 16px;
+    --header-padding-block: 8px;
+    position: relative;
+    height: var(--header-height);
+    background: white;
+}
+.public-header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--header-gap);
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    padding-block: var(--header-padding-block);
+}
+.public-header-brand { display: flex; flex: 1 1 auto; align-items: center; gap: 12px; min-width: 0; }
+.public-header-brand-text { display: flex; flex: 1 1 auto; flex-direction: column; justify-content: center; min-width: 0; }
+.public-header-name-km, .public-header-name-en { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.public-header-name-km { color: #05305c; font-size: 1rem; font-weight: 700; line-height: 1.65; }
+.public-header-name-en { display: none; color: #64748b; font-size: .75rem; line-height: 1.5; }
+
+/* Explicit container and image bounds: intrinsic PNG/JPG/WebP dimensions never
+   contribute to the header's height or to the brand's minimum width. */
+.public-header .public-header-logo {
+    --site-logo-size: var(--header-logo-size);
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 var(--header-logo-size);
+    width: var(--header-logo-size);
+    height: var(--header-logo-size);
+    min-width: var(--header-logo-size);
+    max-width: var(--header-logo-size);
+    min-height: var(--header-logo-size);
+    max-height: var(--header-logo-size);
+    overflow: hidden;
+    border-radius: 0;
+    background: transparent;
+}
+.public-header .public-header-logo .site-logo-image {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    background: transparent;
+    opacity: 0;
+}
+.public-header .public-header-logo .site-logo-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: #005cad;
+    color: white;
+    font: 700 calc(var(--header-logo-size) * .57)/1 sans-serif;
+}
+.public-header .public-header-logo .site-logo-fallback[hidden] { display: none; }
+
+.public-header-nav { display: none; flex: 0 0 auto; align-items: center; gap: clamp(12px, 1.2vw, 20px); font-size: 1rem; line-height: 1.6; }
+.public-header-nav > a, .public-header-nav > div > button { white-space: nowrap; }
+.public-header-nav > div:last-of-type > div { left: auto; right: 0; }
+.public-header-toggle { display: inline-flex; flex: 0 0 44px; align-items: center; justify-content: center; width: 44px; height: 44px; color: #05305c; cursor: pointer; }
+.public-header-mobile-menu { position: absolute; top: 100%; left: 0; right: 0; z-index: 30; display: flex; flex-direction: column; max-height: calc(100dvh - var(--public-sticky-offset) - 16px); overflow-y: auto; overflow-x: hidden; padding: 12px 0; background: white; border-top: 1px solid #e2e8f0; box-shadow: 0 10px 20px #00000014; }
+.public-header-mobile-menu a, .public-header-mobile-menu button > span { min-width: 0; overflow-wrap: anywhere; }
+.public-header-mobile-menu { overscroll-behavior-y: contain; padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+.public-header-mobile-menu a, .public-header-mobile-menu button { min-height: 48px; font-size: 1rem; line-height: 1.75; }
+.public-header-mobile-menu button { text-align: left; gap: 12px; }
+.public-header-mobile-menu button > svg { flex-shrink: 0; }
+.public-header-mobile-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 10px 16px 0; padding-top: 16px; border-top: 1px solid #e2e8f0; }
+.public-header-mobile-actions a { display: flex; align-items: center; justify-content: center; padding: 10px; border-radius: 8px; background: #eaf5ff; color: #005cad; font-weight: 600; text-align: center; }
+.public-header-mobile-actions .public-header-mobile-hrm { background: #005cad; color: white; }
+.public-header :is(a, button):focus-visible { outline: 2px solid #005cad; outline-offset: 3px; }
+
+@media (max-width: 39.999rem) {
+    .public-header-topbar { font-size: .8125rem; }
+    .public-header { --header-height: 76px; --header-gap: 8px; --header-padding-block: 10px; }
+    .public-header-brand { gap: 10px; }
+    .public-header-name-km { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; max-height: 3.3em; }
+    .public-header-mobile-menu > a, .public-header-mobile-menu > div > button { padding-inline: 16px; }
+}
+@media (max-width: 22.499rem) {
+    .public-header-mobile-actions { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-width: 40rem) {
+    .public-header { --header-logo-size: 52px; --header-height: 72px; }
+    .public-header-name-km { font-size: 1.125rem; }
+    .public-header-name-en { display: block; }
+}
+@media (min-width: 48rem) {
+    .public-header-mobile-actions { grid-template-columns: minmax(0, 1fr); }
+    .public-header-mobile-actions .public-header-mobile-hrm { display: none; }
+}
+@media (min-width: 64rem) {
+    .public-header { --header-logo-size: 60px; --header-height: 80px; --header-gap: 24px; }
+    .public-header-name-km { font-size: 1.25rem; }
+    .public-header-name-en { font-size: .8125rem; }
+}
+/* Keep the six-link menu intact and reserve room for the organization name.
+   Narrow desktop/tablet widths use the existing hamburger menu. */
+@media (min-width: 80rem) {
+    .public-header-nav { display: flex; }
+    .public-header-toggle, .public-header-mobile-menu { display: none !important; }
+}
+@media (min-width: 90rem) {
+    .public-header-nav { font-size: 1.0625rem; }
+}

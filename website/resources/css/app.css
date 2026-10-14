@@ -1,0 +1,158 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Khmer:wght@400;500;600;700&display=swap');
+@import 'swiper/css';
+@import 'swiper/css/pagination';
+@import 'glightbox/dist/css/glightbox.min.css';
+@import 'leaflet/dist/leaflet.css';
+@import 'tailwindcss';
+@import './news.css';
+@import './legal-documents.css';
+@import './contact.css';
+@import './article.css';
+@import './facilities.css';
+@import './header.css';
+@import './media-library.css';
+@import './health-content.css';
+@import './home.css';
+@import './public-layout.css';
+@import './footer.css';
+@import './pages.css';
+@import './news-editor.css';
+@import './about.css';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+/* Responsive display toggles for the header's mobile/desktop nav split, written as
+   plain (non-utility-named) classes. Tailwind's build was inconsistently dropping
+   hand-written rules whose selectors looked like its own colon-variant utilities. */
+.show-from-sm { display: none; }
+@media (min-width: 40rem) {
+    .show-from-sm { display: block; }
+}
+
+.show-from-md { display: none; }
+@media (min-width: 48rem) {
+    .show-from-md { display: block; }
+}
+
+.desktop-nav { display: none; }
+@media (min-width: 64rem) {
+    .desktop-nav { display: flex; }
+}
+
+/* No base display rule here: this class is combined with Tailwind's own
+   `flex` utility on some elements, and should only force-hide at lg+. */
+@media (min-width: 64rem) {
+    .mobile-nav-toggle { display: none !important; }
+}
+
+@theme {
+    --font-sans: 'Noto Sans Khmer', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-brand-navy: #05305c;
+    --color-brand-blue: #005cad;
+    --color-brand-green: #0ea962;
+    --color-brand-blue-dark: #0d3b6b;
+    --color-brand-blue-tint: #eaf5ff;
+    --color-brand-green-tint: #ebfaf2;
+    --color-brand-red: #d2383c;
+    --color-ink: #1c2e43;
+    --color-muted: #657487;
+    --color-footer-link: #c7dbed;
+    --color-surface: #f7f9fc;
+    --color-line: #e2e8f0;
+}
+
+body {
+    font-family: var(--font-sans);
+}
+
+[x-cloak] {
+    display: none !important;
+}
+
+/* Hero slider — professional, subtle motion (no bounce, no fast/aggressive transitions) */
+.hero-swiper .swiper-wrapper {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.hero-slide-image {
+    transform: scale(1);
+    transform-origin: center;
+}
+
+.swiper-slide-active .hero-slide-image {
+    animation: hero-zoom 6000ms ease-out forwards;
+}
+
+@keyframes hero-zoom {
+    from { transform: scale(1); }
+    to { transform: scale(1.08); }
+}
+
+.hero-slide-content {
+    opacity: 0;
+}
+
+.swiper-slide-active .hero-slide-content {
+    animation: hero-text-in 700ms cubic-bezier(0.25, 0.46, 0.45, 0.94) 200ms forwards;
+}
+
+@keyframes hero-text-in {
+    from { opacity: 0; transform: translateX(-24px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.hero-swiper .swiper-pagination {
+    bottom: 20px;
+}
+
+.hero-swiper .swiper-pagination-bullet {
+    background: rgba(255, 255, 255, 0.5);
+    opacity: 1;
+    width: 9px;
+    height: 9px;
+}
+
+.hero-swiper .swiper-pagination-bullet-active {
+    background: #ffffff;
+}
+
+/* Homepage news ticker: continuous right-to-left scroll built from CSS
+   keyframes (no <marquee>), pausable on hover/touch via a class toggle. */
+.news-ticker-viewport {
+    -webkit-overflow-scrolling: touch;
+}
+
+.news-ticker-track {
+    width: max-content;
+    animation-name: news-ticker-scroll;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+    will-change: transform;
+}
+
+.news-ticker-track.news-ticker-paused {
+    animation-play-state: paused;
+}
+
+@keyframes news-ticker-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .news-ticker-track {
+        animation: none;
+    }
+}
+
+/* Content block Media Library picker: highlight the selected radio's thumbnail. */
+.media-picker-item input:checked ~ img,
+.media-picker-item input:checked ~ div {
+    outline: 3px solid var(--color-brand-blue);
+    outline-offset: -3px;
+}

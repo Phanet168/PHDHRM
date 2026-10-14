@@ -1,0 +1,132 @@
+/* Public bars and homepage content share the facility directory's side gutters. */
+.public-document,
+.public-document body {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.public-site,
+.public-main {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+}
+
+.public-site { min-height: 100vh; --public-gutter: 24px; }
+
+.public-container {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    margin-inline: auto;
+    padding-inline: var(--public-gutter);
+}
+
+.public-header-topbar,
+.public-header,
+.public-hero,
+.news-ticker,
+.public-footer {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+}
+
+.public-header-topbar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-block: 8px;
+}
+.public-header-topbar-inner > p {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.public-header-contact { flex-shrink: 0; }
+.public-footer .public-container > div { min-width: 0; overflow-wrap: anywhere; }
+
+/* Health message ticker (left side of the top bar) — fixed single-line
+   height so rotating messages never shift the bar or push the contact
+   info on the right. */
+.public-header-ticker {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 1.4em;
+    overflow: hidden;
+}
+.public-header-ticker-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.public-header-ticker-item:not(.is-static) { position: absolute; inset: 0; }
+.public-header-ticker-icon { flex-shrink: 0; display: inline-flex; }
+.public-header-ticker-icon svg { width: 18px; height: 18px; }
+.public-header-ticker-item span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.public-header-ticker-enter, .public-header-ticker-leave { transition: opacity .4s ease, transform .4s ease; }
+.public-header-ticker-enter-start { opacity: 0; transform: translateY(5px); }
+.public-header-ticker-enter-end { opacity: 1; transform: translateY(0); }
+.public-header-ticker-leave-start { opacity: 1; transform: translateY(0); }
+.public-header-ticker-leave-end { opacity: 0; transform: translateY(-5px); }
+
+@media (prefers-reduced-motion: reduce) {
+    .public-header-ticker-enter, .public-header-ticker-leave { transition: opacity .15s linear; }
+    .public-header-ticker-enter-start, .public-header-ticker-enter-end,
+    .public-header-ticker-leave-start, .public-header-ticker-leave-end { transform: none; }
+}
+
+@media (max-width: 30rem) {
+    .public-header-ticker-icon { display: none; }
+}
+.public-hero-content { position: relative; height: 100%; }
+.news-ticker-viewport { min-width: 0; }
+
+@media (max-width: 30rem) {
+    .public-site { --public-gutter: 16px; }
+}
+@media (min-width: 48rem) {
+    .public-site { --public-gutter: 40px; }
+}
+@media (min-width: 64rem) {
+    .public-site { --public-gutter: 70px; }
+}
+
+/* Back-to-top: hidden until the page is scrolled down, toggled by
+   back-to-top.js adding/removing .is-visible. */
+.back-to-top {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    background: var(--color-brand-blue);
+    color: white;
+    box-shadow: 0 6px 16px rgba(0,0,0,.18);
+    opacity: 0;
+    transform: translateY(12px);
+    pointer-events: none;
+    transition: opacity .2s ease, transform .2s ease, background .2s ease;
+}
+.back-to-top.is-visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
+.back-to-top:hover { background: var(--color-brand-navy); }
+@media (min-width: 48rem) { .back-to-top { right: 28px; bottom: 28px; } }
+@media (prefers-reduced-motion: reduce) { .back-to-top { transition: opacity .2s ease; } }

@@ -1,0 +1,20 @@
+flowchart TB
+  phd["មន្ទីរសុខាភិបាលខេត្ត · PHD"]
+  od["ស្រុកប្រតិបត្តិ · OD"]
+  hospital["មន្ទីរពេទ្យ · Hospital"]
+  hc["មណ្ឌលសុខភាព · HC"]
+  patientHospital["អ្នកជំងឺនៅមន្ទីរពេទ្យ"]
+  patientHc["អ្នកជំងឺនៅមណ្ឌលសុខភាព"]
+  phd -->|"ចែកចាយឱសថ"| od
+  phd -->|"ចែកចាយឱសថ"| hospital
+  od -->|"ចែកចាយឱសថ"| hc
+  hospital -->|"ផ្តល់ឱសថ"| patientHospital
+  hc -->|"ផ្តល់ឱសថ"| patientHc
+  hc -.->|"របាយការណ៍ទៅអង្គភាពមេ"| od
+  od -.->|"របាយការណ៍ទៅអង្គភាពមេ"| phd
+  hospital -.->|"របាយការណ៍ទៅអង្គភាពមេ"| phd
+  classDef facility fill:#e6f3ef,stroke:#217a64,color:#153f35
+  classDef patient fill:#edf2f8,stroke:#547ba2,color:#223f5c
+  class phd,od,hospital,hc facility
+  class patientHospital,patientHc patient
+

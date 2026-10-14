@@ -1,0 +1,106 @@
+erDiagram
+ departments {
+  bigint id PK
+  bigint parent_id FK
+  int unit_type_id
+  string department_name
+ }
+ pharm_categories {
+  bigint id PK
+  string name
+  string name_kh
+ }
+ pharm_medicines {
+  bigint id PK
+  bigint category_id FK "nullable"
+  string code UK
+  string name
+  string unit
+  decimal unit_price
+ }
+ pharm_facility_stocks {
+  bigint id PK
+  bigint department_id FK
+  bigint medicine_id FK
+  string batch_no "nullable"
+  date expiry_date
+  decimal quantity
+ }
+ pharm_distributions {
+  bigint id PK
+  bigint from_department_id FK
+  bigint to_department_id FK
+  string distribution_type
+  string status
+  date received_date
+ }
+ pharm_distribution_items {
+  bigint id PK
+  bigint distribution_id FK
+  bigint medicine_id FK
+  string batch_no
+  decimal quantity_sent
+  decimal quantity_received
+ }
+ pharm_dispensings {
+  bigint id PK
+  bigint department_id FK
+  date dispensing_date
+  string patient_name
+  string patient_id_no "text only"
+ }
+ pharm_dispensing_items {
+  bigint id PK
+  bigint dispensing_id FK
+  bigint medicine_id FK
+  string batch_no
+  decimal quantity
+  string dosage_instruction
+ }
+ pharm_stock_adjustments {
+  bigint id PK
+  bigint department_id FK
+  bigint medicine_id FK
+  string adjustment_type
+  string batch_no
+  decimal quantity
+ }
+ pharm_reports {
+  bigint id PK
+  bigint department_id FK
+  bigint parent_department_id FK "nullable"
+  string report_type
+  string status
+  date period_start
+  date period_end
+ }
+ pharm_report_items {
+  bigint id PK
+  bigint report_id FK
+  bigint medicine_id FK
+  decimal opening_stock
+  decimal received_qty
+  decimal dispensed_qty
+  decimal adjustment_qty
+  decimal expired_qty
+  decimal damaged_qty
+  decimal closing_stock
+ }
+ departments o|..o{ departments : parent
+ pharm_categories o|..o{ pharm_medicines : categorizes
+ departments ||..o{ pharm_facility_stocks : holds
+ pharm_medicines ||..o{ pharm_facility_stocks : stocked
+ departments ||..o{ pharm_distributions : sends
+ departments ||..o{ pharm_distributions : receives
+ pharm_distributions ||--o{ pharm_distribution_items : contains
+ pharm_medicines ||..o{ pharm_distribution_items : references
+ departments ||..o{ pharm_dispensings : dispenses
+ pharm_dispensings ||--o{ pharm_dispensing_items : contains
+ pharm_medicines ||..o{ pharm_dispensing_items : references
+ departments ||..o{ pharm_stock_adjustments : records
+ pharm_medicines ||..o{ pharm_stock_adjustments : adjusts
+ departments ||..o{ pharm_reports : submits
+ departments o|..o{ pharm_reports : reviews
+ pharm_reports ||--o{ pharm_report_items : contains
+ pharm_medicines ||..o{ pharm_report_items : summarizes
+
