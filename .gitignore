@@ -33,7 +33,8 @@
 /mobile/*.iml
 /mobile/android/.gradle/
 /mobile/ios/Pods/
-/mobile/ios/Flutter/
+# mobile/ios/.gitignore keeps Flutter's generated files out; Debug.xcconfig,
+# Release.xcconfig and AppFrameworkInfo.plist must be committed for Xcode.
 
 #ignore log files
 *.zip
