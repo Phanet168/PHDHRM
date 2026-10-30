@@ -26,6 +26,12 @@ class ShiftRoster extends Model
         'is_holiday' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(fn () => \Modules\HumanResource\Services\ShiftResolverService::invalidate());
+        static::deleted(fn () => \Modules\HumanResource\Services\ShiftResolverService::invalidate());
+    }
+
     public function shift()
     {
         return $this->belongsTo(Shift::class, 'shift_id', 'id');

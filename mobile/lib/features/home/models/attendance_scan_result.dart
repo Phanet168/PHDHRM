@@ -1,5 +1,17 @@
 import 'attendance_day_record.dart';
 
+/// Khmer reasons for rejections not tied to the scan screen itself (e.g. an
+/// offline scan refused when it was finally sent); null for unknown codes.
+String? scanFailureReason(String? errorCode) => switch (errorCode) {
+  'out_of_range' => 'អ្នកនៅក្រៅតំបន់ស្កេនវត្តមាន',
+  'invalid_qr' => 'កូដ QR មិនត្រឹមត្រូវ ឬផុតកំណត់',
+  'wrong_workplace' => 'សូមប្រើកូដ QR របស់អង្គភាពអ្នក',
+  'offline_scan_expired' => 'ការស្កេនក្រៅបណ្ដាញ បញ្ជូនយឺតជាង ២៤ ម៉ោង',
+  'offline_time_invalid' => 'ម៉ោងក្នុងទូរសព្ទមិនត្រឹមត្រូវ',
+  'geofence_not_configured' => 'អង្គភាពមិនទាន់កំណត់ទីតាំងស្កេនវត្តមាន',
+  _ => null,
+};
+
 class AttendanceScanResult {
   const AttendanceScanResult({
     required this.status,
@@ -34,6 +46,11 @@ class AttendanceScanResult {
   final AttendanceDayRecord? attendance;
 
   bool get isSuccess => status.toLowerCase() == 'ok';
+
+  /// Saved on the phone without internet; sent once it is back online.
+  bool get isQueued => status == queuedStatus;
+
+  static const queuedStatus = 'queued';
 
   factory AttendanceScanResult.fromApi(Map<String, dynamic> payload) {
     return AttendanceScanResult(

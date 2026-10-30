@@ -35,65 +35,71 @@ class AuthController extends ChangeNotifier {
   bool get isSubmitting => _isSubmitting;
   String? get errorMessage => _errorMessage;
 
+  /// Signs in from the saved session. With a saved token and profile the app
+  /// opens at once — even offline — and the profile is refreshed in the
+  /// background. Only the server rejecting the token (401) signs the user out;
+  /// no internet or a slow server never does.
   Future<void> restoreSession() async {
     _status = AuthStatus.initializing;
     _errorMessage = null;
     notifyListeners();
 
-    try {
-      final token = await _tokenStorageService.readToken().timeout(
-        const Duration(seconds: 4),
-        onTimeout: () => null,
-      );
-      if (token == null || token.isEmpty) {
-        _currentUser = null;
-        _status = AuthStatus.unauthenticated;
-        _deviceHeartbeatService.stop();
-        notifyListeners();
-        return;
-      }
-
-      final user = await _authService.getCurrentUser().timeout(
-        const Duration(seconds: 15),
-        onTimeout: () => null,
-      );
-      if (user == null) {
-        await _tokenStorageService.clearToken();
-        _currentUser = null;
-        _status = AuthStatus.unauthenticated;
-        _deviceHeartbeatService.stop();
-      } else {
-        _currentUser = user;
-        _status = AuthStatus.authenticated;
-        unawaited(_deviceHeartbeatService.start());
-      }
-    } on ApiException catch (error) {
-      if (error is NetworkException || isNetworkErrorMessage(error.message)) {
-        _currentUser = null;
-        _status = AuthStatus.unauthenticated;
-        _errorMessage = null;
-        _deviceHeartbeatService.stop();
-      } else {
-        await _tokenStorageService.clearToken();
-        _currentUser = null;
-        _status = AuthStatus.unauthenticated;
-        _errorMessage = error.message;
-        _deviceHeartbeatService.stop();
-      }
-    } catch (error) {
-      if (isNetworkErrorMessage(error.toString())) {
-        _currentUser = null;
-        _status = AuthStatus.unauthenticated;
-        _errorMessage = null;
-        _deviceHeartbeatService.stop();
-      } else {
-        _currentUser = null;
-        _status = AuthStatus.unauthenticated;
-        _errorMessage = extractApiErrorMessage(error);
-        _deviceHeartbeatService.stop();
-      }
+    final token = await _tokenStorageService.readToken().timeout(
+      const Duration(seconds: 4),
+      onTimeout: () => null,
+    );
+    if (token == null || token.isEmpty) {
+      _signedOut();
+      return;
     }
 
+    final cached = await _authService.cachedUser();
+    if (cached != null) {
+      _currentUser = cached;
+      _status = AuthStatus.authenticated;
+      unawaited(_deviceHeartbeatService.start());
+      notifyListeners();
+      unawaited(_refreshProfile());
+      return;
+    }
+
+    // A token without a saved profile (e.g. after an app update): the server
+    // has to supply it once.
+    try {
+      _currentUser = await _authService.refreshCurrentUser().timeout(
+        const Duration(seconds: 20),
+      );
+      _status = AuthStatus.authenticated;
+      unawaited(_deviceHeartbeatService.start());
+      notifyListeners();
+    } on UnauthorizedException {
+      await _authService.clearLocalSession();
+      _signedOut();
+    } catch (_) {
+      // Unreachable server: keep the token so the next launch can still restore.
+      _signedOut();
+    }
+  }
+
+  Future<void> _refreshProfile() async {
+    try {
+      final user = await _authService.refreshCurrentUser();
+      if (_status != AuthStatus.authenticated) return;
+      _currentUser = user;
+      notifyListeners();
+    } on UnauthorizedException {
+      await _authService.clearLocalSession();
+      _signedOut(message: 'សម័យប្រើប្រាស់បានផុតកំណត់ សូមចូលម្ដងទៀត។');
+    } catch (_) {
+      // Offline or slow: carry on with the saved profile.
+    }
+  }
+
+  void _signedOut({String? message}) {
+    _currentUser = null;
+    _status = AuthStatus.unauthenticated;
+    _errorMessage = message;
+    _deviceHeartbeatService.stop();
     notifyListeners();
   }
 
@@ -116,7 +122,7 @@ class AuthController extends ChangeNotifier {
       _deviceHeartbeatService.stop();
       return false;
     } on FormatException catch (error) {
-      _errorMessage = error.message;
+      _errorMessage = extractApiErrorMessage(error);
       _deviceHeartbeatService.stop();
       return false;
     } catch (error) {

@@ -32,7 +32,12 @@ class QrAttendanceTokenService
         return $encodedPayload . '.' . self::base64UrlEncode($signature);
     }
 
-    public static function verify(string $token): array
+    /**
+     * @param  \DateTimeInterface|null  $at  When the code was scanned. Defaults to now; an
+     *                                     offline scan passes its capture time, so the token's
+     *                                     own validity window proves when the scan happened.
+     */
+    public static function verify(string $token, ?\DateTimeInterface $at = null): array
     {
         $parts = explode('.', trim($token), 2);
         if (count($parts) !== 2) {
@@ -74,9 +79,16 @@ class QrAttendanceTokenService
             ]);
         }
 
-        if ((int) ($payload['exp'] ?? 0) < now()->timestamp) {
+        $at = $at ? $at->getTimestamp() : now()->timestamp;
+        if ((int) ($payload['exp'] ?? 0) < $at) {
             throw ValidationException::withMessages([
                 'qr_token' => 'QR token expired.',
+            ]);
+        }
+        // A code cannot have been scanned before it was shown (small allowance for clock drift).
+        if (isset($payload['iat']) && (int) $payload['iat'] > $at + 60) {
+            throw ValidationException::withMessages([
+                'qr_token' => 'QR token was not valid at the scan time.',
             ]);
         }
 

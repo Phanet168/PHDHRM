@@ -20,6 +20,8 @@ class AboutOrgUnit extends Model
         'hospital' => 'មន្ទីរពេទ្យ',
         'operational_district' => 'ស្រុកប្រតិបត្តិ',
         'unit' => 'អង្គភាព',
+        'health_center' => 'មណ្ឌលសុខភាព',
+        'section' => 'ផ្នែក',
         'other' => 'អង្គភាពផ្សេងៗ',
     ];
 
@@ -28,6 +30,8 @@ class AboutOrgUnit extends Model
         'hospital' => 'hospital',
         'operational_district' => 'pin',
         'unit' => 'users',
+        'health_center' => 'hospital',
+        'section' => 'briefcase',
         'other' => 'categories',
     ];
 
@@ -37,9 +41,10 @@ class AboutOrgUnit extends Model
         'operational_district_office' => 'operational_district',
     ];
 
-    protected $fillable = ['parent_id', 'facility_id', 'name', 'type', 'description', 'is_active', 'sort_order', 'is_demo'];
+    protected $fillable = ['parent_id', 'facility_id', 'name', 'type', 'description', 'leaders', 'is_active', 'sort_order', 'is_demo'];
 
     protected $casts = [
+        'leaders' => 'array',
         'is_active' => 'boolean',
         'is_demo' => 'boolean',
     ];

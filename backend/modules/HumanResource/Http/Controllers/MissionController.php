@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Modules\HumanResource\Entities\Employee;
 use Modules\HumanResource\Entities\Mission;
+use Modules\HumanResource\Entities\MissionAssignment;
 use Modules\HumanResource\Entities\MissionDestination;
 use Modules\HumanResource\Entities\MissionDocument;
 use Modules\HumanResource\Entities\MissionType;
@@ -145,13 +146,15 @@ class MissionController extends Controller
         return $this->ok(['lunar_date' => $text]);
     }
 
-    private function validated(Request $request): array
+    /** @param \Illuminate\Database\Eloquent\Builder|null $allowedEmployees who may be on the team (default: managed units) */
+    private function validated(Request $request, $allowedEmployees = null): array
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'], 'destination' => ['required', 'string', 'max:255'],
             'mission_type' => ['sometimes', Rule::in(array_keys(Mission::TYPES))],
             'order_number' => ['nullable', 'string', 'max:100'],
-            'order_details' => ['sometimes', 'array:issuing_authority,issuing_department,issue_place,issued_on,lunar_date,reference,transport,funding_source,signatory_title,signatory_name,preferred_office_head'],
+            'order_details' => ['sometimes', 'array:issuing_authority,issuing_department,issue_place,issued_on,lunar_date,letter_code,reference,transport,funding_source,signatory_title,signatory_name,preferred_office_head'],
+            'order_details.letter_code' => ['nullable', 'string', 'max:30'],
             'order_details.issuing_authority' => ['nullable', 'string', 'max:255'],
             'order_details.issuing_department' => ['nullable', 'string', 'max:255'],
             'order_details.issue_place' => ['nullable', 'string', 'max:100'],
@@ -185,7 +188,7 @@ class MissionController extends Controller
             'reference_date' => ['nullable', 'date_format:Y-m-d'],
         ]);
         $ids = array_map('intval', $data['employee_ids']);
-        abort_unless($this->access->employees()->where('is_active', 1)->whereIn('id', $ids)->count() === count($ids), 403, 'Team members must be active employees in your managed units.');
+        abort_unless(($allowedEmployees ?? $this->access->employees())->where('is_active', 1)->whereIn('employees.id', $ids)->count() === count($ids), 403, 'Team members must be active employees in your managed units.');
 
         return $data;
     }
@@ -264,6 +267,7 @@ class MissionController extends Controller
             if ($assignment->name_on_order === null) {
                 $assignment->name_on_order = $employee->full_name;
                 $assignment->position_on_order = $employee->position?->position_name_km ?: $employee->position?->position_name;
+                $assignment->honorific_on_order = MissionAssignment::honorificFor($employee);
             }
             $assignment->save();
         }
@@ -304,11 +308,58 @@ class MissionController extends Controller
         ));
     }
 
+    /** Mobile Flow A: everything the request form needs in one call. */
+    public function requestOptions(Request $request): mixed
+    {
+        abort_unless($this->access->can('create_mission'), 403);
+        $employeeId = $this->access->employeeId();
+        abort_unless($employeeId, 422, 'គណនីនេះមិនទាន់ភ្ជាប់ជាមួយកំណត់ត្រាមន្ត្រីទេ។');
+        $employee = Employee::with('position')->findOrFail($employeeId);
+        $named = fn ($rows) => $rows->map(fn ($row) => ['id' => (int) $row->id, 'name' => $row->name_km ?: $row->name])->values();
+
+        return $this->ok([
+            'requester' => [
+                'employee_id' => (int) $employee->id,
+                'name' => $employee->full_name,
+                'position' => $employee->position?->position_name_km ?: $employee->position?->position_name,
+            ],
+            'mission_types' => $named(MissionType::query()->where('is_active', 1)->orderBy('sort_order')->get()),
+            'transport_types' => $named(TransportType::query()->where('is_active', 1)->orderBy('sort_order')->get()),
+            'funding_sources' => $named(\Modules\Planning\Entities\FundingSource::query()->orderBy('id')->get()),
+            // Who will endorse/approve, so the requester knows where it goes. Same Khmer
+            // step labels as the web request form (the definitions' names are English).
+            'approval_route' => collect($this->workflow->previewApprovalRoute($employeeId))->values()
+                ->map(fn ($step, $i) => [
+                    'label' => ['ប្រធានការិយាល័យឯកភាព', 'ប្រធានមន្ទីរអនុម័ត'][$i] ?? $step['step_name'],
+                    'names' => $step['names'],
+                ]),
+        ]);
+    }
+
+    /** Mobile Flow A: colleagues the requester may add to the team (see MissionAccess::requestableEmployees). */
+    public function colleagues(Request $request): mixed
+    {
+        abort_unless($this->access->can('create_mission'), 403);
+        $data = $request->validate(['q' => ['nullable', 'string', 'max:100']]);
+        $rows = $this->access->requestableEmployees()->with('position')->where('is_active', 1)
+            ->whereKeyNot($this->access->employeeId() ?? 0)
+            ->when($data['q'] ?? null, fn ($q, $term) => $q->where(fn ($q) => $q->where('first_name', 'like', '%'.$term.'%')
+                ->orWhere('last_name', 'like', '%'.$term.'%')->orWhere('employee_id', 'like', '%'.$term.'%')))
+            ->orderBy('last_name')->orderBy('id')->limit(30)->get();
+
+        return $this->ok($rows->map(fn ($e) => [
+            'id' => (int) $e->id,
+            'name' => $e->full_name,
+            'position' => $e->position?->position_name_km ?: $e->position?->position_name,
+        ])->values());
+    }
+
     /** Flow A: POST the employee's own mission request; starts the office-head/director workflow. */
     public function requestStore(Request $request): mixed
     {
         abort_unless($this->access->can('create_mission'), 403);
-        $data = $this->validated($request);
+        abort_unless($this->access->employeeId(), 422, 'គណនីនេះមិនទាន់ភ្ជាប់ជាមួយកំណត់ត្រាមន្ត្រីទេ។');
+        $data = $this->validated($request, $this->access->requestableEmployees());
         $type = $this->resolveMissionType($data);
 
         $mission = DB::transaction(function () use ($request, $data, $type) {
@@ -388,6 +439,11 @@ class MissionController extends Controller
     {
         $mission = $this->load($this->access->visible()->findOrFail($id));
         if ($this->isApi($request)) {
+            if (! $mission->isLegacyFlow()) {
+                // Only the request/issue workflow keeps a status history.
+                $mission->load('statusHistories.actor:id,full_name');
+            }
+
             return $this->ok((new MissionResource($mission))->resolve($request));
         }
         $canManage = $this->access->can('update_mission') && $this->access->managed()->whereKey($id)->exists();
@@ -510,14 +566,39 @@ class MissionController extends Controller
 
     public function report(Request $request, int $id): mixed
     {
-        $data = $request->validate(['summary' => ['required', 'string', 'max:20000']]);
-        $mission = DB::transaction(function () use ($id, $data) {
+        // The official report form: ៤ activities, ៥ results (one per line), ៦ recommendations.
+        // Older clients still send a single free-text summary.
+        $data = $request->validate([
+            'summary' => ['nullable', 'string', 'max:20000', 'required_without_all:activities,results,recommendations'],
+            'activities' => ['nullable', 'string', 'max:20000'],
+            'results' => ['nullable', 'array', 'max:50'],
+            'results.*' => ['nullable', 'string', 'max:2000'],
+            'recommendations' => ['nullable', 'string', 'max:20000'],
+        ]);
+        $structured = $request->hasAny(['activities', 'results', 'recommendations']);
+        $results = array_values(array_filter(array_map('trim', $data['results'] ?? []), fn ($line) => $line !== ''));
+        $fields = [
+            'activities' => trim((string) ($data['activities'] ?? '')) ?: null,
+            'results' => $results ? implode("\n", $results) : null,
+            'recommendations' => trim((string) ($data['recommendations'] ?? '')) ?: null,
+        ];
+        // `summary` stays the text every report has (completion and the DB check rely on it).
+        $summary = trim((string) ($data['summary'] ?? '')) ?: trim(implode("\n\n", array_filter([
+            $fields['activities'],
+            $results ? implode("\n", array_map(fn ($line) => '- '.$line, $results)) : null,
+            $fields['recommendations'],
+        ])));
+        abort_if($summary === '', 422, 'សូមបញ្ចូលលទ្ធផលការងារ ឬសកម្មភាពការងារ។');
+        $mission = DB::transaction(function () use ($id, $summary, $structured, $fields) {
             $mission = $this->access->visible()->lockForUpdate()->findOrFail($id);
             abort_unless($this->access->participant($mission), 403);
             abort_unless($mission->status === 'approved' && $mission->started_at && ! $mission->completed_at, 409, 'Start the mission before reporting; completed missions are read only.');
             // This existing endpoint is an explicit report submission, not a draft save.
             $report = $mission->reports()->firstOrNew(['employee_id' => $this->access->employeeId()]);
-            $report->summary = $data['summary'];
+            $report->summary = $summary;
+            if ($structured) {
+                $report->fill($fields);
+            }
             $report->submitted_by = auth()->id();
             $report->submitted_at = now();
             $report->revision = $report->exists ? ((int) $report->revision + 1) : 1;
@@ -617,37 +698,13 @@ class MissionController extends Controller
         'approved' => ['title' => 'សំណើដែលបានអនុម័ត', 'permission' => 'read_mission'],
         'on-mission' => ['title' => 'កំពុងបេសកកម្ម', 'permission' => 'read_mission'],
         'pending-report' => ['title' => 'រង់ចាំរបាយការណ៍', 'permission' => 'read_mission'],
+        'report-review' => ['title' => 'របាយការណ៍រង់ចាំបិទបញ្ចប់', 'permission' => 'read_mission'],
         'history' => ['title' => 'ប្រវត្តិបេសកកម្ម', 'permission' => 'read_mission'],
     ];
 
-    public function dashboard(Request $request)
+    /** The rows a queue page lists; the dashboard counts exactly the same rows. */
+    private function queueQuery(string $key): \Illuminate\Database\Eloquent\Builder
     {
-        abort_unless($this->access->can('read_mission') || $this->access->can('create_mission'), 403);
-
-        $counts = [
-            'mine' => (clone $this->access->myRequests())->count(),
-            'office-head' => (clone $this->access->officeHeadQueue())->count(),
-            'director' => (clone $this->access->directorQueue())->count(),
-            'approved' => (clone $this->access->approvedQueue())->count(),
-            'on-mission' => Mission::query()->whereIn('lifecycle_status', [MissionStatus::Issued->value, MissionStatus::OnMission->value])->count(),
-            'pending-report' => Mission::query()->whereNotNull('started_at')->whereNull('completed_at')
-                ->whereDoesntHave('reports', fn ($q) => $q->submitted())->count(),
-        ];
-        $recent = $this->access->visible()->with(['assigner:id,full_name'])->orderByDesc('id')->limit(8)->get();
-        $canCreateRequest = $this->access->can('create_mission');
-        $canCreateDirect = $this->access->can('manage_mission_order');
-
-        return view('humanresource::attendance.missions.dashboard', compact('counts', 'recent', 'canCreateRequest', 'canCreateDirect'));
-    }
-
-    public function queue(Request $request, string $key): mixed
-    {
-        abort_unless(array_key_exists($key, self::QUEUE_DEFS), 404);
-        $def = self::QUEUE_DEFS[$key];
-        if ($def['permission']) {
-            abort_unless($this->access->can($def['permission']), 403);
-        }
-
         $query = match ($key) {
             'mine' => $this->access->myRequests(),
             'office-head' => $this->access->officeHeadQueue(),
@@ -656,6 +713,9 @@ class MissionController extends Controller
             'on-mission' => Mission::query()->whereIn('lifecycle_status', [MissionStatus::Issued->value, MissionStatus::OnMission->value]),
             'pending-report' => Mission::query()->whereNotNull('started_at')->whereNull('completed_at')
                 ->whereDoesntHave('reports', fn ($q) => $q->submitted()),
+            // Reports are in; a manager still has to review them and close the mission.
+            'report-review' => Mission::query()->where('status', 'approved')->whereNotNull('started_at')->whereNull('completed_at')
+                ->whereHas('reports', fn ($q) => $q->submitted()),
             'history' => Mission::query()->where(function ($q) {
                 $q->whereIn('lifecycle_status', [MissionStatus::Completed->value, MissionStatus::Rejected->value, MissionStatus::Cancelled->value])
                     ->orWhere(function ($legacy) {
@@ -667,11 +727,82 @@ class MissionController extends Controller
             default => Mission::query()->whereRaw('1 = 0'),
         };
 
-        if (in_array($key, ['approved', 'on-mission', 'pending-report', 'history'], true)) {
+        if (in_array($key, ['approved', 'on-mission', 'pending-report', 'report-review', 'history'], true)) {
             $query->whereIn('id', $this->access->managed()->select('missions.id'));
         }
 
-        $missions = $query->with(['assigner:id,full_name', 'assignments.employee:id,first_name,last_name,employee_id'])
+        return $query;
+    }
+
+    public function dashboard(Request $request)
+    {
+        abort_unless($this->access->can('read_mission') || $this->access->can('create_mission'), 403);
+        $year = (int) ($request->validate(['year' => ['nullable', 'integer', 'between:2000,2100']])['year'] ?? now()->year);
+        $today = now()->startOfDay();
+        $canManage = $this->access->can('read_mission');
+
+        // Workflow pipeline: one count per queue page this user may open.
+        $counts = collect(self::QUEUE_DEFS)->except('history')
+            ->filter(fn (array $def) => ! $def['permission'] || $this->access->can($def['permission']))
+            ->map(fn (array $def, string $key) => $this->queueQuery($key)->count())
+            ->all();
+
+        // The year's figures count missions that went ahead (approved, finished or not).
+        $activeTeam = ['assignments' => fn ($q) => $q->where('status', 'active')];
+        $yearMissions = $this->access->visible()->where('status', 'approved')->whereYear('start_date', $year)
+            ->with($activeTeam)->get(['id', 'mission_type', 'start_date', 'end_date', 'completed_at']);
+        $ended = $yearMissions->filter(fn (Mission $m) => $m->end_date->lt($today));
+        $stats = [
+            'missions' => $yearMissions->count(),
+            'officers' => $yearMissions->flatMap->assignments->pluck('employee_id')->unique()->count(),
+            'person_days' => $yearMissions->sum(fn (Mission $m) => ((int) $m->start_date->diffInDays($m->end_date) + 1) * $m->assignments->count()),
+            'ended' => $ended->count(),
+            'completed' => $ended->whereNotNull('completed_at')->count(),
+        ];
+        $monthly = array_fill(1, 12, 0);
+        foreach ($yearMissions as $mission) {
+            $monthly[$mission->start_date->month]++;
+        }
+        $byType = $yearMissions->groupBy(fn (Mission $m) => Mission::TYPES[$m->mission_type] ?? Mission::TYPES['other'])
+            ->map->count()->sortDesc();
+
+        $teamWithNames = ['assignments' => fn ($q) => $q->where('status', 'active')->with('employee:id,first_name,last_name')];
+        $onMissionToday = $this->access->visible()->where('status', 'approved')->whereNull('completed_at')
+            ->whereDate('start_date', '<=', $today)->whereDate('end_date', '>=', $today)
+            ->with($teamWithNames)->orderBy('end_date')->get();
+        $upcoming = $this->access->visible()->where('status', 'approved')
+            ->whereDate('start_date', '>', $today)->whereDate('start_date', '<=', $today->copy()->addDays(14))
+            ->with($teamWithNames)->orderBy('start_date')->limit(6)->get();
+        // Finished in the field but nobody has reported yet: managers chase these.
+        $overdue = $canManage
+            ? $this->access->managed()->where('status', 'approved')->whereNull('completed_at')
+                ->whereDate('end_date', '<', $today)->whereDoesntHave('reports', fn ($q) => $q->submitted())
+            : null;
+        $overdueCount = $overdue ? (clone $overdue)->count() : 0;
+        $overdueList = $overdue ? $overdue->withCount(['assignments' => fn ($q) => $q->where('status', 'active')])
+            ->orderByDesc('end_date')->limit(6)->get() : collect();
+
+        $recent = $this->access->visible()->with(['assigner:id,full_name'])->withCount('assignments')->orderByDesc('id')->limit(8)->get();
+        $firstYear = $this->access->visible()->min('start_date');
+        $years = range(max(now()->year, $year), min(now()->year, $year, $firstYear ? (int) substr((string) $firstYear, 0, 4) : now()->year));
+        $canCreateRequest = $this->access->can('create_mission');
+        $canCreateDirect = $this->access->can('manage_mission_order');
+
+        return view('humanresource::attendance.missions.dashboard', compact(
+            'year', 'years', 'counts', 'stats', 'monthly', 'byType', 'onMissionToday', 'upcoming',
+            'overdueCount', 'overdueList', 'recent', 'canManage', 'canCreateRequest', 'canCreateDirect'
+        ));
+    }
+
+    public function queue(Request $request, string $key): mixed
+    {
+        abort_unless(array_key_exists($key, self::QUEUE_DEFS), 404);
+        $def = self::QUEUE_DEFS[$key];
+        if ($def['permission']) {
+            abort_unless($this->access->can($def['permission']), 403);
+        }
+
+        $missions = $this->queueQuery($key)->with(['assigner:id,full_name', 'assignments.employee:id,first_name,last_name,employee_id'])
             ->withCount('assignments')->orderByDesc('id')->paginate(20)->withQueryString();
 
         return view('humanresource::attendance.missions.queue', [
@@ -713,21 +844,67 @@ class MissionController extends Controller
 
         $transportTypes = TransportType::query()->where('is_active', 1)->orderBy('sort_order')->get();
         $fundingSources = \Modules\Planning\Entities\FundingSource::query()->orderBy('id')->get();
-        $details = $mission->order_details ?? [];
+        $details = ($mission->order_details ?? []) + $this->orderDefaults($mission);
 
         return view('humanresource::attendance.missions.order-prepare', compact('mission', 'details', 'transportTypes', 'fundingSources'));
+    }
+
+    /**
+     * Pre-fills a fresh order: the letterhead/signatory of the last order this office issued
+     * (they rarely change), plus a "យោង" draft built from the request's reference letters and
+     * the director's approval — all still editable before saving.
+     */
+    private function orderDefaults(Mission $mission): array
+    {
+        $previous = Mission::query()->whereKeyNot($mission->id)->whereNotNull('issued_at')
+            ->whereNotNull('order_details')->latest('issued_at')->value('order_details');
+        $previous = is_array($previous) ? $previous : (json_decode((string) $previous, true) ?: []);
+        $defaults = array_filter(
+            array_intersect_key($previous, array_flip(['issuing_authority', 'issuing_department', 'issue_place', 'letter_code', 'signatory_title', 'signatory_name'])),
+            fn ($value) => trim((string) $value) !== ''
+        );
+
+        $references = $mission->documents->where('document_kind', 'reference')
+            ->filter(fn ($document) => $document->reference_number || $document->reference_issuer)
+            ->map(fn ($document) => trim('លិខិតលេខ '.($document->reference_number ?: '........')
+                .' ចុះ'.$this->khmerDate($document->reference_date)
+                .($document->reference_issuer ? ' របស់'.$document->reference_issuer : '')))
+            ->values()->all();
+        if (! $mission->isLegacyFlow() && $mission->approved_at) {
+            $references[] = 'ចំណារឯកភាព ចុះ'.$this->khmerDate($mission->approved_at)
+                .' របស់'.($defaults['signatory_title'] ?? 'ប្រធានមន្ទីរ');
+        }
+        if ($references) {
+            $defaults['reference'] = implode("\n", $references);
+        }
+
+        return $defaults;
+    }
+
+    /** "ថ្ងៃទី២៤ ខែសីហា ឆ្នាំ២០២៦" with Khmer digits, as used throughout official letters. */
+    private function khmerDate(mixed $value): string
+    {
+        if (! $value) {
+            return 'ថ្ងៃទី........ ខែ........ ឆ្នាំ........';
+        }
+        $date = \Carbon\Carbon::parse($value);
+        $digits = fn ($number) => strtr((string) $number, ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩']);
+        $months = ['មករា', 'កុម្ភៈ', 'មីនា', 'មេសា', 'ឧសភា', 'មិថុនា', 'កក្កដា', 'សីហា', 'កញ្ញា', 'តុលា', 'វិច្ឆិកា', 'ធ្នូ'];
+
+        return 'ថ្ងៃទី'.$digits($date->day).' ខែ'.$months[$date->month - 1].' ឆ្នាំ'.$digits($date->year);
     }
 
     public function updateOrder(Request $request, int $id): mixed
     {
         abort_unless($this->access->can('manage_mission_order'), 403);
         $data = $request->validate([
-            'order_details' => ['sometimes', 'array:issuing_authority,issuing_department,issue_place,issued_on,lunar_date,reference,signatory_title,signatory_name'],
+            'order_details' => ['sometimes', 'array:issuing_authority,issuing_department,issue_place,issued_on,lunar_date,letter_code,reference,signatory_title,signatory_name'],
             'order_details.issuing_authority' => ['nullable', 'string', 'max:255'],
             'order_details.issuing_department' => ['nullable', 'string', 'max:255'],
             'order_details.issue_place' => ['nullable', 'string', 'max:100'],
             'order_details.issued_on' => ['nullable', 'date_format:Y-m-d'],
             'order_details.lunar_date' => ['nullable', 'string', 'max:255'],
+            'order_details.letter_code' => ['nullable', 'string', 'max:30'],
             'order_details.reference' => ['nullable', 'string', 'max:2000'],
             'order_details.signatory_title' => ['nullable', 'string', 'max:255'],
             'order_details.signatory_name' => ['nullable', 'string', 'max:255'],
@@ -735,17 +912,124 @@ class MissionController extends Controller
             'transport_type_id' => ['nullable', 'integer', 'exists:transport_types,id'],
             'transport_description' => ['nullable', 'string', 'max:255'],
             'funding_source_id' => ['nullable', 'integer', 'exists:funding_sources,id'],
+            'sponsor_name' => ['nullable', 'string', 'max:255'],
+            // How each officer appears on the order and their travel-visa letter.
+            'officers' => ['sometimes', 'array', 'max:100'],
+            'officers.*' => ['array:honorific_on_order,name_on_order,position_on_order'],
+            'officers.*.honorific_on_order' => ['nullable', 'string', 'max:100'],
+            'officers.*.name_on_order' => ['required', 'string', 'max:255'],
+            'officers.*.position_on_order' => ['nullable', 'string', 'max:255'],
         ]);
 
         $mission = DB::transaction(function () use ($id, $data) {
             $mission = Mission::lockForUpdate()->findOrFail($id);
             abort_unless(in_array($mission->lifecycle_status, [MissionStatus::PendingMissionOrder, MissionStatus::PreparingMissionOrder], true), 409);
-            $mission->update($data);
+            $mission->update(collect($data)->except('officers')->all());
+            foreach ($data['officers'] ?? [] as $assignmentId => $officer) {
+                $mission->assignments()->whereKey((int) $assignmentId)->firstOrFail()->update($officer);
+            }
 
             return $mission;
         });
 
         return $this->result($request, $mission);
+    }
+
+    /**
+     * "លិខិតចុះទិដ្ឋការធ្វើដំណើរ": one travel-visa sheet per officer, carried on the trip and
+     * stamped at each stop. Managers print the whole team (or ?employee=); a participant
+     * only ever gets their own sheet.
+     */
+    public function travelVisa(Request $request, int $id)
+    {
+        $mission = $this->access->visible()->with(['assignments.employee.position'])->findOrFail($id);
+
+        return $this->renderTravelVisa($mission, $this->letterEmployee($request, $mission));
+    }
+
+    /** Managers may pick any officer (?employee=); a participant is always pinned to themselves. */
+    private function letterEmployee(Request $request, Mission $mission): ?int
+    {
+        $canManage = ($this->access->can('read_mission') || $this->access->can('manage_mission_order'))
+            && $this->access->managed()->whereKey($mission->id)->exists();
+        if ($canManage) {
+            return $request->integer('employee') ?: null;
+        }
+        abort_unless($this->access->participant($mission), 403);
+
+        return $this->access->employeeId();
+    }
+
+    /** "របាយការណ៍បេសកកម្ម": an officer's submitted report laid out on the official template. */
+    public function reportLetter(Request $request, int $id)
+    {
+        $mission = $this->access->visible()->with(['assignments.employee.position'])->findOrFail($id);
+
+        return $this->renderReport($mission, $this->letterEmployee($request, $mission));
+    }
+
+    private function renderReport(Mission $mission, ?int $employeeId, bool $public = false)
+    {
+        $report = $mission->reports()->submitted()->with('employee')
+            ->when($employeeId, fn ($q) => $q->where('employee_id', $employeeId))
+            ->orderBy('id')->first();
+        abort_if($report === null, 404);
+        $details = $mission->order_details ?? [];
+        $officers = $mission->assignments->where('status', 'active')->values();
+        $reporter = $officers->firstWhere('employee_id', $report->employee_id);
+
+        return response()->view('humanresource::attendance.missions.report', compact('mission', 'details', 'officers', 'report', 'reporter', 'public'))
+            ->header('Cache-Control', 'private, no-store');
+    }
+
+    private function renderTravelVisa(Mission $mission, ?int $employeeId, bool $public = false)
+    {
+        $officers = $mission->assignments->where('status', 'active')
+            ->when($employeeId, fn ($rows) => $rows->where('employee_id', $employeeId))->values();
+        abort_if($officers->isEmpty(), 404);
+        $details = $mission->order_details ?? [];
+
+        return response()->view('humanresource::attendance.missions.travel-visa', compact('mission', 'details', 'officers', 'public'))
+            ->header('Cache-Control', 'private, no-store');
+    }
+
+    /**
+     * Mobile: a short-lived signed link to the printable order or the caller's own travel
+     * visa, opened in the phone's browser (which renders Khmer and can save as PDF).
+     */
+    public function letterLink(Request $request, int $id, string $kind): mixed
+    {
+        abort_unless(in_array($kind, ['order', 'travel-visa', 'report'], true), 404);
+        $mission = $this->access->visible()->with('assignments')->findOrFail($id);
+        abort_unless($mission->isOrderIssued(), 409, 'លិខិតបញ្ជាបេសកកម្មមិនទាន់ចេញនៅឡើយ។');
+        $params = ['id' => $id, 'kind' => $kind];
+        if ($kind !== 'order') {
+            // Travel visa and report are personal: always the caller's own.
+            abort_unless($this->access->participant($mission), 403);
+            $params['employee'] = $this->access->employeeId();
+        }
+        if ($kind === 'report') {
+            abort_unless($mission->reports()->submitted()->where('employee_id', $params['employee'])->exists(), 409, 'មិនទាន់មានរបាយការណ៍បេសកកម្មនៅឡើយ។');
+        }
+
+        return $this->ok(['url' => URL::temporarySignedRoute('api.missions.letters.signed', now()->addMinutes(10), $params)]);
+    }
+
+    public function signedLetter(Request $request, int $id, string $kind)
+    {
+        $mission = Mission::with(['assignments.employee.position'])->findOrFail($id);
+        abort_unless($mission->isOrderIssued(), 404);
+        if ($kind === 'travel-visa') {
+            return $this->renderTravelVisa($mission, $request->integer('employee') ?: abort(404), true);
+        }
+        if ($kind === 'report') {
+            return $this->renderReport($mission, $request->integer('employee') ?: abort(404), true);
+        }
+        $details = $mission->order_details ?? [];
+        $public = true;
+
+        return response()->view('humanresource::attendance.missions.order', compact('mission', 'details', 'public'))
+            ->header('Cache-Control', 'private, no-store');
     }
 
     public function issueOrder(Request $request, int $id): mixed

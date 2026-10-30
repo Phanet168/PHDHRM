@@ -3,6 +3,17 @@ import '../../../core/network/api_service.dart';
 import '../../auth/models/auth_user.dart';
 import '../models/mission_summary.dart';
 import '../models/mission_detail.dart';
+import '../models/mission_request.dart';
+
+/// The printable mission letters the server can link to.
+enum MissionLetter {
+  order('order'),
+  travelVisa('travel-visa'),
+  report('report');
+
+  const MissionLetter(this.path);
+  final String path;
+}
 
 class HomeMissionService {
   HomeMissionService({ApiService? apiService})
@@ -20,6 +31,34 @@ class HomeMissionService {
     return Map<String, dynamic>.from(response['data']);
   }
 
+  Future<MissionRequestOptions> fetchRequestOptions() async =>
+      MissionRequestOptions.fromMap(
+        _data(await _apiService.get('/v1/missions/request-options')),
+      );
+
+  /// Colleagues that may join the requester's team, filtered by [query].
+  Future<List<MissionColleague>> searchColleagues(String query) async {
+    final raw = await _apiService.get(
+      '/v1/missions/colleagues',
+      queryParameters: {if (query.trim().isNotEmpty) 'q': query.trim()},
+    );
+    final response = raw['response'];
+    if (response is! Map || response['data'] is! List) {
+      throw ApiException(message: 'Invalid colleague list format');
+    }
+    return (response['data'] as List)
+        .map((e) => MissionColleague.fromMap(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  /// Submits the employee's own request; it starts at the office head.
+  Future<MissionDetail> submitRequest(MissionRequestInput input) async =>
+      MissionDetail.fromMap(
+        _data(
+          await _apiService.post('/v1/missions/request', body: input.toBody()),
+        ),
+      );
+
   Future<MissionDetail> fetchDetail(int id) async =>
       MissionDetail.fromMap(_data(await _apiService.get('/v1/missions/$id')));
 
@@ -27,22 +66,28 @@ class HomeMissionService {
     _data(await _apiService.post('/v1/missions/$id/start')),
   );
 
-  Future<MissionDetail> report(int id, String summary) async =>
+  Future<MissionDetail> report(int id, MissionReportInput input) async =>
       MissionDetail.fromMap(
         _data(
           await _apiService.post(
             '/v1/missions/$id/report',
-            body: {'summary': summary.trim()},
+            body: input.toBody(),
           ),
         ),
       );
 
-  Future<Uri> documentUrl(int id, int documentId) async {
-    final data = _data(
-      await _apiService.get(
-        '/v1/missions/$id/documents/$documentId/signed-url',
-      ),
-    );
+  Future<Uri> documentUrl(int id, int documentId) async => _signedUrl(
+    await _apiService.get('/v1/missions/$id/documents/$documentId/signed-url'),
+  );
+
+  /// Short-lived link to a printable letter: [MissionLetter.order] or the
+  /// caller's own [MissionLetter.travelVisa].
+  Future<Uri> letterUrl(int id, MissionLetter letter) async => _signedUrl(
+    await _apiService.get('/v1/missions/$id/letters/${letter.path}/signed-url'),
+  );
+
+  Uri _signedUrl(Map<String, dynamic> raw) {
+    final data = _data(raw);
     final uri = Uri.tryParse(data['url']?.toString() ?? '');
     if (uri == null ||
         !uri.hasAuthority ||

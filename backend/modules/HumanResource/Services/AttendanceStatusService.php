@@ -5,21 +5,13 @@ namespace Modules\HumanResource\Services;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Modules\HumanResource\Entities\ApplyLeave;
-use Modules\HumanResource\Entities\Holiday;
-use Modules\HumanResource\Entities\WeekHoliday;
 
 class AttendanceStatusService
 {
-    // The weekly-day-off config is one global row, identical for every date
-    // in a request — memoized so an N-day history/schedule request doesn't
-    // re-query it N times.
-    private ?WeekHoliday $weekHolidayCache = null;
-
-    private bool $weekHolidayLoaded = false;
-
     public function __construct(
         private readonly ShiftResolverService $shiftResolverService,
         private readonly MissionResolverService $missionResolverService,
+        private readonly AttendanceCalendarService $calendar,
     ) {
     }
 
@@ -29,9 +21,10 @@ class AttendanceStatusService
 
         $resolved = $this->shiftResolverService->resolveForDate($employeeId, $date);
         $shift = $resolved['shift'] ?? null;
-        $holidayName = $this->publicHolidayName($day);
+        $duty = $resolved['duty'] ?? null;
+        $holidayName = $this->calendar->publicHolidayName($day);
         $isHoliday = $holidayName !== null;
-        $isDayOff = $this->isWeeklyDayOff($date);
+        $isDayOff = $this->calendar->isWeeklyDayOff($date);
         // An explicit roster is authoritative, including duty on weekends/public holidays.
         if (($resolved['source'] ?? null) === 'roster') {
             $isHoliday = (bool) $resolved['is_holiday'];
@@ -48,9 +41,9 @@ class AttendanceStatusService
         [$windowStart, $windowEnd] = $this->shiftResolverService->punchWindow($employeeId, $date);
         $punches = $this->shiftResolverService->punchesForDate($employeeId, $date)
             ->orderBy('time')->orderBy('id')->get(['id', 'time', 'machine_state']);
-        $result = (new AttendanceSessionService)->evaluate($punches, $shift, $date);
+        $result = (new AttendanceSessionService)->evaluate($punches, $shift, $date, $duty);
         $status = $result['attendance_status'];
-        $rule = $shift ? 'shift_policy' : 'present_without_shift';
+        $rule = $shift || $duty ? 'shift_policy' : 'present_without_shift';
         if ($mission) {
             $status = 'On Mission';
             $rule = 'approved_mission';
@@ -63,12 +56,19 @@ class AttendanceStatusService
         } elseif ($isDayOff) {
             $status = 'Day Off';
             $rule = 'weekly_day_off';
-        } elseif (! $shift && ($resolved['source'] ?? null) === 'roster') {
+        } elseif (! $shift && ! $duty && ($resolved['source'] ?? null) === 'roster') {
             $status = 'Incomplete';
             $rule = 'missing_roster_shift';
         }
 
         $exempt = in_array($status, ['On Mission', 'On Leave', 'Holiday', 'Day Off'], true);
+        if ($exempt) {
+            // Nothing is owed on an excused day: keep the punches, drop the per-session penalties too.
+            $result['sessions'] = array_map(
+                fn (array $s) => ['late_minutes' => 0, 'early_leave_minutes' => 0, 'overtime_minutes' => 0] + $s,
+                $result['sessions']
+            );
+        }
 
         return [
             ...$this->basePayload($employeeId, $day, $status,
@@ -78,12 +78,15 @@ class AttendanceStatusService
                 $exempt ? 0 : $result['overtime_minutes'],
                 $leave?->id, $mission['mission_id'] ?? null, $isHoliday, $isDayOff,
                 ['rule' => $rule, 'shift_source' => $resolved['source'] ?? null,
-                    'shift_id' => $shift?->id, 'department_id' => $shift?->department_id,
+                    'shift_id' => $shift?->id, 'duty_shift_id' => $duty?->id,
+                    'department_id' => ($shift ?? $duty)?->department_id,
                     'sessions' => $result['sessions'], 'early_arrival_minutes' => $result['early_arrival_minutes'],
+                    'duty_minutes' => $result['duty_minutes'],
                     'window_start' => $windowStart->toDateTimeString(), 'window_end' => $windowEnd->toDateTimeString(),
                     'holiday_name' => $holidayName]
             ),
-            'shift_id' => $shift?->id,
+            // A duty-only day (weekend/holiday or 24h duty) reports the duty as its shift.
+            'shift_id' => ($shift ?? $duty)?->id,
         ];
     }
 
@@ -131,30 +134,5 @@ class AttendanceStatusService
             ->whereDate('leave_approved_end_date', '>=', $day)
             ->orderByDesc('id')
             ->first();
-    }
-
-    private function publicHolidayName(string $day): ?string
-    {
-        return Holiday::query()
-            ->whereDate('start_date', '<=', $day)
-            ->whereDate('end_date', '>=', $day)
-            ->value('holiday_name');
-    }
-
-    private function isWeeklyDayOff(CarbonInterface $date): bool
-    {
-        if (! $this->weekHolidayLoaded) {
-            $this->weekHolidayCache = WeekHoliday::query()->first();
-            $this->weekHolidayLoaded = true;
-        }
-        $weeklyHoliday = $this->weekHolidayCache;
-        if (! $weeklyHoliday || ! $weeklyHoliday->dayname) {
-            return false;
-        }
-
-        $rawDays = explode(',', (string) $weeklyHoliday->dayname);
-        $days = array_map(static fn (string $day): string => strtoupper(trim($day)), $rawDays);
-
-        return in_array(strtoupper($date->format('l')), $days, true);
     }
 }

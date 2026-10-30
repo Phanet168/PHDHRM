@@ -4,6 +4,10 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>km</string>
+	</array>
 	<key>CFBundleDisplayName</key>
 	<string>PHDHRMS</string>
 	<key>CFBundleExecutable</key>
@@ -31,8 +35,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
@@ -46,9 +48,18 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs camera access to scan attendance QR codes.</string>
+	<string>កម្មវិធីត្រូវការកាមេរ៉ា ដើម្បីស្កេនកូដ QR វត្តមាន។</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>This app needs location access to validate attendance by workplace.</string>
+	<string>កម្មវិធីត្រូវការទីតាំង ដើម្បីបញ្ជាក់ថាអ្នកស្កេនវត្តមាននៅកន្លែងធ្វើការ។</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>កម្មវិធីភ្ជាប់ទៅម៉ាស៊ីនមេរបស់មន្ទីរក្នុងបណ្ដាញ Wi-Fi ដើម្បីទាញ និងបញ្ជូនទិន្នន័យ។</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tel</string>
+		<string>mailto</string>
+		<string>https</string>
+		<string>http</string>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

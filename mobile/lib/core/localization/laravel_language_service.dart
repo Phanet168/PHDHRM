@@ -1,16 +1,11 @@
-import '../network/api_service.dart';
-
+/// The app's interface text. The app is Khmer only: every label comes from
+/// the built-in Khmer strings below (pages pass their own Khmer fallback for
+/// anything not listed). The server's language file is no longer fetched \u2014
+/// it could switch labels to English or to the wrong wording.
 class LaravelLanguageService {
   LaravelLanguageService._();
 
   static final LaravelLanguageService instance = LaravelLanguageService._();
-
-  final ApiService _apiService = ApiService();
-  Map<String, String>? _cache;
-  Future<Map<String, String>>? _inFlight;
-  DateTime? _lastFetchAttemptAt;
-  static const Duration _refreshInterval = Duration(minutes: 10);
-  static final RegExp _khmerRegex = RegExp(r'[\u1780-\u17FF]');
 
   static const Map<String, String> _khmerFallbacks = <String, String>{
     'login': 'ចូលប្រើ',
@@ -126,75 +121,12 @@ class LaravelLanguageService {
     'pending_requests': 'សំណើរង់ចាំ',
     'app_title': 'ប្រព័ន្ធគ្រប់គ្រងបុគ្គលិក',
     'device_connected': 'បានភ្ជាប់',
+    'gps': 'GPS',
+    'gps_live': 'ផ្ទាល់',
   };
 
-  Future<Map<String, String>> load({bool forceRefresh = false}) {
-    if (forceRefresh || _cache == null) {
-      _cache = Map<String, String>.from(_khmerFallbacks);
-    }
-
-    final shouldFetchRemote = forceRefresh || _isFetchStale();
-    if (shouldFetchRemote) {
-      _inFlight ??= _fetch();
-    }
-
-    return Future<Map<String, String>>.value(_cache);
-  }
-
-  bool _isFetchStale() {
-    final lastAttempt = _lastFetchAttemptAt;
-    if (lastAttempt == null) {
-      return true;
-    }
-
-    return DateTime.now().difference(lastAttempt) >= _refreshInterval;
-  }
-
-  Future<Map<String, String>> _fetch() async {
-    _lastFetchAttemptAt = DateTime.now();
-    try {
-      final raw = await _apiService.get(
-        '/language',
-        requiresAuth: false,
-        throwOnError: false,
-      );
-      final response = raw['response'];
-      if (response is Map) {
-        final data = response.map(
-          (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
-        );
-        final merged = _mergeWithKhmerFallbacks(data);
-        _cache = merged;
-        return merged;
-      }
-    } catch (_) {
-      // Ignore network/parser issues and keep UI usable with fallback text.
-    } finally {
-      _inFlight = null;
-    }
-
-    _cache = Map<String, String>.from(_khmerFallbacks);
-    return _cache!;
-  }
-
-  Map<String, String> _mergeWithKhmerFallbacks(Map<String, String> remote) {
-    final merged = Map<String, String>.from(_khmerFallbacks);
-
-    remote.forEach((key, value) {
-      final trimmed = value.trim();
-      if (trimmed.isEmpty) {
-        return;
-      }
-
-      final hasKhmerFallback = _khmerFallbacks.containsKey(key);
-      final isKhmerText = _khmerRegex.hasMatch(trimmed);
-      if (hasKhmerFallback && !isKhmerText) {
-        return;
-      }
-
-      merged[key] = trimmed;
-    });
-
-    return merged;
-  }
+  /// The Khmer interface strings ([forceRefresh] is kept for callers; there
+  /// is nothing remote to refresh any more).
+  Future<Map<String, String>> load({bool forceRefresh = false}) =>
+      Future<Map<String, String>>.value(_khmerFallbacks);
 }

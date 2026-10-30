@@ -7,11 +7,13 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../network/private_ipv4_prefix_provider.dart';
 import '../storage/token_storage_service.dart';
+import '../time/trusted_clock.dart';
 import 'api_exception.dart';
+import 'http_client_factory.dart';
 
 class ApiService {
   ApiService({http.Client? client, TokenStorageService? tokenStorageService})
-    : _client = client ?? http.Client(),
+    : _client = client ?? createHttpClient(),
       _tokenStorageService = tokenStorageService ?? TokenStorageService();
 
   static String? _preferredBaseUrl;
@@ -176,7 +178,15 @@ class ApiService {
 
         if (response == null) {
           attemptWatch.stop();
-          _registerFailure(base);
+          // The language prefetch has a tight budget and a local fallback;
+          // it running late says nothing about whether this server works.
+          if (!_isLightBootstrapRequest(
+            method: method,
+            path: path,
+            requiresAuth: requiresAuth,
+          )) {
+            _registerFailure(base);
+          }
           _perfLog(
             '$method $path timeout after '
             '${attemptWatch.elapsedMilliseconds}ms [base: $base]',
@@ -235,6 +245,10 @@ class ApiService {
         );
 
         _registerSuccess(base);
+        // Keeps offline scan times honest (see TrustedClock).
+        unawaited(
+          TrustedClock.instance.observeServerDate(response.headers['date']),
+        );
         attemptWatch.stop();
         totalWatch.stop();
         _perfLog(
@@ -732,6 +746,16 @@ class ApiService {
     if (baseUrls.length <= 1) {
       return baseUrls;
     }
+    // A fresh launch starts with the address that worked last time as the
+    // preferred one, so a single slow reply cannot push every request onto
+    // dead fallback addresses (it takes two failures to drop it).
+    final remembered = ApiConfig.lastSuccessfulBaseUrl;
+    if (_preferredBaseUrl == null &&
+        remembered != null &&
+        (_baseFailures[remembered] ?? 0) < 2 &&
+        baseUrls.contains(remembered)) {
+      _preferredBaseUrl = remembered;
+    }
 
     final ordered = List<String>.from(baseUrls);
 
@@ -850,6 +874,7 @@ class ApiService {
           ),
         ),
         statusCode: response.statusCode,
+        body: responseBody,
       );
     }
 

@@ -5,6 +5,84 @@ import '../../models/mission_detail.dart';
 import 'home_common_widgets.dart';
 import 'home_theme.dart';
 
+/// Call-to-action at the top of the Missions tab: start a new mission request.
+class MissionRequestBanner extends StatelessWidget {
+  const MissionRequestBanner({super.key, required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [dashboardHeaderStart, dashboardHeaderEnd],
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: dashboardHeaderStart.withAlpha(70),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(40),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.add_task_rounded,
+                  color: Colors.white,
+                  size: 26,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ស្នើសុំបេសកកម្ម',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      'ដាក់សំណើទៅប្រធានការិយាល័យ និងប្រធានមន្ទីរ',
+                      style: TextStyle(color: Colors.white70, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: Colors.white,
+                size: 16,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class MissionRecordCard extends StatelessWidget {
   const MissionRecordCard({
     super.key,
@@ -52,7 +130,8 @@ class MissionRecordCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tone = _statusColor(status);
-    final normalizedStatus = status.trim().isEmpty ? '-' : missionStatusLabel(status);
+    final normalizedStatus =
+        status.trim().isEmpty ? '-' : missionStatusLabel(status);
 
     return Container(
       decoration: BoxDecoration(

@@ -22,6 +22,7 @@ class SettingSeeder extends Seeder
             'seo_title' => 'មន្ទីរសុខាភិបាលនៃរដ្ឋបាលខេត្តស្ទឹងត្រែង',
             'seo_description' => 'ព័ត៌មានសុខាភិបាល មូលដ្ឋានសុខាភិបាល និងការផ្សព្វផ្សាយសុខភាពសម្រាប់ប្រជាពលរដ្ឋក្នុងខេត្តស្ទឹងត្រែង។',
             'hrm_url' => env('HRM_URL', 'http://localhost/PHDHRM/backend/public'),
+            'drugs_url' => env('DRUGS_URL', 'http://localhost/PHDHRM/drugs/public/login'),
         ];
 
         foreach ($defaults as $key => $value) {

@@ -57,6 +57,11 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link {{ request()->routeIs('missions.queue') && request()->route('key') === 'report-review' ? 'active' : '' }}" href="{{ route('missions.queue', 'report-review') }}">
+                        <i class="fa fa-clipboard-check me-1"></i>ពិនិត្យរបាយការណ៍
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link {{ request()->routeIs('missions.queue') && request()->route('key') === 'history' ? 'active' : '' }}" href="{{ route('missions.queue', 'history') }}">
                         <i class="fa fa-history me-1"></i>ប្រវត្តិបេសកកម្ម
                     </a>

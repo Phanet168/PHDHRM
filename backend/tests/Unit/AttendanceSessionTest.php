@@ -58,6 +58,56 @@ class AttendanceSessionTest extends TestCase
         $this->assertSame(0, $result['late_minutes']);
     }
 
+    public function test_seconds_inside_the_last_grace_minute_are_not_late(): void
+    {
+        $result = $this->evaluate([['2026-09-07 08:10:45', 1], ['12:00', 2], ['14:00', 1], ['2026-09-07 16:54:30', 2]]);
+        $this->assertSame('Early Leave', $result['attendance_status']);
+        $this->assertSame(0, $result['late_minutes']);
+        $this->assertSame(6, $result['early_leave_minutes']);
+        $this->assertSame(230 + 174, $result['worked_minutes']);
+    }
+
+    public function test_overtime_counts_only_after_the_days_last_session(): void
+    {
+        $result = $this->evaluate([['08:00', 1], ['12:30', 2], ['14:00', 1], ['17:20', 2]]);
+        $this->assertSame(20, $result['overtime_minutes']);
+        $this->assertSame(420, $result['worked_minutes']);
+    }
+
+    private function withNightDuty(array $punches): array
+    {
+        $regular = new Shift(['start_time' => '08:00', 'morning_end_time' => '12:00', 'afternoon_start_time' => '14:00',
+            'end_time' => '17:00', 'grace_late_minutes' => 10, 'grace_early_leave_minutes' => 5]);
+        $duty = new Shift(['start_time' => '17:00', 'end_time' => '07:00', 'is_cross_day' => true, 'is_duty' => true,
+            'grace_late_minutes' => 10, 'grace_early_leave_minutes' => 5]);
+
+        return (new AttendanceSessionService)->evaluate(collect($punches)->map(fn ($p) => new Fluent([
+            'time' => strlen($p[0]) === 5 ? '2026-09-07 '.$p[0].':00' : $p[0], 'machine_state' => $p[1],
+        ])), $regular, Carbon::parse('2026-09-07'), $duty);
+    }
+
+    public function test_handover_scans_between_afternoon_and_duty_are_optional_but_scored(): void
+    {
+        $result = $this->withNightDuty([['08:00', 1], ['12:00', 2], ['14:00', 1], ['16:30', 2], ['17:25', 1], ['2026-09-08 07:00:00', 2]]);
+        $this->assertSame('Late', $result['attendance_status']);
+        [, $afternoon, $duty] = $result['sessions'];
+        $this->assertSame(30, $afternoon['early_leave_minutes']);
+        $this->assertSame(25, $duty['late_minutes']);
+        $this->assertSame('2026-09-07 17:25:00', $duty['in_time']);
+        $this->assertSame('2026-09-07 16:30:00', $afternoon['out_time']);
+        $this->assertFalse($afternoon['out_continued'] || $duty['in_continued']);
+        $this->assertSame(815, $result['duty_minutes']);
+    }
+
+    public function test_leaving_at_end_of_afternoon_misses_the_duty(): void
+    {
+        $result = $this->withNightDuty([['08:00', 1], ['12:00', 2], ['14:00', 1], ['17:00', 2]]);
+        $this->assertSame('Incomplete', $result['attendance_status']);
+        $this->assertTrue($result['sessions'][1]['complete']);
+        $this->assertFalse($result['sessions'][2]['complete']);
+        $this->assertSame(0, $result['duty_minutes']);
+    }
+
     public function test_overnight_duty_pairs_next_day_checkout_and_excludes_breaks(): void
     {
         $result = $this->evaluate([

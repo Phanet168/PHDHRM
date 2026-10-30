@@ -101,6 +101,7 @@ class AttendanceUnitScheduleTest extends TestCase
         $day = Carbon::parse('2026-09-07');
         $this->assertSame($shift->id, $resolver->resolveForDate(1, $day)['shift']->id);
         $this->assertNull($resolver->resolveForDate(2, $day));
+        // Saving the shift drops the resolver's per-request memo.
         $shift->update(['is_duty' => true]);
         $this->assertNull($resolver->resolveForDate(1, $day));
     }
@@ -120,6 +121,20 @@ class AttendanceUnitScheduleTest extends TestCase
         $next = app(AttendanceStatusService::class)->determineDailyStatus(1, Carbon::parse('2026-09-13'));
         $this->assertNull($next['in_time']);
         $this->assertNull($next['out_time']);
+    }
+
+    public function test_punches_on_a_day_off_keep_times_but_carry_no_session_penalties(): void
+    {
+        DB::table('week_holidays')->insert(['dayname' => 'Monday']);
+        $this->shift(['is_default' => true, 'morning_end_time' => '12:00', 'afternoon_start_time' => '14:00']);
+        AttendanceCaptureService::capture(['employee_id' => 1, 'time' => '2026-09-07 16:27:00']);
+        AttendanceCaptureService::capture(['employee_id' => 1, 'time' => '2026-09-07 16:29:00']);
+        $result = app(AttendanceStatusService::class)->determineDailyStatus(1, Carbon::parse('2026-09-07'));
+        $this->assertSame('Day Off', $result['attendance_status']);
+        $afternoon = $result['policy_payload']['sessions'][1];
+        $this->assertSame('2026-09-07 16:27:00', $afternoon['in_time']);
+        $this->assertSame(0, $afternoon['late_minutes']);
+        $this->assertSame(0, $afternoon['early_leave_minutes']);
     }
 
     public function test_explicit_roster_day_off_overrides_unit_default(): void
@@ -216,13 +231,95 @@ class AttendanceUnitScheduleTest extends TestCase
         $this->shift(['is_default' => true]);
         $night = $this->shift(['start_time' => '20:00', 'end_time' => '08:00', 'is_cross_day' => true, 'is_duty' => true]);
         ShiftRoster::create(['uuid' => (string) \Illuminate\Support\Str::uuid(), 'employee_id' => 1, 'shift_id' => $night->id, 'roster_date' => '2026-09-07']);
-        AttendanceCaptureService::capture(['employee_id' => 1, 'time' => '2026-09-07 20:00:00']);
+        foreach (['2026-09-07 08:00:00', '2026-09-07 17:00:00', '2026-09-07 20:00:00'] as $time) {
+            AttendanceCaptureService::capture(['employee_id' => 1, 'time' => $time]);
+        }
         $out = AttendanceCaptureService::capture(['employee_id' => 1, 'time' => '2026-09-08 08:00:00']);
         $this->assertSame(2, $out->machine_state);
         $previous = app(AttendanceStatusService::class)->determineDailyStatus(1, Carbon::parse('2026-09-07'));
         $next = app(AttendanceStatusService::class)->determineDailyStatus(1, Carbon::parse('2026-09-08'));
         $this->assertSame('Present', $previous['attendance_status']);
-        $this->assertSame(720, $previous['worked_minutes']);
+        $this->assertSame(540 + 720, $previous['worked_minutes']);
+        $this->assertSame(720, $previous['policy_payload']['duty_minutes']);
         $this->assertNull($next['out_time']);
+    }
+
+    public function test_weekday_duty_is_added_to_regular_hours_not_replacing_them(): void
+    {
+        $regular = $this->shift(['is_default' => true, 'start_time' => '07:30', 'morning_end_time' => '11:30', 'afternoon_start_time' => '14:00', 'end_time' => '17:00']);
+        $night = $this->shift(['start_time' => '17:00', 'end_time' => '07:00', 'is_cross_day' => true, 'is_duty' => true]);
+        ShiftRoster::create(['uuid' => (string) \Illuminate\Support\Str::uuid(), 'employee_id' => 1, 'shift_id' => $night->id, 'roster_date' => '2026-09-07']);
+        $resolved = app(ShiftResolverService::class)->resolveForDate(1, Carbon::parse('2026-09-07'));
+        $this->assertSame($regular->id, $resolved['shift']->id);
+        $this->assertSame($night->id, $resolved['duty']->id);
+
+        // Only the night was worked: the regular day is still owed.
+        AttendanceCaptureService::capture(['employee_id' => 1, 'time' => '2026-09-07 17:00:00']);
+        AttendanceCaptureService::capture(['employee_id' => 1, 'time' => '2026-09-08 07:00:00']);
+        $status = app(AttendanceStatusService::class)->determineDailyStatus(1, Carbon::parse('2026-09-07'));
+        $this->assertSame('Incomplete', $status['attendance_status']);
+        $this->assertSame(['morning', 'afternoon', 'duty'], array_column($status['policy_payload']['sessions'], 'name'));
+    }
+
+    public function test_staying_on_from_afternoon_into_adjacent_duty_needs_no_handover_scan(): void
+    {
+        $this->shift(['is_default' => true, 'start_time' => '07:30', 'morning_end_time' => '11:30', 'afternoon_start_time' => '14:00', 'end_time' => '17:00']);
+        $night = $this->shift(['start_time' => '17:00', 'end_time' => '07:00', 'is_cross_day' => true, 'is_duty' => true]);
+        ShiftRoster::create(['uuid' => (string) \Illuminate\Support\Str::uuid(), 'employee_id' => 1, 'shift_id' => $night->id, 'roster_date' => '2026-09-07']);
+        $states = [];
+        foreach (['2026-09-07 07:30:00', '2026-09-07 11:30:00', '2026-09-07 14:00:00', '2026-09-08 07:00:00'] as $time) {
+            $states[] = AttendanceCaptureService::capture(['employee_id' => 1, 'time' => $time])->machine_state;
+        }
+        $this->assertSame([1, 2, 1, 2], $states);
+        $status = app(AttendanceStatusService::class)->determineDailyStatus(1, Carbon::parse('2026-09-07'));
+        $this->assertSame('Present', $status['attendance_status']);
+        $this->assertSame(240 + 180 + 840, $status['worked_minutes']);
+        $this->assertSame(840, $status['policy_payload']['duty_minutes']);
+        // No hand-over scans: shown as continued, not as a missing OUT/IN.
+        [, $afternoon, $duty] = $status['policy_payload']['sessions'];
+        $this->assertNull($afternoon['out_time']);
+        $this->assertTrue($afternoon['out_continued']);
+        $this->assertTrue($duty['in_continued']);
+        $this->assertSame('2026-09-08 07:00:00', $duty['out_time']);
+        // The 07:00 checkout belongs to the duty date, not the next working day.
+        $this->assertNull(app(AttendanceStatusService::class)->determineDailyStatus(1, Carbon::parse('2026-09-08'))['in_time']);
+    }
+
+    public function test_full_day_duty_replaces_the_regular_hours_it_covers(): void
+    {
+        $this->shift(['is_default' => true, 'start_time' => '07:30', 'morning_end_time' => '11:30', 'afternoon_start_time' => '14:00', 'end_time' => '17:00']);
+        $duty = $this->shift(['start_time' => '07:00', 'end_time' => '07:00', 'is_cross_day' => true, 'is_duty' => true]);
+        ShiftRoster::create(['uuid' => (string) \Illuminate\Support\Str::uuid(), 'employee_id' => 1, 'shift_id' => $duty->id, 'roster_date' => '2026-09-07']);
+        $resolved = app(ShiftResolverService::class)->resolveForDate(1, Carbon::parse('2026-09-07'));
+        $this->assertNull($resolved['shift']);
+        $this->assertSame(['duty'], array_column(app(ShiftResolverService::class)->slotsForDate(1, Carbon::parse('2026-09-07')), 'name'));
+    }
+
+    public function test_duty_running_into_next_working_day_is_rejected_but_allowed_before_a_weekend(): void
+    {
+        DB::table('week_holidays')->insert(['dayname' => 'Saturday,Sunday']);
+        $this->shift(['is_default' => true, 'start_time' => '07:30', 'end_time' => '17:00']);
+        $night = $this->shift(['start_time' => '17:00', 'end_time' => '08:00', 'is_cross_day' => true, 'is_duty' => true]);
+        try {
+            app(ShiftRosterController::class)->store($this->request(['employee_id' => 1, 'roster_date' => '2026-09-07', 'shift_id' => $night->id]));
+            $this->fail('A duty ending after the next day\'s 07:30 start was accepted.');
+        } catch (ValidationException $e) {
+            $this->assertSame(0, ShiftRoster::count());
+        }
+        // Friday night: Saturday is a day off, so nothing overlaps.
+        app(ShiftRosterController::class)->store($this->request(['employee_id' => 1, 'roster_date' => '2026-09-11', 'shift_id' => $night->id]));
+        $this->assertSame(1, ShiftRoster::count());
+    }
+
+    public function test_shift_form_derives_overnight_and_makes_first_regular_schedule_the_default(): void
+    {
+        $controller = app(ShiftController::class);
+        $regular = $controller->store($this->request(['department_id' => 1, 'name' => 'Office', 'start_time' => '07:30', 'end_time' => '17:00',
+            'morning_end_time' => '11:30', 'afternoon_start_time' => '14:00']))->getData(true)['data'];
+        $this->assertTrue($regular['is_default']);
+        $this->assertFalse($regular['is_cross_day']);
+        $night = $controller->store($this->request(['department_id' => 1, 'name' => 'Night', 'start_time' => '17:00', 'end_time' => '07:00', 'is_duty' => 1]))->getData(true)['data'];
+        $this->assertTrue($night['is_cross_day']);
+        $this->assertFalse($night['is_default']);
     }
 }

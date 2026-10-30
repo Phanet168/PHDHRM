@@ -217,7 +217,14 @@ class ApiConfig {
     ]);
   }
 
-  static const Duration connectTimeout = Duration(seconds: 4);
+  /// Whole-request budget on the preferred server. Generous: a reachable but
+  /// busy server (a month of history) must not be treated as "offline" and
+  /// retried elsewhere — unreachable addresses already fail at
+  /// [connectionTimeout].
+  static const Duration connectTimeout = Duration(seconds: 15);
+
+  /// TCP connect limit per address (see http_client_factory_io.dart).
+  static const Duration connectionTimeout = Duration(seconds: 3);
   static const Duration fallbackConnectTimeout = Duration(milliseconds: 1500);
   static const Duration warmupProbeTimeout = Duration(milliseconds: 1200);
 

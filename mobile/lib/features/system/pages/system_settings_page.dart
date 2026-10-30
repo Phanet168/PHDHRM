@@ -14,8 +14,10 @@ import '../../../core/theme/app_design_system.dart';
 import '../../../core/storage/token_storage_service.dart';
 import '../../../core/storage/user_session_storage_service.dart';
 import '../../../core/storage/machine_number_storage_service.dart';
+import '../../../core/device/imei.dart';
 import '../../auth/models/device_access_request_result.dart';
 import '../../auth/services/device_access_request_service.dart';
+import '../../auth/widgets/imei_entry_sheet.dart';
 
 Color _dynamicPrimary() =>
     AppDesignSystem.colorForWeekday(DateTime.now().weekday);
@@ -36,8 +38,13 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
   final UserSessionStorageService _userSessionStorageService =
       UserSessionStorageService();
 
-  late final Future<String> _machineNumberFuture;
+  final MachineNumberStorageService _machineStorage =
+      MachineNumberStorageService();
+  late Future<String> _machineNumberFuture;
   late final Future<Map<String, dynamic>> _deviceInfoFuture;
+
+  /// This phone's IMEI (its machine number) once entered.
+  String? _imei;
 
   bool _isTestingConnection = false;
   bool _isSavingServer = false;
@@ -48,8 +55,31 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
   void initState() {
     super.initState();
     _serverController.text = ApiConfig.configuredBaseUrls.join('\n');
-    _machineNumberFuture = MachineNumberStorageService().getMachineNumber();
+    _machineNumberFuture = _machineStorage.getMachineNumber();
     _deviceInfoFuture = _deviceMetadataService.collect();
+    _machineStorage.getImei().then((imei) {
+      if (mounted) setState(() => _imei = imei);
+    });
+  }
+
+  /// Enters or corrects the IMEI; the machine number follows it.
+  Future<String?> _editImei() async {
+    final imei = await showImeiEntrySheet(
+      context,
+      storage: _machineStorage,
+      initial: _imei,
+    );
+    if (imei == null || !mounted) return null;
+    setState(() {
+      _imei = imei;
+      _machineNumberFuture = _machineStorage.getMachineNumber();
+    });
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(content: Text('បានរក្សាទុកលេខ IMEI ជាលេខម៉ាស៊ីន')),
+      );
+    return imei;
   }
 
   @override
@@ -229,7 +259,11 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
         contentType.contains('+json');
   }
 
-  Future<void> _openAccessRequestDialog(String machineNumber) async {
+  Future<void> _openAccessRequestDialog(String currentNumber) async {
+    // A phone is registered by its IMEI: ask for it first when missing.
+    final imei = _imei ?? await _editImei();
+    if (imei == null) return;
+    final machineNumber = imei;
     final deviceInfo = await _deviceInfoFuture;
     if (!mounted) {
       return;
@@ -336,7 +370,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'លេខស្នើសុំឧបករណ៍៖ $machineNumber',
+                          'លេខម៉ាស៊ីន (IMEI)៖ ${formatImei(machineNumber)}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ),
@@ -381,6 +415,7 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                                         password: passwordController.text,
                                         phone: phoneController.text,
                                         machineNumber: machineNumber,
+                                        imei: imei,
                                         deviceInfo: deviceInfo,
                                         deviceSummary: deviceSummary,
                                         reason: reasonController.text,
@@ -558,19 +593,40 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'លេខស្នើសុំឧបករណ៍',
+                      'លេខម៉ាស៊ីន (IMEI)',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: const Color(0xFF5D6D65),
                       ),
                     ),
                     const SizedBox(height: 4),
                     SelectableText(
-                      machineNumber,
+                      _imei == null ? machineNumber : formatImei(_imei!),
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w800,
                         color: _dynamicPrimary(),
+                        letterSpacing: _imei == null ? null : 1,
                       ),
                     ),
+                    if (_imei == null) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppDesignSystem.warningBg,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppDesignSystem.warningBorder,
+                          ),
+                        ),
+                        child: Text(
+                          'មិនទាន់បញ្ចូល IMEI — លេខខាងលើជាលេខបណ្ដោះអាសន្ន។ '
+                          'សូមបញ្ចូល IMEI (ចុច *#06#) ដើម្បីចុះឈ្មោះទូរសព្ទនេះ។',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: AppDesignSystem.warningIcon,
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 10),
                     FutureBuilder<Map<String, dynamic>>(
                       future: _deviceInfoFuture,
@@ -594,6 +650,13 @@ class _SystemSettingsPageState extends State<SystemSettingsPage> {
                       spacing: 10,
                       runSpacing: 10,
                       children: [
+                        FilledButton.tonalIcon(
+                          onPressed: _editImei,
+                          icon: const Icon(Icons.edit_outlined, size: 18),
+                          label: Text(
+                            _imei == null ? 'បញ្ចូល IMEI' : 'កែ IMEI',
+                          ),
+                        ),
                         TextButton.icon(
                           onPressed: () async {
                             final messenger = ScaffoldMessenger.of(context);

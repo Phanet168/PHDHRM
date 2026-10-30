@@ -176,6 +176,57 @@ class Mission extends Model
         return $this->hasMany(MissionReport::class);
     }
 
+    /**
+     * The order letter is final: legacy missions once approved, new-flow
+     * missions from the moment the Letter Manager issues the order.
+     */
+    public function isOrderIssued(): bool
+    {
+        if ($this->isLegacyFlow()) {
+            return $this->status === 'approved';
+        }
+
+        return in_array($this->lifecycle_status, [
+            MissionStatus::Issued, MissionStatus::OnMission, MissionStatus::PendingReport, MissionStatus::Completed,
+        ], true);
+    }
+
+    /** "មធ្យោបាយធ្វើដំណើរ" on the letters: a typed override, else the chosen transport type (+ its note). */
+    public function transportLabel(): ?string
+    {
+        $override = trim((string) ($this->order_details['transport'] ?? ''));
+        if ($override !== '') {
+            return $override;
+        }
+        $type = $this->transport_type_id ? ($this->transportType?->name_km ?: $this->transportType?->name) : null;
+        $label = trim(implode(' ', array_filter([$type, $this->transport_description])));
+
+        return $label !== '' ? $label : null;
+    }
+
+    /** "ឧបត្ថម្ភថវិកា" on the letters: a typed override, else the sponsor, else the funding source. */
+    public function fundingLabel(): ?string
+    {
+        foreach ([$this->order_details['funding_source'] ?? null, $this->sponsor_name] as $value) {
+            if (trim((string) $value) !== '') {
+                return trim((string) $value);
+            }
+        }
+
+        return $this->funding_source_id ? ($this->fundingSource?->name_km ?: $this->fundingSource?->name) : null;
+    }
+
+    /** The "យោង" block, one reference per line (leading dashes are added when printing). */
+    public function referenceLines(): array
+    {
+        $text = (string) ($this->order_details['reference'] ?? '');
+
+        return array_values(array_filter(array_map(
+            fn (string $line) => trim(preg_replace('/^\s*[-–•]\s*/u', '', $line)),
+            preg_split('/\R/u', $text) ?: []
+        ), fn (string $line) => $line !== ''));
+    }
+
     public function getDisplayStatusAttribute(): string
     {
         if ($this->status !== 'approved') {

@@ -493,6 +493,8 @@ Route::group(['prefix' => 'hr', 'middleware' => ['auth']], function () {
         Route::get('/missions/direct/create', 'directCreate')->middleware('permission:manage_mission_order')->name('direct.create');
         Route::post('/missions/direct', 'directStore')->middleware('permission:manage_mission_order')->name('direct.store');
         Route::get('/missions/{id}/order', 'order')->whereNumber('id')->name('order');
+        Route::get('/missions/{id}/travel-visa', 'travelVisa')->whereNumber('id')->name('travel-visa');
+        Route::get('/missions/{id}/report-letter', 'reportLetter')->whereNumber('id')->name('report-letter');
         Route::get('/missions/{id}/order/prepare', 'prepareOrder')->whereNumber('id')->middleware('permission:manage_mission_order')->name('order.prepare');
         Route::put('/missions/{id}/order', 'updateOrder')->whereNumber('id')->middleware('permission:manage_mission_order')->name('order.update');
         Route::post('/missions/{id}/order/issue', 'issueOrder')->whereNumber('id')->middleware('permission:manage_mission_order')->name('order.issue');

@@ -134,13 +134,10 @@ class AttendanceCaptureService
         $resolver = app(ShiftResolverService::class);
         $date = $resolver->workDateForPunch($employeeId, Carbon::parse($time));
         [$windowStart] = $resolver->punchWindow($employeeId, $date);
-        $shift = $resolver->resolveForDate($employeeId, $date)['shift'] ?? null;
-        if ($shift?->morning_end_time && $shift?->afternoon_start_time) {
-            $morningEnd = Carbon::parse($date->toDateString().' '.$shift->morning_end_time);
-            $afternoonStart = Carbon::parse($date->toDateString().' '.$shift->afternoon_start_time);
-            $boundary = $morningEnd->copy()->addSeconds((int) ($morningEnd->diffInSeconds($afternoonStart) / 2));
-            if (Carbon::parse($time)->gte($boundary)) {
-                $windowStart = $boundary;
+        // Each session segment (morning, afternoon[+adjacent duty], separate duty) starts with an IN.
+        foreach (AttendanceSessionService::segments($resolver->slotsForDate($employeeId, $date)) as $segment) {
+            if ($segment['from'] && Carbon::parse($time)->gte($segment['from']) && $segment['from']->gt($windowStart)) {
+                $windowStart = $segment['from'];
             }
         }
         $latestPunch = Attendance::query()
@@ -185,8 +182,8 @@ class AttendanceCaptureService
         $day = Carbon::parse($date);
         [$start, $end] = $resolver->punchWindow($employeeId, $day);
         $records = $resolver->punchesForDate($employeeId, $day)->orderBy('time')->get(['id', 'time', 'machine_state']);
-        $shift = $resolver->resolveForDate($employeeId, $day)['shift'] ?? null;
-        $result = (new AttendanceSessionService)->evaluate($records, $shift, $day);
+        $resolved = $resolver->resolveForDate($employeeId, $day);
+        $result = (new AttendanceSessionService)->evaluate($records, $resolved['shift'] ?? null, $day, $resolved['duty'] ?? null);
         $incomplete = $result['attendance_status'] === 'Incomplete';
         Attendance::whereIn('id', $records->pluck('id'))->update([
             'exception_flag' => $incomplete,

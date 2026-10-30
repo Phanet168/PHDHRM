@@ -19,6 +19,20 @@
         </div>
         <p class="text-muted text-[12px] -mt-2">ពេលភ្ជាប់ទៅមូលដ្ឋានសុខាភិបាលដែលបានផ្សាយ ឈ្មោះលើទំព័រសាធារណៈនឹងក្លាយជាតំណទៅទំព័រមូលដ្ឋាននោះ។</p>
         <x-admin.textarea name="description" label="ការពិពណ៌នា (ស្រេចចិត្ត)" :value="$unit->description" rows="3" maxlength="1000" />
+        <fieldset class="border border-line rounded-lg p-4 space-y-4">
+            <legend class="font-bold text-brand-navy">ប្រធាន និងអនុប្រធានអង្គភាព</legend>
+            <p class="text-muted text-sm">បញ្ចូលតែឈ្មោះ និងតួនាទីដែលបានផ្ទៀងផ្ទាត់។ ទុកកន្លែងដែលមិនមានព័ត៌មានឱ្យទទេ។</p>
+            @for ($personIndex = 0; $personIndex < 4; $personIndex++)
+                @php($person = old('leaders.'.$personIndex, $unit->leaders[$personIndex] ?? []))
+                <div class="border-t border-line pt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <x-admin.form-input :name="'leaders['.$personIndex.'][name]'" :label="'ឈ្មោះថ្នាក់ដឹកនាំ '.($personIndex + 1)" :value="$person['name'] ?? ''" maxlength="255" />
+                    <x-admin.form-input :name="'leaders['.$personIndex.'][title]'" :label="'តួនាទីថ្នាក់ដឹកនាំ '.($personIndex + 1)" :value="$person['title'] ?? ''" maxlength="255" />
+                    <div class="md:col-span-2">
+                        @include('admin.pages._media-picker', ['name' => 'leaders['.$personIndex.'][portrait_media_id]', 'selected' => $person['portrait_media_id'] ?? null, 'defaultFolderId' => $folderId])
+                    </div>
+                </div>
+            @endfor
+        </fieldset>
         <x-admin.form-input name="sort_order" label="លំដាប់" type="number" min="0" :value="$unit->sort_order" class="max-w-[200px]" />
 
         <label class="flex items-center gap-2 text-[13px] font-bold text-ink">

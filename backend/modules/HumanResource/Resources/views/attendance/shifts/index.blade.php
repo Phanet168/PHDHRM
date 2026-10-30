@@ -5,7 +5,17 @@
 <div class="card att-card mb-3">
     <div class="card-body">
         <h5>ម៉ោងធ្វើការតាមអង្គភាព</h5>
-        <p class="text-muted">១. ជ្រើសរើសអង្គភាព និងកំណត់ម៉ោងធ្វើការ។ ២. រៀបចំតារាងវេនយាមតាមមន្ត្រី។ ៣. ពិនិត្យវត្តមានប្រចាំថ្ងៃ។</p>
+        <div class="alert alert-light border small mb-3">
+            <strong>របៀបគណនាវត្តមាន</strong>
+            <ol class="mb-0 ps-3">
+                <li><strong>ម៉ោងគោល</strong>៖ មួយអង្គភាពមួយ (ឧ. ព្រឹក ០៧:៣០–១១:៣០ ល្ងាច ១៤:០០–១៧:០០)។ អនុវត្តចំពោះបុគ្គលិកទាំងអស់នៅថ្ងៃធ្វើការ។ មន្ទីរ/ការិយាល័យស្រុក ត្រូវការតែមួយនេះ។</li>
+                <li><strong>វេនយាម</strong> (មន្ទីរពេទ្យ/មណ្ឌលសុខភាព)៖ ឧ. យាមយប់ ១៧:០០–០៧:០០ ឬ ២៤ម៉ោង។ ចាត់តាំងក្នុងតារាងវេនយាម ហើយ<strong>បូកបន្ថែម</strong>លើម៉ោងគោលនៅថ្ងៃធ្វើការ (ថ្ងៃឈប់/បុណ្យ៖ មានតែវេនយាម)។ វេនយាមដែលគ្របម៉ោងគោល (ឧ. ២៤ម៉ោង) ជំនួសម៉ោងគោលនោះ។</li>
+                <li>វេនយាមដែលចាប់ផ្ដើមភ្លាមក្រោយម៉ោងល្ងាច អាចស្កេនជាប់៖ ចូលល្ងាច → ចេញនៅព្រឹកបន្ទាប់ ដោយមិនចាំបាច់ស្កេនចេញ/ចូលម៉ោង ១៧:០០។</li>
+            </ol>
+        </div>
+        @if($selectedDepartmentId && ! $hasDefault)
+            <div class="alert alert-warning small">អង្គភាពនេះមិនទាន់មាន<strong>ម៉ោងគោល</strong>ទេ — បុគ្គលិកនឹងមិនត្រូវបានគណនាមកយឺត/ចេញមុនឡើយ។ សូមបង្កើតម៉ោងធ្វើការធម្មតាមួយ។</div>
+        @endif
         <form method="GET" class="row align-items-end">
             @include('humanresource::attendance.unit-filter')
             <div class="col-md-8 mb-2 d-flex flex-wrap gap-2">
@@ -53,30 +63,40 @@
     @can('create_shift')
     <div class="col-xl-4"><div class="card att-card"><div class="card-body">
         <h6>{{ $editingShift ? 'កែប្រែវេន' : 'បង្កើតម៉ោងធ្វើការ' }}</h6>
-        <form method="POST" action="{{ $editingShift ? route('shifts.update', $editingShift->id) : route('shifts.store') }}">
+        <form method="POST" id="shift-form" action="{{ $editingShift ? route('shifts.update', $editingShift->id) : route('shifts.store') }}">
             @csrf @if($editingShift) @method('PUT') @endif
             <label class="form-label">អង្គភាព</label>
             <select name="department_id" class="form-select mb-3" required>
-                @foreach($departments as $department)<option value="{{ $department->id }}" @selected(old('department_id', $editingShift?->department_id ?? $selectedDepartmentId) == $department->id)>{{ $department->department_name }}</option>@endforeach
+                @foreach($departments as $department)<option value="{{ $department->id }}" data-duty="{{ in_array($department->id, $dutyEligibleIds, true) ? 1 : 0 }}" @selected(old('department_id', $editingShift?->department_id ?? $selectedDepartmentId) == $department->id)>{{ $department->department_name }}</option>@endforeach
             </select>
-            <label class="form-label">ឈ្មោះវេន</label><input class="form-control mb-3" name="name" value="{{ old('name', $editingShift?->name) }}" required maxlength="255">
-            <label class="form-label">កូដវេន</label><input class="form-control mb-3" name="code" value="{{ old('code', $editingShift?->code) }}" maxlength="30">
-            <div class="row g-2 mb-3">
-                @foreach(['start_time' => 'ចូលព្រឹក / ចាប់ផ្ដើមវេន', 'morning_end_time' => 'ចេញព្រឹក', 'afternoon_start_time' => 'ចូលល្ងាច', 'end_time' => 'ចេញល្ងាច / បញ្ចប់វេន'] as $field => $label)
-                    <div class="col-6"><label class="form-label">{{ $label }}</label><input type="time" name="{{ $field }}" class="form-control" value="{{ old($field, $editingShift?->$field ? substr($editingShift->$field, 0, 5) : '') }}" @required(in_array($field, ['start_time', 'end_time']))></div>
+            @php $isDuty = (bool) old('is_duty', $editingShift?->is_duty ?? false); @endphp
+            <label class="form-label d-block">ប្រភេទ</label>
+            <div class="btn-group w-100 mb-3" role="group">
+                <input type="radio" class="btn-check" name="is_duty" id="type-regular" value="0" @checked(! $isDuty)>
+                <label class="btn btn-outline-primary" for="type-regular">ម៉ោងធ្វើការធម្មតា</label>
+                <input type="radio" class="btn-check" name="is_duty" id="type-duty" value="1" @checked($isDuty)>
+                <label class="btn btn-outline-primary" for="type-duty">វេនយាម</label>
+            </div>
+            <p class="small text-muted d-none" id="duty-unavailable">វេនយាមសម្រាប់តែមន្ទីរពេទ្យ និងមណ្ឌលសុខភាព។</p>
+            <label class="form-label">ឈ្មោះ</label><input class="form-control mb-3" name="name" value="{{ old('name', $editingShift?->name) }}" required maxlength="255" placeholder="ឧ. ម៉ោងធ្វើការ / យាមយប់">
+            <label class="form-label">កូដ</label><input class="form-control mb-3" name="code" value="{{ old('code', $editingShift?->code) }}" maxlength="30">
+            <div class="row g-2 mb-2">
+                @foreach(['start_time' => 'ចូលព្រឹក / ចាប់ផ្ដើម', 'morning_end_time' => 'ចេញព្រឹក', 'afternoon_start_time' => 'ចូលល្ងាច', 'end_time' => 'ចេញល្ងាច / បញ្ចប់'] as $field => $label)
+                    <div class="col-6 {{ in_array($field, ['morning_end_time', 'afternoon_start_time']) ? 'split-only' : '' }}"><label class="form-label">{{ $label }}</label><input type="time" name="{{ $field }}" class="form-control" value="{{ old($field, $editingShift?->$field ? substr($editingShift->$field, 0, 5) : '') }}" @required(in_array($field, ['start_time', 'end_time']))></div>
                 @endforeach
             </div>
-            <p class="small text-muted">វេនព្រឹក/ល្ងាច៖ បំពេញម៉ោងទាំង ៤។ វេនយាមជាប់គ្នា៖ បំពេញតែម៉ោងចាប់ផ្ដើម និងបញ្ចប់។</p>
+            <p class="small text-muted">ម៉ោងធម្មតា៖ បំពេញម៉ោងទាំង ៤ (ស្កេន ៤ ដង)។ បើធ្វើការជាប់ ឬវេនយាម៖ បំពេញតែម៉ោងចាប់ផ្ដើម និងបញ្ចប់។ ម៉ោងបញ្ចប់តិចជាងម៉ោងចាប់ផ្ដើម = បញ្ចប់ថ្ងៃបន្ទាប់ (ឧ. ១៧:០០ → ០៧:០០)។</p>
             <div class="row g-2 mb-3">
                 @foreach(['grace_late_minutes' => 'អនុគ្រោះមកយឺត (នាទី)', 'grace_early_leave_minutes' => 'អនុគ្រោះចេញមុន (នាទី)'] as $field => $label)
                     <div class="col-6"><label class="form-label">{{ $label }}</label><input type="number" name="{{ $field }}" class="form-control" min="0" max="720" value="{{ old($field, $editingShift?->$field ?? 0) }}"></div>
                 @endforeach
             </div>
-            @foreach(['is_cross_day' => 'វេនឆ្លងថ្ងៃ', 'is_duty' => 'វេនយាម (ត្រូវរៀបចំក្នុងតារាង)', 'is_default' => 'ប្រើជាម៉ោងគោលរបស់អង្គភាព', 'is_active' => 'កំពុងប្រើប្រាស់'] as $field => $label)
-                <input type="hidden" name="{{ $field }}" value="0">
-                <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="{{ $field }}" id="{{ $field }}" value="1" @checked(old($field, $editingShift?->$field ?? ($field === 'is_active')))><label class="form-check-label" for="{{ $field }}">{{ $label }}</label></div>
+            @foreach(['is_default' => 'ម៉ោងគោលរបស់អង្គភាព (ម៉ោងធម្មតាដំបូងត្រូវបានកំណត់ស្វ័យប្រវត្តិ)', 'is_active' => 'កំពុងប្រើប្រាស់'] as $field => $label)
+                <div class="{{ $field === 'is_default' ? 'regular-only' : '' }}">
+                    <input type="hidden" name="{{ $field }}" value="0">
+                    <div class="form-check mb-2"><input class="form-check-input" type="checkbox" name="{{ $field }}" id="{{ $field }}" value="1" @checked(old($field, $editingShift?->$field ?? ($field === 'is_active')))><label class="form-check-label" for="{{ $field }}">{{ $label }}</label></div>
+                </div>
             @endforeach
-            <p class="small text-muted">វេនយាមមានអាទិភាពលើម៉ោងគោលនៅថ្ងៃដែលបានកំណត់ រួមទាំងថ្ងៃឈប់សម្រាក។</p>
             <button class="btn btn-primary w-100">រក្សាទុក</button>
             @if($editingShift)<a class="btn btn-link" href="{{ route('shifts.index', ['department_id' => $selectedDepartmentId]) }}">បោះបង់ការកែប្រែ</a>@endif
         </form>
@@ -84,3 +104,33 @@
     @endcan
 </div>
 @endsection
+@push('js')
+<script>
+(function () {
+    const form = document.getElementById('shift-form');
+    if (!form) return;
+    const unit = form.elements.department_id;
+    const duty = document.getElementById('type-duty');
+    const regular = document.getElementById('type-regular');
+    function sync() {
+        const eligible = unit.selectedOptions[0]?.dataset.duty === '1';
+        duty.disabled = !eligible;
+        if (!eligible && duty.checked) regular.checked = true;
+        document.getElementById('duty-unavailable').classList.toggle('d-none', eligible);
+        const isDuty = duty.checked;
+        form.querySelectorAll('.split-only').forEach(el => {
+            el.classList.toggle('d-none', isDuty);
+            if (isDuty) el.querySelector('input').value = '';
+        });
+        form.querySelectorAll('.regular-only').forEach(el => {
+            el.classList.toggle('d-none', isDuty);
+            if (isDuty) el.querySelector('input[type=checkbox]').checked = false;
+        });
+    }
+    unit.addEventListener('change', sync);
+    duty.addEventListener('change', sync);
+    regular.addEventListener('change', sync);
+    sync();
+})();
+</script>
+@endpush

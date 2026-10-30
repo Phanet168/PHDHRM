@@ -63,7 +63,14 @@ class AttendanceUnitScope
 
     public static function employeeUnit(Employee $employee): int
     {
-        $id = (int) ($employee->sub_department_id ?: $employee->department_id);
+        $start = (int) ($employee->sub_department_id ?: $employee->department_id);
+
+        // Attendance asks this for every day it evaluates; walk the tree once per request.
+        return RequestCache::remember('attendance-unit:'.$start, fn () => self::unitFor($start));
+    }
+
+    private static function unitFor(int $id): int
+    {
         $visited = [];
         while ($id > 0 && ! isset($visited[$id])) {
             $visited[$id] = true;

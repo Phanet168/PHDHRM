@@ -101,12 +101,6 @@ export function initAboutPage() {
         update();
     }
 
-    // Phones: organization groups start collapsed except the first, so the list stays short.
-    const phone = window.matchMedia('(max-width: 767px)').matches;
-    if (phone) {
-        page.querySelectorAll('.about-unit-group').forEach((group, index) => { if (index > 0) group.open = false; });
-    }
-
     // Toggle buttons that swap a "more"/"less" label and aria-expanded.
     const setExpanded = (button, expanded) => {
         button.setAttribute('aria-expanded', String(expanded));
@@ -130,26 +124,9 @@ export function initAboutPage() {
         });
     }
 
-    // Organization: the chart is the summary on desktop; the full list opens on demand.
-    const orgDetail = page.querySelector('[data-about-org-detail]');
-    const orgToggle = page.querySelector('[data-about-org-toggle]');
-    const showOrgDetail = show => {
-        if (!orgDetail) return;
-        orgDetail.hidden = !show;
-        if (orgToggle) setExpanded(orgToggle, show);
-    };
-    if (orgDetail && orgToggle && !phone) {
-        const hashTarget = document.getElementById(decodeURIComponent(location.hash.slice(1)));
-        showOrgDetail(Boolean(hashTarget && orgDetail.contains(hashTarget)));
-        orgToggle.addEventListener('click', () => showOrgDetail(orgDetail.hidden));
-    }
-    for (const link of page.querySelectorAll('[data-about-org-open], [data-about-link]')) {
-        link.addEventListener('click', () => {
-            const target = document.getElementById(link.getAttribute('href').slice(1));
-            if (!target || !orgDetail?.contains(target)) return;
-            showOrgDetail(true);
-            if (target instanceof HTMLDetailsElement) target.open = true;
-        }, { capture: true });
+    // Activity photos: GLightbox is fetched only when the gallery exists.
+    if (page.querySelector('.about-gallery-zoom')) {
+        import('glightbox').then(({ default: GLightbox }) => GLightbox({ selector: '.about-gallery-zoom', touchNavigation: true, loop: true, zoomable: true }));
     }
 
     // Reuse Leaflet/OSM, but only request tiles when the configured map approaches view.

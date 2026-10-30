@@ -17,6 +17,59 @@ class AuthController extends Controller
     {
     }
 
+    /** A real IMEI: 15 digits with a valid Luhn check digit. */
+    public static function isImei(?string $value): bool
+    {
+        $digits = (string) $value;
+        if (! preg_match('/^\d{15}$/', $digits) || preg_match('/^0+$/', $digits)) {
+            return false;
+        }
+        $sum = 0;
+        for ($i = 0; $i < 15; $i++) {
+            $d = (int) $digits[$i];
+            if ($i % 2 === 1) {
+                $d *= 2;
+                $d = $d > 9 ? $d - 9 : $d;
+            }
+            $sum += $d;
+        }
+
+        return $sum % 10 === 0;
+    }
+
+    private static function normalizeImei(mixed $value): ?string
+    {
+        $digits = preg_replace('/\D/', '', (string) $value);
+
+        return self::isImei($digits) ? $digits : null;
+    }
+
+    /**
+     * The user's registration for this phone. Phones now sign in by their IMEI; the
+     * app used to send the Android build code, which every phone on the same firmware
+     * shares. When the IMEI is new but the app's previous number is an approved
+     * registration of this user, that registration moves to the IMEI once, so staff
+     * already approved are not locked out (no weaker than the old number itself).
+     */
+    private function registrationFor(int $userId, string $deviceId, ?string $legacyId, ?string $imei): ?MobileDeviceRegistration
+    {
+        $device = MobileDeviceRegistration::where('user_id', $userId)->where('device_id', $deviceId)->first();
+        $legacyId = trim((string) $legacyId);
+        if (! $device && $imei && $legacyId !== '' && $legacyId !== $deviceId) {
+            $legacy = MobileDeviceRegistration::where('user_id', $userId)->where('device_id', $legacyId)->first();
+            if ($legacy && $legacy->isActive()) {
+                $legacy->update(['device_id' => $deviceId, 'imei' => $imei]);
+                $device = $legacy->fresh();
+            }
+        }
+        // Older rows stored the app's number as "imei"; record the real one.
+        if ($device && $imei && ! self::isImei($device->imei)) {
+            $device->update(['imei' => $imei]);
+        }
+
+        return $device;
+    }
+
     public function sanctumUser(Request $request): JsonResponse
     {
         return response()->json($request->user());
@@ -80,15 +133,13 @@ class AuthController extends Controller
         $deviceId   = trim((string) ($validated['device_id'] ?? ''));
         $deviceName = trim((string) ($validated['device_name'] ?? 'flutter-app'));
         $platform   = $validated['platform'] ?? null;
-        $imei       = trim((string) ($validated['imei'] ?? '')) ?: null;
+        $imei       = self::normalizeImei($validated['imei'] ?? null);
         $fingerprint = trim((string) ($validated['fingerprint'] ?? '')) ?: null;
 
-        $device = MobileDeviceRegistration::where('user_id', $user->id)
-            ->where('device_id', $deviceId)
-            ->first();
+        $device = $this->registrationFor((int) $user->id, $deviceId, $request->input('legacy_device_id'), $imei);
 
         // Anti-spoofing: if device is known, verify IMEI has not changed
-        if ($device && $imei && $device->imei && $device->imei !== $imei) {
+        if ($device && $imei && self::isImei($device->imei) && $device->imei !== $imei) {
             return response()->json([
                 'status'  => 'error',
                 'code'    => 'device_imei_mismatch',
@@ -204,7 +255,7 @@ class AuthController extends Controller
         $deviceId = trim((string) $validated['device_id']);
         $deviceName = trim((string) ($validated['device_name'] ?? '')) ?: null;
         $platform = $validated['platform'] ?? null;
-        $imei = trim((string) ($validated['imei'] ?? '')) ?: null;
+        $imei = self::normalizeImei($validated['imei'] ?? null);
         $fingerprint = trim((string) ($validated['fingerprint'] ?? '')) ?: null;
         $requestNote = trim((string) ($validated['request_note'] ?? '')) ?: null;
         $requestRemark = $requestNote ? ('REQUEST_NOTE: ' . $requestNote) : null;
@@ -375,10 +426,12 @@ class AuthController extends Controller
         ]);
 
         $user = $request->user();
-        $device = MobileDeviceRegistration::query()
-            ->where('user_id', (int) $user->id)
-            ->where('device_id', trim((string) $validated['device_id']))
-            ->first();
+        $device = $this->registrationFor(
+            (int) $user->id,
+            trim((string) $validated['device_id']),
+            $request->input('legacy_device_id'),
+            self::normalizeImei($request->input('imei')),
+        );
 
         if (!$device) {
             return response()->json([

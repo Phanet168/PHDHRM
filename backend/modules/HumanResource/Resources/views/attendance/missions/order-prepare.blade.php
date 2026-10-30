@@ -15,8 +15,13 @@
             <div class="card"><div class="card-body">
                 <form action="{{ route('missions.order.update', $mission->id) }}" method="POST">
                     @csrf @method('PUT')
-                    <div class="mb-3"><label class="form-label">លេខលិខិតបញ្ជាបេសកកម្ម</label>
-                        <input name="order_number" class="form-control" maxlength="100" value="{{ old('order_number', $mission->order_number) }}"></div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8"><label class="form-label">លេខលិខិតបញ្ជាបេសកកម្ម</label>
+                            <input name="order_number" class="form-control" maxlength="100" value="{{ old('order_number', $mission->order_number) }}">
+                            <small class="text-muted">អាចទុកទទេ ហើយសរសេរដៃក្រោយចុះហត្ថលេខា។</small></div>
+                        <div class="col-md-4"><label class="form-label">អក្សរកាត់អង្គភាព</label>
+                            <input name="order_details[letter_code]" class="form-control" maxlength="30" placeholder="ឧ. មសរខ" value="{{ old('order_details.letter_code', $details['letter_code'] ?? '') }}"></div>
+                    </div>
                     <div class="row g-3 mb-3">
                         <div class="col-md-6"><label class="form-label">មធ្យោបាយធ្វើដំណើរ</label>
                             <select name="transport_type_id" class="form-select">
@@ -26,6 +31,8 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div class="col-md-6"><label class="form-label">ព័ត៌មានបន្ថែមពីមធ្យោបាយ</label>
+                            <input name="transport_description" class="form-control" maxlength="255" placeholder="ឧ. ស្លាកលេខ ២AB-១២៣៤" value="{{ old('transport_description', $mission->transport_description) }}"></div>
                         <div class="col-md-6"><label class="form-label">ប្រភពថវិកា</label>
                             <select name="funding_source_id" class="form-select">
                                 <option value="">— ជ្រើសរើស —</option>
@@ -33,6 +40,35 @@
                                     <option value="{{ $source->id }}" @selected(old('funding_source_id', $mission->funding_source_id) == $source->id)>{{ $source->name ?? $source->name_km ?? ('#'.$source->id) }}</option>
                                 @endforeach
                             </select>
+                        </div>
+                        <div class="col-md-6"><label class="form-label">ឧបត្ថម្ភថវិកាដោយ</label>
+                            <input name="sponsor_name" class="form-control" maxlength="255" placeholder="ឧ. US-CDC" value="{{ old('sponsor_name', $mission->sponsor_name) }}">
+                            <small class="text-muted">បង្ហាញលើលិខិតជំនួសប្រភពថវិកា បើបំពេញ។</small></div>
+                    </div>
+                    <div class="card mb-3">
+                        <div class="card-header bg-light"><span class="fs-5 fw-bold">មន្ត្រីលើលិខិត</span>
+                            <small class="text-muted ms-2">ងារ ឈ្មោះ និងតួនាទី ដូចបង្ហាញលើលិខិតបញ្ជា និងលិខិតចុះទិដ្ឋការ</small></div>
+                        <div class="card-body p-0">
+                            <table class="table mb-0 align-middle">
+                                <thead><tr><th style="width:22%">ងារ</th><th>ឈ្មោះ</th><th>តួនាទី</th></tr></thead>
+                                <tbody>
+                                @foreach($mission->assignments->where('status', 'active') as $assignment)
+                                    <tr>
+                                        <td><input name="officers[{{ $assignment->id }}][honorific_on_order]" class="form-control form-control-sm" maxlength="100" list="mission-honorifics"
+                                                   value="{{ old('officers.'.$assignment->id.'.honorific_on_order', $assignment->honorific_on_order) }}"></td>
+                                        <td><input name="officers[{{ $assignment->id }}][name_on_order]" class="form-control form-control-sm" maxlength="255" required
+                                                   value="{{ old('officers.'.$assignment->id.'.name_on_order', $assignment->name_on_order ?? $assignment->employee?->full_name) }}"></td>
+                                        <td><input name="officers[{{ $assignment->id }}][position_on_order]" class="form-control form-control-sm" maxlength="255"
+                                                   value="{{ old('officers.'.$assignment->id.'.position_on_order', $assignment->position_on_order) }}"></td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                            <datalist id="mission-honorifics">
+                                @foreach(['លោក', 'លោកស្រី', 'លោកវេជ្ជ.', 'លោកស្រីវេជ្ជ.', 'លោកឱសថ.', 'លោកស្រីឱសថ.', 'លោកទន្ត.', 'កញ្ញា'] as $honorific)
+                                    <option value="{{ $honorific }}">
+                                @endforeach
+                            </datalist>
                         </div>
                     </div>
                     <div class="card mb-3">
@@ -58,7 +94,8 @@
                                     <input name="order_details[{{ $key }}]" class="form-control" maxlength="{{ $max }}" value="{{ old('order_details.'.$key, $details[$key] ?? '') }}"></div>
                             @endforeach
                             <div class="col-12"><label class="form-label">យោង (លិខិត/ចំណារឯកភាព)</label>
-                                <textarea name="order_details[reference]" rows="3" class="form-control" maxlength="2000">{{ old('order_details.reference', $details['reference'] ?? '') }}</textarea></div>
+                                <textarea name="order_details[reference]" rows="3" class="form-control" maxlength="2000">{{ old('order_details.reference', $details['reference'] ?? '') }}</textarea>
+                                <small class="text-muted">មួយបន្ទាត់ ក្នុងមួយយោង — ឧ. «លិខិតលេខ ១១៤១ ប្រជឆ ចុះថ្ងៃទី២៤ ខែសីហា ឆ្នាំ២០២៦ របស់ក្រសួងសុខាភិបាល»។</small></div>
                         </div>
                         </div>
                     </div>
@@ -87,6 +124,7 @@
                 </ul>
                 <hr>
                 <a class="btn btn-sm btn-outline-secondary w-100" href="{{ route('missions.order', $mission->id) }}" target="_blank"><i class="fa fa-eye me-1"></i>មើលសំណុំបែបបទលិខិត</a>
+                <a class="btn btn-sm btn-outline-secondary w-100 mt-2" href="{{ route('missions.travel-visa', $mission->id) }}" target="_blank"><i class="fa fa-route me-1"></i>លិខិតចុះទិដ្ឋការធ្វើដំណើរ</a>
             </div></div>
         </div>
     </div>

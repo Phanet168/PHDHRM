@@ -180,7 +180,9 @@ class _AttendanceStatisticsPageState extends State<AttendanceStatisticsPage> {
                             .length;
 
                     final onTime = countOf('on_time');
-                    final late = countOf('late');
+                    // Left early (with or without arriving late) still
+                    // counts as attended, like late arrival.
+                    final late = countOf('late') + countOf('early_leave');
                     final absent = countOf('absent');
                     final incomplete = countOf('incomplete');
                     final workingTotal = onTime + late + absent + incomplete;
@@ -307,7 +309,7 @@ class _AttendanceStatisticsPageState extends State<AttendanceStatisticsPage> {
                           const SizedBox(height: 10),
                           _SummaryRow(
                             value: late,
-                            label: 'យឺត',
+                            label: 'យឺត / ចេញមុន',
                             color: const Color(0xFFD99A00),
                           ),
                           const SizedBox(height: 10),
@@ -344,7 +346,7 @@ class _AttendanceStatisticsPageState extends State<AttendanceStatisticsPage> {
                                 ),
                                 const SizedBox(height: 12),
                                 _BreakdownBar(
-                                  label: 'យឺត',
+                                  label: 'យឺត / ចេញមុន',
                                   value: late,
                                   maxValue: maxCount,
                                   color: const Color(0xFFD99A00),

@@ -15,8 +15,11 @@ class SettingController extends Controller
     private const KEYS = [
         'org_name_km', 'org_name_en', 'logo', 'favicon', 'phone', 'email', 'address',
         'office_hours', 'facebook_url', 'telegram_url', 'youtube_url',
-        'seo_title', 'seo_description', 'hrm_url', 'loading_text_km',
+        'seo_title', 'seo_description', 'hrm_url', 'drugs_url', 'loading_text_km',
     ];
+
+    /** A full address, or one on this server such as /login (the HRM and drugs systems sit beside the website). */
+    private const SYSTEM_URL = ['nullable', 'string', 'max:255', 'regex:#^(https?://\S+|/\S*)$#'];
 
     public function edit(): View
     {
@@ -46,7 +49,11 @@ class SettingController extends Controller
             'youtube_url' => ['nullable', 'url', 'max:255'],
             'seo_title' => ['nullable', 'string', 'max:255'],
             'seo_description' => ['nullable', 'string', 'max:500'],
-            'hrm_url' => ['nullable', 'url', 'max:255'],
+            'hrm_url' => self::SYSTEM_URL,
+            'drugs_url' => self::SYSTEM_URL,
+        ], [
+            'hrm_url.regex' => 'សូមបញ្ចូលអាសយដ្ឋានពេញ (https://...) ឬផ្លូវលើ server នេះ (ឧ. /login)',
+            'drugs_url.regex' => 'សូមបញ្ចូលអាសយដ្ឋានពេញ (https://...) ឬផ្លូវលើ server នេះ (ឧ. /drugs/login)',
         ]);
 
         foreach (self::KEYS as $key) {

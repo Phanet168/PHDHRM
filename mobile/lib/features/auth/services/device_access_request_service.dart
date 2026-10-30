@@ -16,8 +16,10 @@ class DeviceAccessRequestService {
     String? deviceSummary,
     String? phone,
     String? reason,
+    String? imei,
   }) async {
     final payload = <String, dynamic>{
+      if (imei != null && imei.isNotEmpty) 'imei': imei,
       'full_name': fullName.trim(),
       'email': email.trim(),
       'password': password,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -5,10 +6,16 @@ import 'package:geolocator/geolocator.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../auth/models/auth_user.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../core/theme/app_design_system.dart';
+import '../../../core/time/trusted_clock.dart';
+import '../models/attendance_geofence.dart';
 import '../models/attendance_scan_result.dart';
 import 'attendance_scan_result_page.dart';
+import 'scan/gps_zone_radar.dart';
+import 'scan/qr_scan_overlay.dart';
 import '../services/home_attendance_service.dart';
+import '../services/offline_attendance_queue.dart';
 
 enum _ScanMode { qr, gps }
 
@@ -40,6 +47,12 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
   Position? _currentPosition;
   bool _loadingPosition = false;
   String? _positionError;
+  StreamSubscription<Position>? _positionSub;
+
+  // The server-enforced scan area, for the live in/out-of-zone indicator.
+  AttendanceGeofence? _geofence;
+  bool _scanContextLoaded = false;
+  String? _nextPunchType;
 
   Color _dp() => AppDesignSystem.colorForWeekday(DateTime.now().weekday);
 
@@ -59,6 +72,9 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
     // Some Android devices don't auto-start scanner stream reliably.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scannerController.start();
+      // QR scans are geofenced too, so both tabs show the live zone status.
+      _loadScanContext();
+      _startLiveLocation();
     });
   }
 
@@ -68,21 +84,26 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
       return;
     }
 
-    if (state == AppLifecycleState.resumed &&
-        !_isSubmitting &&
-        _mode == _ScanMode.qr) {
-      _scannerController.start();
+    if (state == AppLifecycleState.resumed && !_isSubmitting) {
+      if (_mode == _ScanMode.qr) {
+        _scannerController.start();
+      }
+      if (_positionSub == null) {
+        _startLiveLocation();
+      }
     }
 
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
       _scannerController.stop();
+      _stopLiveLocation();
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _stopLiveLocation();
     _scannerController.dispose();
     super.dispose();
   }
@@ -107,11 +128,83 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
       await _scannerController.start();
     } else {
       await _scannerController.stop();
-      if (_currentPosition == null && !_loadingPosition) {
-        await _loadCurrentPosition();
+      _loadScanContext();
+      if (_positionSub == null) {
+        await _startLiveLocation();
       }
     }
   }
+
+  /// One fresh fix (which also asks for permission), then a live stream so
+  /// the zone indicator follows the officer while the scan page is open.
+  Future<void> _startLiveLocation() async {
+    _stopLiveLocation();
+    await _loadCurrentPosition();
+    if (!mounted || _positionError != null) {
+      return;
+    }
+    _positionSub = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 2,
+      ),
+    ).listen(
+      (position) {
+        if (!mounted) return;
+        setState(() {
+          _currentPosition = position;
+          _positionError = null;
+        });
+      },
+      onError: (Object error) {
+        if (!mounted) return;
+        setState(() => _positionError = _normalizeErrorMessage(error));
+      },
+    );
+  }
+
+  void _stopLiveLocation() {
+    _positionSub?.cancel();
+    _positionSub = null;
+  }
+
+  Future<void> _loadScanContext() async {
+    try {
+      final scanContext = await widget.attendanceService.fetchScanContext(
+        widget.user,
+      );
+      if (!mounted) return;
+      setState(() {
+        _geofence = scanContext.geofence;
+        _nextPunchType = scanContext.nextPunchType;
+        _scanContextLoaded = true;
+      });
+    } catch (_) {
+      // Without the zone the server still decides at scan time; the
+      // indicator just can't say in/out.
+      if (mounted) setState(() => _scanContextLoaded = true);
+    }
+  }
+
+  GpsZoneStatus get _zoneStatus {
+    final position = _currentPosition;
+    final fence = _geofence;
+    if (position == null || (fence == null && !_scanContextLoaded)) {
+      return GpsZoneStatus.locating;
+    }
+    if (fence == null) {
+      return GpsZoneStatus.unconfigured;
+    }
+    return fence.distanceTo(position.latitude, position.longitude) <=
+            fence.radiusMeters
+        ? GpsZoneStatus.inside
+        : GpsZoneStatus.outside;
+  }
+
+  String _formatDistance(double meters) =>
+      meters < 1000
+          ? '${meters.round()} m'
+          : '${(meters / 1000).toStringAsFixed(2)} km';
 
   Future<void> _loadCurrentPosition() async {
     setState(() {
@@ -218,14 +311,27 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
 
     await _scannerController.stop();
 
+    // The moment of the scan (server-anchored when possible) and its retry
+    // key: if it has to wait offline, this is what gets recorded.
+    final scannedAt = await TrustedClock.instance.now();
+    final requestId = widget.attendanceService.newRequestId();
+    Position? position;
     try {
-      final position = _currentPosition ?? await _resolveCurrentPosition();
-      final result = await widget.attendanceService.submitAttendanceScan(
-        widget.user,
-        qrToken: qrToken,
-        latitude: position.latitude,
-        longitude: position.longitude,
-      );
+      position = _currentPosition ?? await _resolveCurrentPosition();
+      // Earlier offline scans go first so IN/OUT stay in order; if they
+      // still cannot be sent, this one waits behind them.
+      if (!await _sendQueuedFirst()) {
+        throw NetworkException();
+      }
+      final result = await widget.attendanceService
+          .submitAttendanceScan(
+            widget.user,
+            qrToken: qrToken,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            requestId: requestId,
+          )
+          .timeout(const Duration(seconds: 12));
 
       if (!mounted) {
         return;
@@ -239,6 +345,30 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
       );
     } catch (error) {
       if (!mounted) {
+        return;
+      }
+
+      if (position != null && _isOffline(error)) {
+        await OfflineAttendanceQueue.instance.add(
+          PendingScan(
+            requestId: requestId,
+            userId: widget.user.userId,
+            latitude: position.latitude,
+            longitude: position.longitude,
+            capturedAt: scannedAt.time,
+            clockSource: scannedAt.source,
+            scanType: _mode == _ScanMode.qr ? 'QR' : 'GPS',
+            qrToken: qrToken,
+          ),
+        );
+        await _openScanResultScreen(
+          const AttendanceScanResult(
+            status: AttendanceScanResult.queuedStatus,
+            message: 'បានរក្សាទុកក្រៅបណ្ដាញ',
+          ),
+          latitude: position.latitude,
+          longitude: position.longitude,
+        );
         return;
       }
 
@@ -262,6 +392,29 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
       );
     }
   }
+
+  /// Sends this officer's queued offline scans; false while any still wait.
+  Future<bool> _sendQueuedFirst() async {
+    final queue = OfflineAttendanceQueue.instance;
+    await queue.load();
+    bool waiting() =>
+        queue.forUser(widget.user.userId).any((scan) => !scan.isRejected);
+    if (!waiting()) return true;
+    await queue
+        .sync(widget.user, widget.attendanceService)
+        .timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => const OfflineSyncReport(stillOffline: true),
+        );
+    return !waiting();
+  }
+
+  static bool _isOffline(Object error) =>
+      error is TimeoutException ||
+      error is NetworkException ||
+      (error is ApiException
+          ? error.statusCode == null && isNetworkErrorMessage(error.message)
+          : isNetworkErrorMessage(error.toString()));
 
   Future<void> _handleScanResult(
     AttendanceScanResult result, {
@@ -501,7 +654,11 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7F6),
       appBar: AppBar(
-        title: Text(_tr('qr_scan_attendance', 'ស្កេន QR វត្តមាន')),
+        title: Text(
+          _mode == _ScanMode.qr
+              ? _tr('qr_scan_attendance', 'ស្កេន QR វត្តមាន')
+              : _tr('gps_scan_attendance', 'ស្កេនវត្តមាន GPS'),
+        ),
         actions: [
           IconButton(
             onPressed: _isSubmitting ? null : _openManualTokenDialog,
@@ -547,73 +704,148 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
     );
   }
 
+  /// Short live zone label for the pill over the camera.
+  String _zoneLabel(GpsZoneStatus status, double? distance) {
+    return switch (status) {
+      GpsZoneStatus.inside =>
+        '${_tr('gps_in_zone_short', 'នៅក្នុងតំបន់')} · ${_formatDistance(distance!)}',
+      GpsZoneStatus.outside =>
+        '${_tr('gps_out_of_zone_short', 'នៅក្រៅតំបន់')} · ${_formatDistance(distance!)}',
+      GpsZoneStatus.locating => _tr('locating', 'កំពុងស្វែងរកទីតាំង...'),
+      GpsZoneStatus.unconfigured => _tr(
+        'gps_zone_unconfigured',
+        'មិនទាន់កំណត់តំបន់ស្កេន',
+      ),
+    };
+  }
+
   Widget _buildQrTab(Color accent) {
-    return ListView(
+    final status = _zoneStatus;
+    final position = _currentPosition;
+    final fence = _geofence;
+    final distance =
+        position != null && fence != null
+            ? fence.distanceTo(position.latitude, position.longitude)
+            : null;
+
+    return Column(
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: SizedBox(
-            height: 340,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                Container(color: const Color(0xFF0F1914)),
-                MobileScanner(
-                  controller: _scannerController,
-                  onDetect: _onDetect,
-                  errorBuilder: (context, error, child) {
-                    return Container(
-                      color: const Color(0xFF0F1914),
-                      alignment: Alignment.center,
-                      child: Text(
-                        error.errorDetails?.message ??
-                            _tr('camera_access_failed', 'មិនអាចប្រើកាមេរ៉ា'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
+        Expanded(
+          child: ListView(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: SizedBox(
+                  height: 380,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Container(color: const Color(0xFF0F1914)),
+                      MobileScanner(
+                        controller: _scannerController,
+                        onDetect: _onDetect,
+                        errorBuilder: (context, error, child) {
+                          return Container(
+                            color: const Color(0xFF0F1914),
+                            alignment: Alignment.center,
+                            child: Text(
+                              error.errorDetails?.message ??
+                                  _tr(
+                                    'camera_access_failed',
+                                    'មិនអាចប្រើកាមេរ៉ា',
+                                  ),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      QrScanOverlay(color: accent, scanning: !_isSubmitting),
+                      Positioned(
+                        top: 12,
+                        left: 12,
+                        right: 12,
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: GpsZonePill(
+                            status: status,
+                            label: _zoneLabel(status, distance),
+                          ),
                         ),
                       ),
-                    );
-                  },
-                ),
-                IgnorePointer(
-                  child: Center(
-                    child: CustomPaint(
-                      size: const Size(220, 220),
-                      painter: _DashedScanFramePainter(color: accent),
-                    ),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child:
+                            _isSubmitting
+                                ? Container(
+                                  color: Colors.black.withAlpha(150),
+                                  alignment: Alignment.center,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const CircularProgressIndicator(
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(height: 14),
+                                      Text(
+                                        _statusMessage,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                                : const SizedBox.shrink(),
+                      ),
+                    ],
                   ),
                 ),
-                if (_isSubmitting)
-                  Container(
-                    color: Colors.black.withAlpha(90),
-                    child: const Center(child: CircularProgressIndicator()),
+              ),
+              const SizedBox(height: 16),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: Text(
+                  _statusMessage,
+                  key: ValueKey(_statusMessage),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: _statusColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
                   ),
-              ],
-            ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _tr('scan_qr_instruction', 'សូមស្កេនកូដ QR នៅទីតាំងការិយាល័យ'),
+                style: const TextStyle(color: Color(0xFF6F7C76), fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ),
         ),
-        const SizedBox(height: 14),
-        Text(
-          _tr(
-            'scan_qr_instruction',
-            'សូមស្កេនកូដ QR នៅទីតាំងការិយាល័យ',
-          ),
-          style: const TextStyle(color: Color(0xFF6F7C76), fontSize: 13),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 10),
-        Text(
-          _statusMessage,
-          style: TextStyle(color: _statusColor, fontWeight: FontWeight.w700),
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         OutlinedButton.icon(
           onPressed: _isSubmitting ? null : _restartScan,
-          icon: const Icon(Icons.qr_code_scanner_outlined),
-          label: Text(_tr('scan_again', 'ស្កេនម្ដងទៀត')),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: accent,
+            side: BorderSide(color: accent.withAlpha(120)),
+            minimumSize: const Size.fromHeight(52),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          icon: const Icon(Icons.qr_code_scanner_rounded),
+          label: Text(
+            _tr('scan_again', 'ស្កេនម្ដងទៀត'),
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          ),
         ),
       ],
     );
@@ -621,129 +853,271 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
 
   Widget _buildGpsTab(Color accent) {
     final org = widget.user.departmentName?.trim();
+    final status = _zoneStatus;
+    final color = gpsZoneColor(status);
+    final position = _currentPosition;
+    final fence = _geofence;
+    final distance =
+        position != null && fence != null
+            ? fence.distanceTo(position.latitude, position.longitude)
+            : null;
+    final (title, subtitle) = switch (status) {
+      GpsZoneStatus.inside => (
+        _tr('gps_in_zone', 'អ្នកនៅក្នុងតំបន់ស្កេន'),
+        _tr('gps_in_zone_hint', 'អាចស្កេនវត្តមានបាន'),
+      ),
+      GpsZoneStatus.outside => (
+        _tr('gps_out_of_zone', 'អ្នកនៅក្រៅតំបន់ស្កេន'),
+        '${_tr('gps_move_closer', 'សូមខិតចូលជិតប្រហែល')} '
+            '${_formatDistance(distance! - fence!.radiusMeters)}',
+      ),
+      GpsZoneStatus.locating => (
+        _tr('locating', 'កំពុងស្វែងរកទីតាំង...'),
+        _positionError ??
+            _tr('gps_locating_hint', 'សូមបើក GPS និងនៅកន្លែងមានមេឃ'),
+      ),
+      GpsZoneStatus.unconfigured => (
+        _tr('gps_zone_unconfigured', 'មិនទាន់កំណត់តំបន់ស្កេន'),
+        _tr('gps_zone_unconfigured_hint', 'ប្រព័ន្ធនឹងពិនិត្យទីតាំងពេលស្កេន'),
+      ),
+    };
+    final buttonLabel =
+        status == GpsZoneStatus.outside
+            ? _tr('gps_out_of_zone', 'អ្នកនៅក្រៅតំបន់ស្កេន')
+            : switch (_nextPunchType) {
+              'in' => _tr('scan_in', 'ស្កេនចូល'),
+              'out' => _tr('scan_out', 'ស្កេនចេញ'),
+              _ => _tr('check_in', 'ចូលវត្តមាន'),
+            };
+    final canScan =
+        !_isSubmitting && position != null && status != GpsZoneStatus.outside;
+    final buttonColor = status == GpsZoneStatus.inside ? color : accent;
 
-    return ListView(
+    // The scan button stays pinned below the scrolling zone details so it
+    // is always reachable on any screen height.
+    return Column(
       children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0A17352B),
-                blurRadius: 10,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        Expanded(
+          child: ListView(
             children: [
-              Text(
-                (org?.isNotEmpty ?? false) ? org! : '-',
-                style: const TextStyle(
-                  color: Color(0xFF17352B),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0A17352B),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            (org?.isNotEmpty ?? false) ? org! : '-',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF17352B),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        GpsLiveBadge(
+                          color: color,
+                          label: _tr('gps_live', 'ផ្ទាល់'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Shrinks with the screen (large display size = narrow width).
+                    LayoutBuilder(
+                      builder:
+                          (context, constraints) => GpsZoneRadar(
+                            size:
+                                constraints.maxWidth < 260
+                                    ? constraints.maxWidth
+                                    : 260,
+                            status: status,
+                            offsetMeters:
+                                position != null && fence != null
+                                    ? fence.offsetOf(
+                                      position.latitude,
+                                      position.longitude,
+                                    )
+                                    : null,
+                            radiusMeters: fence?.radiusMeters,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withAlpha(24),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: color.withAlpha(90)),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(gpsZoneIcon(status), color: color, size: 28),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  title,
+                                  style: TextStyle(
+                                    color: color,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  subtitle,
+                                  style: const TextStyle(
+                                    color: Color(0xFF6F7C76),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        _gpsMetric(
+                          _tr('distance', 'ចម្ងាយ'),
+                          distance == null ? '-' : _formatDistance(distance),
+                          color,
+                        ),
+                        _gpsMetric(
+                          _tr('allowed_range', 'ចម្ងាយអនុញ្ញាត'),
+                          fence == null
+                              ? '-'
+                              : _formatDistance(fence.radiusMeters),
+                          const Color(0xFF17352B),
+                        ),
+                        _gpsMetric(
+                          _tr('gps_accuracy', 'ភាពត្រឹមត្រូវ'),
+                          position == null
+                              ? '-'
+                              : '±${position.accuracy.round()} m',
+                          const Color(0xFF17352B),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            position == null
+                                ? ''
+                                : '${position.latitude.toStringAsFixed(5)}°N, '
+                                    '${position.longitude.toStringAsFixed(5)}°E',
+                            style: const TextStyle(
+                              color: Color(0xFF6F7C76),
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed:
+                              _loadingPosition ? null : _startLiveLocation,
+                          tooltip: _tr(
+                            'refresh_location',
+                            'ធ្វើបច្ចុប្បន្នភាពទីតាំង',
+                          ),
+                          color: const Color(0xFF17352B),
+                          icon: const Icon(Icons.my_location_rounded, size: 20),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 10),
-              if (_loadingPosition)
-                Row(
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          _currentTimeLabel(),
+                          style: const TextStyle(
+                            color: Color(0xFF17352B),
+                            fontWeight: FontWeight.w800,
+                            fontSize: 22,
+                          ),
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      _tr('locating', 'កំពុងទាញទីតាំង...'),
-                      style: const TextStyle(
-                        color: Color(0xFF6F7C76),
-                        fontSize: 11,
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withAlpha(28),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _currentShiftLabel(),
+                        style: TextStyle(
+                          color: accent,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
                   ],
-                )
-              else if (_positionError != null)
-                Text(
-                  _positionError!,
-                  style: const TextStyle(color: Color(0xFFE53935), fontSize: 11),
-                )
-              else if (_currentPosition != null)
-                Text(
-                  '${_currentPosition!.latitude.toStringAsFixed(4)}°N, '
-                  '${_currentPosition!.longitude.toStringAsFixed(4)}°E',
-                  style: const TextStyle(
-                    color: Color(0xFF6F7C76),
-                    fontSize: 11,
-                  ),
-                ),
-              const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: _loadingPosition ? null : _loadCurrentPosition,
-                  icon: const Icon(Icons.my_location_rounded, size: 16),
-                  label: Text(_tr('refresh_location', 'ធ្វើបច្ចុប្បន្នភាពទីតាំង')),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _currentTimeLabel(),
-                style: const TextStyle(
-                  color: Color(0xFF17352B),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 22,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: accent.withAlpha(28),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  _currentShiftLabel(),
-                  style: TextStyle(
-                    color: accent,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 14),
-        FilledButton(
-          onPressed: _isSubmitting ? null : () => _submitCheckIn(qrToken: null),
+        const SizedBox(height: 12),
+        FilledButton.icon(
+          onPressed: canScan ? () => _submitCheckIn(qrToken: null) : null,
           style: FilledButton.styleFrom(
-            backgroundColor: accent,
-            minimumSize: const Size.fromHeight(52),
+            backgroundColor: buttonColor,
+            disabledBackgroundColor: color.withAlpha(50),
+            disabledForegroundColor: color,
+            minimumSize: const Size.fromHeight(54),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
             ),
           ),
-          child:
+          icon:
               _isSubmitting
                   ? const SizedBox(
                     width: 20,
@@ -753,16 +1127,43 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
                       color: Colors.white,
                     ),
                   )
-                  : Text(
-                    _tr('check_in', 'ចូលវត្តមាន'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 16,
-                    ),
+                  : Icon(
+                    status == GpsZoneStatus.outside
+                        ? Icons.block_rounded
+                        : Icons.fingerprint_rounded,
                   ),
+          label: Text(
+            buttonLabel,
+            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _gpsMetric(String label, String value, Color valueColor) {
+    return Expanded(
+      child: Column(
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                color: valueColor,
+                fontWeight: FontWeight.w800,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF6F7C76), fontSize: 10),
+          ),
+        ],
+      ),
     );
   }
 
@@ -879,56 +1280,22 @@ class _MethodTabButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: selected ? Colors.white : const Color(0xFF6F7C76),
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              fontSize: 14,
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              style: TextStyle(
+                color: selected ? Colors.white : const Color(0xFF6F7C76),
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 14,
+              ),
             ),
           ),
         ),
       ),
     );
   }
-}
-
-class _DashedScanFramePainter extends CustomPainter {
-  const _DashedScanFramePainter({required this.color});
-
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint =
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 3;
-    final rrect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      const Radius.circular(16),
-    );
-    final path = Path()..addRRect(rrect);
-    const dashWidth = 8.0;
-    const dashSpace = 6.0;
-
-    for (final metric in path.computeMetrics()) {
-      var distance = 0.0;
-      while (distance < metric.length) {
-        final next = distance + dashWidth;
-        canvas.drawPath(
-          metric.extractPath(distance, next.clamp(0, metric.length)),
-          paint,
-        );
-        distance = next + dashSpace;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedScanFramePainter oldDelegate) =>
-      oldDelegate.color != color;
 }

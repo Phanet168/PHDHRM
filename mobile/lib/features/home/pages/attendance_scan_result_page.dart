@@ -73,6 +73,23 @@ class AttendanceScanResultPage extends StatelessWidget {
     return value!.toUpperCase();
   }
 
+  /// The server's rejection codes in the officer's language; anything else
+  /// falls back to the server/client message as-is.
+  String _failureReason() {
+    return switch (result.errorCode) {
+      'out_of_range' => _tr('scan_out_of_range', 'អ្នកនៅក្រៅតំបន់ស្កេនវត្តមាន'),
+      'invalid_qr' => _tr('scan_invalid_qr', 'កូដ QR មិនត្រឹមត្រូវ ឬផុតកំណត់'),
+      'qr_token_required' => _tr('scan_qr_required', 'សូមស្កេនកូដ QR'),
+      'geofence_not_configured' => _tr(
+        'scan_geofence_not_configured',
+        'អង្គភាពមិនទាន់កំណត់ទីតាំងស្កេនវត្តមាន',
+      ),
+      _ => scanFailureReason(result.errorCode) ?? result.message,
+    };
+  }
+
+  static const _queuedColor = Color(0xFFE6943B);
+
   String _formatCoordinates() {
     if (latitude == null || longitude == null) {
       return '-';
@@ -83,12 +100,51 @@ class AttendanceScanResultPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isQueued = result.isQueued;
     final isSuccess = result.isSuccess;
-    final accent = isSuccess ? _dynamicPrimary() : _failureColor;
-    final accentBg = isSuccess ? _dynamicPrimary().withAlpha(28) : _failureBg;
+    final accent =
+        isQueued
+            ? _queuedColor
+            : isSuccess
+            ? _dynamicPrimary()
+            : _failureColor;
+    final accentBg =
+        isQueued
+            ? _queuedColor.withAlpha(30)
+            : isSuccess
+            ? _dynamicPrimary().withAlpha(28)
+            : _failureBg;
 
     final rows =
-        isSuccess
+        isQueued
+            ? [
+              _DetailRow(
+                label: _tr('scan_time', 'ពេលវេលា'),
+                value: _formatTime(scannedAt),
+                emphasize: true,
+                valueColor: const Color(0xFF17221D),
+              ),
+              _DetailRow(
+                label: _tr('scan_date', 'កាលបរិច្ឆេទ'),
+                value: _formatDate(scannedAt),
+              ),
+              _DetailRow(
+                label: _tr('scan_type', 'ប្រភេទស្កេន'),
+                value: scanType,
+              ),
+              _DetailRow(
+                label: _tr('location_coordinates', 'ទីតាំង GPS'),
+                value: _formatCoordinates(),
+              ),
+              _DetailRow(
+                label: _tr('status', 'ស្ថានភាព'),
+                badge: true,
+                badgeText: 'រង់ចាំបញ្ជូន',
+                accent: accent,
+                accentBg: accentBg,
+              ),
+            ]
+            : isSuccess
             ? [
               _DetailRow(
                 label: _tr('scan_time', 'ចូលម៉ោង'),
@@ -131,7 +187,7 @@ class AttendanceScanResultPage extends StatelessWidget {
             : [
               _DetailRow(
                 label: _tr('failure_reason', 'មូលហេតុ'),
-                value: result.message,
+                value: _failureReason(),
                 emphasize: true,
                 valueColor: _failureColor,
               ),
@@ -165,90 +221,118 @@ class AttendanceScanResultPage extends StatelessWidget {
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+          // Details scroll and the action stays pinned, so a large system font
+          // or display size can never overflow the page.
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 12),
-              Center(
-                child: Container(
-                  width: 116,
-                  height: 116,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: accentBg,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Container(
-                    width: 82,
-                    height: 82,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: accent,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      isSuccess
-                          ? Icons.check_rounded
-                          : Icons.close_rounded,
-                      color: Colors.white,
-                      size: 40,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                isSuccess
-                    ? _tr('scan_success_title', 'ជោគជ័យ!')
-                    : _tr('scan_failed_title', 'បរាជ័យ!'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: isSuccess ? const Color(0xFF17221D) : accent,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 26,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                isSuccess
-                    ? _tr(
-                      'scan_success_subtitle',
-                      'អ្នកបានចុះវត្តមានចូលដោយជោគជ័យ',
-                    )
-                    : result.message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF6F7C76),
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x120F2D26),
-                      blurRadius: 16,
-                      offset: Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    for (var i = 0; i < rows.length; i++) ...[
-                      rows[i],
-                      if (i != rows.length - 1) const SizedBox(height: 14),
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const SizedBox(height: 12),
+                      Center(
+                        child: Container(
+                          width: 116,
+                          height: 116,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: accentBg,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Container(
+                            width: 82,
+                            height: 82,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: accent,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isQueued
+                                  ? Icons.cloud_upload_rounded
+                                  : isSuccess
+                                  ? Icons.check_rounded
+                                  : Icons.close_rounded,
+                              color: Colors.white,
+                              size: 40,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        isQueued
+                            ? 'បានរក្សាទុកក្នុងទូរសព្ទ'
+                            : isSuccess
+                            ? _tr('scan_success_title', 'ជោគជ័យ!')
+                            : _tr('scan_failed_title', 'បរាជ័យ!'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color:
+                              isSuccess || isQueued
+                                  ? const Color(0xFF17221D)
+                                  : accent,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 26,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        isQueued
+                            ? 'គ្មានអ៊ីនធឺណិត — វត្តមាននេះនឹងបញ្ជូនទៅម៉ាស៊ីនមេដោយស្វ័យប្រវត្តិ ពេលមានអ៊ីនធឺណិតវិញ (ក្នុងរយៈពេល ២៤ ម៉ោង)។'
+                            : !isSuccess
+                            ? _failureReason()
+                            : result.punchType == 'out'
+                            ? _tr(
+                              'scan_success_subtitle_out',
+                              'អ្នកបានចុះវត្តមានចេញដោយជោគជ័យ',
+                            )
+                            : _tr(
+                              'scan_success_subtitle',
+                              'អ្នកបានចុះវត្តមានចូលដោយជោគជ័យ',
+                            ),
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFF6F7C76),
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x120F2D26),
+                              blurRadius: 16,
+                              offset: Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            for (var i = 0; i < rows.length; i++) ...[
+                              rows[i],
+                              if (i != rows.length - 1)
+                                const SizedBox(height: 14),
+                            ],
+                          ],
+                        ),
+                      ),
                     ],
-                  ],
+                  ),
                 ),
               ),
-              const Spacer(),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: () => Navigator.of(context).pop(result.isSuccess),
+                onPressed:
+                    () => Navigator.of(
+                      context,
+                    ).pop(result.isSuccess || result.isQueued),
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(52),
                   backgroundColor: accent,
@@ -257,7 +341,7 @@ class AttendanceScanResultPage extends StatelessWidget {
                   ),
                 ),
                 child: Text(
-                  isSuccess
+                  isSuccess || isQueued
                       ? _tr('back_to_home', 'ត្រឡប់ទៅទំព័រដើម')
                       : _tr('scan_retry', 'សាកល្បងម្តងទៀត'),
                   style: const TextStyle(
@@ -300,12 +384,18 @@ class _DetailRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          label,
-          style: const TextStyle(color: Color(0xFF6F7C76), fontSize: 11),
+        // Label and value share the width so large system text wraps
+        // instead of overflowing.
+        Flexible(
+          flex: 2,
+          child: Text(
+            label,
+            style: const TextStyle(color: Color(0xFF6F7C76), fontSize: 11),
+          ),
         ),
         const SizedBox(width: 10),
         Expanded(
+          flex: 3,
           child:
               badge
                   ? Align(

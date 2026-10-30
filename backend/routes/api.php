@@ -33,6 +33,11 @@ Route::middleware('auth:sanctum')->get('/user', [AuthController::class, 'sanctum
 Route::get('/', [ApiController::class, 'index']);
 Route::get('/missions/{id}/documents/{document}/download', [MissionController::class, 'signedDownload'])
     ->whereNumber('id')->whereNumber('document')->middleware('signed')->name('api.missions.documents.signed');
+// The officer's printable attendance report, opened in the phone's browser (no token, link expires).
+Route::get('/attendance/report', [MobileAttendanceController::class, 'signedReport'])
+    ->middleware('signed')->name('api.attendance.report.signed');
+Route::get('/missions/{id}/letters/{kind}', [MissionController::class, 'signedLetter'])
+    ->whereNumber('id')->whereIn('kind', ['order', 'travel-visa', 'report'])->middleware('signed')->name('api.missions.letters.signed');
 Route::post('/auth/login', [AuthController::class, 'login'])->name('api.auth.login');
 
 // Legacy device access request endpoints (kept for backward compatibility)
@@ -113,6 +118,7 @@ Route::prefix('v1')
             Route::get('/today', [MobileAttendanceController::class, 'today'])->name('today');
             Route::get('/history', [MobileAttendanceController::class, 'history'])->name('history');
             Route::get('/schedule', [MobileAttendanceController::class, 'schedule'])->name('schedule');
+            Route::get('/report/signed-url', [MobileAttendanceController::class, 'reportLink'])->name('report.signed_url');
             Route::post('/scan', [MobileAttendanceController::class, 'scan'])->middleware('throttle:30,1')->name('scan');
             Route::post('/scan-issues', [MobileAttendanceController::class, 'reportIssue'])->middleware('throttle:30,1')->name('scan_issues');
         });
@@ -134,6 +140,10 @@ Route::prefix('v1')
         Route::post('/missions', [MissionController::class, 'store'])->name('api.v1.missions.store');
         Route::get('/missions/employees', [MissionController::class, 'employees'])->name('api.v1.missions.employees');
         Route::get('/missions/types', [MissionController::class, 'types'])->name('api.v1.missions.types');
+        // An employee's own request (office head → director → order), as on the web form.
+        Route::get('/missions/request-options', [MissionController::class, 'requestOptions'])->name('api.v1.missions.request_options');
+        Route::get('/missions/colleagues', [MissionController::class, 'colleagues'])->name('api.v1.missions.colleagues');
+        Route::post('/missions/request', [MissionController::class, 'requestStore'])->name('api.v1.missions.request');
         Route::prefix('missions/{id}')->whereNumber('id')->name('api.v1.missions.')->group(function () {
             Route::get('/', [MissionController::class, 'show'])->name('show');
             Route::put('/', [MissionController::class, 'update'])->name('update');
@@ -144,6 +154,7 @@ Route::prefix('v1')
             Route::post('/documents', [MissionController::class, 'upload'])->name('documents.store');
             Route::get('/documents/{document}', [MissionController::class, 'download'])->whereNumber('document')->name('documents.download');
             Route::get('/documents/{document}/signed-url', [MissionController::class, 'signedUrl'])->whereNumber('document')->name('documents.signed_url');
+            Route::get('/letters/{kind}/signed-url', [MissionController::class, 'letterLink'])->whereIn('kind', ['order', 'travel-visa', 'report'])->name('letters.signed_url');
         });
 
         Route::get('/leave-types', [LeaveRequestApiController::class, 'types'])->name('api.v1.leave_types.index');

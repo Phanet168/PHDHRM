@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AboutOrgUnit;
 use App\Models\AuditLog;
 use App\Models\Facility;
+use App\Models\Media;
+use App\Services\MediaManagerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -159,8 +161,9 @@ class AboutOrgUnitController extends Controller
     {
         return view('admin.about.organization.form', [
             'unit' => $unit,
+            'folderId' => app(MediaManagerService::class)->resolveFolderForCollection('about'),
             // One nesting level: parents are top-level units other than this one.
-            'parents' => AboutOrgUnit::whereNull('parent_id')->when($unit->exists, fn ($query) => $query->whereKeyNot($unit->id))
+            'parents' => AboutOrgUnit::when($unit->exists, fn ($query) => $query->whereKeyNot($unit->id))
                 ->orderBy('sort_order')->pluck('name', 'id'),
             'facilities' => Facility::orderBy('facility_type')->orderBy('name_km')->get(['id', 'name_km', 'facility_type', 'status'])
                 ->mapWithKeys(fn ($facility) => [$facility->id => $facility->name_km.' — '.Facility::typeLabel($facility->facility_type).($facility->status === 'published' ? '' : ' (មិនទាន់ផ្សាយ)')]),
@@ -172,15 +175,33 @@ class AboutOrgUnitController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(array_keys(AboutOrgUnit::TYPES))],
-            'parent_id' => ['nullable', 'integer', Rule::exists('about_org_units', 'id')->whereNull('parent_id')->whereNull('deleted_at')],
+            'parent_id' => ['nullable', 'integer', Rule::exists('about_org_units', 'id')->whereNull('deleted_at')],
             'facility_id' => ['nullable', 'integer', Rule::exists('facilities', 'id')],
             'description' => ['nullable', 'string', 'max:1000'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            'leaders' => ['nullable', 'array', 'max:4'],
+            'leaders.*.name' => ['nullable', 'string', 'max:255'],
+            'leaders.*.title' => ['nullable', 'string', 'max:255', 'regex:/^(អនុ)?ប្រធាន/u'],
+            'leaders.*.portrait_media_id' => ['nullable', 'integer', Rule::exists('media', 'id')],
         ]);
 
-        if ($unit && filled($data['parent_id'] ?? null)) {
-            abort_if((int) $data['parent_id'] === $unit->id || $unit->children()->exists(), 422, 'អង្គភាពដែលមានអង្គភាពរង មិនអាចដាក់ក្រោមអង្គភាពផ្សេងបានទេ។');
+        if (filled($data['parent_id'] ?? null)) {
+            $seen = $unit ? [$unit->id => true] : [];
+            $parent = AboutOrgUnit::find($data['parent_id']);
+            while ($parent) {
+                abort_if(isset($seen[$parent->id]), 422, 'មិនអាចដាក់អង្គភាពក្រោមអង្គភាពរងរបស់ខ្លួនបានទេ។');
+                $seen[$parent->id] = true;
+                $parent = $parent->parent;
+            }
         }
+        $data['leaders'] = collect($data['leaders'] ?? [])->filter(fn ($person) => filled($person['name'] ?? null) || filled($person['title'] ?? null))
+            ->map(function ($person) {
+                abort_if(blank($person['name'] ?? null) || blank($person['title'] ?? null), 422, 'សូមបំពេញឈ្មោះ និងតួនាទី។');
+                if (filled($person['portrait_media_id'] ?? null)) {
+                    abort_unless(Media::find($person['portrait_media_id'])?->isImage(), 422, 'សូមជ្រើសរើសរូបភាព។');
+                }
+                return ['name' => strip_tags($person['name']), 'title' => strip_tags($person['title']), 'portrait_media_id' => $person['portrait_media_id'] ?? null];
+            })->values()->all();
         $data['description'] = filled($data['description'] ?? null) ? strip_tags($data['description']) : null;
         $data['sort_order'] ??= AboutOrgUnit::count();
         $data['is_active'] = $request->boolean('is_active');

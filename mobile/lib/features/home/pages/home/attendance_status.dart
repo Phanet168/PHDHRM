@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../models/attendance_day_record.dart';
+
 /// One status category's display style (Figma "ស្ថានភាព" pill): background
 /// tint, text/accent color, and label. Shared by the History, Calendar,
 /// Statistics, Filter and Daily Detail attendance screens so every screen
@@ -30,10 +32,42 @@ const _onTime = AttendanceStatusStyle(
 );
 const _late = AttendanceStatusStyle(
   code: 'late',
-  label: 'យឺត',
+  label: 'មកយឺត',
   shortLabel: 'យឺត',
   bg: Color(0xFFFFF5D9),
   fg: Color(0xFFD99A00),
+);
+// Both on one day: filed under "late" so the late filter still finds it.
+const _lateAndEarly = AttendanceStatusStyle(
+  code: 'late',
+  label: 'មកយឺត និងចេញមុន',
+  shortLabel: 'យឺត+ចេញមុន',
+  bg: Color(0xFFFFF5D9),
+  fg: Color(0xFFD99A00),
+);
+const _earlyLeave = AttendanceStatusStyle(
+  code: 'early_leave',
+  label: 'ចេញមុនម៉ោង',
+  shortLabel: 'ចេញមុន',
+  bg: Color(0xFFFFEDE3),
+  fg: Color(0xFFD9622B),
+);
+const _holiday = AttendanceStatusStyle(
+  code: 'holiday',
+  label: 'ថ្ងៃបុណ្យ',
+  shortLabel: 'ថ្ងៃបុណ្យ',
+  bg: Color(0xFFFCE7F3),
+  fg: Color(0xFFBE3B83),
+);
+
+/// Shown instead of absent/incomplete while the day is still under way
+/// (the server marks it `is_provisional`): nothing is final yet.
+const attendanceInProgressStyle = AttendanceStatusStyle(
+  code: 'in_progress',
+  label: 'កំពុងបន្ត',
+  shortLabel: 'កំពុងបន្ត',
+  bg: Color(0xFFE8F1FD),
+  fg: Color(0xFF2F6FD6),
 );
 const _incomplete = AttendanceStatusStyle(
   code: 'incomplete',
@@ -71,11 +105,12 @@ const _dayOff = AttendanceStatusStyle(
   fg: Color(0xFF7B8582),
 );
 
-/// The 6 filterable/legend-worthy statuses, in the order the Figma legend
-/// and filter chips show them.
+/// The filterable/legend-worthy statuses, in the order the legend and
+/// filter chips show them.
 const List<AttendanceStatusStyle> attendanceStatusPalette = [
   _onTime,
   _late,
+  _earlyLeave,
   _absent,
   _leave,
   _mission,
@@ -84,8 +119,16 @@ const List<AttendanceStatusStyle> attendanceStatusPalette = [
 
 String _normalize(String? code) => code?.trim().toLowerCase() ?? '';
 
-/// Resolves a raw backend status code (and its many aliases) to one of the
-/// canonical [attendanceStatusPalette] styles.
+/// The day counts as attended: on time, late and/or left early.
+bool attendanceIsPresent(String? code) => const <String>{
+  'on_time',
+  'late',
+  'early_leave',
+}.contains(attendanceStatusStyle(code).code);
+
+/// Resolves a raw backend status code (and its many aliases) to its style;
+/// the server's codes are on_time, late, early_leave, late_and_early_leave,
+/// absent, incomplete, leave, mission, holiday and day_off.
 AttendanceStatusStyle attendanceStatusStyle(String? code) {
   final normalized = _normalize(code);
   switch (normalized) {
@@ -94,9 +137,11 @@ AttendanceStatusStyle attendanceStatusStyle(String? code) {
     case 'p':
       return _onTime;
     case 'late':
-    case 'early_leave':
-    case 'late_and_early_leave':
       return _late;
+    case 'late_and_early_leave':
+      return _lateAndEarly;
+    case 'early_leave':
+      return _earlyLeave;
     case 'incomplete':
     case 'partial':
     case 'unpaired_punch':
@@ -113,12 +158,25 @@ AttendanceStatusStyle attendanceStatusStyle(String? code) {
       return _mission;
     case 'holiday':
     case 'h':
+      return _holiday;
     case 'day_off':
     case 'd':
       return _dayOff;
     default:
       return _incomplete;
   }
+}
+
+/// The style to show for a whole day: like [attendanceStatusStyle], except
+/// that a day still under way (`is_provisional`) is never shown as absent or
+/// incomplete — the server only settles those once the day's window ends.
+AttendanceStatusStyle attendanceDayStyle(AttendanceDayRecord record) {
+  final style = attendanceStatusStyle(record.attendanceStatus);
+  if (record.isProvisional &&
+      (style.code == 'absent' || style.code == 'incomplete')) {
+    return attendanceInProgressStyle;
+  }
+  return style;
 }
 
 const _sessionLabels = <String, String>{

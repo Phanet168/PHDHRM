@@ -17,15 +17,17 @@ class FacilityRequest extends FormRequest
     public function rules(): array
     {
         $facilityId = $this->route('facility')?->id;
+        // Edit tabs submit only their own fields; creation submits the full form.
+        $required = $facilityId ? ['sometimes', 'required'] : ['required'];
 
         return [
-            'code' => ['required', 'string', 'max:50', Rule::unique('facilities', 'code')->ignore($facilityId)],
-            'name_km' => ['required', 'string', 'max:255'],
+            'code' => [...$required, 'string', 'max:50', Rule::unique('facilities', 'code')->ignore($facilityId)],
+            'name_km' => [...$required, 'string', 'max:255'],
             'name_en' => ['nullable', 'string', 'max:255'],
-            'slug' => ['required', 'alpha_dash', 'max:255', Rule::unique('facilities', 'slug')->ignore($facilityId)],
-            'facility_type' => ['required', Rule::in(['referral_hospital', 'health_center', 'health_post', 'operational_district_office'])],
-            'district' => ['required', 'string', 'max:255'],
-            'commune' => ['required', 'string', 'max:255'],
+            'slug' => [...$required, 'alpha_dash', 'max:255', Rule::unique('facilities', 'slug')->ignore($facilityId)],
+            'facility_type' => [...$required, Rule::in(['referral_hospital', 'health_center', 'health_post', 'operational_district_office'])],
+            'district' => [...$required, 'string', 'max:255'],
+            'commune' => [...$required, 'string', 'max:255'],
             'village' => ['nullable', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],

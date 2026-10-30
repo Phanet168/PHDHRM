@@ -23,6 +23,36 @@ class MissionAssignment extends Model
 
     protected $casts = ['sort_order' => 'integer'];
 
+    /** Professional prefixes used on official letters, matched against the employee's degree. */
+    private const DEGREE_PREFIXES = [
+        'វេជ្ជបណ្ឌិត' => 'វេជ្ជ.',
+        'ទន្តបណ្ឌិត' => 'ទន្ត.',
+        'ឱសថការី' => 'ឱសថ.',
+    ];
+
+    /**
+     * Suggested form of address on the order ("លោក", "លោកស្រី", "លោកវេជ្ជ." ...).
+     * Gender unknown → null rather than a guess; the Letter Manager can edit it.
+     */
+    public static function honorificFor(?Employee $employee): ?string
+    {
+        $base = match ((int) $employee?->gender_id) {
+            1 => 'លោក',
+            2 => 'លោកស្រី',
+            default => null,
+        };
+        if ($base === null) {
+            return null;
+        }
+        foreach (self::DEGREE_PREFIXES as $degree => $prefix) {
+            if (str_contains((string) $employee->degree_name, $degree)) {
+                return $base.$prefix;
+            }
+        }
+
+        return $base;
+    }
+
     public function mission()
     {
         return $this->belongsTo(Mission::class, 'mission_id', 'id');

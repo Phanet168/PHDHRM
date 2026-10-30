@@ -7,6 +7,7 @@
             <a class="btn btn-warning" href="{{ route('missions.order.prepare', $mission->id) }}">រៀបចំលិខិតបញ្ជាបេសកកម្ម</a>
         @endif
         <a class="btn btn-primary" href="{{ route('missions.order', $mission->id) }}" target="_blank" rel="noopener">មើល/បោះពុម្ពលិខិតបេសកកម្ម</a>
+        <a class="btn btn-outline-primary" href="{{ route('missions.travel-visa', $mission->id) }}" target="_blank" rel="noopener">លិខិតចុះទិដ្ឋការធ្វើដំណើរ</a>
         <a class="btn btn-outline-secondary" href="{{ route('missions.index') }}">ត្រឡប់ទៅបញ្ជី</a></div></div>
     @include('backend.layouts.common.validation')
     @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
@@ -86,7 +87,9 @@
                 @endif
             </div></div>
             <div class="card mb-3"><div class="card-header">របាយការណ៍បេសកកម្ម</div><div class="card-body">
-                @forelse($mission->reports as $report)<article class="border-bottom mb-3"><strong>{{ $mission->assignments->firstWhere('employee_id', $report->employee_id)?->employee?->full_name ?? '—' }}</strong><small class="text-muted ms-2">{{ $report->updated_at->format('Y-m-d H:i') }}</small><p style="white-space: pre-wrap">{{ $report->summary }}</p></article>@empty<p class="text-muted">មិនទាន់មានរបាយការណ៍។</p>@endforelse
+                @forelse($mission->reports as $report)<article class="border-bottom mb-3"><strong>{{ $mission->assignments->firstWhere('employee_id', $report->employee_id)?->employee?->full_name ?? '—' }}</strong><small class="text-muted ms-2">{{ $report->updated_at->format('Y-m-d H:i') }}</small>
+                    @if($report->submitted_at)<a class="btn btn-sm btn-outline-primary ms-2" href="{{ route('missions.report-letter', ['id' => $mission->id, 'employee' => $report->employee_id]) }}" target="_blank" rel="noopener">បោះពុម្ពរបាយការណ៍</a>@endif
+                    <p style="white-space: pre-wrap">{{ $report->summary }}</p></article>@empty<p class="text-muted">មិនទាន់មានរបាយការណ៍។</p>@endforelse
                 @if($detail['actions']['can_report'])<form method="POST" action="{{ route('missions.report', $mission->id) }}">@csrf<label for="summary" class="form-label">របាយការណ៍របស់អ្នក</label><textarea id="summary" name="summary" class="form-control mb-2" rows="5" maxlength="20000" required>{{ old('summary') }}</textarea><button class="btn btn-primary">រាយការណ៍</button></form>@endif
             </div></div>
         </div>

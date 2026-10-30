@@ -19,7 +19,23 @@ class AttendanceDayRecord {
     this.isDuty = false,
     this.sessions = const <AttendanceSessionRecord>[],
     this.holidayName,
+    this.workedMinutes = 0,
+    this.isDayOff = false,
+    this.isHoliday = false,
+    this.shiftSource,
   });
+
+  /// Minutes worked inside the scheduled sessions (the server's figure).
+  final int workedMinutes;
+  final bool isDayOff;
+  final bool isHoliday;
+
+  /// Where the day's schedule came from: roster, unit default, ...
+  final String? shiftSource;
+
+  /// Minutes the day's sessions were scheduled for (0 with no schedule).
+  int get scheduledMinutes =>
+      sessions.fold(0, (sum, s) => sum + s.scheduledMinutes);
 
   final String date;
   final String totalHours;
@@ -51,6 +67,13 @@ class AttendanceDayRecord {
     final minutes = _integer(json['worked_minutes']);
     final unit = json['unit'];
     final shift = json['shift'];
+    // A night/on-call duty added after the regular hours on a working day.
+    final dutyShift = json['duty_shift'];
+    final shiftNames = [shift, dutyShift]
+        .whereType<Map>()
+        .map((s) => s['name']?.toString().trim() ?? '')
+        .where((name) => name.isNotEmpty)
+        .join(' + ');
     return AttendanceDayRecord(
       date: json['date'].toString(),
       // Zero is authoritative: never reconstruct work time from first/last punch.
@@ -69,8 +92,8 @@ class AttendanceDayRecord {
       adjustmentNote: json['adjustment_note']?.toString(),
       isProvisional: json['is_provisional'] == true,
       unitName: unit is Map ? unit['name']?.toString() : null,
-      shiftName: shift is Map ? shift['name']?.toString() : null,
-      isDuty: shift is Map && shift['is_duty'] == true,
+      shiftName: shiftNames.isEmpty ? null : shiftNames,
+      isDuty: (shift is Map && shift['is_duty'] == true) || dutyShift is Map,
       sessions: (json['sessions'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
           .map(AttendanceSessionRecord.fromApi)
@@ -79,6 +102,10 @@ class AttendanceDayRecord {
           (json['holiday_name'] as String?)?.trim().isNotEmpty == true
               ? (json['holiday_name'] as String).trim()
               : null,
+      workedMinutes: minutes,
+      isDayOff: json['is_day_off'] == true,
+      isHoliday: json['is_holiday'] == true,
+      shiftSource: json['shift_source']?.toString(),
     );
   }
 }
@@ -94,7 +121,27 @@ class AttendanceSessionRecord {
     required this.lateMinutes,
     required this.earlyLeaveMinutes,
     required this.earlyArrivalMinutes,
+    this.inContinued = false,
+    this.outContinued = false,
+    this.isDuty = false,
+    this.workedMinutes = 0,
+    this.overtimeMinutes = 0,
+    this.punchCount = 0,
+    this.scheduledMinutes = 0,
   });
+
+  final bool isDuty;
+  final int workedMinutes;
+  final int overtimeMinutes;
+  final int punchCount;
+
+  /// Length of the scheduled window (a cross-day duty included).
+  final int scheduledMinutes;
+
+  /// Shown instead of '-' when the officer stayed on across the afternoon →
+  /// duty hand-over without scanning (the server flags it; not a missed punch).
+  static const continuedLabel = 'បន្ត';
+
   final String name;
   final String scheduledIn;
   final String scheduledOut;
@@ -104,6 +151,13 @@ class AttendanceSessionRecord {
   final int lateMinutes;
   final int earlyLeaveMinutes;
   final int earlyArrivalMinutes;
+  final bool inContinued;
+  final bool outContinued;
+
+  String get displayIn =>
+      timeIn == '-' && inContinued ? continuedLabel : timeIn;
+  String get displayOut =>
+      timeOut == '-' && outContinued ? continuedLabel : timeOut;
 
   factory AttendanceSessionRecord.fromApi(Map<String, dynamic> json) =>
       AttendanceSessionRecord(
@@ -116,7 +170,22 @@ class AttendanceSessionRecord {
         lateMinutes: _integer(json['late_minutes']),
         earlyLeaveMinutes: _integer(json['early_leave_minutes']),
         earlyArrivalMinutes: _integer(json['early_arrival_minutes']),
+        inContinued: json['in_continued'] == true,
+        outContinued: json['out_continued'] == true,
+        isDuty: json['is_duty'] == true,
+        workedMinutes: _integer(json['worked_minutes']),
+        overtimeMinutes: _integer(json['overtime_minutes']),
+        punchCount: _integer(json['punch_count']),
+        scheduledMinutes: _span(json['scheduled_in'], json['scheduled_out']),
       );
+}
+
+/// Minutes between two server timestamps ("Y-m-d H:i:s"); 0 if either is missing.
+int _span(dynamic from, dynamic to) {
+  final start = DateTime.tryParse('${from ?? ''}'.trim());
+  final end = DateTime.tryParse('${to ?? ''}'.trim());
+  if (start == null || end == null || !end.isAfter(start)) return 0;
+  return end.difference(start).inMinutes;
 }
 
 int _integer(dynamic value) =>

@@ -7,6 +7,8 @@ use App\Models\AboutOrgUnit;
 use App\Models\AboutSection;
 use App\Models\Facility;
 use App\Models\FacilityLeader;
+use App\Models\Media;
+use App\Models\News;
 use App\Models\PageBanner;
 use App\Support\AboutIcon;
 use Illuminate\Support\Collection;
@@ -47,11 +49,13 @@ class AboutContent
             'documents' => $this->documents($items->get('documents'), $legacy),
             'leaders' => FacilityLeader::department()->where('is_active', true)->with('portrait')->orderBy('sort_order')->orderBy('id')->get(),
             'organization' => $this->organization(),
+            'gallery' => $this->gallery(),
             'map' => $this->map($legacy),
         ];
 
         // A mission card already anchors #mission; otherwise the highlight takes it.
         $data['missionAnchor'] = $data['cards']->contains('anchor', 'mission') ? null : 'mission';
+        $data['stats'] = $this->stats($data['organization']);
 
         return $data;
     }
@@ -191,18 +195,24 @@ class AboutContent
             $activeIds = $units->pluck('id')->flip();
             // A child whose parent is hidden or deleted surfaces at the top level instead of vanishing.
             $roots = $units->filter(fn ($unit) => ! $unit->parent_id || ! $activeIds->has($unit->parent_id));
-            $shape = fn ($unit) => [
-                'name' => $unit->name,
-                'description' => $unit->description,
-                'url' => $unit->publicUrl(),
-                'children' => ($childrenOf[$unit->id] ?? collect())->map(fn ($child) => ['name' => $child->name, 'description' => $child->description, 'url' => $child->publicUrl(), 'children' => collect()])->values(),
-            ];
+            $portraits = Media::whereIn('id', $units->flatMap(fn ($unit) => collect($unit->leaders ?? [])->pluck('portrait_media_id'))->filter()->unique())->get()->keyBy('id');
+            $shape = function ($unit, array $path = []) use (&$shape, $childrenOf, $portraits) {
+                $path[$unit->id] = true;
+                return [
+                    'name' => $unit->name,
+                    'description' => $unit->description,
+                    'url' => $unit->publicUrl(),
+                    'leaders' => collect($unit->leaders ?? [])->filter(fn ($person) => filled($person['name'] ?? null) && preg_match('/^(អនុ)?ប្រធាន/u', $person['title'] ?? ''))
+                        ->map(fn ($person) => [...$person, 'photo' => ($media = $portraits->get($person['portrait_media_id'] ?? null))?->isImage() ? $media->url : null])->values(),
+                    'children' => ($childrenOf[$unit->id] ?? collect())->reject(fn ($child) => isset($path[$child->id]))->map(fn ($child) => $shape($child, $path))->values(),
+                ];
+            };
 
             return collect(AboutOrgUnit::TYPES)->map(fn ($label, $type) => [
                 'type' => $type,
                 'label' => $label,
                 'icon' => AboutOrgUnit::TYPE_ICONS[$type],
-                'units' => $roots->where('type', $type)->map($shape)->values(),
+                'units' => $roots->where('type', $type)->map(fn ($unit) => $shape($unit))->values(),
             ])->filter(fn ($group) => $group['units']->isNotEmpty())->values();
         }
 
@@ -215,6 +225,47 @@ class AboutContent
                 'icon' => AboutOrgUnit::TYPE_ICONS[AboutOrgUnit::FACILITY_TYPE_MAP[$facilityType]],
                 'units' => $facilities->map(fn ($facility) => ['name' => $facility->name_km, 'description' => null, 'url' => route('facilities.show', $facility), 'children' => collect()])->values(),
             ])->values();
+    }
+
+    /**
+     * Headline counts for the public health network: the department's own offices plus published facilities by type.
+     *
+     * @return Collection<int, array{label: string, count: int, icon: string, tone: string, url: string}>
+     */
+    private function stats(Collection $organization): Collection
+    {
+        $facilities = Facility::published()->selectRaw('facility_type, count(*) as total')->groupBy('facility_type')->pluck('total', 'facility_type');
+        $offices = $organization->firstWhere('type', 'office');
+
+        return collect([
+            ['label' => 'ការិយាល័យជំនាញ', 'count' => $offices ? $offices['units']->count() : 0, 'icon' => 'briefcase', 'tone' => 'teal', 'url' => '#offices'],
+            ['label' => Facility::typeLabel('referral_hospital'), 'count' => $facilities['referral_hospital'] ?? 0, 'icon' => 'hospital', 'tone' => 'blue', 'url' => route('facilities.index')],
+            ['label' => 'ស្រុកប្រតិបត្តិ', 'count' => $facilities['operational_district_office'] ?? 0, 'icon' => 'pin', 'tone' => 'purple', 'url' => route('facilities.index')],
+            ['label' => Facility::typeLabel('health_center'), 'count' => $facilities['health_center'] ?? 0, 'icon' => 'heart-pulse', 'tone' => 'green', 'url' => route('facilities.index')],
+            ['label' => Facility::typeLabel('health_post'), 'count' => $facilities['health_post'] ?? 0, 'icon' => 'stethoscope', 'tone' => 'gold', 'url' => route('facilities.index')],
+        ])->filter(fn ($stat) => $stat['count'] > 0)->values();
+    }
+
+    /**
+     * One real photo per recent published news article (its cover, else its first gallery image);
+     * articles that only have the site's default placeholder image are skipped.
+     *
+     * @return Collection<int, array{url: string, alt: string, title: string, date: \Illuminate\Support\Carbon, link: string}>
+     */
+    private function gallery(): Collection
+    {
+        $placeholder = asset(config('site.default_news_image'));
+
+        return News::published()->with(['featuredMedia', 'images.media'])->latest('published_at')->take(24)->get()
+            ->map(function (News $news) use ($placeholder) {
+                [$url, $alt] = [$news->featuredImageUrl(), $news->featuredImageAlt()];
+                if ($url === $placeholder && ($image = $news->images->first(fn ($image) => $image->url() !== $placeholder))) {
+                    [$url, $alt] = [$image->url(), $image->altText() ?: $news->title_km];
+                }
+
+                return $url === $placeholder ? null
+                    : ['url' => $url, 'alt' => $alt, 'title' => $news->title_km, 'date' => $news->published_at, 'link' => route('news.show', $news)];
+            })->filter()->take(6)->values();
     }
 
     private function map(array $legacy): ?array

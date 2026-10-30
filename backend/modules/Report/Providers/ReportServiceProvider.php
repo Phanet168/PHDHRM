@@ -28,6 +28,21 @@ class ReportServiceProvider extends ServiceProvider
         $this->registerConfig();
         $this->registerViews();
         $this->loadMigrationsFrom(module_path($this->moduleName, 'Database/Migrations'));
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                \Modules\Report\Console\ImportPhdReportCommand::class,
+                \Modules\Report\Console\PullFirebaseCommand::class,
+                \Modules\Report\Console\SyncHisTemplatesCommand::class,
+                \Modules\Report\Console\HrSnapshotCommand::class,
+            ]);
+        }
+
+        // HR statistics: take last month's staff snapshot early on the 1st (skipped when one already exists)
+        $this->app->booted(function () {
+            $this->app->make(\Illuminate\Console\Scheduling\Schedule::class)
+                ->command('report:hr-snapshot')->monthlyOn(1, '01:30')->withoutOverlapping();
+        });
     }
 
     /**

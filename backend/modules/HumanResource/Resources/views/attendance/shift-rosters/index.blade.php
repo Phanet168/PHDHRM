@@ -3,7 +3,9 @@
 @section('content')
     @include('humanresource::attendance_header')
     @include('backend.layouts.common.message')
-    <p class="text-muted">តារាងវេនរបស់អង្គភាពដែលបានជ្រើសរើស។ ចុចលើថ្ងៃដើម្បីកំណត់ ឬកែប្រែវេន។ វេនយាមមានអាទិភាពលើថ្ងៃឈប់ និងម៉ោងគោល។</p>
+    <p class="text-muted">តារាងវេនរបស់អង្គភាពដែលបានជ្រើសរើស។ ចុចលើថ្ងៃដើម្បីកំណត់ ឬកែប្រែវេន។
+        <strong>វេនយាម</strong>បូកបន្ថែមលើម៉ោងគោលនៅថ្ងៃធ្វើការ (ថ្ងៃឈប់/បុណ្យ៖ មានតែវេនយាម)។
+        <strong>វេនធម្មតាផ្សេង</strong>ជំនួសម៉ោងគោលថ្ងៃនោះ។ <strong>ថ្ងៃឈប់</strong>៖ មិនតម្រូវវត្តមាន (ឧ. សម្រាកក្រោយយាម)។</p>
     <a class="btn btn-outline-primary mb-3" href="{{ route('shifts.index', ['department_id' => $selectedDepartmentId]) }}">កំណត់ម៉ោងធ្វើការ</a>
 
     <style>

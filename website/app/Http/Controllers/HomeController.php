@@ -34,7 +34,12 @@ class HomeController extends Controller
                 ->latest('published_at')->latest('id')->take(3)->get()
             : collect();
 
-        $latestContent = $latestContentAggregator->latest(10);
+        // News-only slider under the featured/secondary block, skipping the
+        // articles already shown there.
+        $latestContent = $latestContentAggregator->latestNews(
+            10,
+            $secondaryNews->pluck('id')->push($featuredNews?->id)->filter()->all()
+        );
 
         $quickLinks = HomepageQuickLink::active()->with('media')->orderBy('sort_order')->get();
 

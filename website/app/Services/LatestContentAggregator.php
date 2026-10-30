@@ -17,16 +17,7 @@ class LatestContentAggregator
      */
     public function latest(int $limit = 10): Collection
     {
-        $news = News::published()->with(['category', 'featuredMedia'])
-            ->latest('published_at')->latest('id')->take($limit)->get()
-            ->map(fn (News $article) => new LatestContentItem(
-                type: 'news',
-                title: $article->title_km,
-                thumbnail: $article->featuredImageUrl(),
-                categoryLabel: $article->category?->name_km ?? 'ព័ត៌មាន',
-                publishedAt: $article->published_at,
-                url: route('news.show', $article),
-            ));
+        $news = $this->latestNews($limit);
 
         $health = HealthContent::published()->with('category')
             ->latest('published_at')->latest('id')->take($limit)->get()
@@ -54,5 +45,24 @@ class LatestContentAggregator
             ->sortByDesc(fn (LatestContentItem $item) => $item->publishedAt)
             ->take($limit)
             ->values();
+    }
+
+    /**
+     * Newest published News & Activities only, for the homepage news
+     * section's slider. $excludeIds skips articles already shown above it.
+     */
+    public function latestNews(int $limit = 10, array $excludeIds = []): Collection
+    {
+        return News::published()->with(['category', 'featuredMedia'])
+            ->whereNotIn('id', $excludeIds)
+            ->latest('published_at')->latest('id')->take($limit)->get()
+            ->map(fn (News $article) => new LatestContentItem(
+                type: 'news',
+                title: $article->title_km,
+                thumbnail: $article->featuredImageUrl(),
+                categoryLabel: $article->category?->name_km ?? 'ព័ត៌មាន',
+                publishedAt: $article->published_at,
+                url: route('news.show', $article),
+            ));
     }
 }

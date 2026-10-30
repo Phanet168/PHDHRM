@@ -3,7 +3,7 @@
 namespace Modules\HumanResource\Services;
 
 use Carbon\CarbonInterface;
-use Illuminate\Support\Facades\Schema;
+use Modules\HumanResource\Support\RequestCache;
 use Modules\HumanResource\Entities\Mission;
 use Modules\HumanResource\Entities\MissionAssignment;
 
@@ -11,7 +11,7 @@ class MissionResolverService
 {
     public function resolveForDate(int $employeeId, CarbonInterface $date): ?array
     {
-        if (!Schema::hasTable('missions') || !Schema::hasTable('mission_assignments')) {
+        if (!RequestCache::hasTable('missions') || !RequestCache::hasTable('mission_assignments')) {
             return null;
         }
 

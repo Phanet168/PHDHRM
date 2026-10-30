@@ -114,14 +114,17 @@ class HomeNewsSectionTest extends TestCase
         $this->assertTrue($items->contains(fn ($item) => $item->type === 'legal_document'));
     }
 
-    public function test_homepage_renders_the_mixed_content_slider_without_an_extra_heading(): void
+    public function test_homepage_slider_shows_only_news_not_already_shown_above_it(): void
     {
-        $this->news();
-        $this->healthContent(['title_km' => 'MIXED SLIDER HEALTH ITEM']);
+        $shown = collect(range(1, 4))->map(fn ($i) => $this->news(['published_at' => now()->subMinutes($i)]));
+        $this->news(['title_km' => 'SLIDER NEWS ITEM', 'published_at' => now()->subDays(2)]);
+        $this->legalDocument(['title' => 'SLIDER LEGAL ITEM']);
+        $this->healthContent(['title_km' => 'SLIDER HEALTH ITEM']);
 
         $this->get('/')->assertOk()
             ->assertSee('class="home-latest-swiper swiper"', false)
-            ->assertSee('MIXED SLIDER HEALTH ITEM')
+            ->assertViewHas('latestContent', fn ($items) => $items->pluck('title')->all() === ['SLIDER NEWS ITEM']
+                && $items->every(fn ($item) => $item->type === 'news'))
             ->assertDontSee('មាតិកាថ្មីៗពីគ្រប់ប្រភេទ');
     }
 }

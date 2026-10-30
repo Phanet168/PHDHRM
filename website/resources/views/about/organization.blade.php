@@ -1,43 +1,47 @@
-{{-- Desktop: a simple one-level chart (department → groups). Phones hide it and show only the accordion list. --}}
-<div class="about-org-chart" aria-hidden="false">
-    <span class="about-org-root">{{ config('site.name_km') }}</span>
-    <ul class="about-org-branches" style="--about-org-count: {{ $organization->count() }}">
+@php
+    $chiefs = $leaders->filter(fn ($person) => str_starts_with(trim($person->title), 'ប្រធាន'));
+    $deputies = $leaders->filter(fn ($person) => str_starts_with(trim($person->title), 'អនុប្រធាន'));
+    // A group with several units takes two tracks so its cards sit side by side; too many groups fall back to one track each.
+    $spans = $organization->map(fn ($group) => $group['units']->count() > 1 ? 2 : 1);
+    if ($spans->sum() > 4) $spans = $spans->map(fn () => 1);
+@endphp
+<div class="org-tree">
+    <p class="org-tree-root"><x-news-icon name="hospital" width="18" height="18" />{{ config('site.name_km') }}</p>
+
+    @if ($chiefs->isNotEmpty() || $deputies->isNotEmpty())
+        <div class="org-leadership">
+            <h3 class="org-leadership-label">ថ្នាក់ដឹកនាំមន្ទីរ</h3>
+            @if ($chiefs->isNotEmpty())
+                <div class="org-leadership-chief">
+                    @foreach ($chiefs as $leader)
+                        @include('about.chart-person', ['person' => ['name' => $leader->name, 'title' => $leader->title, 'photo' => $leader->portraitUrl()], 'variant' => 'chief'])
+                    @endforeach
+                </div>
+            @endif
+            @if ($deputies->isNotEmpty())
+                <ul class="org-leadership-deputies org-bus" style="--org-count: {{ $deputies->count() }}">
+                    @foreach ($deputies as $leader)
+                        <li>@include('about.chart-person', ['person' => ['name' => $leader->name, 'title' => $leader->title, 'photo' => $leader->portraitUrl()], 'variant' => 'deputy'])</li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
+    @endif
+
+    {{-- Connector lines only make sense while every group fits on one row. --}}
+    <ul @class(['org-groups', 'org-bus', 'is-connected' => $organization->count() <= 4]) style="--org-tracks: {{ min($spans->sum(), 4) }}">
         @foreach ($organization as $group)
-            <li class="tone-{{ $loop->index % 6 }}">
-                <a href="#{{ $group['type'] === $officeGroup ? 'offices' : 'org-'.$group['type'] }}" data-about-org-open>
-                    <strong>{{ $group['label'] }}</strong>
-                    <small>{{ $group['units']->count() }} អង្គភាព</small>
-                </a>
+            <li id="{{ $group['type'] === $officeGroup ? 'offices' : 'org-'.$group['type'] }}" class="org-group tone-{{ $loop->index % 6 }}" style="--org-span: {{ $spans[$loop->index] }}">
+                <h3 class="org-group-head">
+                    <span class="org-group-icon"><x-news-icon :name="$group['icon']" width="18" height="18" /></span>
+                    <span>{{ $group['label'] }}<small>{{ \App\Support\KhmerDate::number($group['units']->count()) }} អង្គភាព</small></span>
+                </h3>
+                <ul class="org-units">
+                    @foreach ($group['units'] as $unit)
+                        @include('about.chart-unit', ['unit' => $unit])
+                    @endforeach
+                </ul>
             </li>
         @endforeach
     </ul>
-</div>
-
-<div id="about-org-detail" class="about-organization" data-about-org-detail>
-    @foreach ($organization as $group)
-        <details id="{{ $group['type'] === $officeGroup ? 'offices' : 'org-'.$group['type'] }}" class="about-unit-group" open>
-            <summary><span class="about-unit-icon"><x-news-icon :name="$group['icon']" /></span><span>{{ $group['label'] }}<small>{{ $group['units']->count() }} អង្គភាព</small></span><x-news-icon name="chevron-right" /></summary>
-            <ul>
-                @foreach ($group['units'] as $unit)
-                    <li>
-                        @if ($unit['url'])
-                            <a href="{{ $unit['url'] }}">{{ $unit['name'] }}<x-news-icon name="arrow" width="16" height="16" /></a>
-                        @else
-                            <span class="about-unit-name">{{ $unit['name'] }}</span>
-                        @endif
-                        @if ($unit['description'])<p>{{ $unit['description'] }}</p>@endif
-                        @if ($unit['children']->isNotEmpty())
-                            <ul class="about-unit-children">
-                                @foreach ($unit['children'] as $child)
-                                    <li>
-                                        @if ($child['url'])<a href="{{ $child['url'] }}">{{ $child['name'] }}<x-news-icon name="arrow" width="14" height="14" /></a>@else<span class="about-unit-name">{{ $child['name'] }}</span>@endif
-                                    </li>
-                                @endforeach
-                            </ul>
-                        @endif
-                    </li>
-                @endforeach
-            </ul>
-        </details>
-    @endforeach
 </div>

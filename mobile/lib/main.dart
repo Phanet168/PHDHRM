@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import 'app.dart';
 import 'core/config/api_config.dart';
+import 'core/storage/json_cache.dart';
+import 'core/theme/appearance_settings.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,6 +17,10 @@ Future<void> main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  await ApiConfig.initialize();
+  await Future.wait([
+    ApiConfig.initialize(),
+    JsonCache.instance.preload(),
+    AppearanceSettings.instance.load(),
+  ]);
   runApp(const StaffMobileApp());
 }

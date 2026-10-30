@@ -30,7 +30,7 @@
 
                 @can('read_mission')
                     <li class="{{ request()->routeIs('missions.*') ? 'mm-active' : '' }}">
-                        <a href="{{ route('missions.index') }}" class="material-ripple">
+                        <a href="{{ route('missions.dashboard') }}" class="material-ripple">
                             <i class="fas fa-briefcase sidebar-menu-icon" aria-hidden="true"></i><span>គ្រប់គ្រងបេសកកម្ម</span>
                         </a>
                     </li>
@@ -405,6 +405,56 @@
                             </li>
                             @endif
                             @endcanany
+                        </ul>
+                    </li>
+                @endcanany
+
+                @canany(['read_health_activity_report', 'read_health_report_settings'])
+                    <li class="{{ request()->routeIs('report.health.*') ? 'mm-active' : '' }}">
+                        <a class="has-arrow material-ripple" href="#">
+                            <i class="fas fa-notes-medical sidebar-menu-icon" aria-hidden="true"></i>
+                            <span>របាយការណ៍សកម្មភាពសុខាភិបាល</span>
+                        </a>
+                        <ul class="nav-second-level {{ request()->routeIs('report.health.*') ? 'mm-show' : '' }}">
+                            <li class="{{ request()->routeIs('report.health.dashboard') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item" href="{{ route('report.health.dashboard') }}"><i class="fas fa-th-large sidebar-menu-icon" aria-hidden="true"></i> ផ្ទាំងគ្រប់គ្រង</a>
+                            </li>
+                            <li class="{{ request()->routeIs('report.health.entry*') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item" href="{{ route('report.health.entry') }}"><i class="fas fa-edit sidebar-menu-icon" aria-hidden="true"></i> បញ្ចូលទិន្នន័យ</a>
+                            </li>
+                            @canany(['create_health_activity_report', 'update_health_report_settings'])
+                                <li class="{{ request()->routeIs('report.health.import*') ? 'mm-active' : '' }}">
+                                    <a class="dropdown-item" href="{{ route('report.health.import') }}"><i class="fas fa-file-import sidebar-menu-icon" aria-hidden="true"></i> Import Excel</a>
+                                </li>
+                                <li class="{{ request()->routeIs('report.health.his*') ? 'mm-active' : '' }}">
+                                    <a class="dropdown-item" href="{{ route('report.health.his') }}"><i class="fas fa-database sidebar-menu-icon" aria-hidden="true"></i> ទិន្នន័យ HIS</a>
+                                </li>
+                                <li class="{{ request()->routeIs('report.health.hr*') ? 'mm-active' : '' }}">
+                                    <a class="dropdown-item" href="{{ route('report.health.hr') }}"><i class="fas fa-users sidebar-menu-icon" aria-hidden="true"></i> ទិន្នន័យ HRM</a>
+                                </li>
+                            @endcanany
+                            @canany(['read_health_activity_report', 'read_health_report_settings'])
+                                <li class="{{ request()->routeIs('report.health.analysis*') ? 'mm-active' : '' }}">
+                                    <a class="dropdown-item" href="{{ route('report.health.analysis') }}"><i class="fas fa-chart-pie sidebar-menu-icon" aria-hidden="true"></i> វិភាគទិន្នន័យ</a>
+                                </li>
+                            @endcanany
+                            <li class="{{ request()->routeIs('report.health.issues*') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item" href="{{ route('report.health.issues') }}"><i class="fas fa-exclamation-triangle sidebar-menu-icon" aria-hidden="true"></i> បញ្ហាប្រឈម</a>
+                            </li>
+                            <li class="{{ request()->routeIs('report.health.reports*') ? 'mm-active' : '' }}">
+                                <a class="dropdown-item" href="{{ route('report.health.reports') }}"><i class="fas fa-chart-bar sidebar-menu-icon" aria-hidden="true"></i> របាយការណ៍</a>
+                            </li>
+                            @can('read_health_report_settings')
+                                <li class="{{ request()->routeIs('report.health.structure*') ? 'mm-active' : '' }}">
+                                    <a class="dropdown-item" href="{{ route('report.health.structure') }}"><i class="fas fa-sitemap sidebar-menu-icon" aria-hidden="true"></i> ផ្នែក និងជំពូក</a>
+                                </li>
+                                <li class="{{ request()->routeIs('report.health.users*') ? 'mm-active' : '' }}">
+                                    <a class="dropdown-item" href="{{ route('report.health.users') }}"><i class="fas fa-users sidebar-menu-icon" aria-hidden="true"></i> អ្នកប្រើប្រាស់</a>
+                                </li>
+                                <li class="{{ request()->routeIs('report.health.settings*') ? 'mm-active' : '' }}">
+                                    <a class="dropdown-item" href="{{ route('report.health.settings') }}"><i class="fas fa-cog sidebar-menu-icon" aria-hidden="true"></i> ការកំណត់</a>
+                                </li>
+                            @endcan
                         </ul>
                     </li>
                 @endcanany

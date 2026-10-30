@@ -87,16 +87,19 @@ class HomeInfoBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: homeAccentColor()),
           const SizedBox(width: 6),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 220),
-            child: Text(
-              text!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12,
-                color: Color(0xFF173C33),
-                fontWeight: FontWeight.w600,
+          // Flexible so a narrow screen ellipsizes instead of overflowing.
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 220),
+              child: Text(
+                text!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF173C33),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -118,6 +121,10 @@ class ProfileHighlightChip {
   final String value;
 }
 
+/// Profile header: gradient card with the avatar in an animated ring,
+/// name/position/unit centred, and the highlight facts on a white panel.
+/// Nothing has a fixed height, so large system text grows the card instead
+/// of overflowing it.
 class ProfileHeroCard extends StatelessWidget {
   const ProfileHeroCard({
     super.key,
@@ -146,176 +153,395 @@ class ProfileHeroCard extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: LinearGradient(
-          colors: [
-            Color.lerp(primary, Colors.black, 0.30)!,
-            Color.lerp(primary, Colors.black, 0.45)!,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(color: const Color(0x33000000)),
-        boxShadow: const [
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x1A102A24),
-            blurRadius: 18,
-            offset: Offset(0, 8),
+            color: primary.withAlpha(60),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(34),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: avatar,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'ប្រវត្តិមន្ត្រី',
-                        style: TextStyle(
-                          color: Color(0xFFD8EAF0),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.6,
-                        ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color.lerp(primary, Colors.white, 0.06)!,
+                Color.lerp(primary, Colors.black, 0.38)!,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Stack(
+            children: [
+              const Positioned(
+                top: -60,
+                right: -50,
+                child: _Blob(size: 190, alpha: 22),
+              ),
+              const Positioned(
+                top: 120,
+                left: -70,
+                child: _Blob(size: 160, alpha: 14),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 22, 16, 16),
+                child: Column(
+                  children: [
+                    _AvatarRing(child: avatar),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'ប្រវត្តិមន្ត្រី',
+                      style: TextStyle(
+                        color: Color(0xCCFFFFFF),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 21,
-                          fontWeight: FontWeight.w800,
-                          height: 1.15,
-                        ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      name,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        height: 1.2,
                       ),
-                      const SizedBox(height: 5),
-                      Text(
-                        position,
-                        style: const TextStyle(
-                          color: Color(0xFFF4F8FA),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      position,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFFF4F8FA),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        department,
-                        style: const TextStyle(
-                          color: Color(0xFFD7E5EA),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.apartment_rounded,
+                          size: 15,
+                          color: Color(0xCCFFFFFF),
                         ),
-                      ),
-                      if ((role ?? '').trim().isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0x1FFFFFFF),
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: const Color(0x44FFFFFF)),
-                          ),
+                        const SizedBox(width: 5),
+                        Flexible(
                           child: Text(
-                            role!.trim(),
+                            department,
+                            textAlign: TextAlign.center,
                             style: const TextStyle(
-                              color: Color(0xFFF1FBFF),
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
+                              color: Color(0xDDFFFFFF),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ),
                       ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isCompact = constraints.maxWidth < 380;
-                final isUltraCompact = constraints.maxWidth < 340;
-                final crossAxisCount = isCompact ? 1 : 2;
-                final cardHeight =
-                    isUltraCompact ? 78.0 : (isCompact ? 82.0 : 88.0);
-
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: chips.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: crossAxisCount,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
-                    mainAxisExtent: cardHeight,
-                  ),
-                  itemBuilder: (context, index) {
-                    final chip = chips[index];
-                    return Container(
-                      padding:
-                          isUltraCompact
-                              ? const EdgeInsets.fromLTRB(10, 8, 10, 8)
-                              : const EdgeInsets.fromLTRB(10, 10, 10, 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(24),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white.withAlpha(36)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Icon(chip.icon, size: 16, color: Colors.white),
-                          Text(
-                            chip.label,
-                            style: const TextStyle(
-                              color: Color(0xFFCFE3EA),
-                              fontSize: 10.3,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            chip.value,
-                            maxLines: isCompact ? 2 : 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
+                    ),
+                    if ((role ?? '').trim().isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(10, 5, 12, 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0x26FFFFFF),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: const Color(0x55FFFFFF)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.verified_user_rounded,
+                              size: 14,
                               color: Colors.white,
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w800,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                role!.trim(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    );
-                  },
-                );
-              },
-            ),
-            if (visibleBadges.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Wrap(spacing: 8, runSpacing: 8, children: visibleBadges),
+                    ],
+                    const SizedBox(height: 18),
+                    _HighlightPanel(chips: chips),
+                    if (visibleBadges.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: visibleBadges,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             ],
-          ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _Blob extends StatelessWidget {
+  const _Blob({required this.size, required this.alpha});
+
+  final double size;
+  final int alpha;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withAlpha(alpha),
+      ),
+    );
+  }
+}
+
+/// A slowly rotating light ring around the avatar.
+class _AvatarRing extends StatefulWidget {
+  const _AvatarRing({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_AvatarRing> createState() => _AvatarRingState();
+}
+
+class _AvatarRingState extends State<_AvatarRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 6),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        RotationTransition(
+          turns: _controller,
+          child: Container(
+            width: 108,
+            height: 108,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: SweepGradient(
+                colors: [
+                  Colors.white,
+                  Color(0x33FFFFFF),
+                  Color(0xFFB9F6CA),
+                  Color(0x33FFFFFF),
+                  Colors.white,
+                ],
+              ),
+            ),
+          ),
+        ),
+        Container(
+          width: 98,
+          height: 98,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Color.lerp(homeAccentColor(), Colors.black, 0.2),
+          ),
+        ),
+        widget.child,
+      ],
+    );
+  }
+}
+
+/// The highlight facts (ID, pay grade, service date, contact) as tiles on a
+/// white panel — two per row when there's room, one per row otherwise.
+class _HighlightPanel extends StatelessWidget {
+  const _HighlightPanel({required this.chips});
+
+  final List<ProfileHighlightChip> chips;
+
+  @override
+  Widget build(BuildContext context) {
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final perRow = constraints.maxWidth >= 250 ? 2 : 1;
+          final rows = <Widget>[];
+          for (var i = 0; i < chips.length; i += perRow) {
+            final slice = chips.skip(i).take(perRow).toList();
+            rows.add(
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var j = 0; j < perRow; j++) ...[
+                      if (j > 0) const SizedBox(width: 10),
+                      Expanded(
+                        child:
+                            j < slice.length
+                                ? _HighlightTile(chip: slice[j])
+                                : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }
+          return Column(
+            children: [
+              for (var i = 0; i < rows.length; i++) ...[
+                if (i > 0) const SizedBox(height: 10),
+                rows[i],
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _HighlightTile extends StatelessWidget {
+  const _HighlightTile({required this.chip});
+
+  final ProfileHighlightChip chip;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = homeAccentColor();
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: accent.withAlpha(16),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: accent.withAlpha(34),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(chip.icon, size: 17, color: accent),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            chip.label,
+            style: const TextStyle(
+              color: Color(0xFF6F7C76),
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          // One line, shrunk to fit: an e-mail split mid-word reads badly.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              chip.value,
+              maxLines: 1,
+              style: const TextStyle(
+                color: Color(0xFF163A31),
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Fades and slides a profile card in, staggered by [index].
+class StaggeredEntrance extends StatefulWidget {
+  const StaggeredEntrance({
+    super.key,
+    required this.index,
+    required this.child,
+  });
+
+  final int index;
+  final Widget child;
+
+  @override
+  State<StaggeredEntrance> createState() => _StaggeredEntranceState();
+}
+
+class _StaggeredEntranceState extends State<StaggeredEntrance>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 450),
+  );
+  late final Animation<double> _curve = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(Duration(milliseconds: 80 * widget.index), () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _curve,
+      child: SlideTransition(
+        position: Tween(
+          begin: const Offset(0, 0.06),
+          end: Offset.zero,
+        ).animate(_curve),
+        child: widget.child,
       ),
     );
   }
@@ -327,6 +553,9 @@ class ProfileSubsection {
   final List<HomeProfileRow> rows;
 }
 
+/// A collapsible group of profile facts. The whole header toggles it; each
+/// fact shows its label above the value so long Khmer labels and values
+/// wrap cleanly at any text size.
 class ProfileSection extends StatefulWidget {
   const ProfileSection({
     super.key,
@@ -350,147 +579,182 @@ class ProfileSection extends StatefulWidget {
 }
 
 class _ProfileSectionState extends State<ProfileSection> {
-  bool _expanded = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _expanded = widget.initiallyExpanded;
-  }
+  late bool _expanded = widget.initiallyExpanded;
 
   @override
   Widget build(BuildContext context) {
-    // Determine which rows to display
-    final List<HomeProfileRow> mainRows = widget.rows ?? [];
-    final mainVisible = mainRows.where((r) => r.value.isNotEmpty).toList();
+    final accent = homeAccentColor();
+    final mainVisible =
+        (widget.rows ?? const <HomeProfileRow>[])
+            .where((r) => r.value.isNotEmpty)
+            .toList();
     final subsVisible =
-        widget.subsections
-            ?.where((s) => s.rows.any((r) => r.value.isNotEmpty))
-            .toList() ??
-        [];
+        (widget.subsections ?? const <ProfileSubsection>[])
+            .where((s) => s.rows.any((r) => r.value.isNotEmpty))
+            .toList();
 
     if (mainVisible.isEmpty && subsVisible.isEmpty) {
       return const SizedBox.shrink();
     }
+    final factCount =
+        mainVisible.length +
+        subsVisible.fold<int>(
+          0,
+          (sum, s) => sum + s.rows.where((r) => r.value.isNotEmpty).length,
+        );
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: homeAccentColor().withAlpha(45)),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: accent.withAlpha(_expanded ? 70 : 30)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x10142721),
-            blurRadius: 14,
-            offset: Offset(0, 5),
+            blurRadius: 16,
+            offset: Offset(0, 6),
           ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(18, 14, 16, 14),
-            decoration: BoxDecoration(
-              color: homeAccentColor().withAlpha(18),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(20),
-                topRight: Radius.circular(20),
+          InkWell(
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 12, 14),
+              child: Row(
+                children: [
+                  if (widget.icon != null) ...[
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        gradient: LinearGradient(
+                          colors: [
+                            accent,
+                            Color.lerp(accent, Colors.black, 0.3)!,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: Icon(widget.icon, size: 21, color: Colors.white),
+                    ),
+                    const SizedBox(width: 12),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15.5,
+                            color: Color(0xFF163A31),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.subtitle,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: Color(0xFF6F7C76),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: accent.withAlpha(24),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      '$factCount',
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  AnimatedRotation(
+                    turns: _expanded ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 250),
+                    child: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: accent,
+                      size: 26,
+                    ),
+                  ),
+                ],
               ),
             ),
-            child: Row(
-              children: [
-                if (widget.icon != null) ...[
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: homeAccentColor().withAlpha(32),
-                      borderRadius: BorderRadius.circular(13),
-                    ),
-                    child: Icon(
-                      widget.icon,
-                      size: 20,
-                      color: homeAccentColor(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15.5,
-                          color: homeAccentColor(),
-                        ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeInOutCubic,
+            alignment: Alignment.topCenter,
+            child:
+                _expanded
+                    ? Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (mainVisible.isNotEmpty) _group(mainVisible),
+                          for (final sub in subsVisible) ...[
+                            _subsectionHeader(sub.label),
+                            _group(
+                              sub.rows
+                                  .where((r) => r.value.isNotEmpty)
+                                  .toList(),
+                            ),
+                          ],
+                        ],
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        widget.subtitle,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          color: homeAccentColor().withAlpha(180),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                InkWell(
-                  onTap: () => setState(() => _expanded = !_expanded),
-                  borderRadius: BorderRadius.circular(999),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color:
-                          _expanded
-                              ? homeAccentColor().withAlpha(55)
-                              : homeAccentColor().withAlpha(28),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      _expanded
-                          ? Icons.keyboard_arrow_up_rounded
-                          : Icons.keyboard_arrow_down_rounded,
-                      color: homeAccentColor(),
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ],
+                    )
+                    : const SizedBox(width: double.infinity),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _subsectionHeader(String label) {
+    final accent = homeAccentColor();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 14, 2, 8),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 16,
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 190),
-            firstCurve: Curves.easeOut,
-            secondCurve: Curves.easeIn,
-            sizeCurve: Curves.easeInOut,
-            crossFadeState:
-                _expanded
-                    ? CrossFadeState.showSecond
-                    : CrossFadeState.showFirst,
-            firstChild: const SizedBox.shrink(),
-            secondChild: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Divider(height: 1, color: Color(0xFFE7EFEB)),
-                const SizedBox(height: 6),
-                for (final row in mainVisible) _buildRow(row),
-                if (subsVisible.isNotEmpty)
-                  for (final subsection in subsVisible) ...[
-                    _buildSubsection(subsection),
-                    const SizedBox(height: 2),
-                  ],
-                const SizedBox(height: 6),
-              ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: accent,
+              ),
             ),
           ),
         ],
@@ -498,82 +762,48 @@ class _ProfileSectionState extends State<ProfileSection> {
     );
   }
 
-  Widget _buildRow(HomeProfileRow row) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final labelWidth = screenWidth < 360 ? 104.0 : 126.0;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+  /// Facts on a soft tinted panel, separated by hairlines.
+  Widget _group(List<HomeProfileRow> rows) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F9F7),
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: labelWidth,
-                  child: Text(
-                    row.label,
+          for (var i = 0; i < rows.length; i++) ...[
+            if (i > 0) const Divider(height: 1, color: Color(0xFFE3ECE8)),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    rows[i].label,
                     style: const TextStyle(
-                      color: Color(0xFF5E746D),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF6F7C76),
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    row.value,
-                    textAlign: TextAlign.right,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 3),
+                  Text(
+                    rows[i].value,
                     style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12.8,
                       color: Color(0xFF163A31),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
                       height: 1.35,
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1, color: Color(0xFFE8EFEB)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSubsection(ProfileSubsection sub) {
-    final visible = sub.rows.where((r) => r.value.isNotEmpty).toList();
-    if (visible.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(
-              color: homeAccentColor().withAlpha(28),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              sub.label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: homeAccentColor(),
-                letterSpacing: 0.2,
+                ],
               ),
             ),
-          ),
-        ),
-        for (int i = 0; i < visible.length; i++) _buildRow(visible[i]),
-      ],
+          ],
+        ],
+      ),
     );
   }
 }

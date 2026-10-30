@@ -39,6 +39,8 @@ class MissionManagementTest extends TestCase
             $t->integer('department_id');
             $t->integer('position_id')->nullable();
             $t->integer('sub_department_id')->nullable();
+            $t->integer('gender_id')->nullable();
+            $t->string('degree_name')->nullable();
             $t->boolean('is_active')->default(true);
             $t->softDeletes();
         });
@@ -68,6 +70,13 @@ class MissionManagementTest extends TestCase
         Schema::table('mission_reports', function (Blueprint $t) {
             $t->dateTime('submitted_at')->nullable();
             $t->unsignedInteger('revision')->default(1);
+            foreach (['activities', 'results', 'issues', 'recommendations'] as $column) {
+                $t->longText($column)->nullable();
+            }
+        });
+        Schema::table('mission_assignments', function (Blueprint $t) {
+            $t->string('honorific_on_order', 100)->nullable();
+            $t->string('department_on_order', 255)->nullable();
         });
         DB::table('users')->insert([
             ['id' => 1, 'full_name' => 'Director', 'user_type_id' => 1],
@@ -117,7 +126,11 @@ class MissionManagementTest extends TestCase
         $this->getJson('/api/v1/missions')->assertOk()->assertJsonPath('response.data.total', 1)
             ->assertJsonPath('response.data.data.0.duration_days', 3)
             ->assertJsonPath('response.data.data.0.assigner.name', 'Director')
-            ->assertJsonPath('response.data.data.0.team_members.0.name', 'សុខ សុខា');
+            ->assertJsonPath('response.data.data.0.team_members.0.name', 'សុខ សុខា')
+            ->assertJsonPath('response.data.data.0.is_participant', true);
+        $this->login(1);
+        $this->getJson('/api/v1/missions?scope=managed')->assertOk()->assertJsonPath('response.data.data.0.is_participant', false);
+        $this->login(2);
         $this->postJson("/api/v1/missions/$id/report", ['summary' => 'Too soon'])->assertStatus(409);
         $this->postJson("/api/v1/missions/$id/start")->assertOk()->assertJsonPath('response.data.display_status', 'in_progress');
         $this->postJson("/api/v1/missions/$id/start")->assertOk();
@@ -264,6 +277,121 @@ class MissionManagementTest extends TestCase
         $this->get("/hr/missions/$id/order")->assertOk();
         $this->login(3);
         $this->get("/hr/missions/$id/order")->assertNotFound();
+    }
+
+    public function test_order_letter_matches_the_official_template(): void
+    {
+        DB::table('employees')->where('id', 1)->update(['gender_id' => 1, 'degree_name' => 'សញ្ញាបត្រវេជ្ជបណ្ឌិតទូទៅ']);
+        DB::table('employees')->insert(['id' => 3, 'user_id' => null, 'first_name' => 'ចាន់', 'last_name' => 'សុភា',
+            'employee_id' => '003', 'department_id' => 1, 'gender_id' => 2]);
+        $details = ['issuing_authority' => 'រដ្ឋបាលខេត្តស្ទឹងត្រែង', 'issuing_department' => 'មន្ទីរសុខាភិបាល', 'letter_code' => 'មសរខ',
+            'issue_place' => 'ស្ទឹងត្រែង', 'transport' => 'រថយន្តឈ្នួល', 'funding_source' => 'US-CDC',
+            'reference' => "-លិខិតលេខ ១១៤១ ប្រជឆ របស់ក្រសួងសុខាភិបាល\n\n- ចំណារឯកភាព របស់ប្រធានមន្ទីរ"];
+        $id = $this->create(['order_details' => $details, 'employee_ids' => [1, 3]]);
+        $this->getJson("/api/v1/missions/$id")->assertOk()
+            ->assertJsonPath('response.data.order_officers.0.honorific', 'លោកវេជ្ជ.')
+            ->assertJsonPath('response.data.order_officers.1.honorific', 'លោកស្រី')
+            ->assertJsonPath('response.data.order.transport', 'រថយន្តឈ្នួល')
+            ->assertJsonPath('response.data.order.funding', 'US-CDC')
+            ->assertJsonPath('response.data.order.references', ['លិខិតលេខ ១១៤១ ប្រជឆ របស់ក្រសួងសុខាភិបាល', 'ចំណារឯកភាព របស់ប្រធានមន្ទីរ'])
+            ->assertJsonPath('response.data.letters.order', false);
+        $this->postJson("/api/v1/missions/$id/review", ['decision' => 'approved'])->assertOk();
+        // A cancelled officer drops off the letter and the head-count.
+        DB::table('mission_assignments')->where('mission_id', $id)->where('employee_id', 3)->update(['status' => 'cancelled']);
+        $this->get("/hr/missions/$id/order")->assertOk()
+            ->assertSee('លោកវេជ្ជ.')->assertSee('សរុបចំនួន៖ ០១ នាក់')->assertDontSee('សុភា')
+            ->assertSee('ផុតកំណត់')->assertSee('ឧបត្ថម្ភថវិកា')->assertSee('US-CDC')->assertSee('រថយន្តឈ្នួល')
+            ->assertSee('មន្ត្រីរាជការមន្ទីរសុខាភិបាលនៃរដ្ឋបាលខេត្តស្ទឹងត្រែង')
+            ->assertSee('-ចំណារឯកភាព របស់ប្រធានមន្ទីរ')->assertSee('មសរខ');
+    }
+
+    public function test_travel_visa_letters_are_per_officer_and_private(): void
+    {
+        DB::table('employees')->insert(['id' => 3, 'user_id' => null, 'first_name' => 'ចាន់', 'last_name' => 'សុភា',
+            'employee_id' => '003', 'department_id' => 1]);
+        $id = $this->create(['employee_ids' => [1, 3], 'order_details' => ['issue_place' => 'ស្ទឹងត្រែង']]);
+        $this->postJson("/api/v1/missions/$id/review", ['decision' => 'approved'])->assertOk();
+        $this->get("/hr/missions/$id/travel-visa")->assertOk()
+            ->assertSee('លិខិតចុះទិដ្ឋការធ្វើដំណើរ')->assertSee('សុខ សុខា')->assertSee('សុភា')->assertSee('ខេត្តស្ទឹងត្រែង');
+        $this->get("/hr/missions/$id/travel-visa?employee=3")->assertOk()->assertDontSee('សុខ សុខា');
+        // A participant only ever gets their own sheet, whatever they ask for.
+        $this->login(2);
+        $this->get("/hr/missions/$id/travel-visa?employee=3")->assertOk()->assertSee('សុខ សុខា')->assertDontSee('សុភា');
+        $this->login(3);
+        $this->get("/hr/missions/$id/travel-visa")->assertNotFound();
+    }
+
+    public function test_mobile_letter_links_are_signed_short_lived_and_scoped(): void
+    {
+        DB::table('employees')->insert(['id' => 3, 'user_id' => null, 'first_name' => 'ចាន់', 'last_name' => 'សុភា',
+            'employee_id' => '003', 'department_id' => 1]);
+        $id = $this->create(['employee_ids' => [1, 3]]);
+        $this->login(2);
+        $this->getJson("/api/v1/missions/$id/letters/order/signed-url")->assertStatus(409); // not issued yet
+        $this->login(1);
+        $this->getJson("/api/v1/missions/$id/letters/order/signed-url")->assertStatus(409);
+        $this->postJson("/api/v1/missions/$id/review", ['decision' => 'approved'])->assertOk();
+        // The director is not on the team, so has no travel visa of their own.
+        $this->getJson("/api/v1/missions/$id/letters/travel-visa/signed-url")->assertForbidden();
+        $this->login(2);
+        $this->getJson("/api/v1/missions/$id")->assertOk()
+            ->assertJsonPath('response.data.letters', ['order' => true, 'travel_visa' => true, 'report' => false]);
+        $order = $this->getJson("/api/v1/missions/$id/letters/order/signed-url")->assertOk()->json('response.data.url');
+        $visa = $this->getJson("/api/v1/missions/$id/letters/travel-visa/signed-url")->assertOk()->json('response.data.url');
+        $this->getJson("/api/v1/missions/$id/letters/bogus/signed-url")->assertNotFound();
+        auth()->forgetGuards();
+        $this->get($order)->assertOk()->assertSee('លិខិតបញ្ជាបេសកកម្ម')->assertDontSee('ត្រឡប់ទៅបេសកកម្ម');
+        $this->get($visa)->assertOk()->assertSee('សុខ សុខា')->assertDontSee('សុភា');
+        $this->get(str_replace('employee=1', 'employee=3', $visa))->assertForbidden();
+        $this->get("/api/missions/$id/letters/order")->assertForbidden();
+        Carbon::setTestNow(now()->addMinutes(11));
+        $this->get($order)->assertForbidden();
+    }
+
+    public function test_structured_report_follows_the_official_template(): void
+    {
+        DB::table('employees')->insert(['id' => 3, 'user_id' => null, 'first_name' => 'ចាន់', 'last_name' => 'សុភា',
+            'employee_id' => '003', 'department_id' => 1]);
+        $id = $this->create(['employee_ids' => [1, 3], 'order_number' => '125',
+            'order_details' => ['letter_code' => 'មសរខ', 'issue_place' => 'ស្ទឹងត្រែង', 'signatory_title' => 'ប្រធានមន្ទីរសុខាភិបាលខេត្ត']]);
+        $this->postJson("/api/v1/missions/$id/review", ['decision' => 'approved'])->assertOk();
+        $this->login(2);
+        $this->postJson("/api/v1/missions/$id/start")->assertOk();
+        $this->getJson("/api/v1/missions/$id/letters/report/signed-url")->assertStatus(409);
+        $this->postJson("/api/v1/missions/$id/report", [])->assertUnprocessable();
+        $this->postJson("/api/v1/missions/$id/report", ['results' => ['', '  ']])->assertUnprocessable();
+        $this->postJson("/api/v1/missions/$id/report", [
+            'activities' => 'ចុះពិនិត្យមណ្ឌលសុខភាព ៣ កន្លែង',
+            'results' => ['  បានពិនិត្យសេវា  ', '', 'បានផ្ដល់អនុសាសន៍'],
+            'recommendations' => 'គួរបន្តតាមដាន',
+        ])->assertOk()
+            ->assertJsonPath('response.data.reports.0.results', ['បានពិនិត្យសេវា', 'បានផ្ដល់អនុសាសន៍'])
+            ->assertJsonPath('response.data.reports.0.is_mine', true)
+            ->assertJsonPath('response.data.letters.report', true);
+        $this->assertDatabaseHas('mission_reports', ['mission_id' => $id, 'employee_id' => 1,
+            'summary' => "ចុះពិនិត្យមណ្ឌលសុខភាព ៣ កន្លែង\n\n- បានពិនិត្យសេវា\n- បានផ្ដល់អនុសាសន៍\n\nគួរបន្តតាមដាន"]);
+        $this->get("/hr/missions/$id/report-letter?employee=3")->assertOk() // a participant always gets their own
+            ->assertSee('របាយការណ៍បេសកកម្ម')->assertSee('យោងលិខិតបញ្ជាបេសកកម្មលេខ៖ 125 មសរខ')
+            ->assertSee('១- ថ្នាក់ដឹកនាំ')->assertSee('សុភា')->assertSee('៣ ថ្ងៃ')
+            ->assertSee('បានផ្ដល់អនុសាសន៍')->assertSee('គួរបន្តតាមដាន')->assertSee('អ្នកធ្វើរបាយការណ៍')->assertSee('បានឃើញ និងឯកភាព');
+        $url = $this->getJson("/api/v1/missions/$id/letters/report/signed-url")->assertOk()->json('response.data.url');
+        auth()->forgetGuards();
+        $this->get($url)->assertOk()->assertSee('ចុះពិនិត្យមណ្ឌលសុខភាព')->assertDontSee('ត្រឡប់ទៅបេសកកម្ម');
+        // Officer 3 has not reported: no sheet for them.
+        $this->login(1);
+        $this->get("/hr/missions/$id/report-letter?employee=3")->assertNotFound();
+        $this->get("/hr/missions/$id/report-letter?employee=1")->assertOk();
+    }
+
+    public function test_summary_only_reports_still_print(): void
+    {
+        $id = $this->create();
+        $this->postJson("/api/v1/missions/$id/review", ['decision' => 'approved'])->assertOk();
+        $this->login(2);
+        $this->postJson("/api/v1/missions/$id/start")->assertOk();
+        $this->postJson("/api/v1/missions/$id/report", ['summary' => 'Old app free-text report'])->assertOk()
+            ->assertJsonPath('response.data.reports.0.results', []);
+        $this->get("/hr/missions/$id/report-letter")->assertOk()->assertSee('Old app free-text report');
     }
 
     public function test_order_rejects_unknown_fields_and_invalid_issue_dates(): void

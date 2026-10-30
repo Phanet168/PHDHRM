@@ -933,6 +933,18 @@ class RoleTableSeeder extends Seeder
                 'update_messages',
                 'delete_messages',
             ],
+            'Health Activity Report' => [
+                'create_health_activity_report',
+                'read_health_activity_report',
+                'update_health_activity_report',
+                'delete_health_activity_report',
+                'Health Report Settings' => [
+                    'create_health_report_settings',
+                    'read_health_report_settings',
+                    'update_health_report_settings',
+                    'delete_health_report_settings',
+                ],
+            ],
         ];
 
         $syncPermission = function (string $permissionName, int $menuId) use ($superAdmin) {

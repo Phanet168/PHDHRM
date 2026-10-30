@@ -39,7 +39,7 @@ class PeriodAttendanceSummaryService
         }
 
         $snapshotsByEmployee = AttendanceDailySnapshot::query()
-            ->select(['employee_id', 'attendance_status', 'worked_minutes', 'shift_id'])
+            ->select(['employee_id', 'attendance_status', 'worked_minutes', 'shift_id', 'policy_payload'])
             ->whereIn('employee_id', $employees->pluck('id'))
             ->whereBetween('snapshot_date', [$from->toDateString(), $to->toDateString()])
             ->get()
@@ -49,7 +49,10 @@ class PeriodAttendanceSummaryService
 
         return $employees->map(function (Employee $employee) use ($snapshotsByEmployee, $dutyShiftIds) {
             $rows = $snapshotsByEmployee->get($employee->id, collect());
-            $dutyMinutes = (int) $rows->filter(fn ($r) => $r->shift_id && $dutyShiftIds->has($r->shift_id))->sum('worked_minutes');
+            // Snapshots carry their duty share (regular day + night duty); older
+            // ones fall back to "the whole day was a duty shift".
+            $dutyMinutes = (int) $rows->sum(fn ($r) => $r->policy_payload['duty_minutes']
+                ?? ($r->shift_id && $dutyShiftIds->has($r->shift_id) ? $r->worked_minutes : 0));
             $totalMinutes = (int) $rows->sum('worked_minutes');
 
             return [

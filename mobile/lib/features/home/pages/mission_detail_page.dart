@@ -5,6 +5,8 @@ import '../../../core/theme/app_design_system.dart';
 import '../models/mission_detail.dart';
 import '../services/home_mission_service.dart';
 import 'home/home_theme.dart';
+import 'mission_report_form_page.dart';
+import '../../../core/network/api_exception.dart';
 
 class MissionDetailPage extends StatefulWidget {
   const MissionDetailPage({super.key, required this.missionId, this.service});
@@ -56,14 +58,125 @@ class _MissionDetailPageState extends State<MissionDetailPage> {
     }
   }
 
-  Future<void> _report() async {
-    final summary = await showDialog<String>(
-      context: context,
-      builder: (_) => const _ReportDialog(),
+  Future<void> _report(MissionDetail detail) async {
+    // A lingering snackbar would follow onto the form and cover its button.
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    final updated = await Navigator.of(context).push<MissionDetail>(
+      MaterialPageRoute(
+        builder:
+            (_) => MissionReportFormPage(detail: detail, service: _service),
+      ),
     );
-    if (summary != null && mounted) {
-      await _act(() => _service.report(widget.missionId, summary));
+    if (updated != null && mounted) {
+      setState(() {
+        _future = Future.value(updated);
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('បានដាក់ស្នើរបាយការណ៍ដោយជោគជ័យ។')),
+      );
     }
+  }
+
+  /// One submitted report, by section (៤ / ៥ / ៦) like the printed form.
+  Widget _reportCard(MissionReportEntry report, MissionDetail detail) {
+    final accent = homeAccentColor();
+    Widget section(String title, Widget body) => Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: accent,
+            ),
+          ),
+          const SizedBox(height: 3),
+          body,
+        ],
+      ),
+    );
+    const bodyStyle = TextStyle(fontSize: 12, height: 1.55);
+    final at = report.submittedAt;
+
+    return _card(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  report.isMine
+                      ? 'របាយការណ៍របស់ខ្ញុំ'
+                      : (report.employeeName.isEmpty
+                          ? 'របាយការណ៍'
+                          : report.employeeName),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              if (at != null)
+                Text(
+                  _date(at.toIso8601String()),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: AppDesignSystem.textSecondary,
+                  ),
+                ),
+            ],
+          ),
+          if (!report.isStructured)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(report.summary, style: bodyStyle),
+            )
+          else ...[
+            if (report.activities.isNotEmpty)
+              section(
+                '៤- ទីកន្លែងនិងសកម្មភាពការងារ',
+                Text(report.activities, style: bodyStyle),
+              ),
+            if (report.results.isNotEmpty)
+              section(
+                '៥- លទ្ធផលការងារ',
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final line in report.results)
+                      Text('• $line', style: bodyStyle),
+                  ],
+                ),
+              ),
+            if (report.recommendations.isNotEmpty)
+              section(
+                '៦- សំណូមពរ និងសេចក្ដីសន្និដ្ឋាន',
+                Text(report.recommendations, style: bodyStyle),
+              ),
+          ],
+          if (report.isMine && detail.canViewReport) ...[
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _busy ? null : () => _openLetter(MissionLetter.report),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: accent,
+                side: BorderSide(color: accent),
+                minimumSize: const Size(0, 40),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.print_rounded, size: 18),
+              label: const Text('បោះពុម្ពរបាយការណ៍'),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Future<void> _openDocument(MissionDocument document) async {
@@ -83,6 +196,398 @@ class _MissionDetailPageState extends State<MissionDetailPage> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  Future<void> _openLetter(MissionLetter letter) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final uri = await _service.letterUrl(widget.missionId, letter);
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw Exception('មិនអាចបើកលិខិតបាន។');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  static String _km(int value) =>
+      value.toString().split('').map((c) => '០១២៣៤៥៦៧៨៩'[int.parse(c)]).join();
+
+  Widget _sectionTitle(String text) => Padding(
+    padding: const EdgeInsets.only(top: 14, bottom: 14),
+    child: Text(
+      text,
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+    ),
+  );
+
+  Widget _fact(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // A fixed share (not Flexible) so every value starts in one column.
+        Expanded(
+          flex: 2,
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppDesignSystem.textSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          flex: 3,
+          child: Text(
+            value.isEmpty ? '—' : value,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    ),
+  );
+
+  /// The official order (លិខិតបញ្ជាបេសកកម្ម) as the officer will read it,
+  /// with links to the printable order and their own travel-visa sheet.
+  Widget _orderLetter(MissionDetail detail) {
+    final accent = homeAccentColor();
+    final order = detail.order;
+    final issuedTone = order.issued ? accent : AppDesignSystem.warning;
+    // The section heading already says "លិខិតបញ្ជាបេសកកម្ម"; the card leads
+    // with the letter's own number and date instead.
+    final heading =
+        order.numberLabel.isNotEmpty
+            ? 'លេខ ${order.numberLabel}'
+            : 'មិនទាន់មានលេខលិខិត';
+    final subtitle =
+        order.issuedOn.isNotEmpty ? 'ចុះ ${_date(order.issuedOn)}' : '';
+
+    return _card(
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    colors: [dashboardHeaderStart, dashboardHeaderEnd],
+                  ),
+                ),
+                child: const Icon(
+                  Icons.assignment_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      heading,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (subtitle.isNotEmpty)
+                      Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppDesignSystem.textSecondary,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: issuedTone.withAlpha(22),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    order.issued ? 'បានចេញលិខិត' : 'មិនទាន់ចេញ',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: issuedTone,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (order.references.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'យោង',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+            for (final reference in order.references)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '• $reference',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.5,
+                    color: AppDesignSystem.textSecondary,
+                  ),
+                ),
+              ),
+          ],
+          if (detail.officers.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: accent.withAlpha(12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  for (var i = 0; i < detail.officers.length; i++)
+                    Padding(
+                      padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${_km(i + 1)}.',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: accent,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  [
+                                    detail.officers[i].honorific,
+                                    detail.officers[i].name,
+                                  ].where((s) => s.isNotEmpty).join(' '),
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                if (detail.officers[i].position.isNotEmpty)
+                                  Text(
+                                    detail.officers[i].position,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppDesignSystem.textSecondary,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      'សរុប ${_km(detail.officers.length)} នាក់',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: accent,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 6),
+          _fact('មូលហេតុ', detail.purpose),
+          _fact('ចេញដំណើរ', _date(detail.mission.startDate)),
+          _fact('ផុតកំណត់', _date(detail.mission.endDate)),
+          _fact('មធ្យោបាយធ្វើដំណើរ', order.transport),
+          _fact('ឧបត្ថម្ភថវិកា', order.funding),
+          if (order.signatoryTitle.isNotEmpty)
+            _fact('អ្នកចុះហត្ថលេខា', order.signatoryTitle),
+          const SizedBox(height: 10),
+          if (detail.canViewOrder || detail.canViewTravelVisa)
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                if (detail.canViewOrder)
+                  FilledButton.icon(
+                    onPressed:
+                        _busy ? null : () => _openLetter(MissionLetter.order),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: accent,
+                      minimumSize: const Size(0, 42),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.description_rounded, size: 18),
+                    label: const Text('មើលលិខិតបញ្ជា'),
+                  ),
+                if (detail.canViewTravelVisa)
+                  OutlinedButton.icon(
+                    onPressed:
+                        _busy
+                            ? null
+                            : () => _openLetter(MissionLetter.travelVisa),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: accent,
+                      side: BorderSide(color: accent),
+                      minimumSize: const Size(0, 42),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.route_rounded, size: 18),
+                    label: const Text('លិខិតចុះទិដ្ឋការរបស់ខ្ញុំ'),
+                  ),
+              ],
+            )
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppDesignSystem.warning.withAlpha(18),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.info_outline_rounded,
+                    size: 16,
+                    color: AppDesignSystem.warning,
+                  ),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'អាចមើល និងទាញយកលិខិតបញ្ជា និងលិខិតចុះទិដ្ឋការ បន្ទាប់ពីលិខិតត្រូវបានចេញ។',
+                      style: TextStyle(fontSize: 11, height: 1.5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Request → approval → order → report steps, newest last.
+  Widget _timeline(List<MissionTimelineEntry> entries) {
+    final accent = homeAccentColor();
+    String stamp(DateTime? at) =>
+        at == null
+            ? ''
+            : '${_date(at.toIso8601String())} ${at.hour.toString().padLeft(2, '0')}:${at.minute.toString().padLeft(2, '0')}';
+
+    return _card(
+      Column(
+        children: [
+          for (var i = 0; i < entries.length; i++)
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: 18,
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 12,
+                          margin: const EdgeInsets.only(top: 3),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color:
+                                i == entries.length - 1
+                                    ? accent
+                                    : accent.withAlpha(90),
+                          ),
+                        ),
+                        if (i != entries.length - 1)
+                          Expanded(
+                            child: Container(
+                              width: 2,
+                              color: accent.withAlpha(40),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        bottom: i == entries.length - 1 ? 0 : 14,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            entries[i].label,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            [
+                              entries[i].actor,
+                              stamp(entries[i].at),
+                            ].where((s) => s.isNotEmpty).join(' · '),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: AppDesignSystem.textSecondary,
+                            ),
+                          ),
+                          if (entries[i].note.isNotEmpty)
+                            Text(
+                              entries[i].note,
+                              style: const TextStyle(fontSize: 11, height: 1.5),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+      padding: 14,
+    );
   }
 
   Widget _asset(String name, double size, {Color? color}) => Image.asset(
@@ -189,7 +694,9 @@ class _MissionDetailPageState extends State<MissionDetailPage> {
                         borderRadius: BorderRadius.circular(99),
                       ),
                       child: Text(
-                        missionStatusLabel(mission.status),
+                        detail.lifecycleLabel.isNotEmpty
+                            ? detail.lifecycleLabel
+                            : missionStatusLabel(mission.status),
                         style: TextStyle(
                           color: tone,
                           fontSize: 11,
@@ -318,11 +825,6 @@ class _MissionDetailPageState extends State<MissionDetailPage> {
                     color: AppDesignSystem.textSecondary,
                   ),
                 ),
-              if (detail.orderNumber.isNotEmpty)
-                Text(
-                  'លិខិតបង្គាប់ការលេខ៖ ${detail.orderNumber}',
-                  style: const TextStyle(fontSize: 12),
-                ),
               if (detail.purpose.isNotEmpty)
                 Text(
                   detail.purpose,
@@ -335,12 +837,9 @@ class _MissionDetailPageState extends State<MissionDetailPage> {
             ],
           ),
         ),
-        const SizedBox(height: 14),
-        const Text(
-          'សមាជិកក្រុម',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 14),
+        _sectionTitle('លិខិតបញ្ជាបេសកកម្ម'),
+        _orderLetter(detail),
+        _sectionTitle('សមាជិកក្រុម'),
         _card(
           detail.members.isEmpty
               ? const Text('មិនមានសមាជិកក្រុម')
@@ -445,7 +944,8 @@ class _MissionDetailPageState extends State<MissionDetailPage> {
             const SizedBox(width: 10),
             Expanded(
               child: FilledButton(
-                onPressed: !_busy && detail.canReport ? _report : null,
+                onPressed:
+                    !_busy && detail.canReport ? () => _report(detail) : null,
                 style: FilledButton.styleFrom(
                   backgroundColor: accent,
                   minimumSize: const Size(0, 46),
@@ -453,7 +953,9 @@ class _MissionDetailPageState extends State<MissionDetailPage> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text('រាយការណ៍'),
+                child: Text(
+                  detail.myReport == null ? 'រាយការណ៍' : 'កែរបាយការណ៍',
+                ),
               ),
             ),
           ],
@@ -467,8 +969,13 @@ class _MissionDetailPageState extends State<MissionDetailPage> {
           for (final report in detail.reports)
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: _card(Text(report)),
+              child: _reportCard(report, detail),
             ),
+        ],
+        if (detail.timeline.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          _sectionTitle('ដំណើរការបេសកកម្ម'),
+          _timeline(detail.timeline),
         ],
       ],
     );
@@ -512,7 +1019,7 @@ class _MissionDetailPageState extends State<MissionDetailPage> {
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(24),
                 children: [
-                  Text('${snapshot.error}'),
+                  Text(extractApiErrorMessage(snapshot.error!)),
                   const SizedBox(height: 12),
                   OutlinedButton(
                     onPressed: _refresh,
@@ -526,59 +1033,5 @@ class _MissionDetailPageState extends State<MissionDetailPage> {
         ),
       ),
     ),
-  );
-}
-
-class _ReportDialog extends StatefulWidget {
-  const _ReportDialog();
-  @override
-  State<_ReportDialog> createState() => _ReportDialogState();
-}
-
-class _ReportDialogState extends State<_ReportDialog> {
-  final _text = TextEditingController();
-  final _form = GlobalKey<FormState>();
-  @override
-  void dispose() {
-    _text.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('របាយការណ៍បេសកកម្ម'),
-    content: SingleChildScrollView(
-      child: Form(
-        key: _form,
-        child: TextFormField(
-          controller: _text,
-          minLines: 4,
-          maxLines: 8,
-          maxLength: 20000,
-          decoration: const InputDecoration(
-            labelText: 'លទ្ធផល និងសកម្មភាពដែលបានអនុវត្ត',
-          ),
-          validator:
-              (value) =>
-                  value == null || value.trim().isEmpty
-                      ? 'សូមបញ្ចូលរបាយការណ៍'
-                      : null,
-        ),
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('បោះបង់'),
-      ),
-      FilledButton(
-        onPressed: () {
-          if (_form.currentState!.validate()) {
-            Navigator.pop(context, _text.text.trim());
-          }
-        },
-        child: const Text('រក្សាទុក'),
-      ),
-    ],
   );
 }

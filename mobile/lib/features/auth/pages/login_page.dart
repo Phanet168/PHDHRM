@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../../../core/config/app_routes.dart';
@@ -10,6 +11,7 @@ import '../../../core/theme/app_design_system.dart';
 import '../../../shared/widgets/inline_notice_banner.dart';
 import '../controllers/auth_controller.dart';
 import '../services/device_access_request_service.dart';
+import '../widgets/imei_entry_sheet.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, required this.authController});
@@ -80,6 +82,10 @@ class _LoginPageState extends State<LoginPage> {
     FocusScope.of(context).unfocus();
     _clearTransientFeedback();
 
+    // The phone signs in by its IMEI; ask for it the first time.
+    if (!kIsWeb && await _ensureImei() == null) return;
+    if (!mounted) return;
+
     final success = await widget.authController.login(
       email: _emailController.text,
       password: _passwordController.text,
@@ -102,6 +108,9 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   bool _isDeviceApprovalIssue(String message) {
+    // Messages reach the screen in Khmer (see khmerErrorMessage); the
+    // English checks below remain for older wording.
+    if (deviceGateMessagesKm.values.contains(message.trim())) return true;
     final normalized = message.toLowerCase();
     return normalized.contains('device is not registered') ||
         normalized.contains('device_not_registered') ||
@@ -115,7 +124,8 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isServerConfigurationIssue(String message) {
     final normalized = message.toLowerCase();
-    return isNetworkErrorMessage(message) ||
+    return message.trim() == networkErrorKm ||
+        isNetworkErrorMessage(message) ||
         normalized.contains('cannot connect to server') ||
         normalized.contains('connection timeout') ||
         normalized.contains('timeout') ||
@@ -136,6 +146,14 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     await Navigator.of(context).pushNamed(AppRoutes.systemSettings);
+  }
+
+  /// This phone's IMEI (its machine number), asked for once when missing.
+  Future<String?> _ensureImei() async {
+    if (kIsWeb) return null;
+    final existing = await _machineNumberStorageService.getImei();
+    if (existing != null || !mounted) return existing;
+    return showImeiEntrySheet(context, storage: _machineNumberStorageService);
   }
 
   Future<void> _submitDeviceAccessRequest() async {
@@ -160,6 +178,17 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+      final imei = await _ensureImei();
+      if (imei == null && !kIsWeb) {
+        if (mounted) {
+          setState(() {
+            _requestFeedbackMessage =
+                'សូមបញ្ចូលលេខ IMEI របស់ទូរសព្ទ មុនផ្ញើសំណើ';
+            _requestFeedbackIsError = true;
+          });
+        }
+        return;
+      }
       final machineNumber =
           await _machineNumberStorageService.getMachineNumber();
       final deviceInfo = await _deviceMetadataService.collect();
@@ -170,6 +199,7 @@ class _LoginPageState extends State<LoginPage> {
         email: email,
         password: password,
         machineNumber: machineNumber,
+        imei: imei,
         deviceInfo: deviceInfo,
         deviceSummary: deviceSummary,
       );
@@ -179,7 +209,7 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       setState(() {
-        _requestFeedbackMessage = result.message;
+        _requestFeedbackMessage = khmerErrorMessage(result.message);
         _requestFeedbackIsError = false;
       });
     } catch (error) {
@@ -455,7 +485,7 @@ class _LoginPageState extends State<LoginPage> {
                                   controller: _emailController,
                                   keyboardType: TextInputType.emailAddress,
                                   decoration: InputDecoration(
-                                    labelText: tr(language, 'email', 'Email'),
+                                    labelText: tr(language, 'email', 'អ៊ីមែល'),
                                     prefixIcon: const Icon(
                                       Icons.mail_outline,
                                       size: 20,

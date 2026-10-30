@@ -163,8 +163,8 @@
             <div class="col-md-12">
                 <div class="row g-2 align-items-end">
                     <div class="col-md-3">
-                        <label class="form-label fw-semibold mb-1">{{ localize('device_id', 'Device ID') }} <span class="text-danger">*</span></label>
-                        <input type="text" id="device_create_id" class="form-control form-control-sm" placeholder="ANDROID_ID / UUID">
+                        <label class="form-label fw-semibold mb-1">{{ localize('device_id', 'Device ID') }} (IMEI) <span class="text-danger">*</span></label>
+                        <input type="text" id="device_create_id" class="form-control form-control-sm" placeholder="IMEI ១៥ ខ្ទង់ (*#06#)">
                     </div>
                     <div class="col-md-2">
                         <label class="form-label fw-semibold mb-1">{{ localize('device_name', 'Device Name') }}</label>

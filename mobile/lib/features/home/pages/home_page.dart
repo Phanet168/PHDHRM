@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -12,8 +14,10 @@ import '../../system/pages/help_support_page.dart';
 import '../models/attendance_day_record.dart';
 import '../models/home_notification_item.dart';
 import '../models/leave_request_models.dart';
+import '../models/mission_detail.dart';
 import '../models/mission_summary.dart';
 import 'mission_detail_page.dart';
+import 'mission_request_page.dart';
 import 'attendance_history_page.dart';
 import 'attendance_statistics_page.dart';
 import '../../system/pages/settings_home_page.dart';
@@ -23,6 +27,7 @@ import 'leave_review_page.dart';
 import 'leave_request_page.dart';
 import 'attendance_scan_page.dart';
 import '../services/home_attendance_service.dart';
+import '../services/offline_attendance_queue.dart';
 import '../services/home_leave_service.dart';
 import '../services/home_mission_service.dart';
 import '../services/home_notification_service.dart';
@@ -32,10 +37,12 @@ import 'home/home_menu.dart';
 import 'home/home_nav_widgets.dart';
 import 'home/home_common_widgets.dart';
 import 'home/home_dashboard_widgets.dart';
+import 'home/offline_scan_banner.dart';
 import 'home/leave_balance_widgets.dart';
 import 'home/home_notice_widgets.dart';
 import 'home/home_attendance_widgets.dart';
 import 'home/home_mission_widgets.dart';
+import 'home/mission_dashboard.dart';
 import 'home/home_profile_widgets.dart';
 import 'home/home_theme.dart';
 
@@ -48,7 +55,9 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
+  /// Retries queued offline scans while the app is open.
+  Timer? _offlineSyncTimer;
   late final HomeAttendanceService _attendanceService;
   late final HomeMissionService _missionService;
   late final HomeNotificationService _notificationService;
@@ -71,7 +80,28 @@ class _HomePageState extends State<HomePage> {
 
   HomeMenuItem _selectedMenu = HomeMenuItem.dashboard;
 
+  /// +1 / -1 when the last switch moved to a tab further right / left on the
+  /// bottom bar; drives the body's slide direction.
+  int _tabDirection = 0;
+
   bool get _isOnDashboard => _selectedMenu == HomeMenuItem.dashboard;
+
+  /// Left-to-right position on the bottom bar; drawer-only pages sit past
+  /// the last tab, so they slide in from the right.
+  static int _barOrder(HomeMenuItem item) {
+    switch (item) {
+      case HomeMenuItem.dashboard:
+        return 0;
+      case HomeMenuItem.attendance:
+        return 1;
+      case HomeMenuItem.mission:
+        return 3;
+      case HomeMenuItem.profile:
+        return 4;
+      default:
+        return 5;
+    }
+  }
 
   double _contentBottomPadding(BuildContext context, {double base = 24}) {
     final inset = MediaQuery.of(context).padding.bottom;
@@ -98,6 +128,72 @@ class _HomePageState extends State<HomePage> {
     _missionsFuture = null;
     _notificationsFuture = null;
     _pendingLeaveCountFuture = _loadPendingLeaveCount();
+
+    // Scans saved offline go out on launch, on return to the app, and every
+    // minute while it stays open.
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncOfflineScans());
+    _offlineSyncTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _syncOfflineScans(),
+    );
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _offlineSyncTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _syncOfflineScans();
+  }
+
+  /// Sends this officer's queued offline scans; refreshes the dashboard when
+  /// any went through. [manual] (the banner button) also reports "still
+  /// offline".
+  Future<void> _syncOfflineScans({bool manual = false}) async {
+    final user = widget.authController.currentUser;
+    if (user == null || !user.hasEmployee) return;
+    final queue = OfflineAttendanceQueue.instance;
+    await queue.load();
+    if (!queue.forUser(user.userId).any((scan) => !scan.isRejected)) return;
+    final report = await queue.sync(user, _attendanceService);
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    if (report.sent > 0) {
+      setState(() {
+        _dashboardAttendanceFuture = _loadAttendance(
+          fromDate: DateTime.now().subtract(const Duration(days: 7)),
+          toDate: DateTime.now(),
+        );
+      });
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('បានបញ្ជូនវត្តមានក្រៅបណ្ដាញ ${report.sent} ដោយជោគជ័យ'),
+        ),
+      );
+    }
+    if (report.rejected > 0) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            'ការស្កេនក្រៅបណ្ដាញ ${report.rejected} ត្រូវបានបដិសេធ — មើលនៅទំព័រដើម',
+          ),
+        ),
+      );
+    }
+    if (manual && report.stillOffline) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'នៅតែមិនអាចភ្ជាប់ម៉ាស៊ីនមេ — នឹងព្យាយាមម្ដងទៀតដោយស្វ័យប្រវត្តិ',
+          ),
+        ),
+      );
+    }
   }
 
   /// Pending leave count for the "សំណើរង់ចាំ" summary card and the drawer's
@@ -352,6 +448,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     setState(() {
+      _tabDirection = (_barOrder(item) - _barOrder(_selectedMenu)).sign;
       _selectedMenu = item;
       if (item == HomeMenuItem.mission && _missionsFuture == null) {
         _missionsFuture = _loadMissions();
@@ -418,7 +515,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     final result = await Navigator.of(context).push<HomeMenuItem>(
-      MaterialPageRoute<HomeMenuItem>(
+      HomeTabRoute<HomeMenuItem>(
         builder:
             (_) => AttendanceHistoryPage(
               user: user,
@@ -741,12 +838,20 @@ class _HomePageState extends State<HomePage> {
           end: Alignment.bottomRight,
         ),
       ),
-      child: ListView.separated(
+      // A few cards only: build them all at once so a section's open/closed
+      // state and the staggered entrance survive scrolling.
+      child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(14, 16, 14, 24),
-        itemCount: profileCards.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 14),
-        itemBuilder: (context, index) => profileCards[index],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < profileCards.length; i++) ...[
+              if (i > 0) const SizedBox(height: 14),
+              StaggeredEntrance(index: i, child: profileCards[i]),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -1408,11 +1513,22 @@ class _HomePageState extends State<HomePage> {
     Map<String, String> language,
     ThemeData theme,
   ) {
+    final from = DateTime.now().subtract(const Duration(days: 7));
+    final to = DateTime.now();
     final attendanceFuture =
         _dashboardAttendanceFuture ??= _loadAttendance(
-          fromDate: DateTime.now().subtract(const Duration(days: 7)),
-          toDate: DateTime.now(),
+          fromDate: from,
+          toDate: to,
         );
+    // Last known copy: the dashboard paints at once and refreshes in place.
+    final cachedAttendance =
+        user is AuthUser
+            ? _attendanceService.cachedAttendanceHistory(
+              user,
+              fromDate: from,
+              toDate: to,
+            )
+            : null;
 
     return FutureBuilder<HomeNotificationPageData>(
       future: _notificationsFuture ??= _loadNotifications(),
@@ -1423,9 +1539,11 @@ class _HomePageState extends State<HomePage> {
           onRefresh: _refresh,
           child: FutureBuilder<List<AttendanceDayRecord>>(
             future: attendanceFuture,
+            initialData: cachedAttendance,
             builder: (context, attendanceSnapshot) {
               if (attendanceSnapshot.connectionState ==
-                  ConnectionState.waiting) {
+                      ConnectionState.waiting &&
+                  !attendanceSnapshot.hasData) {
                 return const Center(child: CircularProgressIndicator());
               }
 
@@ -1459,12 +1577,22 @@ class _HomePageState extends State<HomePage> {
 
               return ListView(
                 padding: EdgeInsets.zero,
+                // Keep every section alive so its entrance animation plays
+                // once, not again each time it scrolls back into view.
+                cacheExtent: 3000,
                 children: [
                   DashboardProfileHeader(
                     appName: 'PHD HRM',
                     organization: (user?.departmentName ?? '-').toString(),
-                    nameAndPosition:
-                        '@${user?.name ?? 'User'} | ${(user?.positionKm ?? user?.position) ?? '-'}',
+                    name: '${user?.name ?? 'User'}',
+                    position: '${(user?.positionKm ?? user?.position) ?? '-'}',
+                    liveState:
+                        hasActiveSession
+                            ? DashboardLiveState.working
+                            : (todayRecord != null &&
+                                    todayRecord.timeIn.trim() != '-'
+                                ? DashboardLiveState.done
+                                : DashboardLiveState.notStarted),
                     initial: _userInitial(user),
                     unreadNotifications: unreadNoticeCount,
                     onMenuTap: () => Scaffold.of(context).openDrawer(),
@@ -1484,120 +1612,143 @@ class _HomePageState extends State<HomePage> {
                       user?.profilePic?.toString(),
                     ),
                   ),
-                  DashboardWeekStrip(days: weekDays),
-                  Container(
-                    width: double.infinity,
-                    color: const Color(0xFFF7F9F8),
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-                    child: DashboardActionsGrid(
-                      actions: [
-                        DashboardActionItem(
-                          icon: Icons.qr_code_scanner_rounded,
-                          label: _tr(
-                            language,
-                            'qr_scan_attendance',
-                            'ស្កេន QR កូដវត្តមាន',
+                  StaggeredEntrance(
+                    index: 0,
+                    child: DashboardWeekStrip(days: weekDays),
+                  ),
+                  if (user is AuthUser)
+                    OfflineScanBanner(
+                      userId: user.userId,
+                      onSendNow: () => _syncOfflineScans(manual: true),
+                    ),
+                  StaggeredEntrance(
+                    index: 1,
+                    child: Padding(
+                      // The week strip overlaps the header by 26px, which
+                      // leaves that much space above this section.
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+                      child: DashboardActionsGrid(
+                        actions: [
+                          DashboardActionItem(
+                            icon: Icons.qr_code_scanner_rounded,
+                            label: _tr(
+                              language,
+                              'qr_scan_attendance',
+                              'ស្កេន QR កូដវត្តមាន',
+                            ),
+                            subtitle: _tr(
+                              language,
+                              'qr_scan_attendance_hint',
+                              'ស្កេន QR ឬ GPS ដើម្បីចុះវត្តមានចូល/ចេញ',
+                            ),
+                            color: const Color(0xFF6C5CE7),
+                            badgeLabel: hasActiveSession ? 'ONLINE' : null,
+                            onTap: () => _openAttendanceScanner(language),
                           ),
-                          color: const Color(0xFF6C5CE7),
-                          badgeLabel: hasActiveSession ? 'ONLINE' : null,
-                          onTap: () => _openAttendanceScanner(language),
-                        ),
-                        DashboardActionItem(
-                          icon: Icons.event_note_outlined,
-                          label: _tr(
-                            language,
-                            'submit_leave_request',
-                            'ដាក់សំណើសុំច្បាប់',
-                          ),
-                          color: dashboardHeaderStart,
-                          onTap:
-                              () => _openAdditionalService(
-                                HomeMenuItem.leave,
-                                language,
-                                message: _tr(
+                          DashboardActionItem(
+                            icon: Icons.edit_calendar_rounded,
+                            label: _tr(
+                              language,
+                              'submit_leave_request',
+                              'ដាក់សំណើសុំច្បាប់',
+                            ),
+                            color: dashboardHeaderStart,
+                            onTap:
+                                () => _openAdditionalService(
+                                  HomeMenuItem.leave,
                                   language,
-                                  'service_redirect_leave',
-                                  'សូមដាក់សំណើច្បាប់ រួចរង់ចាំការអនុម័ត។',
+                                  message: _tr(
+                                    language,
+                                    'service_redirect_leave',
+                                    'សូមដាក់សំណើច្បាប់ រួចរង់ចាំការអនុម័ត។',
+                                  ),
                                 ),
-                              ),
-                        ),
-                        DashboardActionItem(
-                          icon: Icons.description_outlined,
-                          label: _tr(
-                            language,
-                            'correspondence',
-                            'លិខិតផ្លូវការ',
                           ),
-                          color: const Color(0xFFF39C12),
-                          onTap:
-                              () => _openAdditionalService(
-                                HomeMenuItem.correspondence,
-                                language,
-                              ),
-                        ),
-                        DashboardActionItem(
-                          icon: Icons.badge_outlined,
-                          label: _tr(language, 'staff_info', 'ព័ត៌មានមន្ត្រី'),
-                          color: const Color(0xFF00838F),
-                          onTap: () => _switchToMenu(HomeMenuItem.profile),
-                        ),
-                        DashboardActionItem(
-                          icon: Icons.flag_outlined,
-                          label: _tr(
-                            language,
-                            'my_missions',
-                            'បេសកកម្មរបស់ខ្ញុំ',
+                          DashboardActionItem(
+                            icon: Icons.article_rounded,
+                            label: _tr(
+                              language,
+                              'correspondence',
+                              'លិខិតផ្លូវការ',
+                            ),
+                            color: const Color(0xFFF39C12),
+                            onTap:
+                                () => _openAdditionalService(
+                                  HomeMenuItem.correspondence,
+                                  language,
+                                ),
                           ),
-                          color: const Color(0xFF5C6BC0),
-                          onTap:
-                              () => _openAdditionalService(
-                                HomeMenuItem.mission,
-                                language,
-                              ),
-                        ),
-                      ],
+                          DashboardActionItem(
+                            icon: Icons.badge_rounded,
+                            label: _tr(
+                              language,
+                              'staff_info',
+                              'ព័ត៌មានមន្ត្រី',
+                            ),
+                            color: const Color(0xFF00838F),
+                            onTap: () => _switchToMenu(HomeMenuItem.profile),
+                          ),
+                          DashboardActionItem(
+                            icon: Icons.travel_explore_rounded,
+                            label: _tr(
+                              language,
+                              'my_missions',
+                              'បេសកកម្មរបស់ខ្ញុំ',
+                            ),
+                            color: const Color(0xFF5C6BC0),
+                            onTap:
+                                () => _openAdditionalService(
+                                  HomeMenuItem.mission,
+                                  language,
+                                ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: GestureDetector(
-                      onTap: () => _openAttendanceStatistics(language),
-                      child: DashboardWorkStatusCard(
-                        title: _tr(
-                          language,
-                          'today_status',
-                          'ស្ថានភាពការធ្វើការថ្ងៃនេះ',
-                        ),
-                        sessions: todayRecord?.sessions ?? const [],
-                        emptyLabel: _tr(
-                          language,
-                          'no_shift_today',
-                          'មិនទាន់មានវេនបង្ហាញ',
-                        ),
-                        provisionalNote:
-                            todayRecord?.isProvisional == true
-                                ? _tr(
-                                  language,
-                                  'attendance_provisional',
-                                  'វត្តមានថ្ងៃនេះកំពុងកត់ត្រា មិនទាន់ជាលទ្ធផលចុងក្រោយ។',
-                                )
-                                : null,
-                        progressLabel: _tr(
-                          language,
-                          'work_progress',
-                          'វឌ្ឍភាពការងារ',
-                        ),
-                        progressValue: _workedHoursShort(todayRecord),
-                        percent: _todayHoursPercent(todayRecord),
-                        checkInLabel: _tr(language, 'check_in', 'ចូល'),
-                        checkOutLabel: _tr(language, 'check_out', 'ចេញ'),
-                        waitingLabel: _tr(language, 'waiting', 'រង់ចាំ'),
-                        onTimeLabel: _tr(language, 'on_time', 'ទាន់ពេល'),
-                        lateLabel: _tr(language, 'late', 'មកយឺត'),
-                        earlyLeaveLabel: _tr(
-                          language,
-                          'early_leave',
-                          'ចេញមុនម៉ោង',
+                  StaggeredEntrance(
+                    index: 2,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      child: GestureDetector(
+                        onTap: () => _openAttendanceStatistics(language),
+                        child: DashboardWorkStatusCard(
+                          title: _tr(
+                            language,
+                            'today_status',
+                            'ស្ថានភាពការធ្វើការថ្ងៃនេះ',
+                          ),
+                          sessions: todayRecord?.sessions ?? const [],
+                          emptyLabel: _tr(
+                            language,
+                            'no_shift_today',
+                            'មិនទាន់មានវេនបង្ហាញ',
+                          ),
+                          provisionalNote:
+                              todayRecord?.isProvisional == true
+                                  ? _tr(
+                                    language,
+                                    'attendance_provisional',
+                                    'វត្តមានថ្ងៃនេះកំពុងកត់ត្រា មិនទាន់ជាលទ្ធផលចុងក្រោយ។',
+                                  )
+                                  : null,
+                          progressLabel: _tr(
+                            language,
+                            'work_progress',
+                            'វឌ្ឍភាពការងារ',
+                          ),
+                          progressValue: _workedHoursShort(todayRecord),
+                          percent: _todayHoursPercent(todayRecord),
+                          checkInLabel: _tr(language, 'check_in', 'ចូល'),
+                          checkOutLabel: _tr(language, 'check_out', 'ចេញ'),
+                          waitingLabel: _tr(language, 'waiting', 'រង់ចាំ'),
+                          onTimeLabel: _tr(language, 'on_time', 'ទាន់ពេល'),
+                          lateLabel: _tr(language, 'late', 'មកយឺត'),
+                          earlyLeaveLabel: _tr(
+                            language,
+                            'early_leave',
+                            'ចេញមុនម៉ោង',
+                          ),
                         ),
                       ),
                     ),
@@ -1619,68 +1770,57 @@ class _HomePageState extends State<HomePage> {
                         language,
                       );
 
-                      return Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          16,
-                          12,
-                          16,
-                          _contentBottomPadding(context),
-                        ),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x14173529),
-                                blurRadius: 12,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
+                      return StaggeredEntrance(
+                        index: 3,
+                        child: Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            16,
+                            16,
+                            16,
+                            _contentBottomPadding(context),
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.calendar_month_outlined,
-                                    size: 18,
-                                    color: dashboardHeaderEnd,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _tr(
-                                      language,
-                                      'leave_balance',
-                                      'សមតុល្យច្បាប់',
-                                    ),
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w800,
-                                      color: dashboardHeaderEnd,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              for (var i = 0; i < displays.length; i++) ...[
-                                GestureDetector(
-                                  onTap:
-                                      () => _openAdditionalService(
-                                        HomeMenuItem.leave,
-                                        language,
-                                      ),
-                                  child: LeaveBalanceProgressRow(
-                                    item: displays[i],
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(22),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x14173529),
+                                  blurRadius: 16,
+                                  offset: Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                DashboardCardHeader(
+                                  icon: Icons.beach_access_rounded,
+                                  title: _tr(
+                                    language,
+                                    'leave_balance',
+                                    'សមតុល្យច្បាប់',
                                   ),
                                 ),
-                                if (i != displays.length - 1)
-                                  const SizedBox(height: 14),
+                                const SizedBox(height: 16),
+                                for (var i = 0; i < displays.length; i++) ...[
+                                  GestureDetector(
+                                    onTap:
+                                        () => _openAdditionalService(
+                                          HomeMenuItem.leave,
+                                          language,
+                                        ),
+                                    child: LeaveBalanceProgressRow(
+                                      item: displays[i],
+                                    ),
+                                  ),
+                                  if (i != displays.length - 1)
+                                    const SizedBox(height: 14),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
                       );
@@ -1709,6 +1849,33 @@ class _HomePageState extends State<HomePage> {
     final minutes = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
     const expectedHours = 8;
     return ((hours + minutes / 60) / expectedHours).clamp(0.0, 1.0);
+  }
+
+  /// Opens the request form; once submitted, shows the new request's detail
+  /// (its approval stage) and refreshes the list.
+  Future<void> _openMissionRequest() async {
+    final created = await Navigator.of(context).push<MissionDetail>(
+      MaterialPageRoute(builder: (_) => const MissionRequestPage()),
+    );
+    if (created == null || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('បានដាក់ស្នើសំណើបេសកកម្មដោយជោគជ័យ។')),
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MissionDetailPage(missionId: created.mission.id),
+      ),
+    );
+    if (mounted) await _refresh();
+  }
+
+  Future<void> _openMission(MissionSummary mission) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => MissionDetailPage(missionId: mission.id),
+      ),
+    );
+    if (mounted) await _refresh();
   }
 
   Widget _buildMissions(Map<String, String> language) {
@@ -1740,7 +1907,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 HomeErrorStateCard(
                   title: _tr(language, 'mission', 'បេសកកម្ម'),
-                  message: '${snapshot.error}',
+                  message: extractApiErrorMessage(snapshot.error!),
                   onRetry: _refresh,
                 ),
               ],
@@ -1752,6 +1919,8 @@ class _HomePageState extends State<HomePage> {
             return ListView(
               padding: const EdgeInsets.all(16),
               children: [
+                MissionRequestBanner(onTap: _openMissionRequest),
+                const SizedBox(height: 14),
                 HomeSectionCard(
                   title: _tr(language, 'mission', 'បេសកកម្ម'),
                   description: _tr(
@@ -1767,18 +1936,29 @@ class _HomePageState extends State<HomePage> {
           return ListView(
             padding: listPadding,
             children: [
+              MissionDashboard(
+                missions: missions,
+                employeeId: widget.authController.currentUser?.employeeId ?? 0,
+                onOpenMission: _openMission,
+              ),
+              const SizedBox(height: 14),
+              MissionRequestBanner(onTap: _openMissionRequest),
+              const SizedBox(height: 18),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 10),
+                child: Text(
+                  'បេសកកម្មទាំងអស់',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
               for (final mission in missions) ...[
                 InkWell(
                   borderRadius: BorderRadius.circular(24),
-                  onTap: () async {
-                    await Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder:
-                            (_) => MissionDetailPage(missionId: mission.id),
-                      ),
-                    );
-                    if (mounted) await _refresh();
-                  },
+                  onTap: () => _openMission(mission),
                   child: MissionRecordCard(
                     title: mission.title.isEmpty ? '-' : mission.title,
                     destination:
@@ -1829,7 +2009,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 HomeErrorStateCard(
                   title: _tr(language, 'notice_list', 'ជូនដំណឹង'),
-                  message: '${snapshot.error}',
+                  message: extractApiErrorMessage(snapshot.error!),
                   onRetry: _refresh,
                 ),
               ],
@@ -2004,6 +2184,7 @@ class _HomePageState extends State<HomePage> {
           user: user,
           language: language,
           leaveService: _leaveService,
+          embedded: true,
         );
       case HomeMenuItem.salary:
         return ListView(
@@ -2099,7 +2280,11 @@ class _HomePageState extends State<HomePage> {
                         ],
                       ),
               drawer: _buildDrawer(user, language),
-              body: _buildBody(user, language, theme),
+              body: HomeTabTransition(
+                tabKey: _selectedMenu,
+                direction: _tabDirection,
+                child: _buildBody(user, language, theme),
+              ),
               bottomNavigationBar: HomeBottomNavigation(
                 currentIndex: _bottomNavIndex(),
                 onTap: (index) => _onBottomNavTap(index, language),

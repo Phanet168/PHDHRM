@@ -567,7 +567,7 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
                 Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
                 const SizedBox(height: 12),
                 Text(
-                  '${snapshot.error}',
+                  extractApiErrorMessage(snapshot.error!),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey[600]),
                 ),
@@ -631,7 +631,7 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
                 Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
                 const SizedBox(height: 12),
                 Text(
-                  '${snapshot.error}',
+                  extractApiErrorMessage(snapshot.error!),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey[600]),
                 ),
@@ -695,7 +695,7 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
                 Icon(Icons.error_outline, size: 48, color: Colors.grey[400]),
                 const SizedBox(height: 12),
                 Text(
-                  '${snapshot.error}',
+                  extractApiErrorMessage(snapshot.error!),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey[600]),
                 ),
@@ -756,7 +756,7 @@ class _CorrespondencePageState extends State<CorrespondencePage> {
         }
 
         if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
+          return Center(child: Text(extractApiErrorMessage(snapshot.error!)));
         }
 
         final data = snapshot.data ?? <String, dynamic>{};

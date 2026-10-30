@@ -40,6 +40,7 @@ class MobileAttendanceApiTest extends TestCase
         });
         (require base_path('database/migrations/2026_04_19_080000_create_attendance_scan_logs_table.php'))->up();
         (require base_path('modules/HumanResource/Database/Migrations/2026_09_12_100000_create_mobile_attendance_requests.php'))->up();
+        (require base_path('modules/HumanResource/Database/Migrations/2026_04_19_101000_create_adjustment_snapshot_and_policy_tables.php'))->up();
         DB::table('departments')->where('id', 1)->update(['latitude' => 11.55, 'longitude' => 104.92, 'geofence_radius_meters' => 100]);
         DB::table('employees')->where('id', 1)->update(['user_id' => 99]);
         $this->loginOfficer();
@@ -69,6 +70,15 @@ class MobileAttendanceApiTest extends TestCase
         return $this->postJson('/api/v1/attendance/scan', $data + ['latitude' => 11.55, 'longitude' => 104.92, 'request_id' => (string) Str::uuid()]);
     }
 
+    public function test_today_sends_the_enforced_geofence_for_the_live_zone_indicator(): void
+    {
+        $this->getJson('/api/v1/attendance/today')->assertOk()
+            ->assertJsonPath('response.meta.geofence.latitude', 11.55)
+            ->assertJsonPath('response.meta.geofence.longitude', 104.92)
+            ->assertJsonPath('response.meta.geofence.radius_meters', 100)
+            ->assertJsonPath('response.meta.geofence.source', 'workplace');
+    }
+
     public function test_history_requires_authentication(): void
     {
         auth()->forgetGuards();
@@ -94,6 +104,30 @@ class MobileAttendanceApiTest extends TestCase
             ->assertJsonPath('response.data.0.employee_id', 1)->assertJsonPath('response.data.0.worked_minutes', 390)
             ->assertJsonPath('response.data.0.attendance_status', 'late_and_early_leave')
             ->assertJsonPath('response.data.0.total_hours', '6:30:00')->assertJsonPath('response.data.0.punch_count', 4);
+    }
+
+    public function test_printable_report_is_own_signed_and_short_lived(): void
+    {
+        $this->shift();
+        foreach ([['08:00', 1], ['12:00', 2], ['14:20', 1], ['16:50', 2]] as [$time, $state]) {
+            DB::table('attendances')->insert(['employee_id' => 1, 'time' => '2026-09-07 '.$time.':00', 'machine_state' => $state]);
+        }
+        $this->getJson('/api/v1/attendance/report/signed-url?employee_id=2')->assertUnprocessable();
+        $this->getJson('/api/v1/attendance/report/signed-url?from_date=2026-01-01&to_date=2026-12-31')->assertUnprocessable();
+        $url = $this->getJson('/api/v1/attendance/report/signed-url?from_date=2026-09-01&to_date=2026-09-30')
+            ->assertOk()->json('response.data.url');
+        $this->assertStringContainsString('employee=1', $url);
+
+        // Opened in the phone's browser: no token, only the signature.
+        auth()->forgetGuards();
+        $this->get($url)->assertOk()->assertHeader('Cache-Control', 'no-store, private')
+            ->assertSee('របាយការណ៍វត្តមានមន្ត្រី')->assertSee('ខែកញ្ញា ឆ្នាំ២០២៦')
+            ->assertSee('យឺត និងចេញមុន')->assertSee('ព្រឹក៖ ០៨:០០ → ១២:០០')->assertSee('២០នាទី')
+            // Today (the 8th) is not over, so it is never called absent; the 9th+ are not listed.
+            ->assertSee('កំពុងបន្ត')->assertDontSee('ព្រហ ១០/៩');
+        $this->get(str_replace('employee=1', 'employee=2', $url))->assertForbidden();
+        Carbon::setTestNow(now()->addMinutes(11));
+        $this->get($url)->assertForbidden();
     }
 
     public function test_client_cannot_select_another_employee_or_backdate_a_scan(): void
@@ -123,6 +157,41 @@ class MobileAttendanceApiTest extends TestCase
         $this->assertSame(1, DB::table('attendances')->count());
         $this->assertSame('2026-09-08 17:10:00', DB::table('attendances')->value('time'));
         $this->assertSame(2, DB::table('attendance_scan_logs')->count());
+    }
+
+    public function test_offline_scan_keeps_its_capture_time_and_resyncs_once(): void
+    {
+        $this->shift();
+        $id = (string) Str::uuid();
+        $offline = ['request_id' => $id, 'offline' => true, 'captured_at' => '2026-09-08T07:55:00+07:00', 'clock_source' => 'server_anchored'];
+        $this->scan($offline)->assertCreated()->assertJsonPath('response.punch_type', 'in');
+        // The app retries until it hears back: the same key never makes a second punch.
+        $this->scan($offline)->assertOk()->assertJsonPath('response.duplicate', true);
+        $this->assertSame(1, DB::table('attendances')->count());
+        $this->assertSame('2026-09-08 07:55:00', DB::table('attendances')->value('time'));
+        $this->assertSame('mobile_offline:'.$id, DB::table('attendances')->value('source_reference'));
+        $this->assertStringContainsString('"offline":true', (string) DB::table('attendance_scan_logs')->where('status', 'success')->value('meta_payload'));
+        // An online scan ignores any client time and keeps the server clock.
+        $this->scan(['captured_at' => '2026-09-08T06:00:00+07:00'])->assertCreated();
+        $this->assertSame('2026-09-08 17:10:00', DB::table('attendances')->orderByDesc('id')->value('time'));
+    }
+
+    public function test_offline_scan_window_and_qr_validity_are_enforced(): void
+    {
+        config(['humanresource.attendance.offline_max_hours' => 24]);
+        $this->scan(['offline' => true])->assertUnprocessable()->assertJsonValidationErrors('captured_at');
+        $this->scan(['offline' => true, 'captured_at' => '2026-09-08T17:30:00+07:00'])
+            ->assertUnprocessable()->assertJsonPath('response.error_code', 'offline_time_invalid');
+        $this->scan(['offline' => true, 'captured_at' => '2026-09-07T16:00:00+07:00'])
+            ->assertUnprocessable()->assertJsonPath('response.error_code', 'offline_scan_expired');
+        // The QR code's own validity proves when it was scanned.
+        $shownAt = Carbon::parse('2026-09-08 08:00:00');
+        $qr = QrAttendanceTokenService::generate(['wid' => 1, 'iat' => $shownAt->timestamp, 'exp' => $shownAt->copy()->addMinutes(2)->timestamp]);
+        $this->scan(['offline' => true, 'qr_token' => $qr, 'captured_at' => '2026-09-08T09:00:00+07:00'])
+            ->assertUnprocessable()->assertJsonPath('response.error_code', 'invalid_qr');
+        $this->assertSame(0, DB::table('attendances')->count());
+        $this->scan(['offline' => true, 'qr_token' => $qr, 'captured_at' => '2026-09-08T08:01:00+07:00'])->assertCreated();
+        $this->assertSame('2026-09-08 08:01:00', DB::table('attendances')->value('time'));
     }
 
     public function test_near_duplicate_gps_keeps_both_retry_keys_without_toggling(): void

@@ -181,7 +181,7 @@ class _LeaveHistoryPageState extends State<LeaveHistoryPage> {
         actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
-            tooltip: 'Refresh',
+            tooltip: 'ធ្វើបច្ចុប្បន្នភាព',
             onPressed: _loading ? null : _loadAll,
           ),
         ],

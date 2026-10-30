@@ -71,6 +71,9 @@ class DeviceHeartbeatService {
     _isSending = true;
     try {
       final deviceId = await _machineNumberStorageService.getMachineNumber();
+      final imei = await _machineNumberStorageService.getImei();
+      final legacy =
+          await _machineNumberStorageService.getLegacyMachineNumber();
       final platform = kIsWeb ? 'web' : _getPlatformName();
 
       await _apiService.post(
@@ -79,6 +82,8 @@ class DeviceHeartbeatService {
           'device_id': deviceId,
           'device_name': deviceId,
           'platform': platform,
+          if (imei != null) 'imei': imei,
+          if (legacy != null) 'legacy_device_id': legacy,
         },
         requiresAuth: true,
       );

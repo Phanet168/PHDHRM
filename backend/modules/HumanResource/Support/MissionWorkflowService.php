@@ -161,7 +161,7 @@ class MissionWorkflowService
             }
         }
 
-        DB::transaction(function () use ($mission, $plan, $submittedBy, $departmentId, $startStep): void {
+        DB::transaction(function () use ($mission, $plan, $submittedBy, $departmentId, $startStep, $context): void {
             $steps = collect((array) ($plan['steps'] ?? []))->sortBy('step_order')->values();
             $effectiveStartStep = $startStep ?? $steps->first();
             $firstOrder = (int) ($effectiveStartStep['step_order'] ?? 1);

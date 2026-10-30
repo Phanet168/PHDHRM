@@ -45,6 +45,9 @@
             @if (config('site.hrm_url'))
                 <a href="{{ config('site.hrm_url') }}" target="_blank" rel="noopener" class="show-from-md bg-brand-blue rounded-full px-3 py-[3px] font-bold whitespace-nowrap">ចូលប្រព័ន្ធ HRM</a>
             @endif
+            @if (config('site.drugs_url'))
+                <a href="{{ config('site.drugs_url') }}" target="_blank" rel="noopener" class="show-from-md bg-brand-blue rounded-full px-3 py-[3px] font-bold whitespace-nowrap">ចូលប្រព័ន្ធឱសថ</a>
+            @endif
         </div>
     </div>
 </div>
@@ -95,6 +98,9 @@
             <a href="{{ route('facilities.index') }}">ស្វែងរក</a>
             @if (config('site.hrm_url'))
                 <a href="{{ config('site.hrm_url') }}" target="_blank" rel="noopener" class="public-header-mobile-hrm">ចូលប្រព័ន្ធ HRM</a>
+            @endif
+            @if (config('site.drugs_url'))
+                <a href="{{ config('site.drugs_url') }}" target="_blank" rel="noopener" class="public-header-mobile-hrm">ចូលប្រព័ន្ធឱសថ</a>
             @endif
         </div>
     </div>

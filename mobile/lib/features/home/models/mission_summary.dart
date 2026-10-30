@@ -7,6 +7,9 @@ class MissionSummary {
     required this.endDate,
     required this.status,
     required this.employeeCount,
+    this.missionTypeLabel = '',
+    this.isParticipant,
+    this.teamMemberIds = const <int>[],
   });
 
   final int id;
@@ -16,6 +19,15 @@ class MissionSummary {
   final String endDate;
   final String status;
   final int employeeCount;
+  final String missionTypeLabel;
+
+  /// Whether the signed-in employee is on the team; null from older servers.
+  final bool? isParticipant;
+  final List<int> teamMemberIds;
+
+  /// The employee goes on this mission (not merely its requester).
+  bool includes(int employeeId) =>
+      isParticipant ?? (employeeId > 0 && teamMemberIds.contains(employeeId));
 
   factory MissionSummary.fromMap(Map<String, dynamic> map) {
     final assignmentsRaw = map['assignments'];
@@ -23,8 +35,18 @@ class MissionSummary {
     if (assignmentsRaw is List) {
       computedEmployeeCount = assignmentsRaw.length;
     }
+    final team = map['team_members'];
+    final participant = map['is_participant'];
 
     return MissionSummary(
+      missionTypeLabel: (map['mission_type_label'] ?? '').toString().trim(),
+      isParticipant: participant is bool ? participant : null,
+      teamMemberIds: <int>[
+        if (team is List)
+          for (final member in team)
+            if (member is Map && _toInt(member['id']) != null)
+              _toInt(member['id'])!,
+      ],
       id: _toInt(map['id']) ?? 0,
       title: (map['title'] ?? '').toString().trim(),
       destination: (map['destination'] ?? '').toString().trim(),

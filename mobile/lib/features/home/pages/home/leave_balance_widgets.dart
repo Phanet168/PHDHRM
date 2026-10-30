@@ -10,11 +10,13 @@ class LeaveBalanceDef {
     required this.tint,
     required this.accent,
     required this.keywords,
+    this.icon = Icons.event_note_rounded,
   });
 
   final Color tint;
   final Color accent;
   final List<String> keywords;
+  final IconData icon;
 }
 
 /// A leave type's balance, resolved to display-ready values (title already
@@ -28,6 +30,7 @@ class LeaveBalanceDisplay {
     required this.percent,
     required this.tint,
     required this.accent,
+    this.icon = Icons.event_note_rounded,
   });
 
   final String title;
@@ -37,6 +40,7 @@ class LeaveBalanceDisplay {
   final double percent;
   final Color tint;
   final Color accent;
+  final IconData icon;
 }
 
 // Style presets for recognisable leave types (matched by keyword); any
@@ -47,21 +51,25 @@ const List<LeaveBalanceDef> _balanceDefs = <LeaveBalanceDef>[
     tint: Color(0xFFEFF6FF),
     accent: Color(0xFF3B82F6),
     keywords: <String>['annual', 'year', 'ប្រចាំឆ្នាំ'],
+    icon: Icons.beach_access_rounded,
   ),
   LeaveBalanceDef(
     tint: Color(0xFFF0FDF4),
     accent: Color(0xFF10B981),
     keywords: <String>['short', 'casual', 'special', 'រយៈពេលខ្លី'],
+    icon: Icons.timelapse_rounded,
   ),
   LeaveBalanceDef(
     tint: Color(0xFFFAF5FF),
     accent: Color(0xFF8B5CF6),
     keywords: <String>['maternity', 'mater', 'លំហែ'],
+    icon: Icons.child_friendly_rounded,
   ),
   LeaveBalanceDef(
     tint: Color(0xFFFFFBEB),
     accent: Color(0xFFF59E0B),
     keywords: <String>['sick', 'medical', 'ព្យាបាល', 'ជំងឺ'],
+    icon: Icons.medical_services_rounded,
   ),
 ];
 
@@ -87,6 +95,16 @@ const List<LeaveBalanceDef> _fallbackPalette = <LeaveBalanceDef>[
     keywords: <String>[],
   ),
 ];
+
+/// The icon of the leave type named by [names] (English and/or Khmer name),
+/// matched with the same keywords as the balance cards.
+IconData leaveTypeIcon(Iterable<String> names) {
+  final text = names.map((name) => name.toLowerCase()).join(' ');
+  for (final def in _balanceDefs) {
+    if (def.keywords.any(text.contains)) return def.icon;
+  }
+  return Icons.event_note_rounded;
+}
 
 /// Builds one [LeaveBalanceDisplay] per leave type — each type's balance is
 /// its own figure (never summed across types, since different leave types
@@ -120,6 +138,7 @@ List<LeaveBalanceDisplay> buildLeaveBalanceDisplays(
       percent: ent <= 0 ? 0.0 : (displayUsed / ent).clamp(0.0, 1.0),
       tint: style.tint,
       accent: style.accent,
+      icon: style.icon,
     );
   }).toList();
 }
@@ -178,73 +197,117 @@ class LeaveBalanceProgressRow extends StatelessWidget {
   }
 }
 
-/// One leave type's balance card: the type name, a linear progress bar
-/// (used/entitlement %), and a used/total + remaining row. Used on both the
-/// Leave screen and the Dashboard.
+/// One leave type's balance tile on the Leave screen: an animated ring of the
+/// days still available (number in the middle), the type's icon and name,
+/// and "used / entitlement". Grows with its title, so long Khmer names and
+/// large system fonts never overflow.
 class LeaveBalanceCard extends StatelessWidget {
   const LeaveBalanceCard({super.key, required this.item});
 
   final LeaveBalanceDisplay item;
 
+  static String _km(int value) =>
+      value
+          .toString()
+          .split('')
+          .map((c) => int.tryParse(c) == null ? c : '០១២៣៤៥៦៧៨៩'[int.parse(c)])
+          .join();
+
   @override
   Widget build(BuildContext context) {
+    final left = item.total <= 0 ? 0.0 : (1 - item.percent).clamp(0.0, 1.0);
+
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: item.tint,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: item.accent.withValues(alpha: 0.25)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: item.accent.withValues(alpha: 0.18)),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: item.accent.withValues(alpha: 0.10),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              SizedBox(
+                width: 58,
+                height: 58,
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0, end: left),
+                  duration: const Duration(milliseconds: 900),
+                  curve: Curves.easeOutCubic,
+                  builder:
+                      (context, value, child) => Stack(
+                        fit: StackFit.expand,
+                        children: <Widget>[
+                          CircularProgressIndicator(
+                            value: value,
+                            strokeWidth: 6,
+                            strokeCap: StrokeCap.round,
+                            backgroundColor: item.accent.withValues(
+                              alpha: 0.14,
+                            ),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              item.accent,
+                            ),
+                          ),
+                          child!,
+                        ],
+                      ),
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8),
+                        child: Text(
+                          _km(item.remaining),
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: item.accent,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const Spacer(),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: item.tint,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(item.icon, size: 18, color: item.accent),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
           Text(
             item.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 12,
+              fontSize: 13,
               fontWeight: FontWeight.w700,
               color: Color(0xFF0F172A),
-              height: 1.3,
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: item.percent,
-              minHeight: 8,
-              backgroundColor: item.accent.withValues(alpha: 0.15),
-              valueColor: AlwaysStoppedAnimation<Color>(item.accent),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: <Widget>[
-              Flexible(
-                child: Text(
-                  '${item.used}/${item.total} ថ្ងៃ',
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF5C6B7A),
-                  ),
-                ),
-              ),
-              Text(
-                'នៅសល់ ${item.remaining}',
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: item.accent,
-                ),
-              ),
-            ],
+          const SizedBox(height: 4),
+          Text(
+            'នៅសល់ ${_km(item.remaining)} ថ្ងៃ · ប្រើ ${_km(item.used)}/${_km(item.total)}',
+            style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
           ),
         ],
       ),

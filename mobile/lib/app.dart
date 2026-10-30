@@ -1,10 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/config/app_routes.dart';
-import 'core/localization/laravel_language_service.dart';
 import 'core/theme/app_design_system.dart';
+import 'core/theme/appearance_settings.dart';
 import 'features/auth/controllers/auth_controller.dart';
 import 'features/auth/pages/login_page.dart';
 import 'features/home/pages/home_page.dart';
@@ -30,8 +29,7 @@ class _StaffMobileAppState extends State<StaffMobileApp> {
     _ownsAuthController = widget.authController == null;
     _authController = widget.authController ?? AuthController();
 
-    // Prewarm language cache without blocking first frame rendering.
-    unawaited(LaravelLanguageService.instance.load());
+    AppearanceSettings.instance.addListener(_redrawEverything);
 
     if (_ownsAuthController) {
       _authController.restoreSession();
@@ -40,23 +38,57 @@ class _StaffMobileAppState extends State<StaffMobileApp> {
 
   @override
   void dispose() {
+    AppearanceSettings.instance.removeListener(_redrawEverything);
     if (_ownsAuthController) {
       _authController.dispose();
     }
     super.dispose();
   }
 
+  /// Screens read the accent while building, so a new accent or text size
+  /// must rebuild every screen on the stack, not only the visible one.
+  void _redrawEverything() {
+    if (!mounted) return;
+    void rebuild(Element element) {
+      element.markNeedsBuild();
+      element.visitChildren(rebuild);
+    }
+
+    (context as Element).visitChildren(rebuild);
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: _authController,
+      animation: Listenable.merge([
+        _authController,
+        AppearanceSettings.instance,
+      ]),
       builder: (context, _) {
         final weekdayColor = AppDesignSystem.colorForWeekday(
           DateTime.now().weekday,
         );
+        final textScale = AppearanceSettings.instance.textScale;
         return MaterialApp(
           title: 'PHDHRMS',
           debugShowCheckedModeBanner: false,
+          // The app is Khmer only, Flutter's own text included.
+          locale: const Locale('km'),
+          supportedLocales: const [Locale('km')],
+          localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          builder:
+              (context, child) =>
+                  textScale == 1.0
+                      ? child!
+                      : MediaQuery(
+                        data: MediaQuery.of(context).copyWith(
+                          textScaler: ScaledTextScaler(
+                            MediaQuery.textScalerOf(context),
+                            textScale,
+                          ),
+                        ),
+                        child: child!,
+                      ),
           theme: AppDesignSystem.lightTheme(seedColor: weekdayColor),
           onGenerateRoute: (settings) {
             switch (settings.name) {

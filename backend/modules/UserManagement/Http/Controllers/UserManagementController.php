@@ -678,6 +678,17 @@ class UserManagementController extends Controller
 
     public function userDeviceStore(Request $request, User $user)
     {
+        // Phones are registered by their IMEI (the app's machine number): either
+        // field alone is enough, written with or without spaces.
+        $imei = preg_replace('/\D/', '', (string) $request->input('imei'));
+        $deviceId = trim((string) $request->input('device_id'));
+        $deviceDigits = preg_replace('/[\s-]/', '', $deviceId);
+        if ($deviceId === '' && \App\Http\Controllers\Api\AuthController::isImei($imei)) {
+            $request->merge(['device_id' => $imei]);
+        } elseif (\App\Http\Controllers\Api\AuthController::isImei($deviceDigits)) {
+            $request->merge(['device_id' => $deviceDigits, 'imei' => $imei !== '' ? $imei : $deviceDigits]);
+        }
+
         $validator = Validator::make($request->all(), [
             'device_id' => ['required', 'string', 'max:191'],
             'device_name' => ['nullable', 'string', 'max:191'],

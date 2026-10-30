@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'appearance_settings.dart';
+
 class AppDesignSystem {
   static const Color primary = Color(0xFF0B6B58);
   static const Color primaryHover = Color(0xFF085246);
@@ -38,8 +40,14 @@ class AppDesignSystem {
   static const Color noticeTitle = Color(0xFF1B2A25);
   static const Color noticeBody = Color(0xFF42534D);
 
-  // Dart weekday: Mon=1 ... Sun=7
-  static Color colorForWeekday(int weekday) {
+  /// The app's accent for [weekday] (Dart weekday: Mon=1 ... Sun=7): the
+  /// colour the user fixed in Settings › Appearance, otherwise the
+  /// traditional colour of that day.
+  static Color colorForWeekday(int weekday) =>
+      AppearanceSettings.instance.accent ?? traditionalWeekdayColor(weekday);
+
+  /// The traditional colour of [weekday], whatever accent the user fixed.
+  static Color traditionalWeekdayColor(int weekday) {
     switch (weekday) {
       case DateTime.sunday:
         return const Color(0xFFFF0000); // Sunday: Red

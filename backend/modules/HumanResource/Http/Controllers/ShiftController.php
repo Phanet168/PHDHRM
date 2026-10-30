@@ -37,11 +37,15 @@ class ShiftController extends Controller
         if ($request->expectsJson()) {
             return response()->json(['status' => 'ok', 'data' => $query->get()]);
         }
-        $departments = $this->scope->departments()->get();
+        $departments = $this->scope->departments()->with('unitType')->get();
         $shifts = $query->paginate(20)->withQueryString();
         $editingShift = $request->filled('edit') ? $this->query()->findOrFail($request->integer('edit')) : null;
+        $hasDefault = Shift::where('department_id', $selectedDepartmentId)->where('is_default', true)
+            ->where('is_active', true)->where('is_duty', false)->exists();
+        $dutyEligibleIds = $departments->filter(fn ($d) => in_array($d->unitType?->code, AttendanceUnitScope::DUTY_ELIGIBLE_UNIT_TYPES, true))
+            ->pluck('id')->all();
 
-        return view('humanresource::attendance.shifts.index', compact('shifts', 'departments', 'selectedDepartmentId', 'editingShift'));
+        return view('humanresource::attendance.shifts.index', compact('shifts', 'departments', 'selectedDepartmentId', 'editingShift', 'hasDefault', 'dutyEligibleIds'));
     }
 
     public function store(Request $request): mixed
@@ -82,6 +86,8 @@ class ShiftController extends Controller
         $data['grace_early_leave_minutes'] = (int) ($data['grace_early_leave_minutes'] ?? 0);
         $data['morning_end_time'] = $data['morning_end_time'] ?? null;
         $data['afternoon_start_time'] = $data['afternoon_start_time'] ?? null;
+        // The times decide overnight: a continuous shift ending at/before its start ends the next day.
+        $data['is_cross_day'] = ! $data['morning_end_time'] && $data['end_time'] <= $data['start_time'];
         // Attendance Phase B: duty/on-call shifts (វេនយាម) only make sense
         // for facilities that serve patients around the clock (hospitals,
         // health centers) -- the PHD provincial office and OD administrative
@@ -91,16 +97,22 @@ class ShiftController extends Controller
         if ($data['is_duty'] && ! in_array($unit->unitType?->code, AttendanceUnitScope::DUTY_ELIGIBLE_UNIT_TYPES, true)) {
             throw ValidationException::withMessages(['is_duty' => 'វេនយាមអាចកំណត់បានតែសម្រាប់អង្គភាពដែលផ្តល់សេវាដល់អ្នកជំងឺ (មន្ទីរពេទ្យ/មណ្ឌលសុខភាព) ប៉ុណ្ណោះ។']);
         }
-        if ((! $data['is_cross_day'] && $data['end_time'] <= $data['start_time']) ||
-            ($data['is_cross_day'] && $data['end_time'] > $data['start_time'])) {
-            throw ValidationException::withMessages(['end_time' => 'ម៉ោងចេញត្រូវក្រោយម៉ោងចូល។ វេនឆ្លងថ្ងៃត្រូវមានរយៈពេលមិនលើស ២៤ ម៉ោង។']);
+        if ($data['morning_end_time'] && $data['is_duty']) {
+            throw ValidationException::withMessages(['morning_end_time' => 'វេនយាមជាវេនជាប់គ្នា៖ បំពេញតែម៉ោងចាប់ផ្ដើម និងបញ្ចប់។']);
         }
-        if ($data['morning_end_time'] && ($data['is_cross_day'] ||
-            ! ($data['start_time'] < $data['morning_end_time'] && $data['morning_end_time'] < $data['afternoon_start_time'] && $data['afternoon_start_time'] < $data['end_time']))) {
+        if ($data['morning_end_time'] &&
+            ! ($data['start_time'] < $data['morning_end_time'] && $data['morning_end_time'] < $data['afternoon_start_time'] && $data['afternoon_start_time'] < $data['end_time'])) {
             throw ValidationException::withMessages(['morning_end_time' => 'លំដាប់ម៉ោង៖ ចូលព្រឹក < ចេញព្រឹក < ចូលល្ងាច < ចេញល្ងាច។']);
         }
         if ($data['is_default'] && ($data['is_duty'] || ! $data['is_active'])) {
             throw ValidationException::withMessages(['is_default' => 'ម៉ោងគោលរបស់អង្គភាពត្រូវជាវេនធម្មតាដែលកំពុងប្រើប្រាស់។']);
+        }
+        // A unit's first regular daytime schedule becomes its default hours, so a
+        // configured unit never silently leaves its staff unscheduled.
+        if (! $data['is_duty'] && ! $data['is_cross_day'] && $data['is_active'] && ! $data['is_default'] && ! Shift::where('department_id', $unit->id)
+            ->where('is_default', true)->where('is_active', true)->where('is_duty', false)
+            ->when($shift, fn ($q) => $q->whereKeyNot($shift->id))->exists()) {
+            $data['is_default'] = true;
         }
         // A used schedule belongs permanently to its unit. Edit times by creating a new schedule.
         if ($shift && $this->isUsed($shift) && collect($data)->except(['name', 'code', 'is_default'])->contains(function ($value, $key) use ($shift) {

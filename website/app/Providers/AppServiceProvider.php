@@ -64,6 +64,7 @@ class AppServiceProvider extends ServiceProvider
             'site.seo_title' => $settings['seo_title'] ?? config('site.name_km'),
             'site.seo_description' => $settings['seo_description'] ?? config('site.seo_description'),
             'site.hrm_url' => $settings['hrm_url'] ?? env('HRM_URL'),
+            'site.drugs_url' => $settings['drugs_url'] ?? env('DRUGS_URL'),
         ]);
     }
 }

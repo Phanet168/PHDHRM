@@ -42,6 +42,30 @@ class MissionAccess
         ));
     }
 
+    /**
+     * Who may be named on a mission *request*: the requester, colleagues in the
+     * requester's own unit, and anyone in units they manage. A request is only a
+     * proposal — the office head and director still approve the team — so plain
+     * staff can request for themselves without managing a unit.
+     */
+    public function requestableEmployees(): Builder
+    {
+        $self = $this->employeeId();
+        $unit = 'COALESCE(NULLIF(employees.sub_department_id, 0), employees.department_id)';
+        $ownUnit = $self ? Employee::query()->toBase()->where('id', $self)->selectRaw("$unit as unit_id")->first()?->unit_id : null;
+        $managed = $this->employees()->select('employees.id');
+
+        return Employee::query()->where(function (Builder $q) use ($self, $ownUnit, $unit, $managed) {
+            $q->whereIn('employees.id', $managed);
+            if ($self) {
+                $q->orWhere('employees.id', $self);
+            }
+            if ($ownUnit) {
+                $q->orWhereRaw("$unit = ?", [$ownUnit]);
+            }
+        });
+    }
+
     public function managed(): Builder
     {
         if ($this->hierarchy->isSystemAdmin(auth()->user())) {

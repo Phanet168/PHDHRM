@@ -92,7 +92,7 @@
                 @can('read_mission')
                     <li class="nav-item">
                         <a class="nav-link {{ request()->routeIs('missions.*') ? 'active' : '' }}"
-                            href="{{ route('missions.index') }}">
+                            href="{{ route('missions.dashboard') }}">
                             <i class="fa fa-map-marker-alt me-1"></i>{{ localize('missions', 'បេសកម្ម') }}
                         </a>
                     </li>

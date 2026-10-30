@@ -199,7 +199,7 @@ class _AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
         child: Column(
           children: [
             Container(
-              height: 72,
+              constraints: const BoxConstraints(minHeight: 72),
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
               color: Colors.white,
               child: Row(
@@ -220,6 +220,8 @@ class _AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                     child: Text(
                       'ប្រតិទិនវត្តមាន',
                       textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -271,7 +273,12 @@ class _AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                             )
                             .length;
 
-                    final present = countOf('on_time') + countOf('late');
+                    final present =
+                        records
+                            .where(
+                              (r) => attendanceIsPresent(r.attendanceStatus),
+                            )
+                            .length;
                     final absent = countOf('absent');
                     final leave = countOf('leave');
                     final dayOff = countOf('day_off');
@@ -282,7 +289,7 @@ class _AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                       padding: const EdgeInsets.all(16),
                       children: [
                         Container(
-                          height: 42,
+                          constraints: const BoxConstraints(minHeight: 42),
                           padding: const EdgeInsets.symmetric(horizontal: 14),
                           decoration: BoxDecoration(
                             color: Colors.white,
@@ -304,12 +311,17 @@ class _AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                   ),
                                 ),
                               ),
-                              Text(
-                                '${_monthNames[_month.month - 1]} ${_month.year}',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF17201E),
+                              Flexible(
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: Text(
+                                    '${_monthNames[_month.month - 1]} ${_month.year}',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF17201E),
+                                    ),
+                                  ),
                                 ),
                               ),
                               InkWell(
@@ -338,9 +350,7 @@ class _AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                           child:
                               isLoading
                                   ? const Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      vertical: 60,
-                                    ),
+                                    padding: EdgeInsets.symmetric(vertical: 60),
                                     child: Center(
                                       child: CircularProgressIndicator(),
                                     ),
@@ -385,36 +395,50 @@ class _AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                         ),
                                       ),
                                       const SizedBox(height: 10),
+                                      // Each stat gets an equal share, so a
+                                      // large system font shrinks them
+                                      // instead of pushing the ring out.
                                       Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          _MiniStat(
-                                            value: present,
-                                            label: 'វត្តមាន',
-                                            color: const Color(0xFF2E7D5B),
+                                          Expanded(
+                                            child: _MiniStat(
+                                              value: present,
+                                              label: 'វត្តមាន',
+                                              color: const Color(0xFF2E7D5B),
+                                            ),
                                           ),
-                                          const SizedBox(width: 14),
-                                          _MiniStat(
-                                            value: absent,
-                                            label: 'អវត្តមាន',
-                                            color: const Color(0xFFE65F5C),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: _MiniStat(
+                                              value: absent,
+                                              label: 'អវត្តមាន',
+                                              color: const Color(0xFFE65F5C),
+                                            ),
                                           ),
-                                          const SizedBox(width: 14),
-                                          _MiniStat(
-                                            value: leave,
-                                            label: 'ច្បាប់',
-                                            color: const Color(0xFFE6943B),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: _MiniStat(
+                                              value: leave,
+                                              label: 'ច្បាប់',
+                                              color: const Color(0xFFE6943B),
+                                            ),
                                           ),
-                                          const SizedBox(width: 14),
-                                          _MiniStat(
-                                            value: dayOff,
-                                            label: 'ថ្ងៃឈប់',
-                                            color: const Color(0xFF6F7C76),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: _MiniStat(
+                                              value: dayOff,
+                                              label: 'ថ្ងៃឈប់',
+                                              color: const Color(0xFF6F7C76),
+                                            ),
                                           ),
                                         ],
                                       ),
                                     ],
                                   ),
                                 ),
+                                const SizedBox(width: 10),
                                 Container(
                                   width: 76,
                                   height: 76,
@@ -426,25 +450,29 @@ class _AttendanceCalendarPageState extends State<AttendanceCalendarPage> {
                                       width: 7,
                                     ),
                                   ),
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        '${(rate * 100).round()}%',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800,
-                                          color: dashboardHeaderStart,
+                                  padding: const EdgeInsets.all(4),
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          '${(rate * 100).round()}%',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w800,
+                                            color: dashboardHeaderStart,
+                                          ),
                                         ),
-                                      ),
-                                      const Text(
-                                        'អត្រាវត្តមាន',
-                                        style: TextStyle(
-                                          fontSize: 6,
-                                          color: Color(0xFF6F7C76),
+                                        const Text(
+                                          'អត្រាវត្តមាន',
+                                          style: TextStyle(
+                                            fontSize: 6,
+                                            color: Color(0xFF6F7C76),
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ],
@@ -513,23 +541,27 @@ class _MiniStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$value',
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            color: color,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$value',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 8, color: Color(0xFF6F7C76)),
-        ),
-      ],
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 8, color: Color(0xFF6F7C76)),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -617,10 +649,7 @@ class _CalendarGrid extends StatelessWidget {
             final isHoliday = holidayMap.containsKey(key);
             final isToday =
                 now.year == year && now.month == m && now.day == day;
-            final style =
-                record == null
-                    ? null
-                    : attendanceStatusStyle(record.attendanceStatus);
+            final style = record == null ? null : attendanceDayStyle(record);
             final matchesFilter =
                 record == null || filter.matchesStatus(record.attendanceStatus);
             final percent = _dayPercent(record);
@@ -635,9 +664,7 @@ class _CalendarGrid extends StatelessWidget {
                 clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   color:
-                      isHoliday
-                          ? _holidayBackground
-                          : const Color(0xFFF5F7F6),
+                      isHoliday ? _holidayBackground : const Color(0xFFF5F7F6),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color:
@@ -660,36 +687,45 @@ class _CalendarGrid extends StatelessWidget {
                           child: Container(color: fillColor),
                         ),
                       ),
+                    // Cells are fixed-size (7 per row); shrink the label
+                    // rather than overflow under a large system font or
+                    // today's thicker border.
                     Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '$day',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color:
-                                  isHoliday
-                                      ? _holidayColor
-                                      : style == null || !matchesFilter
-                                      ? const Color(0xFF17201E)
-                                      : style.fg,
-                            ),
-                          ),
-                          if (record != null)
-                            Text(
-                              '${(percent * 100).round()}%',
-                              style: TextStyle(
-                                fontSize: 7,
-                                fontWeight: FontWeight.w600,
-                                color:
-                                    matchesFilter
-                                        ? const Color(0xFF6F7C76)
-                                        : const Color(0xFFB6BEBA),
+                      child: Padding(
+                        padding: const EdgeInsets.all(2),
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                '$day',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color:
+                                      isHoliday
+                                          ? _holidayColor
+                                          : style == null || !matchesFilter
+                                          ? const Color(0xFF17201E)
+                                          : style.fg,
+                                ),
                               ),
-                            ),
-                        ],
+                              if (record != null)
+                                Text(
+                                  '${(percent * 100).round()}%',
+                                  style: TextStyle(
+                                    fontSize: 7,
+                                    fontWeight: FontWeight.w600,
+                                    color:
+                                        matchesFilter
+                                            ? const Color(0xFF6F7C76)
+                                            : const Color(0xFFB6BEBA),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -739,12 +775,16 @@ class _HolidayEventCard extends StatelessWidget {
               color: const Color(0xFFE65F5C),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              date == null ? '-' : '${date.day}',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: Colors.white,
+            padding: const EdgeInsets.all(3),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                date == null ? '-' : '${date.day}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
               ),
             ),
           ),
@@ -768,10 +808,7 @@ class _HolidayEventCard extends StatelessWidget {
                   isUpcoming
                       ? 'ថ្ងៃឈប់សម្រាក • ខាងមុខ'
                       : 'ថ្ងៃឈប់សម្រាក • កន្លងទៅ',
-                  style: const TextStyle(
-                    fontSize: 9,
-                    color: Color(0xFFE65F5C),
-                  ),
+                  style: const TextStyle(fontSize: 9, color: Color(0xFFE65F5C)),
                 ),
               ],
             ),

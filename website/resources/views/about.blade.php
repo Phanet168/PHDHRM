@@ -16,12 +16,13 @@
         if ($blocks[$key]->isNotEmpty() && ! $menu->has($key)) $menu->put($key, \App\Services\AboutPageContent::SECTIONS[$key]);
     }
     if ($hasTimeline) $menu->put('timeline', 'ប្រវត្តិ និងការអភិវឌ្ឍ');
-    if ($hasStructure) $menu->put('structure', 'រចនាសម្ព័ន្ធ');
     if ($hasLeadership) $menu->put('leadership', 'ថ្នាក់ដឹកនាំ');
+    if ($hasStructure) $menu->put('structure', 'រចនាសម្ព័ន្ធ');
     if ($officeGroup || $blocks['offices']->isNotEmpty()) $menu->put('offices', 'ការិយាល័យចំណុះ');
+    if ($gallery->isNotEmpty()) $menu->put('gallery', 'រូបភាពសកម្មភាព');
     $menu->put('about-contact', 'ទីតាំង និងទំនាក់ទំនង');
     $active = $menu->keys()->first();
-    $menuIcons = ['history' => 'document', 'vision' => 'eye', 'mission' => 'target', 'roles' => 'briefcase', 'values' => 'shield', 'timeline' => 'trending-up', 'structure' => 'categories', 'leadership' => 'users', 'offices' => 'hospital', 'about-contact' => 'pin']
+    $menuIcons = ['history' => 'document', 'vision' => 'eye', 'mission' => 'target', 'roles' => 'briefcase', 'values' => 'shield', 'timeline' => 'trending-up', 'structure' => 'categories', 'leadership' => 'users', 'offices' => 'hospital', 'gallery' => 'image', 'about-contact' => 'pin']
         + $cards->pluck('icon', 'anchor')->all();
     $mapUrl = config('site.map_url') ?: 'https://www.google.com/maps/search/?api=1&query='.urlencode(config('site.name_en'));
 @endphp
@@ -80,6 +81,18 @@
                     </section>
                 @endif
 
+                @if ($stats->isNotEmpty())
+                    <section class="about-stats" aria-label="បណ្តាញសុខាភិបាលសាធារណៈ">
+                        @foreach ($stats as $stat)
+                            <a class="about-stat tone-{{ $stat['tone'] }}" href="{{ $stat['url'] }}">
+                                <span class="about-stat-icon"><x-news-icon :name="$stat['icon']" width="22" height="22" /></span>
+                                <strong>{{ \App\Support\KhmerDate::number($stat['count']) }}</strong>
+                                <span>{{ $stat['label'] }}</span>
+                            </a>
+                        @endforeach
+                    </section>
+                @endif
+
                 @if ($mission)
                     <section class="about-mission" @if ($missionAnchor) id="mission" @endif aria-labelledby="mission-quote-title">
                         <span class="about-icon"><x-news-icon :name="$mission['icon']" width="30" height="30" /></span>
@@ -131,7 +144,7 @@
                         <div class="about-heading-row">
                             @include('about.heading', ['id' => 'structure-title', 'icon' => 'categories', 'title' => 'រចនាសម្ព័ន្ធអង្គភាព'])
                             @if ($organization->isNotEmpty())
-                                <button type="button" class="about-outline-button" data-about-org-toggle aria-controls="about-org-detail" aria-expanded="true"><span data-label-more>មើលរចនាសម្ព័ន្ធពេញលេញ</span><span data-label-less hidden>បិទបញ្ជីលម្អិត</span><x-news-icon name="arrow" width="16" height="16" /></button>
+                                <a class="about-outline-button" href="{{ route('facilities.index') }}">មើលមូលដ្ឋានសុខាភិបាល<x-news-icon name="arrow" width="16" height="16" /></a>
                             @endif
                         </div>
                         @include('about.blocks', ['blocks' => $blocks['structure']])
@@ -144,6 +157,28 @@
                                 @include('about.blocks', ['blocks' => $blocks['offices']])
                             </div>
                         @endif
+                    </section>
+                @endif
+
+                @if ($gallery->isNotEmpty())
+                    <section id="gallery" class="about-section" aria-labelledby="gallery-title">
+                        <div class="about-heading-row">
+                            @include('about.heading', ['id' => 'gallery-title', 'icon' => 'image', 'title' => 'រូបភាពសកម្មភាព'])
+                            <a class="about-outline-button" href="{{ route('news.index') }}">ព័ត៌មាន និងសកម្មភាពទាំងអស់<x-news-icon name="arrow" width="16" height="16" /></a>
+                        </div>
+                        <ul class="about-gallery">
+                            @foreach ($gallery as $photo)
+                                <li>
+                                    <a class="about-gallery-zoom" href="{{ $photo['url'] }}" data-gallery="about-gallery" data-title="{{ $photo['title'] }}" data-description="{{ \App\Support\KhmerDate::format($photo['date']) }}" aria-label="ពង្រីករូបភាព៖ {{ $photo['title'] }}">
+                                        <img src="{{ $photo['url'] }}" alt="{{ $photo['alt'] }}" width="640" height="427" loading="lazy" decoding="async">
+                                    </a>
+                                    <div class="about-gallery-caption">
+                                        <time datetime="{{ $photo['date']->toDateString() }}">{{ \App\Support\KhmerDate::short($photo['date']) }}</time>
+                                        <a href="{{ $photo['link'] }}">{{ $photo['title'] }}</a>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
                     </section>
                 @endif
 

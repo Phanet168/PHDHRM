@@ -15,21 +15,22 @@ class AttendanceDashboardService
     {
         $rows = $employees->map(function ($employee) use ($date) {
             $daily = $this->status->determineDailyStatus($employee->id, $date);
-            $shift = $this->shifts->resolveForDate($employee->id, $date)['shift'] ?? null;
+            $resolved = $this->shifts->resolveForDate($employee->id, $date);
+            $shift = $resolved['shift'] ?? null;
+            $duty = $resolved['duty'] ?? null;
             $sessions = collect($daily['policy_payload']['sessions'] ?? []);
             $punchCount = (int) $sessions->sum('punch_count');
             $exempt = in_array($daily['attendance_status'], ['On Leave', 'On Mission', 'Holiday', 'Day Off'], true);
             $ended = $date->lt(today());
-            if ($shift) {
-                [, $end] = $this->shifts->shiftBounds($shift, $date);
-                $ended = now()->gte($end);
+            if ($bounds = $this->shifts->dayBounds($employee->id, $date)) {
+                $ended = now()->gte($bounds[1]);
             }
             $missingFinishedSession = ! $exempt && $sessions->contains(fn ($s) => ! $s['complete'] && ! empty($s['scheduled_out']) && now()->gte(Carbon::parse($s['scheduled_out'])));
             $state = $daily['attendance_status'];
             if ($missingFinishedSession && ! $ended && $state === 'Absent') {
                 $state = 'Incomplete';
             }
-            if (! $exempt && ! $shift) {
+            if (! $exempt && ! $shift && ! $duty) {
                 $state = 'Unscheduled';
             } elseif (! $exempt && ! $ended && in_array($state, ['Absent', 'Incomplete'], true) && ! $missingFinishedSession) {
                 $state = $punchCount ? 'In Progress' : 'Waiting';
@@ -39,9 +40,10 @@ class AttendanceDashboardService
             return [
                 'employee_id' => (int) $employee->id, 'employee_number' => $employee->employee_id,
                 'name' => $employee->full_name, 'status' => $state, 'needs_attention' => $attention,
-                'recorded' => $punchCount > 0, 'expected' => ! $exempt && $shift !== null,
-                'is_duty' => ! $exempt && (bool) $shift?->is_duty,
-                'shift_name' => $shift?->name, 'is_cross_day' => (bool) $shift?->is_cross_day,
+                'recorded' => $punchCount > 0, 'expected' => ! $exempt && ($shift || $duty),
+                'is_duty' => ! $exempt && ($duty || $shift?->is_duty),
+                'shift_name' => collect([$shift?->name, $duty?->name])->filter()->implode(' + ') ?: null,
+                'is_cross_day' => (bool) ($duty ?? $shift)?->is_cross_day,
                 'late_minutes' => (int) $daily['late_minutes'], 'early_leave_minutes' => (int) $daily['early_leave_minutes'],
                 'early_arrival_minutes' => (int) ($daily['policy_payload']['early_arrival_minutes'] ?? 0),
                 'worked_minutes' => (int) $daily['worked_minutes'], 'sessions' => $sessions->all(),

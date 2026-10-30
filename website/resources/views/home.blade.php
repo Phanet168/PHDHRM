@@ -27,8 +27,8 @@
                     @endif
                 </div>
 
-                {{-- Same News section, no second heading: a mixed-content strip of
-                     the newest News/Health Education/Legal Document items. --}}
+                {{-- Same News section, no second heading: a strip of further
+                     News & Activities articles not already shown above. --}}
                 @if ($latestContent->isNotEmpty())
                     <x-latest-content-slider :items="$latestContent" />
                 @endif

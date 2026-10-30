@@ -29,7 +29,10 @@
         <p class="font-bold text-brand-navy text-[16px] pt-2">SEO & ការតភ្ជាប់</p>
         <x-admin.form-input name="seo_title" label="SEO Title" :value="$settings['seo_title'] ?? ''" />
         <x-admin.textarea name="seo_description" label="SEO Description" :value="$settings['seo_description'] ?? ''" rows="2" />
-        <x-admin.form-input name="hrm_url" label="HRM System URL (ចូលប្រព័ន្ធ HRM)" :value="$settings['hrm_url'] ?? ''" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <x-admin.form-input name="hrm_url" label="HRM System URL (ចូលប្រព័ន្ធ HRM)" :value="$settings['hrm_url'] ?? ''" />
+            <x-admin.form-input name="drugs_url" label="Drugs System URL (ចូលប្រព័ន្ធឱសថ)" :value="$settings['drugs_url'] ?? ''" />
+        </div>
 
         <div class="flex justify-end pt-2">
             <button type="submit" class="bg-brand-blue text-white font-bold text-[14px] rounded-[8px] h-11 px-6">រក្សាទុក</button>

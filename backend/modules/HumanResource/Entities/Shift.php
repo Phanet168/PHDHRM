@@ -35,6 +35,12 @@ class Shift extends Model
         'is_default' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        static::saved(fn () => \Modules\HumanResource\Services\ShiftResolverService::invalidate());
+        static::deleted(fn () => \Modules\HumanResource\Services\ShiftResolverService::invalidate());
+    }
+
     public function department()
     {
         return $this->belongsTo(Department::class);

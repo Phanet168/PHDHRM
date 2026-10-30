@@ -1,3 +1,4 @@
+import '../../../core/network/api_exception.dart';
 import '../../../core/network/api_service.dart';
 import '../../../core/storage/machine_number_storage_service.dart';
 import '../../../core/storage/token_storage_service.dart';
@@ -29,6 +30,9 @@ class AuthService {
     final enrichedRequest = request.copyWith(
       tokenId: machineNumber,
       deviceName: machineNumber,
+      imei: await _machineNumberStorageService.getImei(),
+      legacyDeviceId:
+          await _machineNumberStorageService.getLegacyMachineNumber(),
     );
 
     final response = await _apiService.post(
@@ -69,38 +73,29 @@ class AuthService {
     );
   }
 
-  Future<AuthUser?> getCurrentUser() {
-    return _getCurrentUserFromCacheOrProfile();
-  }
+  /// The profile saved at the last login/refresh — lets the app open
+  /// instantly (and offline) without waiting for the server.
+  Future<AuthUser?> cachedUser() => _userSessionStorageService.readUser();
 
-  Future<AuthUser?> _getCurrentUserFromCacheOrProfile() async {
-    final cachedUser = await _userSessionStorageService.readUser();
-
-    // Always prefer the latest server profile when a session token exists.
-    // The cached user is only a fallback for offline/unavailable profile calls.
-    return await _fetchCurrentUserProfile() ?? cachedUser;
-  }
-
-  Future<AuthUser?> _fetchCurrentUserProfile() async {
-    try {
-      final response = await _apiService.get('/auth/profile');
-
-      final status = (response['status'] ?? '').toString().toLowerCase();
-      if (status != 'ok') {
-        return _userSessionStorageService.readUser();
-      }
-
-      final rawUser = response['user'];
-      if (rawUser is! Map<String, dynamic>) {
-        return _userSessionStorageService.readUser();
-      }
-
-      final user = AuthUser.fromJson(rawUser);
-      await _userSessionStorageService.saveUser(user);
-      return user;
-    } catch (_) {
-      // Fallback to cached session if profile endpoint is unavailable.
-      return _userSessionStorageService.readUser();
+  /// The latest profile from the server, saved for next launch. Throws
+  /// [UnauthorizedException] when the token is no longer valid; network
+  /// trouble surfaces as other [ApiException]s.
+  Future<AuthUser> refreshCurrentUser() async {
+    final response = await _apiService.get('/auth/profile');
+    final rawUser = response['user'];
+    if ((response['status'] ?? '').toString().toLowerCase() != 'ok' ||
+        rawUser is! Map<String, dynamic>) {
+      throw ApiException(message: 'Invalid profile response');
     }
+    final user = AuthUser.fromJson(rawUser);
+    await _userSessionStorageService.saveUser(user);
+    return user;
+  }
+
+  /// Forgets this device's session without calling the server (it already
+  /// rejected the token).
+  Future<void> clearLocalSession() async {
+    await _tokenStorageService.clearToken();
+    await _userSessionStorageService.clearUser();
   }
 }

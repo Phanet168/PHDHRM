@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\AboutOrgUnit;
 use App\Models\Facility;
 use App\Models\FacilityLeader;
 use App\Models\Media;
+use App\Models\News;
 use App\Models\Page;
 use App\Models\PageBlock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -104,6 +106,34 @@ class AboutPageTest extends TestCase
         $this->get(route('about'))->assertOk()->assertSee('Department director')->assertSee('leaders/director.jpg', false)
             ->assertSee('Published hospital')->assertSee(route('facilities.show', $office), false)
             ->assertDontSee('Private hospital')->assertDontSee('Hospital-only leader');
+    }
+
+    public function test_network_figures_chart_unit_leaders_and_activity_photos_are_shown(): void
+    {
+        Storage::fake('public');
+        foreach (['library/head.jpg', 'news/cover.jpg', 'news/gallery-only.jpg'] as $path) {
+            Storage::disk('public')->put($path, 'test image');
+        }
+        $portrait = Media::create(['disk_path' => 'library/head.jpg', 'original_filename' => 'head.jpg', 'mime_type' => 'image/jpeg', 'size' => 1]);
+        $cover = Media::create(['disk_path' => 'news/cover.jpg', 'original_filename' => 'cover.jpg', 'mime_type' => 'image/jpeg', 'size' => 1]);
+        AboutOrgUnit::create(['name' => 'Planning office', 'type' => 'office', 'is_active' => true, 'leaders' => [
+            ['name' => 'Office head', 'title' => 'ប្រធានការិយាល័យ', 'portrait_media_id' => $portrait->id],
+            ['name' => 'Office deputy', 'title' => 'អនុប្រធានការិយាល័យ', 'portrait_media_id' => null],
+        ]]);
+        Facility::create(['code' => 'HC1', 'slug' => 'test-hc', 'district' => 'Test', 'commune' => 'Test', 'name_km' => 'Test centre', 'status' => 'published', 'facility_type' => 'health_center']);
+        $news = fn (array $attributes) => News::create([...['slug' => 'news-'.fake()->uuid(), 'status' => 'published', 'published_at' => now()->subDay()], ...$attributes]);
+        $withCover = $news(['title_km' => 'Vaccination day', 'featured_media_id' => $cover->id]);
+        $news(['title_km' => 'Gallery only visit'])->images()->create(['image' => 'news/gallery-only.jpg', 'sort_order' => 0]);
+        $news(['title_km' => 'Text only notice']);
+        $news(['title_km' => 'Unpublished photo story', 'status' => 'draft', 'featured_media_id' => $cover->id]);
+
+        $this->get(route('about'))->assertOk()
+            ->assertSee('class="about-stats"', false)->assertSee('មណ្ឌលសុខភាព')->assertSee('id="offices"', false)
+            ->assertSee('Office head')->assertSee('library/head.jpg', false)->assertSee('org-person is-head', false)
+            ->assertSee('Office deputy')->assertSee('org-person is-member', false)
+            ->assertSee('id="gallery"', false)->assertSee('news/cover.jpg', false)->assertSee(route('news.show', $withCover), false)
+            ->assertSee('news/gallery-only.jpg', false)->assertSee('Gallery only visit')
+            ->assertDontSee('Text only notice')->assertDontSee('Unpublished photo story');
     }
 
     public function test_shared_contact_configuration_and_map_search_are_preserved(): void
