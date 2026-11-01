@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../shared/widgets/connection_banner.dart';
 import '../../models/attendance_day_record.dart';
 import 'attendance_status.dart';
 import 'home_theme.dart';
@@ -10,7 +11,7 @@ enum DashboardLiveState { notStarted, working, done }
 
 /// Dashboard hero header: weekday-accent gradient with soft decorative
 /// circles and rounded bottom corners. Top bar (menu, app name + today's
-/// date, language, help, notification bell), a greeting with the avatar,
+/// date, online/offline pill, help, notification bell), a greeting with the avatar,
 /// name and position, then organization / work-status / live-status chips.
 class DashboardProfileHeader extends StatelessWidget {
   const DashboardProfileHeader({
@@ -24,7 +25,6 @@ class DashboardProfileHeader extends StatelessWidget {
     required this.onMenuTap,
     required this.onNotificationsTap,
     required this.onAvatarTap,
-    required this.onLanguageTap,
     required this.onHelpTap,
     required this.statusPrimaryLabel,
     required this.statusSecondaryLabel,
@@ -41,7 +41,6 @@ class DashboardProfileHeader extends StatelessWidget {
   final VoidCallback onMenuTap;
   final VoidCallback onNotificationsTap;
   final VoidCallback onAvatarTap;
-  final VoidCallback onLanguageTap;
   final VoidCallback onHelpTap;
   final String statusPrimaryLabel;
   final String statusSecondaryLabel;
@@ -114,9 +113,12 @@ class DashboardProfileHeader extends StatelessWidget {
                             ),
                           ),
                         ),
-                        _GlassButton(
-                          icon: Icons.translate_rounded,
-                          onTap: onLanguageTap,
+                        // Online / offline at a glance; tap for details.
+                        Flexible(
+                          child: GestureDetector(
+                            onTap: () => showConnectionSheet(context),
+                            child: const ConnectionPill(onDark: true),
+                          ),
                         ),
                         const SizedBox(width: 8),
                         _GlassButton(

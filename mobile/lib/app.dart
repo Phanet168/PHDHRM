@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/config/app_routes.dart';
+import 'core/network/api_service.dart';
+import 'core/network/connection_status.dart';
 import 'core/theme/app_design_system.dart';
 import 'core/theme/appearance_settings.dart';
 import 'features/auth/controllers/auth_controller.dart';
@@ -9,6 +11,7 @@ import 'features/auth/pages/login_page.dart';
 import 'features/home/pages/home_page.dart';
 import 'features/system/pages/system_settings_page.dart';
 import 'shared/widgets/app_loading_screen.dart';
+import 'shared/widgets/connection_banner.dart';
 
 class StaffMobileApp extends StatefulWidget {
   const StaffMobileApp({super.key, this.authController});
@@ -31,6 +34,15 @@ class _StaffMobileAppState extends State<StaffMobileApp> {
 
     AppearanceSettings.instance.addListener(_redrawEverything);
 
+    // The online/offline indicators: a light ping keeps them current.
+    final pingApi = ApiService();
+    ConnectionStatus.instance.startWatching(
+      () => pingApi.get('/v1/ping', requiresAuth: false),
+    );
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => ConnectionStatus.instance.check(),
+    );
+
     if (_ownsAuthController) {
       _authController.restoreSession();
     }
@@ -39,6 +51,7 @@ class _StaffMobileAppState extends State<StaffMobileApp> {
   @override
   void dispose() {
     AppearanceSettings.instance.removeListener(_redrawEverything);
+    ConnectionStatus.instance.stopWatching();
     if (_ownsAuthController) {
       _authController.dispose();
     }
@@ -76,19 +89,22 @@ class _StaffMobileAppState extends State<StaffMobileApp> {
           locale: const Locale('km'),
           supportedLocales: const [Locale('km')],
           localizationsDelegates: GlobalMaterialLocalizations.delegates,
+          // Every screen sits under the online/offline bar.
           builder:
-              (context, child) =>
-                  textScale == 1.0
-                      ? child!
-                      : MediaQuery(
-                        data: MediaQuery.of(context).copyWith(
-                          textScaler: ScaledTextScaler(
-                            MediaQuery.textScalerOf(context),
-                            textScale,
+              (context, child) => ConnectionBanner(
+                child:
+                    textScale == 1.0
+                        ? child!
+                        : MediaQuery(
+                          data: MediaQuery.of(context).copyWith(
+                            textScaler: ScaledTextScaler(
+                              MediaQuery.textScalerOf(context),
+                              textScale,
+                            ),
                           ),
+                          child: child!,
                         ),
-                        child: child!,
-                      ),
+              ),
           theme: AppDesignSystem.lightTheme(seedColor: weekdayColor),
           onGenerateRoute: (settings) {
             switch (settings.name) {

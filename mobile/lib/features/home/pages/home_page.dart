@@ -8,6 +8,7 @@ import '../../../core/config/app_routes.dart';
 import '../../../core/config/api_config.dart';
 import '../../../core/localization/laravel_language_service.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/connection_status.dart';
 import '../../auth/controllers/auth_controller.dart';
 import '../../correspondence/pages/correspondence_page.dart';
 import '../../system/pages/help_support_page.dart';
@@ -137,11 +138,24 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       const Duration(minutes: 1),
       (_) => _syncOfflineScans(),
     );
+    // …and the moment the server can be reached again.
+    _seenReconnections = ConnectionStatus.instance.reconnections;
+    ConnectionStatus.instance.addListener(_onConnectionChanged);
+  }
+
+  int _seenReconnections = 0;
+
+  void _onConnectionChanged() {
+    final reconnections = ConnectionStatus.instance.reconnections;
+    if (reconnections == _seenReconnections) return;
+    _seenReconnections = reconnections;
+    _syncOfflineScans();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    ConnectionStatus.instance.removeListener(_onConnectionChanged);
     _offlineSyncTimer?.cancel();
     super.dispose();
   }
@@ -1599,7 +1613,6 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                     onNotificationsTap:
                         () => _switchToMenu(HomeMenuItem.notice),
                     onAvatarTap: () => _switchToMenu(HomeMenuItem.profile),
-                    onLanguageTap: _openSettingsHome,
                     onHelpTap:
                         () => Navigator.of(context).push<void>(
                           MaterialPageRoute<void>(

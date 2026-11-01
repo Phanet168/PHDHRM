@@ -226,7 +226,6 @@ void main() {
               onMenuTap: noop,
               onNotificationsTap: noop,
               onAvatarTap: noop,
-              onLanguageTap: noop,
               onHelpTap: noop,
               statusPrimaryLabel: 'Pay grade promotion',
               statusSecondaryLabel: 'មិនទាន់ចូលធ្វើការ',

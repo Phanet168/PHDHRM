@@ -9,6 +9,7 @@ import '../network/private_ipv4_prefix_provider.dart';
 import '../storage/token_storage_service.dart';
 import '../time/trusted_clock.dart';
 import 'api_exception.dart';
+import 'connection_status.dart';
 import 'http_client_factory.dart';
 
 class ApiService {
@@ -89,6 +90,9 @@ class ApiService {
     );
   }
 
+  /// Sends the request and tells [ConnectionStatus] how it went: the API
+  /// answered (online, whatever the status code) or the network failed on
+  /// every server address (offline).
   Future<Map<String, dynamic>> _send({
     required String method,
     required String path,
@@ -96,6 +100,34 @@ class ApiService {
     Map<String, dynamic>? body,
     required bool requiresAuth,
     required bool throwOnError,
+  }) async {
+    final reach = _Reach();
+    try {
+      final result = await _sendThrough(
+        method: method,
+        path: path,
+        queryParameters: queryParameters,
+        body: body,
+        requiresAuth: requiresAuth,
+        throwOnError: throwOnError,
+        reach: reach,
+      );
+      reach.report();
+      return result;
+    } catch (_) {
+      reach.report();
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> _sendThrough({
+    required String method,
+    required String path,
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? body,
+    required bool requiresAuth,
+    required bool throwOnError,
+    required _Reach reach,
   }) async {
     final headers = await _buildHeaders(requiresAuth: requiresAuth);
     final totalWatch = Stopwatch()..start();
@@ -192,6 +224,7 @@ class ApiService {
             '${attemptWatch.elapsedMilliseconds}ms [base: $base]',
           );
           lastNetworkError = NetworkException();
+          reach.networkFailed = true;
           if (isLastCandidate) {
             totalWatch.stop();
             _perfLog(
@@ -205,6 +238,9 @@ class ApiService {
           }
           continue;
         }
+
+        // A JSON answer is our API (a captive Wi-Fi page is HTML).
+        if (_isJsonLikeHttpResponse(response)) reach.answered = true;
 
         if (!isLastCandidate && _isRetryableStatusCode(response.statusCode)) {
           attemptWatch.stop();
@@ -303,6 +339,7 @@ class ApiService {
           '${attemptWatch.elapsedMilliseconds}ms [base: $base]',
         );
         lastNetworkError = NetworkException();
+        reach.networkFailed = true;
         if (isLastCandidate) {
           totalWatch.stop();
           _perfLog(
@@ -328,6 +365,7 @@ class ApiService {
           '[base: $base, ${error.message}]',
         );
         lastNetworkError = NetworkException();
+        reach.networkFailed = true;
         if (isLastCandidate) {
           totalWatch.stop();
           _perfLog(
@@ -356,6 +394,7 @@ class ApiService {
           '${attemptWatch.elapsedMilliseconds}ms [base: $base]',
         );
         lastNetworkError = NetworkException();
+        reach.networkFailed = true;
         if (isLastCandidate) {
           totalWatch.stop();
           _perfLog(
@@ -1059,5 +1098,22 @@ class ApiService {
 
   bool _isRetryableStatusCode(int statusCode) {
     return statusCode == 404 || statusCode == 419 || statusCode >= 500;
+  }
+}
+
+/// What one request learned about the connection.
+class _Reach {
+  /// Some server address answered with JSON (our API).
+  bool answered = false;
+
+  /// An address failed for network reasons (timeout, no route, …).
+  bool networkFailed = false;
+
+  void report() {
+    if (answered) {
+      ConnectionStatus.instance.markOnline();
+    } else if (networkFailed) {
+      ConnectionStatus.instance.markOffline();
+    }
   }
 }

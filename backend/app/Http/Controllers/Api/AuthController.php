@@ -70,6 +70,12 @@ class AuthController extends Controller
         return $device;
     }
 
+    /** The app's connection check: cheap, public, no session. */
+    public function ping(): JsonResponse
+    {
+        return response()->json(['response' => ['status' => 'ok', 'data' => ['time' => now()->toIso8601String()]]]);
+    }
+
     public function sanctumUser(Request $request): JsonResponse
     {
         return response()->json($request->user());

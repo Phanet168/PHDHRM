@@ -7,7 +7,9 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../auth/models/auth_user.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/connection_status.dart';
 import '../../../core/theme/app_design_system.dart';
+import '../../../shared/widgets/connection_banner.dart';
 import '../../../core/time/trusted_clock.dart';
 import '../models/attendance_geofence.dart';
 import '../models/attendance_scan_result.dart';
@@ -690,7 +692,9 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
                 gpsLabel: _tr('gps', 'GPS'),
                 onChanged: _setMode,
               ),
-              const SizedBox(height: 17),
+              const SizedBox(height: 10),
+              const _ConnectionHint(),
+              const SizedBox(height: 12),
               Expanded(
                 child:
                     _mode == _ScanMode.qr
@@ -1211,6 +1215,43 @@ class _AttendanceScanPageState extends State<AttendanceScanPage>
 
 /// Figma "Method tabs" — a two-way segmented control switching between the
 /// camera scanner and the GPS-only check-in flow.
+/// Online: the scan goes to the server at once. Offline: it is kept on the
+/// phone and sent when the connection returns.
+class _ConnectionHint extends StatelessWidget {
+  const _ConnectionHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: ConnectionStatus.instance,
+      builder:
+          (context, _) => Row(
+            children: [
+              Flexible(
+                child: GestureDetector(
+                  onTap: () => showConnectionSheet(context),
+                  child: const ConnectionPill(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  ConnectionStatus.instance.isOffline
+                      ? 'ស្កេនបាន — រក្សាទុកក្នុងទូរសព្ទ ហើយបញ្ជូនពេលអនឡាញវិញ'
+                      : 'ការស្កេននឹងបញ្ជូនទៅម៉ាស៊ីនមេភ្លាមៗ',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+}
+
 class _MethodTabs extends StatelessWidget {
   const _MethodTabs({
     required this.accent,

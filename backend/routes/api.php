@@ -47,6 +47,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::patch('/device-access-requests/{deviceAccessRequest}/review', [DeviceAccessRequestController::class, 'review'])->name('api.device-access-requests.review');
 });
 
+// The mobile app's online/offline check (public, cheap).
+Route::get('/v1/ping', [AuthController::class, 'ping'])->middleware('throttle:120,1')->name('api.v1.ping');
+
 // New device registration workflow endpoints
 Route::post('/auth/device-request', [AuthController::class, 'requestDeviceAccess'])->name('api.auth.device_request');
 // Backward-compatible aliases for old Flutter builds
